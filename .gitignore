@@ -1,0 +1,16 @@
+# secrete
+.env
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Cărțile rămân doar local, în content-studio-vio-2. Sunt volume publicate, sub drept
+# de autor — nu au ce căuta într-un repo, nici privat. Sunt materie primă pentru
+# Decizia 5: o dată sparte în chunk-uri și vectorizate, adevărul lor stă în Neon.
+# README-ul rămâne urmărit, ca inventarul corpusului să fie vizibil fără text.
+content/carti/pdf/
+content/carti/txt/
+content/carti/md/*.md
+!content/carti/md/README.md
