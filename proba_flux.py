@@ -16,8 +16,8 @@ Nu e în SKILL.md și nu e în system prompt. Dacă agentul răspunde corect aco
 înseamnă că a deschis referința — adică lanțul index → SKILL.md → references
 chiar funcționează. Dacă răspunde greșit, skill-urile sunt decor.
 
-Iar ce nu se mai poate garanta, față de varianta cu sub-agent și `output_type`:
-numărul de propuneri și de hook-uri. Aici se numără după, nu se impune înainte.
+Numărul de propuneri și de hook-uri nu se poate impune dintr-un `SKILL.md` — e
+text, nu schemă. Deci se numără după, nu se garantează înainte.
 
 Verificările NU presupun în ce tură vine lista. Prima oară au presupus, agentul
 a livrat-o cu două ture mai devreme decât mă așteptam, iar tot ce urma s-a

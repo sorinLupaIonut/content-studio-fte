@@ -67,11 +67,11 @@ HOOK_RECOMANDAT = re.compile(
 TIPURI_HOOK = {"PROVOCARE", "CIFRA", "SECRET", "INTREBARE", "CONTRAST"}
 
 # Piloni: NU se normalizează după o listă fixă, deliberat. Cei cinci piloni
-# (Magnetism, Educație, Conexiune, Despre Business, Conversie) sunt definiți în
-# content/metoda/manual-creare-reels.md — aparțin METODEI Brand Legends, nu
-# Viorelei. §3: metoda e capabilitate, nu date; călătorește cu skill-ul, nu cu
-# clienta. Dacă mâine aplicația ajunge la altă coach, pilonii pleacă neschimbați.
-# Deci aici doar curăț valoarea; vocabularul îl ține skill-ul, la Decizia 4.
+# (Magnetism, Educație, Conexiune, Despre Business, Conversie) aparțin METODEI
+# Brand Legends, nu Viorelei — stau în `skills/*/references/`. §3: metoda e
+# capabilitate, nu date; călătorește cu skill-ul, nu cu clienta. Dacă mâine
+# aplicația ajunge la altă coach, pilonii pleacă neschimbați. Deci aici doar
+# curăț valoarea; vocabularul îl ține skill-ul.
 
 
 def fara_diacritice(s: str) -> str:

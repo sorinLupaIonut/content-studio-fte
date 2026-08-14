@@ -122,7 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action, created_at);
 CREATE TABLE IF NOT EXISTS capability_invocations (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     conversation_id TEXT NOT NULL REFERENCES conversations(session_id) ON DELETE CASCADE,
-    capability      TEXT NOT NULL,        -- 'tool:cauta_in_carti', 'agent:propune_postari'
+    capability      TEXT NOT NULL,        -- 'tool:cauta_in_carti', 'skill:propune-postari'
     arguments       JSONB NOT NULL,
     result          JSONB,
     status          TEXT NOT NULL CHECK (status IN ('ok', 'error', 'blocked', 'timeout')),

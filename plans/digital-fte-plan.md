@@ -33,11 +33,11 @@ Documentul ăsta e planul. Nu se scrie cod până nu e aprobat.
 
 **Ce există deja și rămâne valabil.** `AGENTS.md` din `content-studio-vio-2` e specificația domeniului: cei 5 piloni, cele 5 tipuri de hook-uri, cele 4 surse, cele 9 reguli obligatorii de generare, cele două faze. Nu se rescrie — se traduce în arhitectura Worker-ului.
 
-**Ce se schimbă.** Azi capabilitatea stă în `AGENTS.md` + `.claude/commands/postare.md`, iar adevărul stă în Markdown sub git. Într-un Worker: capabilitatea se împarte în **un orchestrator și doi sub-agenți cu instrucțiuni proprii** (Revizia 4 — nu Skill-uri-foldere), adevărul se mută în **Postgres** (system of record), iar accesul la el trece printr-un **MCP server** propriu. Git rămâne sistemul de record până atunci — asta e ce înlocuiește Postgres, nu „nimic".
+**Ce se schimbă.** Azi capabilitatea stă în `AGENTS.md` + `.claude/commands/postare.md`, iar adevărul stă în Markdown sub git. Într-un Worker: capabilitatea se împarte în **skill-uri-foldere montate în sandbox** (Revizia 5), adevărul se mută în **Postgres** (system of record), iar accesul la el trece printr-un **MCP server** propriu. Git rămâne sistemul de record până atunci — asta e ce înlocuiește Postgres, nu „nimic".
 
 **Unde se construiește.** Folder nou, `E:\aplicatii_noi\content-studio-fte`. `content-studio-vio-2` rămâne funcțional pentru Viorela cât timp lucrăm la înlocuitor.
 
-**Stack**: OpenAI Agents SDK, proiect `uv`, Neon Postgres + pgvector, MCP Python SDK, `text-embedding-3-small`. **Fără sandbox** (vezi Revizia 4 mai sus) — `Agent` simplu, nu `SandboxAgent`. Nicio dependență de Docker, nicio poveste de infrastructură pe Windows. Modelul, mai jos.
+**Stack**: OpenAI Agents SDK, proiect `uv`, Neon Postgres + pgvector, MCP Python SDK, `text-embedding-3-small`. **Sandbox E2B** (Revizia 5) — `SandboxAgent`, cu `skills/` montate din proiect. Modelul, mai jos.
 
 **Modelul: `gpt-5-mini`.** Prețuri din documentația OpenAI:
 
@@ -58,52 +58,51 @@ Embedding-urile rămân `text-embedding-3-small` indiferent de model. Regula din
 
 Un **Content Worker** pentru Viorela (life coach — people pleasing, burnout, limite), care:
 
-- E **un singur `Agent` orchestrator** cu care vorbește Viorela, care cheamă **doi sub-agenți ca unelte** (`Agent.as_tool()`) — nu Skill-uri-foldere, nu `SandboxAgent`, nu `handoffs` (Revizia 4).
+- E **un singur `SandboxAgent`** cu care vorbește Viorela; cele două faze sunt **skill-uri-foldere**, nu obiecte `Agent` (Revizia 5).
 - Primește **profilul întreg în system prompt** la pornirea sesiunii, dintr-un `SELECT` — nu îl caută și nu îl cere ca unealtă.
 - Folosește pgvector pentru căutare semantică peste cele 17 cărți, **doar când ea alege sursa „Cărți"**.
 - Poate căuta pe internet, **doar când ea alege sursa „Internet"**.
-- Citește metoda Brand Legends printr-o unealtă MCP, **doar când formatul ales o cere**.
+- Citește metoda Brand Legends din `references/`-urile skill-ului Fazei 2, **doar când formatul ales o cere**.
 - Ajunge la date doar prin MCP server-ul **`content-data`** — niciodată SQL brut din worker.
 - Scrie un rând de audit pentru fiecare acțiune, pe conexiune directă proprie, în afara graniței MCP.
 
-### 1.1 Forma: orchestrator + sub-agenți ca unelte
+### 1.1 Forma: un agent, două skill-uri
 
 ```
-Content Worker  ·  Agent orchestrator  ·  singurul cu care vorbește Viorela
-  system prompt : profil_md întreg + cele două faze + cele 9 reguli obligatorii
+Content Worker  ·  SandboxAgent  ·  singurul cu care vorbește Viorela
+  system prompt : profil_md întreg + cele 10 reguli obligatorii
+  capabilities  : Filesystem, Shell, Compaction + Skills(from_=LocalDir("skills"))
+  skills:
+    propune-postari    faza 1 — references/: piloni, hook-uri, surse
+    dezvolta-postarea  faza 2 — references/: metoda Brand Legends
   tools:
-    propune_postari    ← Agent.as_tool()   output_type=Propuneri
-                           uneltele lui: cauta_in_carti, căutare web
-    dezvolta_postarea  ← Agent.as_tool()   output_type=Postare
-                           unealta lui: get_metoda
+    cauta_in_carti     ← MCP
     listeaza_postari   ← MCP
     save_postare       ← MCP, cu poartă de aprobare
     update_profil      ← MCP, cu poartă de aprobare
 ```
 
-**De ce sub-agenți și nu simple funcții.** O unealtă obișnuită e cod scris de tine: modelul o cheamă, rulează Python-ul tău, se întoarce un rezultat. Dar munca din Faza 1 e *„scrie zece unghiuri diferite în vocea Viorelei, respectând lista de interdicții"* — aia nu e cod, e model. Deci „metoda apelabilă" înseamnă aici un `Agent` împachetat ca unealtă, nu o funcție.
+**De ce skill-uri și nu obiecte `Agent`.** Munca din Faza 1 e *„scrie zece unghiuri diferite în vocea Viorelei, respectând lista de interdicții"* — aia nu e cod, e model. Un skill e exact asta: instrucțiuni pe care le încarcă același model, nu o funcție și nu un al doilea agent. Se editează fără să atingi codul.
 
-**De ce două obiecte `Agent` și nu unul.** Un `Agent` are un singur `output_type`. Faza 1 trebuie să întoarcă `Propuneri` validat (exact 10, exact 5 hook-uri fiecare, câte unul din fiecare tip); Faza 2 trebuie să întoarcă `Postare` validat (3–5 hashtaguri, CTA nevid). Două forme validate diferite → două obiecte. Orchestratorul, în schimb, **nu** are `output_type` — el vorbește liber cu Viorela.
+**De ce un singur agent și nu doi.** Un context unic. Profilul de 30k caractere și cele 10 reguli intră o dată, nu în promptul fiecărui agent. Iar fluxul se întoarce — ea vede zece propuneri, cere dezvoltarea celei de-a treia, apoi poate cere și a șaptea: lista stă în aceeași conversație, deci a doua cerere nu regenerează nimic.
 
-**De ce `as_tool` și nu `handoffs`.** Un `handoff` transferă controlul definitiv: agentul următor preia conversația și nu se mai întoarce. Fluxul de aici se întoarce — din README: *„Poți alege și mai multe."* Ea vede zece propuneri, cere dezvoltarea celei de-a treia, apoi poate cere și a șaptea. Cu `handoff` propunerile au rămas în urmă; cu `as_tool` orchestratorul le ține și mai poate chema `dezvolta_postarea` încă o dată. (Notă utilă oricum: un `handoff` transmite implicit **tot** istoricul agentului următor — nu curăță contextul de la sine, cum presupunea Revizia 4 inițial. Curățarea cere `input_filter` explicit.)
+**De ce nu există un agent de salvare.** `save_postare` e cod, nu model: arată postarea, așteaptă „da", scrie un rând. Iar regula 10 nu depinde de structura de agenți — poarta stă pe **înregistrarea serverului MCP** (§6), deci apără scrierea indiferent cine o cheamă.
 
-**De ce nu există un al treilea agent de salvare.** `save_postare` e cod, nu model: arată postarea, așteaptă „da", scrie un rând. Iar regula 10 nu depinde de structura de agenți — poarta stă pe **înregistrarea serverului MCP** (§6), deci apără scrierea indiferent cine o cheamă.
-
-**Ce câștigi din uneltele atribuite pe sub-agent.** `cauta_in_carti` nu există în Faza 2, `get_metoda` nu există în Faza 1. Principiul e cel din §3b, Pasul 6: regulile cu risc mare se impun prin permisiuni de unelte, nu prin cuvinte în prompt.
+**Ce costă forma asta** (Revizia 5, punctul 3): uneltele nu se mai pot atribui pe fază — agentul le are pe toate, tot timpul — iar „exact 10 × exact 5" nu se mai impune din schemă. Ambele devin instrucțiuni în `SKILL.md`, verificate după: `proba_flux.py` acum, setul de evaluare la Decizia 10.
 
 **Testul de verificare la final:** Viorela cere *„vreau ceva despre vinovăția de a spune nu"*. Worker-ul o întreabă formatul, pilonul și sursa; adună materialul din sursa aleasă; scoate zece propuneri cu câte cinci hook-uri; o întreabă pe care o dezvoltă; scrie postarea; i-o arată întreagă; cere aprobare; salvează una singură; și lasă o urmă de audit care poate fi rejucată în SQL — inclusiv cele nouă propuneri refuzate.
 
 ---
 
-## 2. Cei doi sub-agenți
+## 2. Cele două skill-uri
 
-**Revizia 4:** nu Skill-uri-foldere (cer sistem de fișiere pentru agent, deci sandbox), ci **doi `Agent` obișnuiți, chemați ca unelte** de orchestrator (§1.1). Fiecare are instrucțiuni proprii (echivalentul corpului unui `SKILL.md`, scris direct în `instructions`), ieșire structurată (Pydantic, §2.5) și un set propriu de unelte. Nu mai există descriere de declanșare testată cu trigger evals — orchestratorul cheamă explicit unealta, nu ghicește dintr-o listă de skill-uri.
+**Revizia 5:** foldere `SKILL.md` cu `references/`, montate în sandbox și descoperite din frontmatter (§1.1). Fiecare skill are corpul lui de instrucțiuni și referințele lui, deschise doar când `SKILL.md` trimite acolo. Declanșarea se face din descriere — deci descrierea contează, și se verifică la evaluare.
 
-**De ce doi și nu unul** (Conceptul 5 rămâne valabil ca principiu): separarea câștigă peste doi-trei pași. Aici motivul e și mecanic — un `Agent` are un singur `output_type`, iar cele două faze produc forme validate diferite. În plus, fiecare pas poate fi testat și înlocuit singur, iar uneltele se atribuie separat.
+**De ce două și nu unul** (Conceptul 5): separarea câștigă peste doi-trei pași. Faza 1 și Faza 2 au material diferit — pilonii și hook-urile pentru prima, metoda Brand Legends pentru a doua. Ținute separat, în context intră doar ce trebuie, iar fiecare se editează singur.
 
-**Se înlănțuie prin obiecte Pydantic returnate orchestratorului, nu prin fișiere pe disc.** `propune_postari` întoarce `Propuneri`; orchestratorul îl păstrează și, când ea alege, cheamă `dezvolta_postarea` cu propunerea și hook-ul alese, primind `Postare`. Fără `tmp/*.md` — nu există sistem de fișiere de partajat, pentru că nu există sandbox. Pentru că obiectul rămâne la orchestrator, **ea poate cere dezvoltarea încă unei propuneri din aceeași listă** fără să se regenereze nimic. Obiectele intermediare intră în urma de audit (payload-ul din `audit_log`, §7).
+**Se înlănțuie prin conversație, nu prin fișiere.** Cele zece propuneri rămân în contextul agentului; când ea alege, se încarcă `dezvolta-postarea` peste ce e deja acolo. Deci **poate cere dezvoltarea încă unei propuneri din aceeași listă** fără să se regenereze nimic. Cele zece intră și în urma de audit (payload-ul din `audit_log`, §7).
 
-### 2.1 `propune_postari` — Faza 1
+### 2.1 `propune-postari` — Faza 1
 
 **Intrare.** Opțional, tema, așa cum a scris-o ea.
 
@@ -124,17 +123,17 @@ Cele zece sunt diferite între ele — unghiuri, dureri și dorințe diferite, n
 **Pornește la:** „vreau un reel despre limite", „dă-mi conținut pe Conexiune", „zece propuneri pe Educație", „ceva despre vinovăția de a spune nu", „conținut pentru săptămâna asta".
 **NU pornește la:** editarea unei postări existente, o întrebare despre profil, o cerere de raport.
 
-### 2.2 `dezvolta_postarea` — Faza 2
+### 2.2 `dezvolta-postarea` — Faza 2
 
 Ia propunerea aleasă și hook-ul ales și scrie: **script** (pe format — Reel: text pe ecran + ce spune în cadru + b-roll; Carusel: slide cu slide; Stories: secvența de 3–7), **caption** (2–4 fraze + întrebare de engagement), **3–5 hashtaguri**, **CTA** din secțiunea 6 a profilului.
 
-Cheamă `get_metoda(format)` prin MCP doar pentru formatul ales — nu tot manualul (§2.4b).
+Deschide din `references/` doar fișierul cerut de formatul ales — `structura-reel.md` pentru Reel, `stories.md` pentru Stories — nu tot manualul.
 
 **Pornește la:** „dezvoltă a treia, cu hook-ul de contrast", „îmi place 7", „scrie-o pe aia cu vinovăția".
 
 ### 2.3 Salvarea — acțiune, nu agent
 
-Nu există un al treilea agent (Revizia 4). Salvarea e cod, nu model: **orchestratorul** arată postarea completă în chat, așteaptă confirmarea ei, apoi cheamă `save_postare(...)` prin MCP — un rând în `postari` plus rândul de audit, în aceeași tranzacție. Dacă ea cere modificări, se recheamă `dezvolta_postarea` și i se arată din nou.
+Nu există un skill de salvare. Salvarea e cod, nu model: agentul arată postarea completă în chat, așteaptă confirmarea ei, apoi cheamă `save_postare(...)` prin MCP — un rând în `postari` plus rândul de audit, în aceeași tranzacție. Dacă ea cere modificări, o rescrie și i-o arată din nou.
 
 Celelalte nouă propuneri **nu** se salvează ca postări; intră în `audit_log` (vezi §7).
 
@@ -142,22 +141,19 @@ Regula 10 („nimic nu se salvează fără confirmarea ei") nu depinde de struct
 
 Distincția din curs: *un agent care întoarce doar text în conversație e o ciornă; ce scrie în sistemul de record e o acțiune.* Doar `save_postare` și `update_profil` sunt acțiuni, și de aia doar ele au poartă.
 
-### 2.4b `get_metoda(format)` — metoda ca unealtă, nu ca folder
+### 2.4b Metoda Brand Legends — `references/`, nu unealtă
 
-> **Anulat de Revizia 5.** Există sandbox, deci metoda stă ca `references/` lângă skill: `skills/dezvolta-postarea/references/`, nouă fișiere, spartă la Decizia 5. Secțiunea rămâne ca istoric al raționamentului, nu ca plan de construit.
-
-Manualul Brand Legends (`manual-creare-reels.md`, 96 KB) nu intră în context întreg și nu stă pe discul agentului. Rămâne spart pe subiecte, dar ca fișiere pe **discul serverului MCP** — cod de încredere, scris de tine, nu ceva la care agentul are acces direct:
+Manualul (`manual-creare-reels.md`, 96 KB) nu intră în context întreg. Stă spart pe subiecte, ca `references/` lângă skill-ul Fazei 2, și se deschide fișier cu fișier, doar când `SKILL.md` trimite acolo:
 
 ```
-mcp_server/content/metoda/
-  reel-structuri.md
-  reel-filmare.md
-  reel-editare.md
-  reel-b-roll.md
-  stories-vanzare.md
+skills/dezvolta-postarea/references/
+  filmare.md  editare.md  structura-reel.md  distribuire.md
+  hookuri-si-scripturi.md  tipuri-de-reels.md  idei.md
+  piloni-si-cont.md  intrebari-frecvente.md
+  b-roll.md  stories.md
 ```
 
-`get_metoda(format)` face `open()` pe fișierul potrivit formatului și întoarce textul. Modelul primește conținutul, niciodată calea sau lista de directoare. Asta imită **execuția** din progressive disclosure (Stage 3 — încarci doar bucata cerută, doar când e cerută), dar **nu** imită descoperirea ieftină din Stage 1 (skill-urile-foldere costă ~100 tokeni fiecare doar ca să existe; un tool MCP își încarcă schema completă la fiecare tură). La cinci unelte diferența e neglijabilă — de reevaluat dacă numărul de unelte MCP crește mult.
+Ăsta e progressive disclosure întreg, nu doar execuția: indexul de skill-uri costă ~100 de tokeni ca să existe, corpul se deschide la potrivire, referința doar dacă e cerută. O unealtă MCP, în schimb, își încarcă schema la fiecare tură, indiferent dacă e folosită — de aia metoda nu e unealtă (Revizia 5, punctul 5).
 
 ### 2.4 Cele patru surse de material
 
@@ -176,21 +172,25 @@ Dacă alege **Cărți**, i se propun 3–4 titluri potrivite pe temă și pilon,
 
 **Sursa se alege, nu se presupune:** dacă a zis „memorie", nu se deschide o carte și nu se caută pe internet, oricât ar părea că cere tema.
 
-### 2.5 Ieșirea structurată
+### 2.5 Forma ieșirii — instrucțiune, nu schemă
 
-Nu în text liber. Ambele faze cer modele Pydantic — tiparul pe care cursul îl folosește la generatorul de seed. Motivul e practic: zece propuneri scrise ca proză nu pot fi validate, numărate sau salvate rând cu rând.
+Un `SKILL.md` e text, deci forma se **cere**, nu se impune. `SKILL.md` scrie exact tiparul, ca ea să poată spune „a treia, cu contrastul":
 
 ```
-Hook:        tip: Literal[PROVOCARE|CIFRA|SECRET|INTREBARE|CONTRAST], text: str
-Propunere:   numar: int, titlu: str, idee: str, hookuri: list[Hook]
-Propuneri:   pilon, format, sursa, propuneri: list[Propunere]
-Postare:     propunere_aleasa, hook_ales, script, caption,
-             hashtaguri: list[str], cta: str, sursa: str
+3. Titlul scurt
+   Ideea, în una-două fraze.
+   - PROVOCARE: …
+   - CIFRĂ: …
+   - SECRET: …
+   - ÎNTREBARE: …
+   - CONTRAST: …
 ```
 
-Validat automat: exact 10 propuneri; exact 5 hook-uri la fiecare; câte unul din fiecare tip, niciunul repetat; 3–5 hashtaguri; CTA nevid.
+Verificat **după**, nu înainte: `proba_flux.py` numără la fiecare rulare numerotarea 1–10, cele cinci tipuri de hook, cifrele inventate și variantele implicite oferite. Ce e judecată, nu numărătoare, intră în setul de evaluare (Decizia 10).
 
-**Regulile obligatorii** din `AGENTS.md` (vocea Viorelei, „Lucruri pe care nu le spui niciodată", specific nu generic, română cu diacritice, fără cifre sau testimoniale inventate, sursa rămâne în culise) trec integral în `instructions`-urile orchestratorului și ale celor doi sub-agenți. Nu sunt stil — sunt contractul de ieșire.
+Ce se scrie în `postari` are, în schimb, formă fixă — dar acolo e cod: `save_postare(...)` cu parametri, nu proză parsată.
+
+**Regulile obligatorii** din `AGENTS.md` (vocea Viorelei, „Lucruri pe care nu le spui niciodată", specific nu generic, română cu diacritice, fără cifre sau testimoniale inventate, sursa rămâne în culise) trec integral în `instructions`-ul agentului — în system prompt, nu într-un skill, fiindcă sunt în vigoare tot timpul. Nu sunt stil, sunt contractul de ieșire.
 
 ---
 
@@ -220,7 +220,7 @@ Deci **două tabele de domeniu**, atât. Ies din scop deocamdată: `provocari`, 
 **Fără `surse`, `invarianti`, `exceptii`, `cta`** (decis 13 aug 2026). Conținutul lor nu dispare, își schimbă doar locul:
 
 - **Proveniența** — clasa de autoritate, versiunea, `temei_drepturi`, proprietarul, rangul din ierarhie, `are_marcaje_pagina`, `este_rezumat` — trece în `documents.metadata` JSONB, pe fiecare rând. La 17 cărți raportul e aproape 1-la-1, deci un tabel separat ar plăti un JOIN degeaba. Regula de la pasul 5 rămâne neatinsă: metadatele astea călătoresc cu **fiecare chunk returnat**, nu doar cu textul.
-- **Invarianții** trec în corpul `SKILL.md`-urilor, plus validare Pydantic. Tabelul din §3b, Pasul 6 rămâne valabil ca listă de decizii — doar că e scris în skill, nu într-un tabel.
+- **Invarianții** trec în corpul `SKILL.md`-urilor, iar cei numărabili se verifică în `proba_flux.py`. Tabelul din §3b, Pasul 6 rămâne valabil ca listă de decizii — doar că e scris în skill, nu într-un tabel.
 - **Excepțiile** rămân în §5 a planului ăstuia și în corpul skill-urilor, ca comportamente scrise.
 - **CTA-urile** stau în `profil_md`, secțiunea 6.
 
@@ -278,13 +278,13 @@ Structura de azi a lui `content-studio-vio-2`, după restructurarea din 13 aug 2
 |---|---|---|---|
 | `profil.md` (33 KB — brand, nișă, **avatarul**, voce, oferte, credințe, dovezi, **CTA-uri**, „Lucruri pe care nu le spui niciodată") | operațional + Vertical SoR | `client.profil_md` → **system prompt, întreg, la fiecare rulare** | da, ca regulă care guvernează |
 | `carti/md/` (17 cărți, 7,4 MB) | context de lucru | `documents` + `embeddings`, ~4–5.000 de chunk-uri | ca sursă de unghi, la „Sursa" — nu ca regulă |
-| `metoda/manual-creare-reels.md` (96 KB) | metoda partajată | **spart**, pe discul serverului MCP: `mcp_server/content/metoda/reel-structuri.md`, `reel-filmare.md`, `reel-editare.md`, servite prin `get_metoda("reel")` (§2.4b — Revizia 4, nu `references/` de agent) | da, ca metodă |
-| `metoda/b-roll-reels.md` (12 KB) | metoda partajată | `mcp_server/content/metoda/reel-b-roll.md`, prin `get_metoda` | da, ca metodă |
-| `metoda/cum-vinzi-pe-story.md` (17 KB) | metoda partajată | `mcp_server/content/metoda/stories-vanzare.md`, prin `get_metoda` | da, ca metodă |
+| `metoda/manual-creare-reels.md` (96 KB) | metoda partajată | **spart în 9**, ca `references/` lângă skill-ul Fazei 2 (§2.4b, Revizia 5) | da, ca metodă |
+| `metoda/b-roll-reels.md` (12 KB) | metoda partajată | `skills/dezvolta-postarea/references/b-roll.md` | da, ca metodă |
+| `metoda/cum-vinzi-pe-story.md` (17 KB) | metoda partajată | `skills/dezvolta-postarea/references/stories.md` | da, ca metodă |
 | `postari/` (26 postări) | operațional | `postari` — interogare live, **fără embeddings deocamdată** | da, pentru starea lor, cu dată |
-| `AGENTS.md` § reguli, § piloni, § hook-uri, § surse | Vertical SoR | corpul `SKILL.md`-urilor + validare Pydantic | da, ca regulă |
+| `AGENTS.md` § reguli, § piloni, § hook-uri, § surse | Vertical SoR | system prompt (regulile) + corpul și `references/` ale `SKILL.md`-urilor | da, ca regulă |
 | `AGENTS.md` § „Adaptarea la platformă", § „Stil de lucru" | — | dispar — sunt despre Claude Code / ChatGPT, nu despre brand | nu |
-| `.claude/commands/postare.md` | — | dispare — pașii ei devin `instructions`-ul orchestratorului | — |
+| `.claude/commands/postare.md` | — | dispare — pașii ei devin corpul celor două `SKILL.md` | — |
 | `README.md`, `plans/` | — | nu ajung la agent deloc | — |
 | `carti/pdf/`, `carti/txt/`, `metoda/cum-vinzi-pe-story.pdf` | — | arhivă pe disc, doar local | nu |
 
@@ -349,8 +349,8 @@ Definiția de „gata" cere ca regulile cu risc mare să fie impuse de permisiun
 | Invariant | Sursă | Impus de |
 |---|---|---|
 | nimic din „Lucruri pe care nu le spui niciodată" | profil | verificare de politică pe rezultat, înainte de `save_postare` |
-| exact 10 propuneri, fiecare cu exact 5 hook-uri, câte unul din fiecare tip | AGENTS.md | validare Pydantic |
-| sursa nu apare în hook / script / caption, doar la „Sursa" | AGENTS.md regula 8 | validare Pydantic + verificare |
+| exact 10 propuneri, fiecare cu exact 5 hook-uri, câte unul din fiecare tip | AGENTS.md | corpul skill-ului, numărat după în `proba_flux.py` |
+| sursa nu apare în hook / script / caption, doar la „Sursa" | AGENTS.md regula 8 | corpul skill-ului + verificare de politică |
 | cifre și testimoniale doar dacă există în profil | AGENTS.md regula 7 | verificare de politică |
 | nimic de pe internet nu intră ca fapt | AGENTS.md §surse | verificare de politică |
 | română cu diacritice, persoana a II-a | AGENTS.md regula 4 | verificare de politică |
@@ -408,8 +408,6 @@ Transport: streamable HTTP, varianta stateless. Se construiește cu `mcp-builder
 
 - `cauta_in_carti(descriere, titluri?, limit)` → căutare semantică peste `documents` unde `source='biblioteca'`; întoarce pasajul **plus toată proveniența din `metadata`** (titlu, autor, pagină, `are_marcaje_pagina`, `este_rezumat`, `temei_drepturi`, clasă). Filtrarea pe `titluri` servește cazul „a ales trei cărți din cele patru propuse".
 - `listeaza_postari(pilon?, format?, de_la?, limit)` → postările deja făcute, pentru „am mai scris despre asta?" și pentru rapoarte simple.
-- `get_metoda(format)` → **nou, Revizia 4.** Citește de pe discul serverului fișierul de metodă potrivit formatului (Reel / Carusel / Stories) și întoarce textul. Nu e căutare semantică — e citire directă, pe format, pentru că formatul se știe dinainte (§2.4b, §3b Pasul 2: determinist bate semantic ori de câte ori știi deja ce vrei).
-
 **Scriere (poartă de aprobare):**
 
 - `save_postare(...)` → inserează **o** postare, cea confirmată, **și** rândul de audit, într-o singură tranzacție.
@@ -419,6 +417,7 @@ Transport: streamable HTTP, varianta stateless. Se construiește cu `mcp-builder
 
 - `get_brand_profile()` — profilul intră în system prompt la pornire, nu se cere ca unealtă. O unealtă pe care modelul o cheamă *dacă vrea* e o unealtă pe care poate să n-o cheme.
 - `list_cta()` — CTA-urile sunt în `profil_md`, deci deja în context.
+- `get_metoda(format)` — propus la Revizia 4, anulat de Revizia 5. Metoda stă ca `references/` lângă skill (§2.4b), deci nu mai are nevoie de unealtă. De aici „patru", nu „cinci".
 
 **Ce NU există deloc:** nicio unealtă de tip `run_sql`, niciun DDL, niciun parametru de text liber din care se construiește SQL.
 
@@ -441,13 +440,13 @@ Partea care lipsește azi din `content-studio-vio-2`. Fiecare caz primește un c
 | 5 | Se cere un testimonial sau o cifră care nu există în profil | Se refuză, se propune înlocuitor. Regula 7: nu se inventează niciodată rezultate. |
 | 6 | Căutarea semantică întoarce doar potriviri slabe (distanță > ~0.3) | „nu există precedent puternic" — se spune, nu se maschează; propunerile se fac din profil, nu din bibliotecă. |
 | 7 | CTA-ul potrivit e încă `⚠️ DE COMPLETAT` în profil | Se propune unul, se spune că e propus, și se cere să fie trecut în profil ca să rămână. Postarea nu se salvează fără CTA. |
-| 8 | Modelul întoarce nouă propuneri, sau una cu patru hook-uri, sau două de același tip | Validarea Pydantic respinge rezultatul și cere completarea. Nu se arată parțial. |
+| 8 | Modelul întoarce nouă propuneri, sau una cu patru hook-uri, sau două de același tip | Nu se mai poate impune din schemă (Revizia 5). `SKILL.md` cere forma, `proba_flux.py` o numără după, iar cazul intră în setul de evaluare. |
 | 9 | Mesaj dictat, fără diacritice, cu greșeli de transcriere | Se interpretează cu bunăvoință, fără a corecta utilizatoarea; răspunsul are diacritice. |
 | 10 | A ales sursa „Internet" dar platforma nu are acces la web | Se spune pe loc și se întreabă dacă mergem pe cărți sau pe memorie. **Nu** se înlocuiește tăcut cu ce știe modelul (regula 9). |
 | 11 | Căutarea pe internet întoarce cifre, studii sau citate | Intră doar ca unghi. Nicio cifră și niciun citat de pe internet nu ajunge în postare. Linkul, doar la „Sursa". |
 | 12 | Ea sare peste o întrebare sau răspunde ambiguu la format / pilon / sursă | Se reîntreabă. Nu se alege în locul ei, nu se pornește „pe o variantă până răspunde". |
 
-**Setul de evaluare.** Fiecare rând devine un caz de test cu răspunsul corect scris lângă el, în `evals/`. Fără trigger evals (Revizia 4 — nu mai există descriere de skill din care modelul ghicește ce pornește; orchestratorul cheamă explicit unealta), dar **cu** evals pe deciziile orchestratorului: că nu cheamă `propune_postari` fără toate cele patru răspunsuri, că nu cheamă `save_postare` fără confirmare, și că poate chema `dezvolta_postarea` a doua oară pe aceeași listă fără să regenereze propunerile. Ăsta e artefactul care face diferența între o felie terminată și o demonstrație — și e singurul lucru din tot planul pe care un angajator nu îl vede în alte portofolii.
+**Setul de evaluare.** Fiecare rând devine un caz de test cu răspunsul corect scris lângă el, în `evals/`. Cu trigger evals (Revizia 5 — skill-ul pornește din descriere, deci descrierea se testează), plus evals pe deciziile agentului: că nu scoate propuneri fără toate cele patru răspunsuri, că nu cheamă `save_postare` fără confirmare, și că poate dezvolta a doua propunere din aceeași listă fără să regenereze. Ăsta e artefactul care face diferența între o felie terminată și o demonstrație — și e singurul lucru din tot planul pe care un angajator nu îl vede în alte portofolii.
 
 ---
 
@@ -467,9 +466,9 @@ Peste poartă stă regula 10 din `AGENTS.md`, care e mai strictă: postarea se a
 
 | # | Decizia | Se termină când |
 |---|---|---|
-| 0 | Agent minimal de chat (uv, Agents SDK, `Agent` simplu — **fără sandbox**, Revizia 4) | răspunde la „hi" |
+| 0 | Agent minimal de chat (uv, Agents SDK, `Agent` simplu) | răspunde la „hi" |
 | 1 | `AGENTS.md` nou, cu cele trei reguli de arhitectură | regulile apar în diff |
-| 2 | Planul schemei și al celor doi sub-agenți, în Plan Mode | acest document, aprobat |
+| 2 | Planul schemei și al fluxului, în Plan Mode | acest document, aprobat |
 | 3 | Neon + pgvector + schema pe branch, apoi `SQLAlchemySession` | tabelele există; worker-ul își amintește două ture, și le vezi în `agent_messages` |
 | 4 | `propune-postari` ca skill în sandbox (Revizia 5) | la „vreau ceva despre limite" pune cele trei întrebări pe rând, apoi scoate 10 propuneri × 5 hook-uri; și află din `references/surse.md` că azi merge doar sursa Memorie |
 | 5 | Import + embedding: cele 17 cărți; `metoda/` spartă în `references/` lângă skill-ul Fazei 2 (Revizia 5) | o căutare după „vinovăția de a spune nu" întoarce pasaje ordonate, cu pagină |
@@ -493,7 +492,7 @@ Pasul 5 e singurul cu volum real de date: 17 cărți întregi, ~4–5.000 de chu
 
 ## 8. Ce NU acoperă planul ăsta
 
-- Un orchestrator și doi sub-agenți, atât. `/provocare`, `/trend` rămân în afara scopului.
+- Un agent și două skill-uri, atât. `/provocare`, `/trend` rămân în afara scopului.
 - **Un singur client.** Multi-tenant, auth, upload self-service, onboarding din Instagram — amânate (Revizia 4).
 - **Sandbox E2B** (Revizia 5), montând doar `skills/`. Nimic altceva din proiect nu ajunge acolo: `.env` are parola bazei, iar agentul are shell.
 - **Profilul se editează din Worker** (varianta A), dar numai prin `update_profil`, cu poartă. Nu există editare liberă de fișiere.
@@ -510,9 +509,9 @@ Pasul 5 e singurul cu volum real de date: 17 cărți întregi, ~4–5.000 de chu
 1. Folder nou `content-studio-fte`, cu `content-studio-vio-2` rămas funcțional.
 2. `gpt-5-mini` pentru generare, `text-embedding-3-small` pentru căutare.
 3. **Un singur client, Viorela** — fără multi-tenant, fără RLS, fără auth (Revizia 4). `documents.client_id` există ca o coloană, ca migrarea viitoare să fie de date, nu de schemă.
-4. **Fără `SandboxAgent`** — un `Agent` orchestrator plus doi sub-agenți chemați cu `Agent.as_tool()`, nu `handoffs`; ieșire structurată validată: exact 10 propuneri × exact 5 hook-uri, câte unul din fiecare tip (Revizia 4, §1.1).
+4. **`SandboxAgent` pe E2B**, cu cele două faze ca skill-uri-foldere montate din `skills/` (Revizia 5, §1.1). Forma cerută — 10 propuneri × 5 hook-uri — e instrucțiune în `SKILL.md`, numărată după, nu impusă din schemă.
 5. **Două** tabele de domeniu: `client` (cu `profil_md` ca unică coloană de conținut) și `postari`.
-6. **Cinci** unelte MCP — `cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`, `get_metoda` — cu `run_sql` exclus.
+6. **Patru** unelte MCP — `cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil` — cu `run_sql` exclus.
 7. Poarta de aprobare pe `save_postare` și `update_profil`.
 8. Cele douăsprezece cazuri urâte din secțiunea 5, cu comportamentele decise acolo.
 9. Vocabularul închis al lui `audit_log.action` din §7.

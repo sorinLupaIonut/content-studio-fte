@@ -37,10 +37,10 @@ uv run worker.py
 |---|---|---|
 | 0 | Agent minimal de chat — `uv`, Agents SDK, `Agent` simplu, fără sandbox | ✅ răspunde |
 | 1 | `AGENTS.md` cu regulile de arhitectură | ✅ scris |
-| 2 | Planul schemei și al celor doi sub-agenți | ✅ `plans/digital-fte-plan.md` |
+| 2 | Planul schemei și al fluxului, cu motivele fiecărei decizii | ✅ `plans/digital-fte-plan.md` |
 | 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
 | 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
-| 5 | Import + embedding: cele 17 cărți; `metoda/` spartă pe subiecte | ✅ 4.778 bucăți, căutarea dă pagina |
+| 5 | Import + embedding: cele 17 cărți; metoda mutată lângă skill | ✅ 4.778 bucăți, căutarea dă pagina |
 | 6 | MCP server `content-data`, patru unelte | ⬜ |
 | 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ⬜ |
 | 8 | Audit la fiecare graniță + replay | ⬜ |
@@ -54,14 +54,16 @@ worker.py                     agentul unic; sandbox E2B, memorie în Neon
 skills/                       montate în sandbox, descoperite din frontmatter
   propune-postari/
     SKILL.md                    faza 1: cele trei întrebări, apoi cele 10 propuneri
-    references/
-      piloni.md                   cei 5 piloni          ⟵ deschis doar la nevoie
-      hookuri.md                  cele 5 tipuri de hook ⟵ deschis doar la nevoie
-      surse.md                    cele 4 surse          ⟵ deschis doar la nevoie
+    references/                 deschise doar la nevoie
+      piloni.md                   cei 5 piloni
+      hookuri.md                  cele 5 tipuri de hook
+      surse.md                    cele 4 surse
   dezvolta-postarea/            fără SKILL.md până la Decizia 7; referințele sunt deja aici
-    references/                   manualul de Reels spart în 9: filmare, editare, structura-reel,
+    references/                 metoda Brand Legends, 11 fișiere:
+                                  manualul de Reels spart în 9 — filmare, editare, structura-reel,
                                   hookuri-si-scripturi, tipuri-de-reels, idei, distribuire,
                                   piloni-si-cont, intrebari-frecvente
+                                  plus b-roll.md și stories.md
 proba_flux.py                 criteriul Deciziei 4, plus proba de progressive disclosure
 proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
 AGENTS.md                     specificația domeniului + contractul de arhitectură
@@ -77,9 +79,11 @@ content/                      materialul brut, până când intră în Postgres
   carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor)
                                 → documents + embeddings    (Decizia 5)
   postari/                      26 postări → tabelul postari (Decizia 3)
-  metoda/                       manualul întreg; originalul rămâne aici după spargere
 evals/                        cele 12 cazuri urâte, cu răspunsul corect (Decizia 10)
 ```
+
+Metoda Brand Legends nu are folder propriu în `content/`: nu intră în bază, ci călătorește
+cu skill-ul care o folosește.
 
 ## Stack
 

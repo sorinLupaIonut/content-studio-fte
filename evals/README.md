@@ -5,12 +5,13 @@ Gol până la **Decizia 10**. Aici ajung cele douăsprezece cazuri urâte din
 pasajul fără marcaje de pagină, rezumatul Bookey, tema care intră în conflict cu „Lucruri pe care
 nu le spui niciodată", CTA-ul încă necompletat, cele nouă propuneri respinse, și restul.
 
-Plus evals pe deciziile orchestratorului:
+Plus evals pe deciziile agentului:
 
-- nu cheamă `propune_postari` fără toate cele patru răspunsuri;
+- nu scoate propunerile fără toate cele patru răspunsuri;
 - nu cheamă `save_postare` fără confirmarea ei;
-- poate chema `dezvolta_postarea` a doua oară pe aceeași listă, fără să regenereze propunerile.
+- poate dezvolta a doua propunere din aceeași listă, fără să regenereze lista.
 
-Fără trigger evals — orchestratorul cheamă explicit unealta, nu ghicește dintr-o listă de skill-uri.
+Plus **trigger evals**: skill-ul pornește din descrierea lui, deci descrierea se testează —
+`propune-postari` la „vreau un reel despre limite", `dezvolta-postarea` la „dezvoltă a treia".
 
 E artefactul care face diferența între o felie terminată și o demonstrație.

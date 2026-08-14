@@ -1,7 +1,6 @@
 # Hook-uri și scripturi gata făcute
 
-> Din manualul Brand Legends „Manual creare Reels”. Bucată tăiată verbatim;
-> originalul întreg stă în `content/metoda/manual-creare-reels.md`.
+> Din manualul Brand Legends „Manual creare Reels”, tăiat verbatim pe subiecte.
 
 **Creează-ți propriul (HOOK) cârlig cu aceste întrebări:**
 

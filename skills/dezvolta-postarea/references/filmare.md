@@ -1,7 +1,6 @@
 # Filmare — standardul minim
 
-> Din manualul Brand Legends „Manual creare Reels”. Bucată tăiată verbatim;
-> originalul întreg stă în `content/metoda/manual-creare-reels.md`.
+> Din manualul Brand Legends „Manual creare Reels”, tăiat verbatim pe subiecte.
 
 # **GLOSAR**
 

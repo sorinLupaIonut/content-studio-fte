@@ -1,7 +1,6 @@
 """Content Worker — Decizia 4: un agent în sandbox, cu skill-uri pe disc.
 
-**Un singur agent**, care încarcă instrucțiuni din foldere `SKILL.md`, nu doi
-agenți care își pasează obiecte Pydantic.
+**Un singur agent**, care încarcă instrucțiuni din foldere `SKILL.md`.
 
 Ce câștigi:
   · progressive disclosure adevărat — indexul de skill-uri (nume + descriere +
@@ -14,9 +13,9 @@ Ce câștigi:
 
 Ce pierzi, și trebuie știut:
   · un `SKILL.md` e text. Nu poate impune „exact zece propuneri cu exact cinci
-    hook-uri" — spune și speră. Varianta cu sub-agent și `output_type` impunea
-    asta din schemă. Aici numărul devine instrucțiune, deci se poate întoarce cu
-    nouă, și se prinde abia la evaluare (Decizia 10).
+    hook-uri" — spune și speră. Numărul e instrucțiune, nu contract, deci se
+    poate întoarce cu nouă. Se numără după, în `proba_flux.py`, și se judecă la
+    evaluare (Decizia 10).
 
 Ce NU se montează în sandbox: nimic din proiect în afară de `skills/`. `.env`
 conține parola bazei Neon, iar agentul are shell — deci n-are ce căuta acolo.
