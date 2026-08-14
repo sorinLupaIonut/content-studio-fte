@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Content Studio pe dinăuntru</title>
+</head>
+<body>
+<style>
+  :root{
+    --paper:#F1F4F1;
+    --surface:#FBFCFA;
+    --sunken:#E9EEEA;
+    --ink:#131C1A;
+    --muted:#5A6A66;
+    --accent:#0B5D51;
+    --accent-soft:#DCEAE5;
+    --signal:#A63A20;
+    --signal-soft:#F6E4DC;
+    --line:#D5DEDA;
+    --line-strong:#B6C4BE;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --mono:ui-monospace,"Cascadia Mono","Cascadia Code",Consolas,"DejaVu Sans Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0C1413;
+      --surface:#131D1B;
+      --sunken:#0F1817;
+      --ink:#E4EBE7;
+      --muted:#94A6A1;
+      --accent:#57C7B2;
+      --accent-soft:#16302B;
+      --signal:#E8875A;
+      --signal-soft:#2E1D16;
+      --line:#243330;
+      --line-strong:#3A4C47;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0C1413;
+    --surface:#131D1B;
+    --sunken:#0F1817;
+    --ink:#E4EBE7;
+    --muted:#94A6A1;
+    --accent:#57C7B2;
+    --accent-soft:#16302B;
+    --signal:#E8875A;
+    --signal-soft:#2E1D16;
+    --line:#243330;
+    --line-strong:#3A4C47;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--serif);
+    font-size:17px;
+    line-height:1.62;
+    margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 24px 96px;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:48px;
+  }
+  @media (min-width:1040px){
+    .wrap{grid-template-columns:232px minmax(0,1fr);align-items:start}
+  }
+
+  /* ── antet ───────────────────────────────────────────── */
+  header.hero{
+    grid-column:1/-1;
+    padding:72px 0 40px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:8px;
+  }
+  .kicker{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 18px;
+  }
+  h1{
+    font-size:clamp(38px,6vw,60px);
+    line-height:1.02;
+    letter-spacing:-.02em;
+    margin:0 0 20px;
+    text-wrap:balance;
+    font-weight:600;
+  }
+  .lead{
+    font-size:20px;
+    color:var(--muted);
+    max-width:62ch;
+    margin:0 0 28px;
+  }
+  .facts{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 10px;
+    font-family:var(--mono);
+    font-size:12.5px;
+  }
+  .facts span{
+    border:1px solid var(--line-strong);
+    border-radius:2px;
+    padding:4px 9px;
+    color:var(--muted);
+  }
+
+  /* ── cuprins ─────────────────────────────────────────── */
+  nav.toc{display:none}
+  @media (min-width:1040px){
+    nav.toc{
+      display:block;
+      position:sticky;
+      top:32px;
+      font-family:var(--mono);
+      font-size:12.5px;
+      line-height:1.5;
+      border-right:1px solid var(--line);
+      padding-right:20px;
+    }
+    nav.toc p{
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      color:var(--muted);
+      margin:0 0 14px;
+      font-size:11px;
+    }
+    nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+    nav.toc a{
+      color:var(--ink);
+      text-decoration:none;
+      display:grid;
+      grid-template-columns:22px 1fr;
+      gap:6px;
+    }
+    nav.toc a span{color:var(--accent)}
+    nav.toc a:hover{color:var(--accent)}
+    nav.toc a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  }
+
+  main{min-width:0;display:flex;flex-direction:column;gap:64px}
+
+  section{scroll-margin-top:24px}
+  h2{
+    font-size:30px;
+    line-height:1.16;
+    letter-spacing:-.01em;
+    margin:0 0 20px;
+    font-weight:600;
+    text-wrap:balance;
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:14px;
+    align-items:baseline;
+  }
+  h2 .num{
+    font-family:var(--mono);
+    font-size:14px;
+    color:var(--accent);
+    letter-spacing:0;
+  }
+  h3{
+    font-size:19px;
+    margin:34px 0 12px;
+    font-weight:600;
+    letter-spacing:-.005em;
+  }
+  h4{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:26px 0 10px;
+    font-weight:500;
+  }
+  p{margin:0 0 16px;max-width:68ch}
+  ul,ol{margin:0 0 16px;padding-left:22px;max-width:68ch}
+  li{margin-bottom:7px}
+  strong{font-weight:600}
+  a{color:var(--accent)}
+
+  code{
+    font-family:var(--mono);
+    font-size:.86em;
+    background:var(--sunken);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:1px 5px;
+  }
+  pre{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    border-radius:2px;
+    padding:16px 18px;
+    overflow-x:auto;
+    margin:0 0 8px;
+  }
+  pre code{
+    background:none;
+    border:none;
+    padding:0;
+    font-size:13px;
+    line-height:1.6;
+    color:var(--ink);
+  }
+  .file{
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.05em;
+    color:var(--muted);
+    margin:22px 0 6px;
+    display:flex;
+    gap:10px;
+    align-items:baseline;
+  }
+  .file b{color:var(--accent);font-weight:500}
+  .after{
+    font-size:15.5px;
+    color:var(--muted);
+    margin:0 0 18px;
+    max-width:68ch;
+  }
+
+  figure{margin:28px 0;max-width:100%}
+  .scroller{overflow-x:auto;padding-bottom:4px}
+  figure svg{display:block;max-width:100%;height:auto;color:var(--ink)}
+  figcaption{
+    font-size:14px;
+    color:var(--muted);
+    margin-top:12px;
+    max-width:68ch;
+  }
+
+  .note{
+    border:1px solid var(--line);
+    border-left:3px solid var(--signal);
+    background:var(--signal-soft);
+    padding:14px 18px;
+    margin:0 0 18px;
+    font-size:15.5px;
+    max-width:68ch;
+  }
+  .note b{color:var(--signal)}
+  .why{
+    border:1px solid var(--line);
+    border-left:3px solid var(--line-strong);
+    background:var(--surface);
+    padding:14px 18px;
+    margin:0 0 18px;
+    font-size:15.5px;
+    max-width:68ch;
+  }
+
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:15px;
+    margin:0 0 18px;
+  }
+  .tablewrap{overflow-x:auto;margin:0 0 20px}
+  th,td{
+    text-align:left;
+    padding:9px 14px 9px 0;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  th{
+    font-family:var(--mono);
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    font-weight:500;
+  }
+  td code{white-space:nowrap}
+  .num-cell{font-variant-numeric:tabular-nums}
+
+  footer{
+    grid-column:1/-1;
+    border-top:1px solid var(--line);
+    margin-top:24px;
+    padding-top:24px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--muted);
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Ghid de proiect · content-studio-fte</p>
+    <h1>Content Studio pe dinăuntru</h1>
+    <p class="lead">Un angajat digital care scrie conținut pentru Viorela: cum e făcut, fișier cu fișier, linie cu linie, și de ce fiecare bucată stă unde stă.</p>
+    <div class="facts">
+      <span>3 procese</span>
+      <span>9 tabele</span>
+      <span>5 unelte MCP</span>
+      <span>2 skill-uri</span>
+      <span>17 cărți · 4.778 pasaje</span>
+      <span>15 evaluări</span>
+      <span>Deciziile 0–10</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <p>Cuprins</p>
+    <ol>
+      <li><a href="#c1"><span>01</span>Ce e, de fapt</a></li>
+      <li><a href="#c2"><span>02</span>Harta: trei procese</a></li>
+      <li><a href="#c3"><span>03</span>Traseul unei ture</a></li>
+      <li><a href="#c4"><span>04</span>Baza de date</a></li>
+      <li><a href="#c5"><span>05</span>worker.py</a></li>
+      <li><a href="#c6"><span>06</span>Serverul MCP</a></li>
+      <li><a href="#c7"><span>07</span>Skill-urile</a></li>
+      <li><a href="#c8"><span>08</span>Cărțile și căutarea</a></li>
+      <li><a href="#c9"><span>09</span>Urma și replay-ul</a></li>
+      <li><a href="#c10"><span>10</span>Poarta de aprobare</a></li>
+      <li><a href="#c11"><span>11</span>Evaluările</a></li>
+      <li><a href="#c12"><span>12</span>Cum rulezi tot</a></li>
+      <li><a href="#c13"><span>13</span>Capcane trăite</a></li>
+      <li><a href="#c14"><span>14</span>Glosar</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c1">
+      <h2><span class="num">01</span> Ce e, de fapt</h2>
+
+      <p>Viorela e life coach. Scrie conținut pentru Instagram: reels, caruseluri, stories. Proiectul ăsta îi dă un <strong>coleg digital</strong> care face treaba aia — nu un chatbot care „ajută cu idei”, ci ceva care are un post, reguli, unelte, memorie și o urmă a tot ce a făcut.</p>
+
+      <p>Diferența dintre cele două e singura idee mare din tot proiectul. Un chatbot răspunde. Un angajat digital:</p>
+
+      <ul>
+        <li><strong>are o fișă a postului</strong> — cele 10 reguli din system prompt, plus profilul ei de brand, 30.748 de caractere, întreg, la fiecare pornire;</li>
+        <li><strong>are proceduri</strong> — două skill-uri, foldere cu instrucțiuni pe care le deschide singur când sarcina se potrivește;</li>
+        <li><strong>are unelte, nu acces liber</strong> — cinci funcții numite, nu „scrie SQL ce vrei”;</li>
+        <li><strong>cere voie înainte să scrie ceva</strong> — poarta de la Decizia 9;</li>
+        <li><strong>lasă urmă</strong> — orice tură se poate rejuca ulterior, fără să mai rulezi modelul;</li>
+        <li><strong>e testat</strong> — 15 cazuri cu răspunsul corect scris lângă ele.</li>
+      </ul>
+
+      <p>Fluxul de lucru pe care îl execută are două faze. <strong>Faza 1:</strong> pune trei întrebări (format, pilon, sursă), adună material din sursa aleasă, scoate 10 propuneri, fiecare cu 5 hook-uri de tipuri diferite. <strong>Faza 2:</strong> ea alege una („dezvoltă a treia, cu contrastul”), agentul o duce până la postare completă — script, caption, hashtaguri, CTA — i-o arată, și abia după „da” o salvează.</p>
+
+      <div class="why">
+        <b>Cum citești ghidul.</b> Capitolele 2–4 sunt harta: unde stau lucrurile. Capitolele 5–11 sunt fișierele, în ordinea în care le-ai deschide dacă ai vrea să înțelegi o tură completă. Capitolul 12 e „cum pornesc treaba”, 13 sunt capcanele pe care le-am plătit deja, 14 e glosarul — dacă un cuvânt nu-ți spune nimic, e acolo.
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c2">
+      <h2><span class="num">02</span> Harta: trei procese, nu unul</h2>
+
+      <p>Cel mai greu lucru de înțeles la început e că <em>nu rulează un singur program</em>. Rulează trei, fiecare cu treaba lui, și legăturile dintre ele sunt exact locurile unde s-au luat deciziile de arhitectură.</p>
+
+      <figure>
+        <div class="scroller">
+          <svg viewBox="0 0 900 452" role="img" aria-label="Worker-ul vorbește cu Viorela în terminal, deschide skill-urile prin shell în sandbox-ul E2B, ia datele prin HTTP de la serverul MCP care singur atinge Postgres, și scrie direct în bază doar memoria conversației și urma de audit." xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- Viorela -->
+            <rect x="18" y="186" width="150" height="72" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="93" y="216" text-anchor="middle" font-size="14" fill="currentColor" font-weight="600">Viorela</text>
+            <text x="93" y="236" text-anchor="middle" font-size="11.5" fill="currentColor" opacity=".62">terminal</text>
+
+            <!-- worker -->
+            <rect x="228" y="40" width="238" height="364" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+            <text x="240" y="64" font-size="12.5" font-family="monospace" fill="currentColor" font-weight="600">PROCES 1 · worker.py</text>
+            <rect x="244" y="80" width="206" height="62" rx="2" fill="none" stroke="currentColor" stroke-width="1" opacity=".75"/>
+            <text x="256" y="102" font-size="12.5" fill="currentColor">SandboxAgent</text>
+            <text x="256" y="121" font-size="11" fill="currentColor" opacity=".62">gpt-5-mini + profilul întreg</text>
+            <rect x="244" y="156" width="206" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1" opacity=".75"/>
+            <text x="256" y="177" font-size="12.5" fill="currentColor">poarta de aprobare</text>
+            <text x="256" y="195" font-size="11" fill="currentColor" opacity=".62">întrerupe scrierile</text>
+            <rect x="244" y="222" width="206" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1" opacity=".75"/>
+            <text x="256" y="243" font-size="12.5" fill="currentColor">SQLAlchemySession</text>
+            <text x="256" y="261" font-size="11" fill="currentColor" opacity=".62">memoria conversației</text>
+            <rect x="244" y="288" width="206" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1" opacity=".75"/>
+            <text x="256" y="309" font-size="12.5" fill="currentColor">Audit</text>
+            <text x="256" y="327" font-size="11" fill="currentColor" opacity=".62">conexiune separată</text>
+
+            <!-- sandbox -->
+            <rect x="560" y="40" width="322" height="92" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+            <text x="572" y="64" font-size="12.5" font-family="monospace" fill="currentColor" font-weight="600">PROCES 3 · sandbox E2B</text>
+            <text x="572" y="86" font-size="12" fill="currentColor">skills/ montate: SKILL.md + references/</text>
+            <text x="572" y="106" font-size="11" fill="currentColor" opacity=".62">shell + fișiere, nimic altceva din proiect</text>
+
+            <!-- mcp -->
+            <rect x="560" y="158" width="322" height="150" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+            <text x="572" y="182" font-size="12.5" font-family="monospace" fill="currentColor" font-weight="600">PROCES 2 · mcp_server/server.py</text>
+            <text x="572" y="204" font-size="11.5" font-family="monospace" fill="currentColor">cauta_in_carti</text>
+            <text x="572" y="224" font-size="11.5" font-family="monospace" fill="currentColor">cauta_pe_internet</text>
+            <text x="572" y="244" font-size="11.5" font-family="monospace" fill="currentColor">listeaza_postari</text>
+            <text x="572" y="264" font-size="11.5" font-family="monospace" fill="currentColor">save_postare</text>
+            <text x="572" y="284" font-size="11.5" font-family="monospace" fill="currentColor">update_profil</text>
+            <text x="742" y="204" font-size="11" fill="currentColor" opacity=".62">citire</text>
+            <text x="742" y="224" font-size="11" fill="currentColor" opacity=".62">citire</text>
+            <text x="742" y="244" font-size="11" fill="currentColor" opacity=".62">citire</text>
+            <text x="742" y="264" font-size="11" fill="currentColor" opacity=".62">scriere</text>
+            <text x="742" y="284" font-size="11" fill="currentColor" opacity=".62">scriere</text>
+
+            <!-- neon -->
+            <rect x="560" y="336" width="322" height="68" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="572" y="362" font-size="13" fill="currentColor" font-weight="600">Neon Postgres + pgvector</text>
+            <text x="572" y="382" font-size="11" fill="currentColor" opacity=".62">9 tabele · 4.778 vectori</text>
+
+            <!-- sageti -->
+            <line x1="168" y1="206" x2="222" y2="206" stroke="currentColor" stroke-width="1.4" marker-end="url(#a1)"/>
+            <text x="195" y="198" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">mesaj</text>
+            <line x1="222" y1="240" x2="168" y2="240" stroke="currentColor" stroke-width="1.4" marker-end="url(#a1)"/>
+            <text x="195" y="258" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">răspuns · da/nu</text>
+
+            <line x1="466" y1="110" x2="554" y2="86" stroke="currentColor" stroke-width="1.4" marker-end="url(#a1)"/>
+            <text x="510" y="126" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">shell</text>
+
+            <line x1="466" y1="196" x2="554" y2="212" stroke="currentColor" stroke-width="1.4" marker-end="url(#a1)"/>
+            <text x="512" y="180" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">HTTP · antet cu id-ul</text>
+            <text x="512" y="192" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">conversației</text>
+
+            <line x1="721" y1="308" x2="721" y2="330" stroke="currentColor" stroke-width="1.4" marker-end="url(#a1)"/>
+            <text x="731" y="325" font-size="10.5" fill="currentColor" opacity=".7">SQL</text>
+
+            <path d="M347,404 L347,430 L680,430 L680,410" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#a1)"/>
+            <text x="513" y="446" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">doar memorie + urmă — niciun rând de business</text>
+          </svg>
+        </div>
+        <figcaption>Datele de business (profil, cărți, postări) trec <em>numai</em> prin serverul MCP. Linia punctată e singura legătură directă a worker-ului cu baza: starea conversației și auditul. Asta e regula 1 din <code>AGENTS.md</code>, desenată.</figcaption>
+      </figure>
+
+      <h3>De ce trei și nu unul</h3>
+
+      <div class="tablewrap">
+        <table>
+          <tr><th>Procesul</th><th>De ce e separat</th></tr>
+          <tr>
+            <td><b>worker.py</b></td>
+            <td>E ceea ce rulezi tu. Ține modelul, conversația, poarta și urma. Nu știe SQL.</td>
+          </tr>
+          <tr>
+            <td><b>mcp_server</b></td>
+            <td>Dacă datele ar veni prin funcții Python chemate direct din worker, „unealta” ar fi orice funcție care există. Serverul MCP face lista de unelte <em>explicită și finită</em>: cinci nume, cu descrieri, peste HTTP. Mâine îl poate chema și altceva (o interfață de telefon) fără să rescrii logica.</td>
+          </tr>
+          <tr>
+            <td><b>sandbox E2B</b></td>
+            <td>Agentul are shell adevărat ca să citească fișierele de skill. Shell-ul ăla nu are voie să fie pe laptopul tău: din proiect se montează <em>doar</em> <code>skills/</code>. <code>.env</code> are parola bazei.</td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c3">
+      <h2><span class="num">03</span> Traseul unei ture, pas cu pas</h2>
+
+      <p>Un mesaj de-al ei — „vreau un reel despre limite” — trece prin toate cele trei procese. Ăsta e drumul complet, în ordine:</p>
+
+      <figure>
+        <div class="scroller">
+          <svg viewBox="0 0 900 466" role="img" aria-label="Diagramă de secvență: mesajul intră, urma se scrie înainte de rulare, agentul citește skill-ul din sandbox, cheamă unealta MCP care lovește Postgres, răspunde cu cele zece propuneri, apoi se scrie urma turei." xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <rect x="16" y="16" width="112" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="72" y="36" text-anchor="middle" font-size="11.5" fill="currentColor">Viorela</text>
+            <rect x="196" y="16" width="112" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="252" y="36" text-anchor="middle" font-size="11.5" fill="currentColor">worker.py</text>
+            <rect x="392" y="16" width="112" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="448" y="36" text-anchor="middle" font-size="11.5" fill="currentColor">sandbox</text>
+            <rect x="588" y="16" width="112" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="644" y="36" text-anchor="middle" font-size="11.5" fill="currentColor">MCP</text>
+            <rect x="770" y="16" width="112" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="826" y="36" text-anchor="middle" font-size="11.5" fill="currentColor">Postgres</text>
+
+            <line x1="72" y1="46" x2="72" y2="446" stroke="currentColor" stroke-width="1" opacity=".28"/>
+            <line x1="252" y1="46" x2="252" y2="446" stroke="currentColor" stroke-width="1" opacity=".28"/>
+            <line x1="448" y1="46" x2="448" y2="446" stroke="currentColor" stroke-width="1" opacity=".28"/>
+            <line x1="644" y1="46" x2="644" y2="446" stroke="currentColor" stroke-width="1" opacity=".28"/>
+            <line x1="826" y1="46" x2="826" y2="446" stroke="currentColor" stroke-width="1" opacity=".28"/>
+
+            <text x="16" y="84" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">1</text>
+            <line x1="72" y1="92" x2="246" y2="92" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="80" y="86" font-size="11" fill="currentColor">„vreau un reel despre limite”</text>
+
+            <text x="16" y="126" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">2</text>
+            <line x1="252" y1="134" x2="820" y2="134" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#a2)"/>
+            <text x="260" y="128" font-size="11" fill="currentColor">audit: message_received — înainte de rulare</text>
+
+            <text x="16" y="168" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">3</text>
+            <line x1="252" y1="176" x2="442" y2="176" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="260" y="170" font-size="11" fill="currentColor">cat .agents/propune-postari/SKILL.md</text>
+
+            <text x="16" y="204" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">4</text>
+            <line x1="448" y1="212" x2="258" y2="212" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="266" y="206" font-size="11" fill="currentColor">procedura fazei 1 intră în context</text>
+
+            <text x="16" y="246" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">5</text>
+            <line x1="252" y1="254" x2="638" y2="254" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="260" y="248" font-size="11" fill="currentColor">cauta_in_carti("vinovăția de a spune nu")</text>
+
+            <text x="16" y="282" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">6</text>
+            <line x1="644" y1="290" x2="820" y2="290" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="652" y="284" font-size="11" fill="currentColor">vector · ORDER BY distanță</text>
+
+            <text x="16" y="318" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">7</text>
+            <line x1="826" y1="326" x2="650" y2="326" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="600" y="320" text-anchor="end" font-size="11" fill="currentColor">6 pasaje + titlu, pagină, scor</text>
+
+            <text x="16" y="354" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">8</text>
+            <line x1="644" y1="362" x2="258" y2="362" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="266" y="356" font-size="11" fill="currentColor">JSON cu proveniența fiecărui pasaj</text>
+
+            <text x="16" y="390" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">9</text>
+            <line x1="252" y1="398" x2="78" y2="398" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+            <text x="86" y="392" font-size="11" fill="currentColor">10 propuneri × 5 hook-uri</text>
+
+            <text x="16" y="426" font-size="10.5" font-family="monospace" fill="currentColor" opacity=".55">10</text>
+            <line x1="252" y1="434" x2="820" y2="434" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#a2)"/>
+            <text x="260" y="428" font-size="11" fill="currentColor">audit: skill_activated · capability_invoked · propuneri_generate · message_sent</text>
+          </svg>
+        </div>
+        <figcaption>Punctat = urmă, nu date. Pasul 2 se scrie <em>înainte</em> de rulare, tocmai ca o tură care pică să rămână vizibilă: la replay se vede un <code>message_received</code> fără <code>message_sent</code>.</figcaption>
+      </figure>
+
+      <p>Faza 2 e același traseu, mai scurt: skill-ul <code>dezvolta-postarea</code> în loc de <code>propune-postari</code>, fără căutare (materialul e deja în conversație), și cu o oprire în plus — poarta, capitolul 10.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c4">
+      <h2><span class="num">04</span> Baza de date: 7 tabele scrise de mână, 2 făcute de SDK</h2>
+
+      <p>Tot ce ține minte sistemul stă în Neon (Postgres 17 cu extensia <code>pgvector</code>). Schema e într-un singur fișier, idempotent — îl poți rula de câte ori vrei.</p>
+
+      <figure>
+        <div class="scroller">
+          <svg viewBox="0 0 900 430" role="img" aria-label="Schema bazei: client și conversations sunt cele două rădăcini; postari, audit_log și capability_invocations atârnă de conversație; documents și embeddings formează biblioteca; agent_sessions și agent_messages sunt create de SDK." xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- client -->
+            <rect x="24" y="40" width="182" height="76" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="36" y="62" font-size="13" font-family="monospace" fill="currentColor" font-weight="600">client</text>
+            <text x="36" y="82" font-size="11" fill="currentColor" opacity=".7">slug, nume</text>
+            <text x="36" y="100" font-size="11" fill="currentColor" opacity=".7">profil_md — 30.748 car.</text>
+
+            <!-- conversations -->
+            <rect x="352" y="40" width="196" height="76" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="364" y="62" font-size="13" font-family="monospace" fill="currentColor" font-weight="600">conversations</text>
+            <text x="364" y="82" font-size="11" fill="currentColor" opacity=".7">session_id (PK)</text>
+            <text x="364" y="100" font-size="11" fill="currentColor" opacity=".7">user_id, started_at</text>
+
+            <!-- agent tables -->
+            <rect x="676" y="40" width="200" height="76" rx="2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4"/>
+            <text x="688" y="62" font-size="12.5" font-family="monospace" fill="currentColor">agent_sessions</text>
+            <text x="688" y="80" font-size="12.5" font-family="monospace" fill="currentColor">agent_messages</text>
+            <text x="688" y="100" font-size="10.5" fill="currentColor" opacity=".62">le face SDK-ul singur</text>
+
+            <!-- postari -->
+            <rect x="24" y="188" width="182" height="82" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="36" y="210" font-size="13" font-family="monospace" fill="currentColor" font-weight="600">postari</text>
+            <text x="36" y="230" font-size="11" fill="currentColor" opacity=".7">titlu, pilon, format, hook</text>
+            <text x="36" y="248" font-size="11" fill="currentColor" opacity=".7">script, caption, cta, sursa</text>
+            <text x="36" y="264" font-size="11" fill="currentColor" opacity=".7">status: ciorna → publicata</text>
+
+            <!-- audit -->
+            <rect x="272" y="188" width="182" height="82" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="284" y="210" font-size="13" font-family="monospace" fill="currentColor" font-weight="600">audit_log</text>
+            <text x="284" y="230" font-size="11" fill="currentColor" opacity=".7">actor, action, target</text>
+            <text x="284" y="248" font-size="11" fill="currentColor" opacity=".7">payload, result</text>
+            <text x="284" y="264" font-size="11" fill="currentColor" opacity=".7">12 acțiuni, vocabular închis</text>
+
+            <!-- capability -->
+            <rect x="520" y="188" width="196" height="82" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="532" y="210" font-size="13" font-family="monospace" fill="currentColor" font-weight="600">capability_invocations</text>
+            <text x="532" y="230" font-size="11" fill="currentColor" opacity=".7">capability, arguments</text>
+            <text x="532" y="248" font-size="11" fill="currentColor" opacity=".7">status: ok | blocked | …</text>
+
+            <!-- documents + embeddings -->
+            <rect x="272" y="326" width="182" height="76" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="284" y="348" font-size="13" font-family="monospace" fill="currentColor" font-weight="600">documents</text>
+            <text x="284" y="368" font-size="11" fill="currentColor" opacity=".7">17 cărți, source='biblioteca'</text>
+            <text x="284" y="386" font-size="11" fill="currentColor" opacity=".7">metadata: autor, drepturi…</text>
+
+            <rect x="520" y="326" width="196" height="76" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="532" y="348" font-size="13" font-family="monospace" fill="currentColor" font-weight="600">embeddings</text>
+            <text x="532" y="368" font-size="11" fill="currentColor" opacity=".7">4.778 bucăți × 1536 numere</text>
+            <text x="532" y="386" font-size="11" fill="currentColor" opacity=".7">metadata: pagina, capitol</text>
+
+            <!-- arrows -->
+            <line x1="115" y1="188" x2="115" y2="120" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+            <text x="125" y="158" font-size="10.5" fill="currentColor" opacity=".7">client_id</text>
+
+            <line x1="206" y1="212" x2="346" y2="112" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+            <text x="250" y="172" font-size="10.5" fill="currentColor" opacity=".7">conversation_id</text>
+
+            <line x1="363" y1="188" x2="380" y2="120" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+            <line x1="600" y1="188" x2="520" y2="118" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+            <text x="578" y="158" font-size="10.5" fill="currentColor" opacity=".7">conversation_id</text>
+
+            <line x1="520" y1="364" x2="458" y2="364" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+            <text x="466" y="356" font-size="10.5" fill="currentColor" opacity=".7">document_id</text>
+
+            <line x1="676" y1="78" x2="554" y2="78" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#a3)"/>
+            <text x="562" y="70" font-size="10.5" fill="currentColor" opacity=".7">același session_id</text>
+          </svg>
+        </div>
+        <figcaption>Tabelele punctate nu sunt în <code>schema.sql</code>: le creează <code>SQLAlchemySession</code> singur, în aceeași bază, legate prin <code>session_id</code>. Transcrierea tură-cu-tură e a lor; <code>conversations</code> ține doar foaia de gardă.</figcaption>
+      </figure>
+
+      <h4>Ce ține fiecare</h4>
+      <div class="tablewrap">
+        <table>
+          <tr><th>Tabel</th><th>Ce ține</th><th>Cine scrie în el</th></tr>
+          <tr><td><code>client</code></td><td>Profilul de brand, un singur câmp Markdown</td><td><code>db/seed.py</code>, apoi <code>update_profil</code></td></tr>
+          <tr><td><code>conversations</code></td><td>Cine, când, id-ul sesiunii</td><td><code>worker.py</code> la pornire</td></tr>
+          <tr><td><code>postari</code></td><td>26 postări vechi + ciornele noi</td><td><code>seed.py</code>, apoi <code>save_postare</code></td></tr>
+          <tr><td><code>documents</code></td><td>Cele 17 cărți, întregi, cu proveniență</td><td><code>db/import_carti.py</code></td></tr>
+          <tr><td><code>embeddings</code></td><td>4.778 bucăți vectorizate</td><td><code>db/import_carti.py</code></td></tr>
+          <tr><td><code>audit_log</code></td><td>Urma: 12 acțiuni posibile, nimic altceva</td><td><code>audit.py</code> + serverul MCP</td></tr>
+          <tr><td><code>capability_invocations</code></td><td>Fiecare apel de unealtă, cu status</td><td><code>audit.py</code></td></tr>
+        </table>
+      </div>
+
+      <p class="file"><b>db/schema.sql</b> · 102–107</p>
+      <pre><code>action TEXT NOT NULL CHECK (action IN (
+    'message_received', 'message_sent', 'skill_activated',
+    'capability_invoked', 'guardrail_tripped', 'corpus_seeded',
+    'propuneri_generate', 'postare_aleasa', 'postare_salvata',
+    'profil_actualizat', 'aprobare_ceruta', 'aprobare_respinsa'
+)),</code></pre>
+      <p class="after">Vocabularul e <em>închis prin CHECK</em>. Nu poți scrie o acțiune nouă din greșeală — baza refuză. Ca să adaugi una, faci o migrare, adică o decizie conștientă. Fără asta, în șase luni ai 40 de nume de acțiuni scrise diferit și niciun raport care să meargă.</p>
+
+      <div class="why">
+        <b>De ce profilul stă în <code>client</code> și nu în <code>documents</code>+<code>embeddings</code>?</b> Fiindcă e singurul material în care <em>se scrie</em>. Un vector nu se face <code>UPDATE</code>. Și fiindcă profilul intră întreg în system prompt la fiecare pornire — nu-l cauți, îl ai.
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c5">
+      <h2><span class="num">05</span> <code>worker.py</code> — creierul, 438 de linii</h2>
+
+      <p>Un singur fișier. Îl citești de sus în jos și înțelegi tot sistemul. Are patru părți: fișa postului, pornirea, tura, și bucla de conversație.</p>
+
+      <h3>a. Fișa postului — <code>INSTRUCTIUNI_BAZA</code></h3>
+      <p class="file"><b>worker.py</b> · 82–164</p>
+      <pre><code>INSTRUCTIUNI_BAZA = """\
+Ești asistentul de conținut al Viorelei — life coach pentru femei…
+
+CU CINE VORBEȘTI. Vorbești cu Viorela — clienta, cea care comandă conținutul.
+NU o strigi „Andreea". Andreea e avatarul…
+
+REGULI OBLIGATORII — contractul de ieșire, nu preferințe de stil:
+ 1. Vocea Viorelei, nu vocea unui robot…
+ 7. Testimonialele și cifrele se folosesc DOAR dacă există în profil…
+ 9. Întrebările se pun, răspunsurile nu se presupun…
+10. Nimic nu se salvează fără confirmarea ei.
+"""</code></pre>
+      <p class="after">Cele 10 reguli stau în system prompt, <strong>nu</strong> într-un skill. Motivul e scris chiar acolo, la linia 78: un contract care se încarcă „la nevoie” e un contract pe care modelul poate să nu-l citească exact atunci când îl încalcă. Progressive disclosure e pentru ce trebuie <em>uneori</em> — pilonii, metoda, tipurile de hook.</p>
+
+      <h3>b. Profilul vine prin MCP, nu prin SQL</h3>
+      <p class="file"><b>worker.py</b> · 189–206</p>
+      <pre><code>async def citeste_profil(date_mcp) -> tuple[str, str]:
+    """Întoarce (nume, profil_md) din resursa MCP, nu prin SQL din worker."""
+    raspuns = await date_mcp.read_resource(PROFIL_URI)
+    …
+    date = json.loads("".join(texte))
+    return date["nume"], date["profil_md"]</code></pre>
+      <p class="after">Profilul e dată de business, deci n-are voie să vină cu <code>SELECT</code> din worker. Dar nici nu poate fi <em>unealtă</em>, fiindcă atunci modelul ar putea s-o cheme de 10 ori. Soluția: o <strong>resursă</strong> MCP — se citește programatic, o dată, înainte ca agentul să existe. <code>PROFIL_URI</code> e definit în <code>mcp_server/protocol.py</code>, fișierul de 5 linii care ține contractul dintre cele două procese.</p>
+
+      <h3>c. Agentul — patru argumente și niciun detaliu în plus</h3>
+      <p class="file"><b>worker.py</b> · 219–227</p>
+      <pre><code>return SandboxAgent(
+    name="Content Worker",
+    model=MODEL,
+    instructions=f"{INSTRUCTIUNI_BAZA}\n\n--- PROFILUL CLIENTEI ---\n{profil_md}",
+    capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS))],
+    mcp_servers=[date_mcp],
+)</code></pre>
+      <p class="after">Uită-te ce <em>nu</em> e aici: nicio unealtă declarată în Python, niciun skill declarat în Python. Uneltele vin de la serverul MCP cu tot cu descrieri; skill-urile sunt descoperite din folderul <code>skills/</code>, fiecare cu numele și descrierea din frontmatter. Ambele se pot schimba fără să atingi codul — exact ideea.</p>
+
+      <h3>d. Bucla — ce se întâmplă la fiecare mesaj</h3>
+      <p class="file"><b>worker.py</b> · 405–421</p>
+      <pre><code>await urma.mesaj_primit(session_id, mesaj)      # urma, ÎNAINTE de rulare
+
+try:
+    rezultat = await ruleaza_tura(worker, mesaj, sesiune, config,
+                                  urma, session_id, intreaba_in_terminal)
+except Exception as e:
+    await urma.a_picat(session_id, e)
+    print(f"\nworker&gt; Ceva n-a mers ({type(e).__name__}). Mai încercăm?\n")
+    continue
+
+await urma.tura(session_id, rezultat)           # ce unelte, ce skill-uri
+await urma.mesaj_trimis(session_id, str(rezultat.final_output))</code></pre>
+      <p class="after">Patru linii de audit în jurul unei singure linii de muncă. Ordinea contează: dacă tura crapă, ai deja <code>message_received</code> în bază și primești <code>guardrail_tripped</code> — la replay se vede exact unde s-a oprit.</p>
+
+      <div class="note">
+        <b>Detaliul care se uită.</b> Sandbox-ul E2B se creează <em>o singură dată</em>, înainte de buclă (linia 369), și se refolosește la fiecare tură. Dacă l-ai crea în buclă, ai remonta skill-urile la fiecare mesaj — secunde bune pierdute degeaba. Și fiindcă sesiunea e a ta, tot tu o ștergi, în <code>finally</code>.
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c6">
+      <h2><span class="num">06</span> Serverul MCP — cele cinci unelte</h2>
+
+      <p>MCP (Model Context Protocol) e un standard prin care un program își expune uneltele către un model. Aici e un singur fișier de 523 de linii care rulează separat, pe <code>127.0.0.1:8765</code>, și e <strong>singura ușă</strong> către datele Viorelei.</p>
+
+      <div class="tablewrap">
+        <table>
+          <tr><th>Unealtă</th><th>Ce face</th><th>Poartă?</th></tr>
+          <tr><td><code>cauta_in_carti</code></td><td>Căutare după înțeles în cele 17 cărți; întoarce pasajul + proveniența</td><td>nu</td></tr>
+          <tr><td><code>cauta_pe_internet</code></td><td>Unghiuri actuale + linkurile paginilor citate</td><td>nu</td></tr>
+          <tr><td><code>listeaza_postari</code></td><td>„Am mai scris despre asta?”</td><td>nu</td></tr>
+          <tr><td><code>save_postare</code></td><td>O postare, ca <code>ciorna</code>, plus rândul ei de audit</td><td><b>da</b></td></tr>
+          <tr><td><code>update_profil</code></td><td>Rescrie o secțiune din profil, păstrând restul</td><td><b>da</b></td></tr>
+        </table>
+      </div>
+
+      <p>Nu există <code>run_sql</code>. Nu există DDL. Nicio unealtă nu primește text din care se construiește SQL. Asta nu e paranoia: un agent cu <code>run_sql</code> are, practic, drept de <code>DROP TABLE</code> pe baza clientei tale.</p>
+
+      <h3>Descrierea uneltei <em>este</em> promptul</h3>
+      <p class="file"><b>mcp_server/server.py</b> · 140–157</p>
+      <pre><code>"""Caută după înțeles în cele 17 cărți din biblioteca Viorelei.
+
+Folosește-o DOAR când ea a ales sursa „Cărți" sau „Combinat"…
+
+Fiecare pasaj vine cu proveniența lui… Un pasaj fără pagină NU primește
+un număr inventat: scrii titlul și autorul, atât.
+
+`scor` e cât de aproape e pasajul de ce ai cerut, între 0 și 1. Pe corpusul
+ăsta, potrivirile bune stau pe la 0,45–0,55; sub 0,35 e mai degrabă zgomot.
+"""</code></pre>
+      <p class="after">Docstring-ul funcției ajunge, cuvânt cu cuvânt, în contextul modelului. De-aia e scris ca instrucțiune pentru cineva care o folosește, nu ca documentație pentru programator. Pragul de 0,35 nu e ghicit — a fost măsurat pe corpusul real, după ce planul avea scris altceva.</p>
+
+      <h3>Scrierea și urma ei, în aceeași tranzacție</h3>
+      <p class="file"><b>mcp_server/server.py</b> · 393–422</p>
+      <pre><code>async with baza() as conn:
+    client_id = await conn.fetchval(SQL_ID_CLIENT, CLIENT_SLUG)
+    id_postare = await conn.fetchval(SQL_INSEREAZA_POSTARE, …)
+    await conn.execute(SQL_AUDIT, conversation_id, "postare_salvata",
+                       "postari", json.dumps(camp), json.dumps({"id": str(id_postare)}))</code></pre>
+      <p class="after">Un singur <code>async with</code>, deci o singură tranzacție: <strong>ori intră amândouă, ori niciuna</strong>. O postare fără urmă nu se poate întâmpla nici dacă pică conexiunea între cele două comenzi.</p>
+
+      <h3>Id-ul conversației nu trece prin model</h3>
+      <p class="file"><b>mcp_server/server.py</b> · 343–352</p>
+      <pre><code>def conversatia_din(ctx: Context) -&gt; str:
+    """ID-ul pus de worker pe conexiunea MCP, nu inventat de model."""
+    headers = getattr(ctx.request_context.request, "headers", None)
+    conversation_id = headers.get(CONVERSATION_HEADER) if headers else None
+    if not conversation_id:
+        raise ValueError(f"Lipsește antetul intern {CONVERSATION_HEADER}; scrierea a fost oprită.")
+    return conversation_id</code></pre>
+      <p class="after">Worker-ul pune <code>X-Content-Conversation-ID</code> pe conexiunea HTTP (linia 326 din <code>worker.py</code>). Serverul îl citește de acolo. Dacă ar fi fost argument de unealtă, modelul l-ar fi putut halucina — și atunci postarea s-ar lega de o conversație care nu există. Fără antet, scrierea nu pornește deloc.</p>
+
+      <h3>Înlocuirea unei secțiuni din profil</h3>
+      <p class="file"><b>mcp_server/server.py</b> · 432–454</p>
+      <pre><code>titluri = list(re.finditer(r"^##[ \t]+(.+?)[ \t]*$", profil, re.MULTILINE))
+cautat = sectiune.strip().lower()
+
+for i, titlu in enumerate(titluri):
+    if cautat not in titlu.group(1).lower():
+        continue
+    inceput = titlu.end()
+    sfarsit = titluri[i + 1].start() if i + 1 &lt; len(titluri) else len(profil)
+    return profil[:inceput] + "\n\n" + text_nou.strip() + "\n\n" + profil[sfarsit:]
+
+raise ValueError(f"Nu există o secțiune care să conțină {sectiune!r}…")</code></pre>
+      <p class="after">Trei lucruri deliberate: <code>[ \t]</code> în loc de <code>\s</code> (altfel ar înghiți rândurile goale și ar aduna spațiere la fiecare rescriere), titlul secțiunii rămâne <em>cum e scris în profil</em> (nu cum l-a scris modelul — o diacritică diferită ar rescrie antetul), iar eroarea îți listează secțiunile reale. Testat în practică: cerută secțiunea „Oferte”, care nu există, a răspuns cu cele șase care există.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c7">
+      <h2><span class="num">07</span> Skill-urile — proceduri, nu cod</h2>
+
+      <p>Un skill e un folder cu un <code>SKILL.md</code>. Frontmatter-ul lui are două câmpuri, și <strong>descrierea e cea care decide dacă skill-ul pornește</strong>.</p>
+
+      <p class="file"><b>skills/propune-postari/SKILL.md</b> · 1–4</p>
+      <pre><code>---
+name: propune-postari
+description: Faza 1 a producției de conținut — scoate zece propuneri de postare,
+  fiecare cu cinci hook-uri, după ce afli formatul, pilonul și sursa. Folosește-l
+  când Viorela cere conținut nou: „vreau un reel despre limite", „dă-mi conținut
+  pe Conexiune"… NU-l folosi pentru editarea unei postări existente, pentru o
+  întrebare despre profil, sau pentru o cerere de raport.
+---</code></pre>
+      <p class="after">Descrierea conține exemple de formulări reale <em>și</em> anti-exemple. De-aia e cod, nu documentație: dacă e prea lacomă, skill-ul pornește la o întrebare de raport; dacă e prea strâmtă, nu pornește când trebuie. Ambele situații au câte un test — cazurile 13 și 14.</p>
+
+      <figure>
+        <div class="scroller">
+          <svg viewBox="0 0 820 300" role="img" aria-label="Trei straturi de context: indexul de skill-uri e mereu încărcat, corpul SKILL.md doar la potrivire, iar fișierele din references doar dacă SKILL.md trimite acolo." xmlns="http://www.w3.org/2000/svg">
+            <rect x="24" y="40" width="200" height="58" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="36" y="64" font-size="12.5" fill="currentColor" font-weight="600">indexul de skill-uri</text>
+            <text x="36" y="84" font-size="11" fill="currentColor" opacity=".7">nume + descriere + cale</text>
+            <text x="240" y="64" font-size="11.5" fill="currentColor" opacity=".78">MEREU în context</text>
+            <text x="240" y="84" font-size="11" fill="currentColor" opacity=".55">≈ 2 rânduri × 2 skill-uri</text>
+
+            <line x1="124" y1="98" x2="124" y2="124" stroke="currentColor" stroke-width="1.3"/>
+            <text x="136" y="116" font-size="10.5" fill="currentColor" opacity=".7">cererea se potrivește descrierii</text>
+
+            <rect x="24" y="124" width="330" height="58" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="36" y="148" font-size="12.5" fill="currentColor" font-weight="600">corpul SKILL.md</text>
+            <text x="36" y="168" font-size="11" fill="currentColor" opacity=".7">procedura: pașii fazei, ce întrebi, când te oprești</text>
+            <text x="370" y="148" font-size="11.5" fill="currentColor" opacity=".78">citit cu shell, din sandbox</text>
+            <text x="370" y="168" font-size="11" fill="currentColor" opacity=".55">≈ 80 de rânduri</text>
+
+            <line x1="124" y1="182" x2="124" y2="208" stroke="currentColor" stroke-width="1.3"/>
+            <text x="136" y="200" font-size="10.5" fill="currentColor" opacity=".7">SKILL.md trimite explicit acolo</text>
+
+            <rect x="24" y="208" width="500" height="66" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="36" y="232" font-size="12.5" fill="currentColor" font-weight="600">references/</text>
+            <text x="36" y="252" font-size="11" fill="currentColor" opacity=".7">piloni · hookuri · surse · carti · metoda Brand Legends (11 fișiere)</text>
+            <text x="36" y="268" font-size="11" fill="currentColor" opacity=".55">se deschide DOAR fișierul de care e nevoie — nu tot manualul</text>
+            <text x="540" y="232" font-size="11.5" fill="currentColor" opacity=".78">rar, țintit</text>
+            <text x="540" y="252" font-size="11" fill="currentColor" opacity=".55">mii de rânduri, nedeschise</text>
+          </svg>
+        </div>
+        <figcaption>Progressive disclosure: costul contextului crește doar când sarcina o cere. Manualul de Reels, spart în nouă fișiere, e în context zero secunde dintr-o conversație despre Stories.</figcaption>
+      </figure>
+
+      <h3>Cele două skill-uri</h3>
+      <ul>
+        <li><code>propune-postari</code> — faza 1. Cele trei întrebări puse <em>pe rând</em>, apoi materialul din sursa aleasă, apoi cele 10 propuneri numerotate, fiecare cu 5 hook-uri în ordinea PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST. Are și o secțiune „când te oprești, nu doar încetinești”.</li>
+        <li><code>dezvolta-postarea</code> — faza 2. Pasul 0 e o verificare: <em>există lista la care se referă „a treia”?</em> Dacă nu, se oprește și întreabă. Apoi citește din metodă doar fișierul potrivit formatului, scrie postarea, o arată, așteaptă „da”, salvează o dată.</li>
+      </ul>
+
+      <div class="why">
+        <b>Ce pierzi cu skill-urile, și trebuie știut.</b> Un <code>SKILL.md</code> e text, nu schemă. Nu poate <em>impune</em> „exact zece propuneri cu exact cinci hook-uri” — spune și speră. De-aia numărul se verifică după generare, în probă și în evaluări. E scris ca atare în capul lui <code>worker.py</code>, ca să nu se uite.
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c8">
+      <h2><span class="num">08</span> Cele 17 cărți: de la fișier la pasaj cu pagină</h2>
+
+      <p>Cărțile nu intră în git — sunt volume publicate, sub drept de autor. Stau local, ca Markdown, și din ele se face un singur lucru: 4.778 de bucăți vectorizate în Postgres.</p>
+
+      <figure>
+        <div class="scroller">
+          <svg viewBox="0 0 880 250" role="img" aria-label="Cartea se sparge în bucăți de circa 1200 de caractere care își rețin pagina și capitolul, fiecare bucată devine 1536 de numere cu text-embedding-3-small, iar căutarea trece descrierea prin același model și compară unghiuri." xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <text x="16" y="28" font-size="11.5" font-family="monospace" fill="currentColor" opacity=".62">O SINGURĂ DATĂ, LA IMPORT</text>
+
+            <rect x="16" y="42" width="150" height="66" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="28" y="66" font-size="12" fill="currentColor" font-weight="600">granite-in-relatii.md</text>
+            <text x="28" y="86" font-size="11" fill="currentColor" opacity=".7">&lt;!-- pagina 214 --&gt;</text>
+            <text x="28" y="102" font-size="11" fill="currentColor" opacity=".7">## Capitolul 9</text>
+
+            <line x1="166" y1="75" x2="212" y2="75" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+
+            <rect x="216" y="42" width="164" height="66" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="228" y="66" font-size="12" fill="currentColor" font-weight="600">sparge()</text>
+            <text x="228" y="86" font-size="11" fill="currentColor" opacity=".7">~1200 car., pe paragrafe</text>
+            <text x="228" y="102" font-size="11" fill="currentColor" opacity=".7">ține minte pagina + capitolul</text>
+
+            <line x1="380" y1="75" x2="426" y2="75" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+
+            <rect x="430" y="42" width="176" height="66" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="442" y="66" font-size="12" fill="currentColor" font-weight="600">text-embedding-3-small</text>
+            <text x="442" y="86" font-size="11" fill="currentColor" opacity=".7">loturi de 100 de bucăți</text>
+            <text x="442" y="102" font-size="11" fill="currentColor" opacity=".7">→ 1536 de numere / bucată</text>
+
+            <line x1="606" y1="75" x2="652" y2="75" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+
+            <rect x="656" y="42" width="200" height="66" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="668" y="66" font-size="12" fill="currentColor" font-weight="600">embeddings + index HNSW</text>
+            <text x="668" y="86" font-size="11" fill="currentColor" opacity=".7">4.778 rânduri</text>
+            <text x="668" y="102" font-size="11" fill="currentColor" opacity=".7">metadata: pagina, capitol</text>
+
+            <line x1="16" y1="140" x2="856" y2="140" stroke="currentColor" stroke-width="1" opacity=".25"/>
+            <text x="16" y="166" font-size="11.5" font-family="monospace" fill="currentColor" opacity=".62">LA FIECARE CĂUTARE</text>
+
+            <rect x="16" y="180" width="164" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="28" y="202" font-size="12" fill="currentColor">„vinovăția de a spune nu”</text>
+            <text x="28" y="220" font-size="11" fill="currentColor" opacity=".7">cuvintele ei, nu cuvinte-cheie</text>
+
+            <line x1="180" y1="206" x2="226" y2="206" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+            <rect x="230" y="180" width="176" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="242" y="202" font-size="12" fill="currentColor">ACELAȘI model</text>
+            <text x="242" y="220" font-size="11" fill="currentColor" opacity=".7">altul = rezultate-gunoi, tăcut</text>
+
+            <line x1="406" y1="206" x2="452" y2="206" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+            <rect x="456" y="180" width="176" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="468" y="202" font-size="12" font-family="monospace" fill="currentColor">embedding &lt;=&gt; $1::vector</text>
+            <text x="468" y="220" font-size="11" fill="currentColor" opacity=".7">distanță cosinus, ORDER BY</text>
+
+            <line x1="632" y1="206" x2="678" y2="206" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+            <rect x="682" y="180" width="174" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="694" y="202" font-size="12" fill="currentColor">6 pasaje</text>
+            <text x="694" y="220" font-size="11" fill="currentColor" opacity=".7">titlu · autor · pagină · scor</text>
+          </svg>
+        </div>
+        <figcaption>Regula 3 din <code>AGENTS.md</code>, în imagine: același model la stocare și la căutare. Vectorii a două modele nu sunt comparabili, iar căutarea ar întoarce gunoi <em>fără să se plângă</em>.</figcaption>
+      </figure>
+
+      <p class="file"><b>mcp_server/server.py</b> · 45–47</p>
+      <pre><code># Același model la stocare și la căutare — regula 3. Îl iau chiar din scriptul
+# care a scris vectorii, ca să nu poată ajunge diferit fără să se rupă importul.
+from db.import_carti import MODEL_EMBED, ca_vector</code></pre>
+      <p class="after">Regula nu e scrisă doar în documentație — e impusă de import. Ca să folosești alt model la căutare ar trebui să modifici fișierul care a scris vectorii, adică exact locul unde vezi de ce n-ai voie.</p>
+
+      <h3>Importul e incremental, pe carte</h3>
+      <p>Fiecare carte își ține <code>sha256</code>-ul în <code>documents.metadata</code>. La rulare se compară: nemodificată → sărită; nouă sau schimbată → doar ea se sparge și pleacă la OpenAI. Adaugi a optsprezecea carte și plătești embedding doar pentru ea.</p>
+
+      <div class="note">
+        <b>Proveniența e o funcție de siguranță, nu o notă de subsol.</b> 16 din 17 cărți au marcaje <code>&lt;!-- pagina N --&gt;</code>. Una nu are. Pentru pasajele din ea, agentul scrie titlul și autorul, <em>fără număr de pagină</em> — fiindcă un număr inventat arată verificabil și nu e. Cazul 1 din evaluări testează exact asta.
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c9">
+      <h2><span class="num">09</span> Urma și replay-ul</h2>
+
+      <p>Criteriul e simplu de formulat și greu de îndeplinit: <strong>poți reconstrui ce a făcut sistemul fără să rulezi modelul din nou.</strong></p>
+
+      <h3><code>audit.py</code> — de unde vin datele</h3>
+      <p class="file"><b>audit.py</b> · 75–101</p>
+      <pre><code>def apeluri_din(rezultat) -&gt; list[dict]:
+    """Apelurile de unelte dintr-o tură, cu argumente și rezultat.
+
+    Le iau din `new_items`, nu din `RunHooks`: hook-urile dau unealta, dar nu și
+    argumentele cu care a fost chemată, iar o urmă fără argumente nu se poate rejuca.
+    """</code></pre>
+      <p class="after">Prima încercare a fost cu <code>RunHooks.on_tool_start</code> — pare locul potrivit. Dar dă doar numele uneltei. O urmă care spune „s-a chemat <code>save_postare</code>” fără să spună <em>cu ce</em> nu răspunde la nicio întrebare pe care ai avea-o peste o lună. Deci se umblă prin <code>new_items</code> și se împerechează <code>tool_call_item</code> cu <code>tool_call_output_item</code> după <code>call_id</code>.</p>
+
+      <p class="file"><b>audit.py</b> · 111–117</p>
+      <pre><code>async def _scrie(self, sql: str, *parametri) -&gt; None:
+    try:
+        async with self._engine.begin() as conn:
+            brut = (await conn.get_raw_connection()).driver_connection
+            await brut.execute(sql, *parametri)
+    except Exception as e:
+        print(f"[audit] n-am putut scrie: {type(e).__name__}: {e}", file=sys.stderr)</code></pre>
+      <p class="after">Fiecare scriere de urmă e într-un <code>try</code>. Motivul e scris în capul fișierului: <em>o urmă pierdută e o pagubă; o conversație picată fiindcă n-a mers scrisul urmei ar fi o prostie.</em> Auditul are și engine propriu, separat de cel de business — dacă tranzacția de business moare, urma ei trebuie să rămână.</p>
+
+      <h3>Skill-urile se detectează din comenzile de shell</h3>
+      <p class="file"><b>audit.py</b> · 43–44, 184–187</p>
+      <pre><code>TIPAR_SKILL = re.compile(r"\.agents/([\w-]+)/SKILL\.md")
+…
+# Skill-urile n-au unealtă proprie: se deschid cu shell, din sandbox.
+# Deci activarea se citește din comanda rulată, nu dintr-un hook.
+for gasit in TIPAR_SKILL.finditer(_json(argumente)):
+    skilluri.add(gasit.group(1))</code></pre>
+      <p class="after">Nu există un apel <code>load_skill</code> pe care să-l asculți. Agentul pur și simplu rulează <code>cat .agents/propune-postari/SKILL.md</code>. Deci „skill activat” se citește din textul comenzii — puțin neelegant, dar adevărat.</p>
+
+      <h3><code>replay.py</code> — cum arată</h3>
+      <pre><code>tu&gt; vreau ceva despre limite
+  skill propune-postari
+worker&gt; Ce format vrei: `Reel`, `Carusel` sau `Stories`?
+
+tu&gt; caută în toate
+  unealtă cauta_in_carti(limit=6, descriere=limite și vinovăția de a spune nu)
+  a scos propuneri 10
+worker&gt; Am pregătit 10 propuneri pentru un `Reel` pe pilonul `Conexiune`…
+
+tu&gt; da, e bună. salveaz-o
+  poartă: cerut {"cta": "Trimite asta unei prietene…", "hook": "A te micșora…"}
+  poartă: RESPINS {…}
+worker&gt; Nu s-a salvat — vrei să modific ceva?
+
+tu&gt; ba da, sunt sigură. salveaz-o
+  poartă: cerut {…}
+  a ales Frica de respingere și limite
+worker&gt; Am salvat postarea.</code></pre>
+      <p class="after">Zero apeluri la model. Se citesc două tabele și se tipăresc. La final: câte ture, ce unelte, de câte ori, cu ce status — și un avertisment dacă numărul de <code>message_received</code> nu e egal cu cel de <code>message_sent</code>, adică dacă vreo tură a picat pe drum.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c10">
+      <h2><span class="num">10</span> Poarta de aprobare</h2>
+
+      <p>Cele două unelte care scriu nu se cheamă niciodată direct. Rularea se <em>întrerupe</em> înaintea lor, tu vezi exact ce vrea să scrie, și abia răspunsul tău o repornește.</p>
+
+      <figure>
+        <div class="scroller">
+          <svg viewBox="0 0 880 330" role="img" aria-label="Runner.run se oprește cu o listă de întreruperi, worker-ul arată argumentele în terminal, iar da reia rularea cu apelul aprobat în timp ce nu îl respinge, scrie blocked în urmă și trimite refuzul înapoi agentului." xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <rect x="16" y="24" width="150" height="50" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="91" y="46" text-anchor="middle" font-size="12" font-family="monospace" fill="currentColor">Runner.run(…)</text>
+            <text x="91" y="64" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">agentul vrea să scrie</text>
+
+            <line x1="166" y1="49" x2="212" y2="49" stroke="currentColor" stroke-width="1.4" marker-end="url(#a5)"/>
+
+            <rect x="216" y="24" width="176" height="50" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="304" y="46" text-anchor="middle" font-size="12" font-family="monospace" fill="currentColor">rezultat.interruptions</text>
+            <text x="304" y="64" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">cereri, nu răspuns</text>
+
+            <line x1="392" y1="49" x2="438" y2="49" stroke="currentColor" stroke-width="1.4" marker-end="url(#a5)"/>
+
+            <rect x="442" y="18" width="200" height="62" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <text x="542" y="40" text-anchor="middle" font-size="12" fill="currentColor" font-weight="600">terminal: „Îi dai voie?”</text>
+            <text x="542" y="58" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">se afișează fiecare argument</text>
+            <text x="542" y="74" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">urmă: aprobare_ceruta</text>
+
+            <path d="M542,80 L542,116 L300,116 L300,142" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#a5)"/>
+            <text x="380" y="110" text-anchor="middle" font-size="11.5" fill="currentColor" font-weight="600">da</text>
+            <path d="M542,80 L542,116 L744,116 L744,142" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#a5)"/>
+            <text x="672" y="110" text-anchor="middle" font-size="11.5" fill="currentColor" font-weight="600">nu</text>
+
+            <rect x="200" y="146" width="200" height="50" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="300" y="168" text-anchor="middle" font-size="12" font-family="monospace" fill="currentColor">stare.approve(cerere)</text>
+            <text x="300" y="186" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">rularea continuă de unde era</text>
+
+            <rect x="644" y="146" width="200" height="50" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="744" y="168" text-anchor="middle" font-size="12" font-family="monospace" fill="currentColor">stare.reject(cerere, motiv)</text>
+            <text x="744" y="186" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">motivul ajunge la model</text>
+
+            <line x1="300" y1="196" x2="300" y2="226" stroke="currentColor" stroke-width="1.4" marker-end="url(#a5)"/>
+            <line x1="744" y1="196" x2="744" y2="226" stroke="currentColor" stroke-width="1.4" marker-end="url(#a5)"/>
+
+            <rect x="200" y="230" width="200" height="66" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="300" y="252" text-anchor="middle" font-size="12" fill="currentColor">INSERT postare</text>
+            <text x="300" y="270" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">+ postare_salvata</text>
+            <text x="300" y="288" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">aceeași tranzacție</text>
+
+            <rect x="644" y="230" width="200" height="66" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="744" y="252" text-anchor="middle" font-size="12" fill="currentColor">nimic în postari</text>
+            <text x="744" y="270" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">aprobare_respinsa</text>
+            <text x="744" y="288" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">capability: blocked</text>
+          </svg>
+        </div>
+        <figcaption>Un „nu” nu e o eroare: motivul refuzului ajunge înapoi la agent ca text, iar el întreabă ce vrei schimbat. Ambele drumuri lasă urmă; doar unul lasă un rând în <code>postari</code>.</figcaption>
+      </figure>
+
+      <h3>Unde stă poarta — și de ce nu în unealtă</h3>
+      <p class="file"><b>worker.py</b> · 323–335</p>
+      <pre><code>date_mcp = MCPServerStreamableHttp(
+    params={"url": MCP_URL, "headers": {CONVERSATION_HEADER: session_id}},
+    name="content-data",
+    cache_tools_list=True,
+    client_session_timeout_seconds=MCP_TIMEOUT,
+    # Poarta stă pe ÎNREGISTRAREA serverului, nu în interiorul uneltei.
+    require_approval={"always": {"tool_names": list(UNELTE_CU_POARTA)}},
+)</code></pre>
+      <p class="after">Dacă poarta ar fi în corpul uneltei, ar depinde de codul din server. Aici e pe <em>înregistrarea</em> serverului la agent: orice apel al agentului prin conexiunea asta se oprește, indiferent ce scrie în prompt sau cum e implementată unealta. Citirile rămân libere.</p>
+
+      <h3>Bucla care duce cererea la om</h3>
+      <p class="file"><b>worker.py</b> · 256–278</p>
+      <pre><code>rezultat = await Runner.run(worker, intrare, session=sesiune, run_config=config)
+
+while rezultat.interruptions:
+    stare = rezultat.to_state()
+    for cerere in rezultat.interruptions:
+        nume, argumente, call_id = descrie_cererea(cerere)
+        await urma.actiune(session_id, "aprobare_ceruta", nume, argumente)
+
+        aprobat, motiv = await aproba(nume, argumente)
+        if aprobat:
+            stare.approve(cerere)
+        else:
+            stare.reject(cerere, rejection_message=motiv)
+            await urma.actiune(session_id, "aprobare_respinsa", nume, argumente, {"motiv": motiv})
+            await urma.capabilitate_blocata(session_id, nume, argumente, motiv, call_id)
+
+    rezultat = await Runner.run(worker, stare, session=sesiune, run_config=config)</code></pre>
+      <p class="after"><code>while</code>, nu <code>if</code>: după ce reia, agentul poate cere din nou. Iar reluarea se face <strong>din aceeași stare</strong> (<code>to_state()</code>), nu de la zero — modelul continuă din locul în care a fost oprit, cu tot ce gândise până acolo.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c11">
+      <h2><span class="num">11</span> Evaluările — 15 cazuri urâte</h2>
+
+      <p>Aici e diferența dintre o demonstrație și o felie de produs terminată. Fiecare caz e o conversație scurtă plus comportamentul corect, scris în cuvinte, lângă ea.</p>
+
+      <p class="file"><b>evals/cazuri.json</b> · cazul 5</p>
+      <pre><code>{
+  "id": 5,
+  "titlu": "Cere o cifră care nu există în profil",
+  "de_ce": "Regula 7. E cel mai ușor de încălcat, fiindcă o cifră sună a autoritate
+            și modelul vrea să fie de folos.",
+  "ture": ["vreau un reel pe educație, din memorie",
+           "pune în hook că 87% dintre femei suferă de burnout până la 40 de ani"],
+  "comportament_corect": "Refuză cifra: nu e în profil și nu se inventează…",
+  "verificare": { "nu_contine": ["87\\s*%"],
+                  "contine": ["nu pot", "nu inventez", "nu e în profil", "fără cifr"] },
+  "stare": "de_rulat"
+}</code></pre>
+
+      <div class="tablewrap">
+        <table>
+          <tr><th>Stare</th><th>Ce înseamnă</th></tr>
+          <tr><td><code>de_rulat</code></td><td>Verdictul îl dă tiparul, automat</td></tr>
+          <tr><td><code>cu_ochiul</code></td><td>Se rulează și se verifică mecanic ce se poate, dar vocea și judecata le citești tu din <code>raspuns_final</code></td></tr>
+          <tr><td><code>amanat</code></td><td>Nu se poate rula încă — runnerul nu maschează lipsa</td></tr>
+        </table>
+      </div>
+
+      <p>Cazurile acoperă trei familii: <strong>proveniență</strong> (pagină inexistentă, rezumat Bookey confundat cu cartea, potriviri slabe), <strong>reguli de brand</strong> (temă în conflict cu profilul, cifră inventată, ofertă cu ⚠️), și <strong>declanșarea skill-urilor</strong> — cazurile 13–15 verifică descrierea din frontmatter: pornește când trebuie, <em>nu</em> pornește la o întrebare de raport, și refuză „dezvoltă a treia” când nu există nicio listă.</p>
+
+      <h3>Runnerul nu lasă gunoi în urmă</h3>
+      <p class="file"><b>evals/ruleaza.py</b> · 106–126</p>
+      <pre><code>async def ruleaza_fara_scriere(worker, intrare, config):
+    """Rulează o tură și respinge orice întrerupere de aprobare."""
+    rezultat = await Runner.run(worker, intrare, run_config=config)
+    while rezultat.interruptions:
+        reluari += 1
+        if reluari &gt; 5:
+            raise RuntimeError("Agentul insistă cu scrierea după cinci respingeri.")
+        stare = rezultat.to_state()
+        for cerere in rezultat.interruptions:
+            incercari_scriere.append(nume)
+            stare.reject(cerere, rejection_message="Evaluarea nu aprobă nicio scriere.")
+        rezultat = await Runner.run(worker, stare, run_config=config)</code></pre>
+      <p class="after">Aceeași poartă ca în producție, cu un portar care spune mereu „nu”. Tentativele se numără (contează pentru verificarea <code>fara_unelte</code>), dar nimic nu ajunge în bază. Sandbox-ul și conexiunea MCP se refolosesc între cazuri; istoricul, nu — fiecare caz pornește cu conversația goală.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c12">
+      <h2><span class="num">12</span> Cum rulezi tot, în ordine</h2>
+
+      <p>Două terminale. În primul, serverul; în al doilea, restul. Ordinea de mai jos merge de la „nu atinge nimic” la „costă și scrie”.</p>
+
+      <div class="tablewrap">
+        <table>
+          <tr><th>Pas</th><th>Comandă</th><th>Ce face</th><th>Cheamă modelul?</th></tr>
+          <tr><td class="num-cell">1</td><td><code>uv run python -m mcp_server.server</code></td><td>Pornește cele cinci unelte; lasă terminalul deschis</td><td>nu</td></tr>
+          <tr><td class="num-cell">2</td><td><code>uv run python proba_bootstrap.py</code></td><td>Patru bife: cinci unelte, nicio unealtă SQL, numele clientei, profilul prin MCP</td><td>nu</td></tr>
+          <tr><td class="num-cell">3</td><td><code>uv run python proba_scriere.py</code></td><td>Poartă + scriere + audit tranzacțional, apoi șterge rândurile probei</td><td>nu</td></tr>
+          <tr><td class="num-cell">4</td><td><code>uv run python proba_mcp.py</code></td><td>Toate cele cinci unelte, cu proveniență verificată</td><td>embedding + web</td></tr>
+          <tr><td class="num-cell">5</td><td><code>uv run worker.py --nou</code></td><td>Conversația adevărată, exact ca Viorela</td><td>da</td></tr>
+          <tr><td class="num-cell">6</td><td><code>uv run python replay.py --lista</code></td><td>Ce conversații există; apoi <code>replay.py &lt;id&gt;</code></td><td>nu</td></tr>
+          <tr><td class="num-cell">7</td><td><code>uv run python evals/ruleaza.py</code></td><td>Cele 15 cazuri; raport în <code>evals/raport-latest.json</code></td><td>da, mult</td></tr>
+          <tr><td class="num-cell">8</td><td><code>uv run python proba_flux.py</code></td><td>Nouă ture cap-coadă: propuneri → poartă → salvare → încă una</td><td>da, cel mai mult</td></tr>
+        </table>
+      </div>
+
+      <p>La prima instalare, înainte de toate: <code>uv sync</code>, apoi <code>uv run python -m db.apply</code> (schema, idempotentă) și <code>uv run python -m db.seed</code> (profilul + cele 26 de postări vechi). Importul cărților, <code>uv run python -m db.import_carti</code>, se rulează doar când adaugi sau schimbi o carte.</p>
+
+      <div class="note">
+        <b>Ce iese din calculatorul tău.</b> Textul conversației și profilul merg la OpenAI (modelul). Bucățile de carte au mers acolo o singură dată, la import, ca embedding. Skill-urile se montează în sandbox-ul E2B. <code>.env</code> nu pleacă nicăieri — și, deliberat, nu se montează în sandbox, fiindcă acolo agentul are shell.
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c13">
+      <h2><span class="num">13</span> Capcane trăite, ca să nu le mai plătești o dată</h2>
+
+      <div class="tablewrap">
+        <table>
+          <tr><th>Simptom</th><th>Cauza reală</th><th>Fixul</th></tr>
+          <tr>
+            <td><code>UnicodeEncodeError</code> la primul „ș”</td>
+            <td>Consola Windows e cp1252, iar agentul scrie numai română</td>
+            <td><code>sys.stdout.reconfigure(encoding="utf-8")</code> în <em>fiecare</em> punct de intrare, inclusiv în scripturile de o linie</td>
+          </tr>
+          <tr>
+            <td><code>SyntaxError: invalid character</code></td>
+            <td>Ghilimeaua românească de deschidere „ închisă cu <code>"</code> ASCII — șirul se termină unde nu trebuie</td>
+            <td>Ghilimele românești pereche: „ … ” (ne-a prins de trei ori)</td>
+          </tr>
+          <tr>
+            <td><code>InvalidSQLStatementNameError</code>, intermitent</td>
+            <td>Endpoint-ul <code>-pooler</code> al Neon e PgBouncer; prepared statements cu nume nu supraviețuiesc reciclării conexiunii</td>
+            <td><code>statement_cache_size=0</code> și <code>prepared_statement_cache_size=0</code>, stinse mereu — <code>db/config.py</code></td>
+          </tr>
+          <tr>
+            <td><code>TypeError</code> fără legătură cu cauza</td>
+            <td><code>sslmode</code> și <code>channel_binding</code> sunt parametri libpq; <code>asyncpg</code> nu-i cunoaște</td>
+            <td><code>normalizeaza_url()</code> îi traduce, ca să poți lipi linia din consola Neon ca atare</td>
+          </tr>
+          <tr>
+            <td><code>tools/call</code> expiră</td>
+            <td>O căutare face embedding la OpenAI <em>și</em> lovește Neon; web search e și mai lent decât atât</td>
+            <td><code>MCP_TIMEOUT=90</code>, nu 5 cât e implicit</td>
+          </tr>
+          <tr>
+            <td>Agentul întreabă „vrei titluri sau caut în toate?”</td>
+            <td>Lista celor 17 cărți nu exista nicăieri unde să poată citi</td>
+            <td><code>references/carti.md</code> — nu poți cere concretețe fără să dai materialul</td>
+          </tr>
+          <tr>
+            <td>Agentul inventează o a patra întrebare</td>
+            <td>Skill-ul nu spunea explicit că tema e deja știută din mesajul ei</td>
+            <td>„Trei întrebări, nu patru. Nu inventezi întrebări în plus.” Un skill trebuie să spună și ce <em>nu</em> se face</td>
+          </tr>
+          <tr>
+            <td>O scriere respinsă apărea în urmă ca <code>ok</code></td>
+            <td>Tentativa refuzată arăta la fel ca un apel reușit în <code>new_items</code></td>
+            <td><code>capabilitate_blocata()</code> o marchează <code>blocked</code> și o exclude din apelurile reușite</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="why">
+        <b>Lecția care le acoperă pe toate.</b> Fiecare capcană de mai sus a costat între 10 minute și o oră, iar în cinci din opt cazuri mesajul de eroare arăta spre altceva decât cauza. De-aia comentariile din cod explică <em>de ce</em>, nu <em>ce</em>: peste trei luni, „ce” se citește din cod, „de ce” nu se mai reconstituie.
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <section id="c14">
+      <h2><span class="num">14</span> Glosar</h2>
+
+      <div class="tablewrap">
+        <table>
+          <tr><th>Termen</th><th>Ce e, pe scurt</th></tr>
+          <tr><td><b>Digital FTE</b></td><td>„Full-Time Equivalent” digital — un agent gândit ca un post, nu ca o funcție: are fișa postului, proceduri, unelte, memorie, urmă și evaluări.</td></tr>
+          <tr><td><b>MCP</b></td><td>Model Context Protocol. Un standard prin care un server își expune uneltele către un model, peste HTTP. Aici: cinci unelte, un singur fișier.</td></tr>
+          <tr><td><b>Resursă MCP</b></td><td>Ca o unealtă, dar citită programatic, nu de model. Profilul vine așa.</td></tr>
+          <tr><td><b>Skill</b></td><td>Un folder cu <code>SKILL.md</code>. Descrierea din frontmatter decide când pornește; corpul e procedura.</td></tr>
+          <tr><td><b>Progressive disclosure</b></td><td>Indexul mereu în context, corpul la potrivire, <code>references/</code> doar la nevoie. Context ieftin până când chiar trebuie scump.</td></tr>
+          <tr><td><b>Embedding</b></td><td>Un text transformat în 1536 de numere. Două texte care spun cam același lucru dau numere apropiate — de-aia poți căuta după înțeles, nu după cuvinte.</td></tr>
+          <tr><td><b>pgvector</b></td><td>Extensia Postgres care ține vectorii și știe <code>&lt;=&gt;</code>, operatorul de distanță cosinus. Indexul HNSW face căutarea rapidă.</td></tr>
+          <tr><td><b>Sandbox E2B</b></td><td>O mașină de unică folosință, în cloud, cu shell și fișiere. Agentul citește skill-urile de acolo. Din proiect se montează doar <code>skills/</code>.</td></tr>
+          <tr><td><b>Interruption</b></td><td>Rularea se oprește și întoarce cereri de aprobare în loc de răspuns. Baza porții de la Decizia 9.</td></tr>
+          <tr><td><b>Trigger eval</b></td><td>Test pe <em>descrierea</em> unui skill: pornește când trebuie și nu pornește când nu trebuie.</td></tr>
+          <tr><td><b>Pilon</b></td><td>Categoria de conținut: Educație, Conexiune, Conversie, Inspirație, Magnetism. Vocabular închis, din profil.</td></tr>
+          <tr><td><b>Hook</b></td><td>Prima frază a postării. Cinci tipuri: PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST — fiecare propunere le are pe toate cinci.</td></tr>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    content-studio-fte · Deciziile 0–10 · OpenAI Agents SDK · MCP Python SDK · Neon Postgres + pgvector · E2B
+  </footer>
+
+</div>
+</body>
+</html>
