@@ -105,7 +105,10 @@ class Audit:
     """Conexiunea de audit. Se deschide o dată, la pornirea worker-ului."""
 
     def __init__(self, url: str, connect_args: dict) -> None:
-        self._engine = create_async_engine(url, connect_args=connect_args)
+        # `pool_pre_ping`: urma se scrie rar și la distanță în timp, deci e cea mai
+        # expusă la o conexiune închisă de Neon între două mesaje. Iar o urmă
+        # pierdută nu se mai întoarce.
+        self._engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
         self._apeluri_blocate: set[tuple[str, str]] = set()
 
     async def _scrie(self, sql: str, *parametri) -> None:

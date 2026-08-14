@@ -308,11 +308,9 @@
           "save_postare"
         ],
         "contine": [
-          "nu am",
-          "nu există",
+          "nu (g[ăa]sesc|am|v[ăa]d|exist[ăa])[^.\\n]{0,60}list",
           "nicio list",
-          "nu ți-am arătat",
-          "nu găsesc lista"
+          "nu ți-am arătat"
         ]
       },
       "stare": "de_rulat"

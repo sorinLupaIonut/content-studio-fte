@@ -309,7 +309,9 @@ async def main() -> int:
         return 1
 
     nou = "--nou" in sys.argv
-    engine = create_async_engine(url, connect_args=connect_args)
+    # `pool_pre_ping`: o conversație stă minute bune între mesaje, iar Neon închide
+    # conexiunile inactive. Fără ping, memoria conversației pică la reluare.
+    engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
 
     try:
         session_id = await porneste(engine, nou)

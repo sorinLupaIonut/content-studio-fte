@@ -505,7 +505,12 @@ def main() -> int:
         print(f"{e}", file=sys.stderr)
         return 1
 
-    _engine = create_async_engine(url, connect_args=connect_args)
+    # `pool_pre_ping`: Neon suspendă compute-ul după câteva minute fără trafic și
+    # închide conexiunile. Fără ping, pool-ul dă mai departe o conexiune moartă și
+    # prima unealtă chemată după pauză pică cu `InterfaceError: connection is
+    # closed` — exact la a doua întrebare a Viorelei, nu la prima. Pingul costă un
+    # `SELECT 1` per împrumut; serverul ăsta face oricum un apel de rețea pe unealtă.
+    _engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
 
     print(f"content-data · cinci unelte · http://{GAZDA}:{PORT}/mcp")
     print(f"Bază: {descrie(url)}")
