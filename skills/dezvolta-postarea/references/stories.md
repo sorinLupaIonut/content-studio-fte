@@ -2,7 +2,9 @@
 
 > Extras text din PDF (61 pagini) cu PyMuPDF. Sursă: materiale Brand Legends / documente personale ale Viorelei.
 >
-> ⚠️ **Acest extras conține DOAR textul.** Documentul original are multe imagini și exemple vizuale de story-uri care s-au pierdut aici. Pentru conținutul complet, deschide [cum-vinzi-pe-story.pdf](cum-vinzi-pe-story.pdf) (în același folder) și citește paginile relevante — folosește acest .md doar pentru căutare rapidă în text.
+> ⚠️ **Acest extras conține DOAR textul.** Documentul original are multe imagini și exemple
+> vizuale de story-uri care s-au pierdut aici. PDF-ul întreg stă doar local, în
+> `content-studio-vio-2`; aici e textul, pentru structură și formulări.
 
 
 <!-- pagina 1 -->

@@ -37,12 +37,12 @@ uv run worker.py
 |---|---|---|
 | 0 | Agent minimal de chat — `uv`, Agents SDK, `Agent` simplu, fără sandbox | ✅ răspunde |
 | 1 | `AGENTS.md` cu regulile de arhitectură | ✅ scris |
-| 2 | Planul schemei și al celor doi sub-agenți | ✅ `plans/digital-fte-plan.md` |
+| 2 | Planul schemei și al fluxului, cu motivele fiecărei decizii | ✅ `plans/digital-fte-plan.md` |
 | 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
-| 4 | `propune_postari` — sub-agent cu `output_type=Propuneri`, chemat cu `as_tool` | ⬜ |
-| 5 | Import + embedding: cele 17 cărți; `metoda/` spartă pe subiecte | ⬜ |
-| 6 | MCP server `content-data`, cinci unelte | ⬜ |
-| 7 | `dezvolta_postarea` ca al doilea `as_tool` + salvarea | ⬜ |
+| 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
+| 5 | Import + embedding: cele 17 cărți; metoda mutată lângă skill | ✅ 4.778 bucăți, căutarea dă pagina |
+| 6 | MCP server `content-data`, patru unelte | ⬜ |
+| 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ⬜ |
 | 8 | Audit la fiecare graniță + replay | ⬜ |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ⬜ |
 | 10 | Setul de evaluare — cele 12 cazuri urâte din §5 al planului | ⬜ |
@@ -50,7 +50,22 @@ uv run worker.py
 ## Structura
 
 ```
-worker.py                     agentul; memorie în Neon + profilul în system prompt
+worker.py                     agentul unic; sandbox E2B, memorie în Neon
+skills/                       montate în sandbox, descoperite din frontmatter
+  propune-postari/
+    SKILL.md                    faza 1: cele trei întrebări, apoi cele 10 propuneri
+    references/                 deschise doar la nevoie
+      piloni.md                   cei 5 piloni
+      hookuri.md                  cele 5 tipuri de hook
+      surse.md                    cele 4 surse
+  dezvolta-postarea/            fără SKILL.md până la Decizia 7; referințele sunt deja aici
+    references/                 metoda Brand Legends, 11 fișiere:
+                                  manualul de Reels spart în 9 — filmare, editare, structura-reel,
+                                  hookuri-si-scripturi, tipuri-de-reels, idei, distribuire,
+                                  piloni-si-cont, intrebari-frecvente
+                                  plus b-roll.md și stories.md
+proba_flux.py                 criteriul Deciziei 4, plus proba de progressive disclosure
+proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
 AGENTS.md                     specificația domeniului + contractul de arhitectură
 plans/digital-fte-plan.md     planul complet, cu motivele fiecărei decizii
 db/
@@ -58,19 +73,25 @@ db/
   config.py                     normalizează DATABASE_URL pentru asyncpg
   apply.py                      aplică schema, idempotent
   seed.py                       profil.md → client; 26 postări → postari
+  import_carti.py               cele 17 cărți → documents + embeddings (Decizia 5)
 content/                      materialul brut, până când intră în Postgres
   profil.md                     → client.profil_md          (Decizia 3)
-  carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor),
-                                se copiază înainte de Decizia 5 → documents + embeddings
+  carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor)
+                                → documents + embeddings    (Decizia 5)
   postari/                      26 postări → tabelul postari (Decizia 3)
-  metoda/                       manualul întreg, de spart    (Decizia 5)
-mcp_server/content/metoda/    fișierele servite de get_metoda (Decizia 6)
 evals/                        cele 12 cazuri urâte, cu răspunsul corect (Decizia 10)
 ```
+
+Metoda Brand Legends nu are folder propriu în `content/`: nu intră în bază, ci călătorește
+cu skill-ul care o folosește.
 
 ## Stack
 
 `openai-agents` · `gpt-5-mini` pentru generare · `text-embedding-3-small` pentru căutare ·
 Neon Postgres + pgvector · MCP Python SDK · proiect `uv`.
 
-Fără Docker, fără sandbox, fără infrastructură pe Windows.
+**Sandbox E2B**, cu skill-urile montate din `skills/`. Cere `E2B_API_KEY` în `.env` —
+tierul Hobby e gratuit, sesiunile țin până la o oră.
+
+Din proiect **nu se montează nimic** în sandbox în afară de `skills/`. `.env` are parola
+bazei, iar agentul are shell.

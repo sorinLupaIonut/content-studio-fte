@@ -15,7 +15,7 @@ Predecesorul, `content-studio-vio-2`, rămâne funcțional pentru Viorela până
 ## Reguli de arhitectură
 
 Cele șase reguli pe care o sesiune nouă trebuie să le respecte fără să le mai întrebe.
-Primele trei sunt regulile Deciziei 1 din curs; ultimele trei sunt deciziile Reviziei 4 din plan.
+Primele trei sunt regulile Deciziei 1 din curs; ultimele trei s-au stabilit la Decizia 4.
 
 1. **Datele de business se citesc și se scriu doar prin serverul MCP `content-data`** — niciodată
    SQL brut din worker-ul care rulează. Nu există unealtă `run_sql`, nici DDL, nici parametru de
@@ -24,33 +24,39 @@ Primele trei sunt regulile Deciziei 1 din curs; ultimele trei sunt deciziile Rev
    și rândul ei de audit se comit **împreună**, în aceeași tranzacție.
 3. **Embedding-urile folosesc același model la stocare și la căutare** — `text-embedding-3-small`.
    Modele diferite la cei doi capeți înseamnă căutare care întoarce gunoi.
-4. **Fără sandbox.** `Agent` simplu, nu `SandboxAgent`. Sandbox-ul se cere doar când agentul are
-   nevoie de shell, pachete, date montate sau fișiere proprii; niciunul nu se aprinde aici.
-   Corolar: nu se folosesc Skill-uri-foldere.
-5. **Un orchestrator, doi sub-agenți chemați ca unelte** (`Agent.as_tool()`), nu `handoffs`.
-   Fluxul se întoarce — ea poate cere dezvoltarea încă unei propuneri din aceeași listă — iar un
-   `handoff` transferă controlul definitiv.
+4. **Sandbox cu skill-uri-foldere.** `SandboxAgent`, nu `Agent` simplu. Metoda stă în
+   `skills/<nume>/SKILL.md` plus `references/`, montate în sandbox și deschise progresiv:
+   indexul (nume + descriere + cale) e mereu în context, corpul se deschide când sarcina se
+   potrivește descrierii, iar `references/` doar dacă `SKILL.md` trimite acolo. Se editează
+   fără să atingi codul. Sandbox-ul e E2B.
+5. **Un singur agent.** Cele două faze sunt skill-uri, nu agenți separați. Un context unic,
+   deci profilul de 30k caractere și regulile nu se copiază de două ori.
+   Costul, asumat cu ochii deschiși: un `SKILL.md` e text, nu schemă. Nu poate impune „exact
+   zece propuneri cu exact cinci hook-uri" — se cere, se numără după, și se judecă la evaluare.
 6. **Nimic nu se salvează fără confirmarea Viorelei.** Poarta de aprobare stă pe înregistrarea
    serverului MCP, deci apără scrierea indiferent cine cheamă unealta.
 
 ## Forma
 
 ```
-Content Worker  ·  Agent orchestrator  ·  singurul cu care vorbește Viorela
-  system prompt : profil_md întreg + cele două faze + regulile obligatorii de mai jos
+Content Worker  ·  SandboxAgent  ·  singurul cu care vorbește Viorela
+  system prompt : profil_md întreg + cele 10 reguli obligatorii
+  capabilities  : Filesystem, Shell, Compaction (implicite) + Skills(from_=LocalDir("skills"))
+  skills:
+    propune-postari    faza 1 — cele 3 întrebări, apoi 10 propuneri × 5 hook-uri
+                         references/: piloni.md, hookuri.md, surse.md
+    dezvolta-postarea  faza 2 — script, caption, hashtaguri, CTA          (Decizia 7)
+                         references/: metoda Brand Legends, 11 fișiere
   tools:
-    propune_postari    ← Agent.as_tool()   output_type=Propuneri
-                           uneltele lui: cauta_in_carti, căutare web
-    dezvolta_postarea  ← Agent.as_tool()   output_type=Postare
-                           unealta lui: get_metoda
+    cauta_in_carti     ← MCP
     listeaza_postari   ← MCP
     save_postare       ← MCP, cu poartă de aprobare
     update_profil      ← MCP, cu poartă de aprobare
 ```
 
-Uneltele sunt atribuite pe sub-agent intenționat: `cauta_in_carti` nu există în Faza 2,
-`get_metoda` nu există în Faza 1. Regulile cu risc mare se impun prin permisiuni de unelte,
-nu prin cuvinte în prompt.
+Cu un singur agent, uneltele nu se mai pot atribui pe fază: le are pe toate, tot timpul.
+Limita — `cauta_in_carti` doar la sursa Cărți — e scrisă în `SKILL.md`, deci e o
+instrucțiune, nu un zid. E o pierdere reală, și se prinde la evaluare.
 
 ---
 
@@ -65,7 +71,7 @@ variantă implicită, niciuna nu se deduce din temă, niciuna nu se sare pentru 
 context". Singura excepție: dacă ea a spus deja limpede răspunsul în mesaj („vreau un reel
 despre…"), ăla **e** răspunsul ei — se confirmă scurt și se trece mai departe.
 
-### Faza 1 — cele 10 propuneri (`propune_postari`)
+### Faza 1 — cele 10 propuneri (skill `propune-postari`)
 
 1. **Profilul e deja în system prompt**, întreg, la orice variantă de sursă. Nu se caută și nu se
    cere ca unealtă.
@@ -86,7 +92,7 @@ despre…"), ăla **e** răspunsul ei — se confirmă scurt și se trece mai de
    reformulată. Numerotate 1–10.
 7. **Care se dezvoltă și cu care hook** (obligatoriu). Poate alege mai multe. Nu se alege în locul ei.
 
-### Faza 2 — dezvoltarea celei alese (`dezvolta_postarea`)
+### Faza 2 — dezvoltarea celei alese (skill `dezvolta-postarea`)
 
 8. **SCRIPT / STRUCTURĂ**, pe formatul ales:
    - *Reel:* hook pe ecran → punctele scriptului (text pe ecran + ce spune/face în cadru +
@@ -103,20 +109,26 @@ despre…"), ăla **e** răspunsul ei — se confirmă scurt și se trece mai de
 13. **Se salvează una singură**, cea confirmată, prin `save_postare`. Celelalte nouă propuneri
     rămân în `audit_log` (`propuneri_generate`), nu în tabelul `postari`.
 
-### Ieșire structurată
+### Forma ieșirii: instrucțiune, nu schemă
 
-Ambele faze întorc modele Pydantic validate, nu text liber:
+Un `SKILL.md` e text, deci „exact 10 propuneri, exact 5 hook-uri, câte unul din fiecare tip"
+e ceva ce modelul respectă de obicei, nu un contract care oprește răspunsul greșit.
+
+Forma cerută în `SKILL.md`, ca ea să poată spune „a treia, cu contrastul":
 
 ```
-Hook:        tip: Literal[PROVOCARE|CIFRA|SECRET|INTREBARE|CONTRAST], text: str
-Propunere:   numar: int, titlu: str, idee: str, hookuri: list[Hook]
-Propuneri:   pilon, format, sursa, propuneri: list[Propunere]
-Postare:     propunere_aleasa, hook_ales, script, caption,
-             hashtaguri: list[str], cta: str, sursa: str
+3. Titlul scurt
+   Ideea, în una-două fraze.
+   - PROVOCARE: …
+   - CIFRĂ: …
+   - SECRET: …
+   - ÎNTREBARE: …
+   - CONTRAST: …
 ```
 
-Validat automat: exact 10 propuneri; exact 5 hook-uri la fiecare; câte unul din fiecare tip,
-niciunul repetat; 3–5 hashtaguri; CTA nevid.
+Se numără **după**: `proba_flux.py` verifică la fiecare rulare numerotarea 1–10, cele cinci
+tipuri, cifrele inventate și variantele implicite oferite. Judecata pe cazurile grele e
+treaba setului de evaluare, Decizia 10.
 
 ---
 
@@ -171,8 +183,8 @@ vorbesc despre aceeași întrebare:
 
 ## Reguli de generare — OBLIGATORII
 
-Nu sunt stil. Sunt contractul de ieșire, și trec integral în `instructions`-urile orchestratorului
-și ale celor doi sub-agenți.
+Nu sunt stil. Sunt contractul de ieșire, și trec integral în `instructions`-ul agentului —
+în system prompt, nu într-un skill, fiindcă sunt în vigoare tot timpul.
 
 1. **Vocea Viorelei, nu vocea unui robot.** Tonul și expresiile din „Vocea ta", „Expresii pe care
    le folosești des" și „Tonul tău". Cald, blând, empatic, vulnerabil dar ferm, cu perspectivă
@@ -204,7 +216,7 @@ Nu sunt stil. Sunt contractul de ieșire, și trec integral în `instructions`-u
 |---|---|---|
 | profilul Viorelei | `client.profil_md` → **system prompt, întreg, la fiecare rulare** | Vertical SoR + operațional |
 | cele 17 cărți | `documents` + `embeddings`, prin `cauta_in_carti` | context de lucru — inspirație, niciodată regulă |
-| metoda Brand Legends | fișiere pe **discul serverului MCP**, prin `get_metoda(format)` | metodă partajată |
+| metoda Brand Legends | `skills/dezvolta-postarea/references/`, deschise la nevoie | metodă partajată |
 | postările salvate | tabelul `postari` — interogare live, fără embeddings deocamdată | operațional |
 | starea conversației | `conversations` + `agent_sessions` / `agent_messages` | stare |
 | urma acțiunilor | `audit_log`, `capability_invocations` | urmă |
@@ -219,9 +231,10 @@ Materialul brut, până când intră în bază:
 content/profil.md               → client.profil_md            (Decizia 3)
 content/carti/md/               → documents + embeddings      (Decizia 5)
 content/postari/                → tabelul postari             (Decizia 3)
-content/metoda/                 → se sparge pe subiecte       (Decizia 5)
-mcp_server/content/metoda/      → citit de get_metoda         (Decizia 6)
 ```
+
+Metoda Brand Legends **nu** trece prin bază. E capabilitate, nu date: stă spartă pe subiecte
+în `skills/dezvolta-postarea/references/` și se deschide când `SKILL.md` trimite acolo.
 
 ## Ordinea de construcție
 

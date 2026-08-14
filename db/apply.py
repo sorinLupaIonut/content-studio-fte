@@ -23,6 +23,10 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from db.config import ConfigurareLipsa, descrie, ia_url_bazei
 
+# Consola Windows e cp1252; fără asta, primul „ă" din „Bază" omoară rularea.
+for flux in (sys.stdout, sys.stderr):
+    flux.reconfigure(encoding="utf-8", errors="replace")
+
 SCHEMA = Path(__file__).parent / "schema.sql"
 
 # Ce trebuie să existe la final. Primele cinci sunt coloana vertebrală din
