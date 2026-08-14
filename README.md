@@ -11,11 +11,23 @@ Succesorul lui `content-studio-vio-2`, care rămâne funcțional pentru ea pân�
 
 ## Cum se rulează
 
+Copiază `.env.example` în `.env`, pune cheia OpenAI și `DATABASE_URL` din Neon.
+Șirul din consola Neon (cu `sslmode=require&channel_binding=require`) merge lipit ca atare —
+`db/config.py` îl normalizează pentru `asyncpg`.
+
+```bash
+uv run python -m db.apply
+```
+
+```bash
+uv run python -m db.seed
+```
+
 ```bash
 uv run worker.py
 ```
 
-Înainte de prima rulare: copiază `.env.example` în `.env` și pune-ți cheia OpenAI.
+`worker.py` reia ultima conversație; cu `--nou` începe una nouă.
 
 ## Unde suntem
 
@@ -24,7 +36,7 @@ uv run worker.py
 | 0 | Agent minimal de chat — `uv`, Agents SDK, `Agent` simplu, fără sandbox | ✅ răspunde |
 | 1 | `AGENTS.md` cu regulile de arhitectură | ✅ scris |
 | 2 | Planul schemei și al celor doi sub-agenți | ✅ `plans/digital-fte-plan.md` |
-| 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ⬜ |
+| 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | 🔨 cod scris, așteaptă baza |
 | 4 | `propune_postari` — sub-agent cu `output_type=Propuneri`, chemat cu `as_tool` | ⬜ |
 | 5 | Import + embedding: cele 17 cărți; `metoda/` spartă pe subiecte | ⬜ |
 | 6 | MCP server `content-data`, cinci unelte | ⬜ |
@@ -36,12 +48,18 @@ uv run worker.py
 ## Structura
 
 ```
-worker.py                     agentul; azi doar chat, crește cu fiecare Decizie
+worker.py                     agentul; memorie în Neon + profilul în system prompt
 AGENTS.md                     specificația domeniului + contractul de arhitectură
 plans/digital-fte-plan.md     planul complet, cu motivele fiecărei decizii
+db/
+  schema.sql                    5 tabele din Concept 7 + client și postari
+  config.py                     normalizează DATABASE_URL pentru asyncpg
+  apply.py                      aplică schema, idempotent
+  seed.py                       profil.md → client; 26 postări → postari
 content/                      materialul brut, până când intră în Postgres
   profil.md                     → client.profil_md          (Decizia 3)
-  carti/md/                     17 cărți → documents + embeddings  (Decizia 5)
+  carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor),
+                                se copiază înainte de Decizia 5 → documents + embeddings
   postari/                      26 postări → tabelul postari (Decizia 3)
   metoda/                       manualul întreg, de spart    (Decizia 5)
 mcp_server/content/metoda/    fișierele servite de get_metoda (Decizia 6)
