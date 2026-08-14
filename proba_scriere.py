@@ -59,7 +59,7 @@ async def main() -> int:
     load_dotenv()
     url, connect_args = ia_url_bazei()
     engine = create_async_engine(url, connect_args=connect_args)
-    session_id, _, _ = await porneste(engine, nou=True)
+    session_id = await porneste(engine, nou=True)
     urma = Audit(url, connect_args)
     server = MCPServerStreamableHttp(
         params={

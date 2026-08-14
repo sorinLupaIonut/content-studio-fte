@@ -40,6 +40,7 @@ Primele trei sunt regulile Deciziei 1 din curs; ultimele trei s-au stabilit la D
 
 ```
 Content Worker  ·  SandboxAgent  ·  singurul cu care vorbește Viorela
+  bootstrap     : profil_md citit live prin resursa MCP internă `content-data://…/profil`
   system prompt : profil_md întreg + cele 10 reguli obligatorii
   capabilities  : Filesystem, Shell, Compaction (implicite) + Skills(from_=LocalDir("skills"))
   skills:

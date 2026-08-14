@@ -32,6 +32,7 @@ import re
 import sys
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 
 from dotenv import load_dotenv
 from mcp.server.mcpserver import Context, MCPServer
@@ -39,7 +40,7 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from db.config import ConfigurareLipsa, descrie, ia_url_bazei
-from mcp_server.protocol import CONVERSATION_HEADER
+from mcp_server.protocol import CONVERSATION_HEADER, PROFIL_URI
 
 # Același model la stocare și la căutare — regula 3. Îl iau chiar din scriptul
 # care a scris vectorii, ca să nu poată ajunge diferit fără să se rupă importul.
@@ -47,6 +48,11 @@ from db.import_carti import MODEL_EMBED, ca_vector
 
 for flux in (sys.stdout, sys.stderr):
     flux.reconfigure(encoding="utf-8", errors="replace")
+
+RADACINA = Path(__file__).parents[1]
+# Opțiunile de mai jos se calculează la import. `.env` trebuie încărcat înainte,
+# altfel WEB_SEARCH_MODEL, MCP_HOST și MCP_PORT scrise acolo sunt ignorate.
+load_dotenv(RADACINA / ".env")
 
 CLIENT_SLUG = "viorela"
 GAZDA = os.getenv("MCP_HOST", "127.0.0.1")
@@ -77,14 +83,44 @@ async def baza():
         yield (await conn.get_raw_connection()).driver_connection
 
 
+SQL_PROFIL = "SELECT id, nume, profil_md FROM client WHERE slug = $1"
+
+
+@server.resource(
+    PROFIL_URI,
+    name="profil-viorela",
+    title="Profilul complet al Viorelei",
+    description="Bootstrap intern pentru system prompt; nu este unealtă a agentului.",
+    mime_type="application/json",
+)
+async def profil_client() -> str:
+    """Profilul live, citit prin MCP înainte de construirea agentului."""
+    async with baza() as conn:
+        rand = await conn.fetchrow(SQL_PROFIL, CLIENT_SLUG)
+    if rand is None:
+        raise ValueError(f"Nu există clienta {CLIENT_SLUG!r} în tabelul `client`.")
+    return json.dumps(
+        {"slug": CLIENT_SLUG, "nume": rand["nume"], "profil_md": rand["profil_md"]},
+        ensure_ascii=False,
+    )
+
+
 SQL_CAUTA = """
 SELECT d.title                                              AS titlu,
        d.metadata->>'autor'                                 AS autor,
+       COALESCE(d.metadata->>'clasa',
+                'context de lucru — inspirație')            AS clasa,
+       COALESCE(d.metadata->>'versiune',
+                'ediție neînregistrată')                    AS versiune,
        COALESCE(d.metadata->>'este_rezumat', 'false')::bool AS este_rezumat,
+       COALESCE(d.metadata->>'are_marcaje_pagina',
+                'false')::bool                              AS are_marcaje_pagina,
        d.metadata->>'temei_drepturi'                        AS temei_drepturi,
+       d.metadata->>'proprietar'                            AS proprietar,
        e.metadata->>'pagina'                                AS pagina,
        e.metadata->>'capitol'                               AS capitol,
        e.chunk_text                                         AS text,
+       e.model                                              AS model_embedding,
        1 - (e.embedding <=> $1::vector)                     AS scor
   FROM embeddings e
   JOIN documents  d ON d.id = e.document_id
@@ -131,13 +167,18 @@ async def cauta_in_carti(
             "text": r["text"],
             "titlu": r["titlu"],
             "autor": r["autor"],
+            "clasa": r["clasa"],
+            "versiune": r["versiune"],
             # Pagina bate capitolul: titlurile de capitol extrase din PDF vin
             # adesea tăiate pe două rânduri, deci sunt de încredere doar acolo
             # unde nu există pagină.
             "pagina": r["pagina"],
             "capitol": r["capitol"] if not r["pagina"] else None,
             "este_rezumat": r["este_rezumat"],
+            "are_marcaje_pagina": r["are_marcaje_pagina"],
             "temei_drepturi": r["temei_drepturi"],
+            "proprietar": r["proprietar"],
+            "model_embedding": r["model_embedding"],
             "scor": round(r["scor"], 3),
         }
         for r in randuri
@@ -383,7 +424,6 @@ async def save_postare(
     return {"id": str(id_postare), "titlu": titlu, "data": date.today().isoformat()}
 
 
-SQL_PROFIL = "SELECT id, profil_md FROM client WHERE slug = $1"
 SQL_SCRIE_PROFIL = """
 UPDATE client SET profil_md = $2, actualizat_la = NOW() WHERE id = $1
 """
@@ -395,7 +435,9 @@ def inlocuieste_sectiune(profil: str, sectiune: str, text_nou: str) -> str:
     Titlul secțiunii rămâne cum e scris în profil, nu cum l-a scris modelul —
     altfel o diferență de diacritice sau de emoji ar rescrie antetul.
     """
-    titluri = list(re.finditer(r"^##\s+(.+?)\s*$", profil, re.MULTILINE))
+    # Doar spații orizontale în jurul titlului. `\s` ar înghiți și rândurile
+    # goale de după antet, apoi ar introduce spațiere suplimentară la rescriere.
+    titluri = list(re.finditer(r"^##[ \t]+(.+?)[ \t]*$", profil, re.MULTILINE))
     cautat = sectiune.strip().lower()
 
     for i, titlu in enumerate(titluri):

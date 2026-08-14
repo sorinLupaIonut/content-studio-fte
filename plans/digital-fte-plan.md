@@ -232,7 +232,7 @@ Cele două steaguri `are_marcaje_pagina` și `este_rezumat` nu sunt decorative �
 
 **`client` are o singură coloană de conținut: `profil_md`.** CTA-urile stau înăuntru, în secțiunea 6, exact ca în fișierul de azi — nu tabel separat, nu coloană separată. Motivul: profilul intră întreg în system prompt la fiecare rulare, deci modelul *vede* secțiunea 6 și marcajele `⚠️` direct în text. Regula 11 (alege CTA-ul potrivit) și regula 6 (semnalează ce lipsește) funcționează fără nicio interogare. O coloană structurată ar servi ceva din afara modelului — un dashboard, un raport — și așa ceva nu e în plan.
 
-**Profilul stă în `client`, nu în `documents` + `embeddings`.** Nu pentru că e mai important, ci pentru că e singurul dintre cele trei feluri de material în care **se scrie**: Viorela îi poate cere agentului să-l modifice în timpul unei sesiuni (varianta A, decisă azi). Un vector nu se face `UPDATE`; și căutarea întoarce ce e mai *asemănător*, nu ce e *corect*, deci un câmp obligatoriu poate lipsi tăcut, fără ca cineva să vadă. În sandbox **nu există niciun `profil.md`**. La pornirea sesiunii se face `SELECT profil_md FROM client WHERE id = ?` și textul intră direct în system prompt, ca șir — nu ca fișier și nu ca unealtă pe care modelul o cheamă dacă vrea. Modificările cerute de Viorela se scriu înapoi prin MCP (`update_profil`), nu prin editarea unui fișier, și lasă `profil_actualizat` în `audit_log`.
+**Profilul stă în `client`, nu în `documents` + `embeddings`.** Nu pentru că e mai important, ci pentru că e singurul dintre cele trei feluri de material în care **se scrie**: Viorela îi poate cere agentului să-l modifice în timpul unei sesiuni (varianta A, decisă azi). Un vector nu se face `UPDATE`; și căutarea întoarce ce e mai *asemănător*, nu ce e *corect*, deci un câmp obligatoriu poate lipsi tăcut, fără ca cineva să vadă. În sandbox **nu există niciun `profil.md`**. La pornirea sesiunii, worker-ul citește `profil_md` prin resursa MCP internă `content-data://client/viorela/profil`, apoi textul intră direct în system prompt. Resursa nu este o unealtă expusă modelului, deci cele cinci unelte rămân exact cele din contract, iar worker-ul nu citește date de business cu SQL. Modificările cerute de Viorela se scriu înapoi prin MCP (`update_profil`), nu prin editarea unui fișier, și lasă `profil_actualizat` în `audit_log`.
 
 **`metoda/` nu intră deloc în bază.** Nimeni nu scrie în ea și încape în context. E **capabilitate, nu date**: călătorește cu skill-ul, nu cu clienta — dacă mâine aplicația ajunge la altă coach, metoda pleacă neschimbată, profilul nu pleacă deloc. Stă ca `references/` tăiate pe subiecte, iar `manual-creare-reels.md` (96 KB, ~28k tokeni) se sparge în structuri / filmare / editare, ca Stage 3 să încarce doar bucata cerută. Nu în `embeddings`: când formatul e Reel știi dinainte că-ți trebuie secțiunea de structuri, iar determinist bate semantic ori de câte ori știi deja ce vrei.
 
@@ -404,6 +404,11 @@ Aici nu e cazul. Profilul, biblioteca și postările acoperă tot ce cere rezult
 
 Transport: streamable HTTP, varianta stateless, pe `127.0.0.1:8765`. Construit la Decizia 6, într-un singur fișier — `mcp_server/server.py`. Se pornește separat de worker, în alt terminal.
 
+Înainte de construirea agentului, worker-ul citește profilul live prin resursa MCP
+internă `content-data://client/viorela/profil`. Este bootstrap de sistem, nu
+unealtă a modelului: profilul ajunge sigur în system prompt fără o a șasea
+unealtă opțională și fără SQL de business în worker.
+
 Uneltele de scriere își pun rândul de audit în **aceeași tranzacție** cu scrierea (regula 2). `capability_invocations` și restul urmei rămân pe partea worker-ului, la Decizia 8.
 
 **Citire (rulează liber):**
@@ -418,7 +423,7 @@ Uneltele de scriere își pun rândul de audit în **aceeași tranzacție** cu s
 
 **Ce NU mai există față de revizia 2:**
 
-- `get_brand_profile()` — profilul intră în system prompt la pornire, nu se cere ca unealtă. O unealtă pe care modelul o cheamă *dacă vrea* e o unealtă pe care poate să n-o cheme.
+- `get_brand_profile()` — profilul intră în system prompt la pornire, din resursa MCP internă, nu se cere ca unealtă. O unealtă pe care modelul o cheamă *dacă vrea* e o unealtă pe care poate să n-o cheme.
 - `list_cta()` — CTA-urile sunt în `profil_md`, deci deja în context.
 - `get_metoda(format)` — propus la Revizia 4, anulat de Revizia 5. Metoda stă ca `references/` lângă skill (§2.4b), deci nu mai are nevoie de unealtă.
 

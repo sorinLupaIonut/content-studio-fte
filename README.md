@@ -7,6 +7,7 @@ Succesorul lui `content-studio-vio-2`, care rămâne funcțional pentru ea pân�
 
 - **Ce face și după ce reguli** → [AGENTS.md](AGENTS.md)
 - **De ce e construit așa** → [plans/digital-fte-plan.md](plans/digital-fte-plan.md)
+- **Cum îl verifici, de la sigur la complet** → [TESTARE.md](TESTARE.md)
 - **Modelul de construcție** → [Building a Digital FTE](https://agentfactory.panaversity.org/docs/digital-fte-crash-course), Partea 4
 
 ## Cum se rulează
@@ -61,7 +62,7 @@ uv run worker.py
 worker.py                     agentul unic; sandbox E2B, memorie în Neon, date prin MCP
 mcp_server/
   server.py                     `content-data`: cele cinci unelte, peste HTTP
-  protocol.py                   ID-ul conversației călătorește intern, nu prin model
+  protocol.py                   ID-ul conversației și resursa internă de profil
 skills/                       montate în sandbox, descoperite din frontmatter
   propune-postari/
     SKILL.md                    faza 1: cele trei întrebări, apoi cele 10 propuneri
@@ -80,6 +81,7 @@ skills/                       montate în sandbox, descoperite din frontmatter
 audit.py                      urma worker-ului: mesaje, skill-uri, unelte și aprobări
 replay.py                     reconstruiește o conversație fără să ruleze modelul
 proba_flux.py                 nouă ture cap-coadă: 10 propuneri → salvare → încă una
+proba_bootstrap.py            probă fără model/scrieri: cinci unelte + profil prin MCP
 proba_scriere.py              probă scurtă: conversație + blocked/ok + audit tranzacțional
 proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
 proba_mcp.py                  cele cinci unelte: cărți + web cu proveniență

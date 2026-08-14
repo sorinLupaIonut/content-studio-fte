@@ -51,6 +51,7 @@ from worker import (
     MCP_URL,
     MCP_TIMEOUT,
     UNELTE_CU_POARTA,
+    citeste_profil,
     fa_sandbox,
     fa_worker,
     porneste,
@@ -211,7 +212,7 @@ async def main() -> int:
 
     url, connect_args = ia_url_bazei()
     engine = create_async_engine(url, connect_args=connect_args)
-    session_id, _, profil_md = await porneste(engine, nou=True)
+    session_id = await porneste(engine, nou=True)
     async with engine.begin() as conn:
         brut = (await conn.get_raw_connection()).driver_connection
         titluri_carti = [
@@ -233,6 +234,7 @@ async def main() -> int:
     )
     try:
         await date_mcp.connect()
+        _, profil_md = await citeste_profil(date_mcp)
     except Exception as e:  # noqa: BLE001
         print(f"Nu răspunde nimic la {MCP_URL} ({type(e).__name__}).", file=sys.stderr)
         print("Pornește:  uv run python -m mcp_server.server", file=sys.stderr)

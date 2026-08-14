@@ -113,8 +113,26 @@ async def main() -> int:
         elif cu_reper < len(pasaje):
             print(f"✗ {len(pasaje) - cu_reper} pasaje fără niciun reper de citare")
             picat += 1
+        elif any(
+            not all(
+                p.get(camp) is not None
+                for camp in (
+                    "titlu",
+                    "clasa",
+                    "versiune",
+                    "este_rezumat",
+                    "are_marcaje_pagina",
+                    "temei_drepturi",
+                    "proprietar",
+                    "model_embedding",
+                )
+            )
+            for p in pasaje
+        ):
+            print("✗ unui pasaj îi lipsește proveniența obligatorie")
+            picat += 1
         else:
-            print("✓ fiecare pasaj știe din ce carte și de unde vine")
+            print("✓ fiecare pasaj poartă proveniența și modelul embedding")
 
         # 2. Căutarea pe internet
         web = continut(

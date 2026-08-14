@@ -56,7 +56,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from audit import Audit
 from db.config import ConfigurareLipsa, descrie, ia_url_bazei
-from mcp_server.protocol import CONVERSATION_HEADER
+from mcp_server.protocol import CONVERSATION_HEADER, PROFIL_URI
 
 # Consola Windows e cp1252, iar agentul ăsta scrie numai română. Fără linia
 # asta, primul „ș" dintr-o propunere omoară rularea cu UnicodeEncodeError.
@@ -126,7 +126,7 @@ REGULI OBLIGATORII — contractul de ieșire, nu preferințe de stil:
 Mesajele ei pot veni dictate, fără diacritice, cu greșeli de transcriere. Le
 interpretezi cu bunăvoință, fără s-o corectezi. Răspunsul tău are diacritice.
 
-UNDE EȘTI ACUM — Deciziile 7–9. Ai skill-urile `propune-postari` și
+UNDE EȘTI ACUM — Deciziile 0–10. Ai skill-urile `propune-postari` și
 `dezvolta-postarea`, și cinci unelte: `cauta_in_carti`, `cauta_pe_internet`,
 `listeaza_postari`, `save_postare`, `update_profil`. Când sursa aleasă este
 Internet sau Combinat cu Internet, folosești `cauta_pe_internet` înainte să
@@ -163,7 +163,6 @@ pilonul sau sursa. Când alege o propunere dintr-o listă existentă, deschizi
 de raport despre postările existente nu activează niciunul dintre aceste skill-uri.\
 """
 
-SQL_CLIENT = "SELECT id, nume, profil_md FROM client WHERE slug = $1"
 SQL_ULTIMA = """
 SELECT session_id FROM conversations
  WHERE user_id = $1 ORDER BY started_at DESC LIMIT 1
@@ -175,24 +174,36 @@ ON CONFLICT (session_id) DO NOTHING
 """
 
 
-async def porneste(engine, nou: bool) -> tuple[str, str, str]:
-    """Întoarce (session_id, nume_client, profil_md). Creează rândul din `conversations`."""
+async def porneste(engine, nou: bool) -> str:
+    """Alege sesiunea și creează foaia ei de gardă, fără date de business."""
     async with engine.begin() as conn:
         brut = (await conn.get_raw_connection()).driver_connection
-
-        rand = await brut.fetchrow(SQL_CLIENT, CLIENT_SLUG)
-        if rand is None:
-            raise RuntimeError(
-                f"Nu există clienta {CLIENT_SLUG!r} în tabelul `client`.\n"
-                "Rulează întâi:  uv run python -m db.seed"
-            )
-
         session_id = None if nou else await brut.fetchval(SQL_ULTIMA, CLIENT_SLUG)
         if session_id is None:
             session_id = f"{CLIENT_SLUG}-{date.today():%Y%m%d}-{uuid.uuid4().hex[:8]}"
             await brut.execute(SQL_CONV_NOUA, session_id, CLIENT_SLUG, "{}")
 
-    return session_id, rand["nume"], rand["profil_md"]
+    return session_id
+
+
+async def citeste_profil(date_mcp: MCPServerStreamableHttp) -> tuple[str, str]:
+    """Întoarce (nume, profil_md) din resursa MCP, nu prin SQL din worker."""
+    raspuns = await date_mcp.read_resource(PROFIL_URI)
+    texte = [
+        continut.text
+        for continut in getattr(raspuns, "contents", [])
+        if isinstance(getattr(continut, "text", None), str)
+    ]
+    if not texte:
+        raise RuntimeError(f"Resursa MCP {PROFIL_URI!r} nu a întors text.")
+    try:
+        date = json.loads("".join(texte))
+        nume, profil_md = date["nume"], date["profil_md"]
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        raise RuntimeError(f"Resursa MCP {PROFIL_URI!r} are o formă neașteptată.") from e
+    if not isinstance(nume, str) or not isinstance(profil_md, str) or not profil_md.strip():
+        raise RuntimeError(f"Resursa MCP {PROFIL_URI!r} nu conține un profil valid.")
+    return nume, profil_md
 
 
 def fa_worker(profil_md: str, date_mcp: MCPServerStreamableHttp) -> SandboxAgent:
@@ -301,15 +312,14 @@ async def main() -> int:
     engine = create_async_engine(url, connect_args=connect_args)
 
     try:
-        session_id, nume, profil_md = await porneste(engine, nou)
+        session_id = await porneste(engine, nou)
     except Exception as e:  # noqa: BLE001
         print(f"{type(e).__name__}: {e}", file=sys.stderr)
         await engine.dispose()
         return 1
 
-    # 30 de secunde, nu 5 cât e implicit: `cauta_in_carti` cheamă întâi OpenAI
-    # pentru embedding și abia apoi Neon, iar cele două puse cap la cap trec
-    # lejer de cinci secunde la primul apel.
+    # Web search poate trece de 30 de secunde când conexiunile sunt reci; 90 este
+    # valoarea implicită, configurabilă prin MCP_TIMEOUT.
     date_mcp = MCPServerStreamableHttp(
         params={
             "url": MCP_URL,
@@ -319,17 +329,19 @@ async def main() -> int:
         cache_tools_list=True,
         client_session_timeout_seconds=MCP_TIMEOUT,
         # Poarta de aprobare stă pe ÎNREGISTRAREA serverului, nu în interiorul
-        # uneltei (Decizia 9). Așa apără scrierea indiferent cine o cheamă și
-        # ce scrie în prompt. Citirile rămân libere.
+        # uneltei (Decizia 9). Așa apără orice apel al agentului prin această
+        # înregistrare, indiferent ce scrie în prompt. Citirile rămân libere.
         require_approval={"always": {"tool_names": list(UNELTE_CU_POARTA)}},
     )
     try:
         await date_mcp.connect()
         unelte = [u.name for u in await date_mcp.list_tools()]
+        nume, profil_md = await citeste_profil(date_mcp)
     except Exception as e:  # noqa: BLE001
-        print(f"Nu răspunde nimic la {MCP_URL} ({type(e).__name__}).", file=sys.stderr)
+        print(f"Nu pot inițializa datele prin MCP la {MCP_URL} ({type(e).__name__}: {e}).", file=sys.stderr)
         print("Pornește serverul în alt terminal:", file=sys.stderr)
         print("  uv run python -m mcp_server.server", file=sys.stderr)
+        await date_mcp.cleanup()
         await engine.dispose()
         return 1
 
@@ -339,7 +351,7 @@ async def main() -> int:
     # conexiunea ei, în afara oricărei tranzacții care poate să pice.
     urma = Audit(url, connect_args)
 
-    print(f"Content Worker · {MODEL} · Decizia 9 · sandbox + MCP + audit + poartă")
+    print(f"Content Worker · {MODEL} · Deciziile 0–10 · sandbox + MCP + audit + poartă")
     print(f"Bază     : {descrie(url)}")
     print(f"Clientă  : {nume} · profil {len(profil_md):,} caractere în system prompt")
     print(f"Sesiune  : {session_id}{'  (nouă)' if nou else '  (reluată)'}")

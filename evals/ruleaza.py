@@ -28,16 +28,12 @@ from agents import Runner  # noqa: E402
 from agents.mcp import MCPServerStreamableHttp  # noqa: E402
 from agents.run_config import RunConfig, SandboxRunConfig  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
-from sqlalchemy.ext.asyncio import create_async_engine  # noqa: E402
-
 from audit import apeluri_din  # noqa: E402
-from db.config import ia_url_bazei  # noqa: E402
 from worker import (  # noqa: E402
-    CLIENT_SLUG,
     MCP_TIMEOUT,
     MCP_URL,
-    SQL_CLIENT,
     UNELTE_CU_POARTA,
+    citeste_profil,
     descrie_cererea,
     fa_sandbox,
     fa_worker,
@@ -195,20 +191,6 @@ def verifica(caz: dict, raspunsuri: list[str], unelte: set[str], skilluri: set[s
     return erori
 
 
-async def ia_profilul() -> tuple[str, str, dict]:
-    url, connect_args = ia_url_bazei()
-    engine = create_async_engine(url, connect_args=connect_args)
-    try:
-        async with engine.begin() as conn_sa:
-            conn = (await conn_sa.get_raw_connection()).driver_connection
-            rand = await conn.fetchrow(SQL_CLIENT, CLIENT_SLUG)
-        if rand is None:
-            raise RuntimeError(f"Nu există clienta {CLIENT_SLUG!r} în bază.")
-        return rand["profil_md"], url, connect_args
-    finally:
-        await engine.dispose()
-
-
 async def main() -> int:
     optiuni = argumente()
     load_dotenv(RADACINA / ".env")
@@ -216,12 +198,6 @@ async def main() -> int:
     necunoscute = set(optiuni.ids or []) - {c["id"] for c in toate}
     if necunoscute:
         print(f"Nu există cazurile: {sorted(necunoscute)}", file=sys.stderr)
-        return 2
-
-    try:
-        profil_md, _, _ = await ia_profilul()
-    except Exception as e:  # noqa: BLE001
-        print(f"Nu pot încărca profilul: {type(e).__name__}: {e}", file=sys.stderr)
         return 2
 
     date_mcp = MCPServerStreamableHttp(
@@ -233,8 +209,14 @@ async def main() -> int:
     )
     try:
         await date_mcp.connect()
+        _, profil_md = await citeste_profil(date_mcp)
     except Exception as e:  # noqa: BLE001
-        print(f"Nu răspunde serverul MCP la {MCP_URL}: {type(e).__name__}", file=sys.stderr)
+        print(
+            f"Nu pot încărca profilul prin MCP la {MCP_URL}: "
+            f"{type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        await date_mcp.cleanup()
         return 2
 
     client, configurare_sandbox = fa_sandbox()
