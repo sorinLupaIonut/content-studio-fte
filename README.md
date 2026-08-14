@@ -11,6 +11,8 @@ Succesorul lui `content-studio-vio-2`, care rămâne funcțional pentru ea pân�
 
 ## Cum se rulează
 
+Baza: proiectul Neon `content-studio-fte` (`dry-fog-12289707`), branch `main`, Postgres 17, us-east-1.
+
 Copiază `.env.example` în `.env`, pune cheia OpenAI și `DATABASE_URL` din Neon.
 Șirul din consola Neon (cu `sslmode=require&channel_binding=require`) merge lipit ca atare —
 `db/config.py` îl normalizează pentru `asyncpg`.
@@ -36,7 +38,7 @@ uv run worker.py
 | 0 | Agent minimal de chat — `uv`, Agents SDK, `Agent` simplu, fără sandbox | ✅ răspunde |
 | 1 | `AGENTS.md` cu regulile de arhitectură | ✅ scris |
 | 2 | Planul schemei și al celor doi sub-agenți | ✅ `plans/digital-fte-plan.md` |
-| 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | 🔨 cod scris, așteaptă baza |
+| 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
 | 4 | `propune_postari` — sub-agent cu `output_type=Propuneri`, chemat cu `as_tool` | ⬜ |
 | 5 | Import + embedding: cele 17 cărți; `metoda/` spartă pe subiecte | ⬜ |
 | 6 | MCP server `content-data`, cinci unelte | ⬜ |
