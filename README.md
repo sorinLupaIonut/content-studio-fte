@@ -8,6 +8,7 @@ Succesorul lui `content-studio-vio-2`, care rămâne funcțional pentru ea pân�
 - **Ce face și după ce reguli** → [AGENTS.md](AGENTS.md)
 - **De ce e construit așa** → [plans/digital-fte-plan.md](plans/digital-fte-plan.md)
 - **Cum îl verifici, de la sigur la complet** → [TESTARE.md](TESTARE.md)
+- **Cum funcționează, pe îndelete** → [docs/tutorial.html](docs/tutorial.html) — ghid cu scheme, deschide-l în browser
 - **Modelul de construcție** → [Building a Digital FTE](https://agentfactory.panaversity.org/docs/digital-fte-crash-course), Partea 4
 
 ## Cum se rulează
