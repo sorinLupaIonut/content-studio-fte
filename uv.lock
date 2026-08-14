@@ -301,6 +301,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "asyncpg" },
+    { name = "mcp" },
     { name = "openai-agents", extra = ["e2b", "sqlalchemy"] },
     { name = "pgvector" },
     { name = "python-dotenv" },
@@ -309,6 +310,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "asyncpg", specifier = ">=0.31.0" },
+    { name = "mcp", specifier = ">=2.0.0" },
     { name = "openai-agents", extras = ["e2b", "sqlalchemy"], specifier = ">=0.20.0" },
     { name = "pgvector", specifier = ">=0.5.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },

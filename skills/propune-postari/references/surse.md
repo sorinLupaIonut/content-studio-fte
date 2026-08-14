@@ -5,21 +5,46 @@ Viorela alege una, obligatoriu. Profilul nu e în listă pentru că nu e o alege
 
 | Alegerea ei | De unde | Ce are voie să dea | Ce NU are voie |
 |---|---|---|---|
-| 📚 Cărți | biblioteca ei de 17 titluri | idee, cadru, citat, cu titlul și autorul | să fie prezentată ca „așa se face"; să i se atribuie ce nu scrie în ea |
+| 📚 Cărți | biblioteca ei de 17 titluri, prin `cauta_in_carti` | idee, cadru, citat, cu titlul și autorul | să fie prezentată ca „așa se face"; să i se atribuie ce nu scrie în ea |
 | 🌐 Internet | căutare web | unghi, temă de sezon, ce se discută acum | cifre, studii, citate — nimic de pe internet nu intră ca fapt |
 | 🧠 Memorie | profilul plus ce știi tu | structură, formulare, exemple de viață obișnuită | orice cifră, studiu, nume sau afirmație dată ca fapt verificat |
 | 🔀 Combinat | mai multe de mai sus | ce dă fiecare | regulile fiecăreia se cumulează, nu se anulează |
 
 ## Ce funcționează azi
 
-**Doar 🧠 Memorie.** Căutarea în cărți și căutarea pe internet se construiesc la
-Decizia 6.
+**📚 Cărți și 🧠 Memorie.** Căutarea pe internet încă nu există.
 
-Dacă alege Cărți, Internet sau Combinat: **spune-i pe față** că uneltele alea nu
-sunt gata și întreab-o dacă mergem pe memorie sau așteptăm.
+Dacă alege Internet: **spune-i pe față** că unealta aia nu e gata și întreab-o
+dacă mergem pe cărți, pe memorie, sau așteptăm. La Combinat, la fel, dar doar
+pentru partea de internet.
 
 Nu înlocui tăcut sursa aleasă de ea. E regula 9, și e cel mai ușor de încălcat
 tocmai aici — pare mai util să generezi ceva decât să spui că nu poți.
+
+## Cum cauți în cărți
+
+`cauta_in_carti(descriere, titluri, limit)`. Descrii ce cauți în cuvintele ei
+(„vinovăția de a spune nu"), nu cu cuvinte-cheie — caută după înțeles.
+
+Înainte, îi propui **3–4 titluri anume**, scrise pe nume, potrivite pe tema și
+pilonul ei — le iei din `references/carti.md` — plus varianta „caut în toate".
+
+Le dai ca listă gata făcută. NU o întreba „vrei să alegem titluri sau caut în
+toate?": alegerea ei e între cărți anume, nu între metode. Și niciodată lista
+de 17. Dacă alege câteva, le pui în `titluri`, scrise exact ca în listă.
+
+Ce întorc pasajele, și ce faci cu ele:
+
+- **`pagina`** → o folosești la `sursa`. Dacă lipsește, scrii titlul și autorul,
+  atât. Nu inventezi un număr de pagină, și nu-l ghicești din capitol.
+- **`este_rezumat: true`** → e un rezumat Bookey, nu cartea. Scrii asta la sursă.
+  Dacă ea cere un citat propriu-zis, nu-l lua de acolo — propune altă carte.
+- **`scor`** → cât de aproape e de ce ai cerut. Pe cărțile astea, potrivirile
+  bune stau pe la 0,45–0,55. Dacă tot ce iese e sub 0,35, spune-i că n-ai găsit
+  mare lucru pe tema aia. Nu întinde un pasaj slab ca să pară că ai găsit.
+
+Cartea dă **unghi și cadru, niciodată regulă**. Ce scrie într-o carte nu bate ce
+scrie în profil.
 
 ## Ierarhia, când sursele se contrazic
 

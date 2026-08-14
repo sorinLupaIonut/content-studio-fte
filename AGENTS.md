@@ -44,7 +44,7 @@ Content Worker  ·  SandboxAgent  ·  singurul cu care vorbește Viorela
   capabilities  : Filesystem, Shell, Compaction (implicite) + Skills(from_=LocalDir("skills"))
   skills:
     propune-postari    faza 1 — cele 3 întrebări, apoi 10 propuneri × 5 hook-uri
-                         references/: piloni.md, hookuri.md, surse.md
+                         references/: piloni.md, hookuri.md, surse.md, carti.md
     dezvolta-postarea  faza 2 — script, caption, hashtaguri, CTA          (Decizia 7)
                          references/: metoda Brand Legends, 11 fișiere
   tools:

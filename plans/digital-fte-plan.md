@@ -402,7 +402,9 @@ Aici nu e cazul. Profilul, biblioteca și postările acoperă tot ce cere rezult
 
 ## 4. MCP server `content-data` — patru unelte, fără SQL general
 
-Transport: streamable HTTP, varianta stateless. Se construiește cu `mcp-builder`, plan înainte de cod.
+Transport: streamable HTTP, varianta stateless, pe `127.0.0.1:8765`. Construit la Decizia 6, într-un singur fișier — `mcp_server/server.py`. Se pornește separat de worker, în alt terminal.
+
+Uneltele de scriere își pun rândul de audit în **aceeași tranzacție** cu scrierea (regula 2). `capability_invocations` și restul urmei rămân pe partea worker-ului, la Decizia 8.
 
 **Citire (rulează liber):**
 
@@ -438,7 +440,7 @@ Partea care lipsește azi din `content-studio-vio-2`. Fiecare caz primește un c
 | 3 | Tema cerută intră în conflict cu „Lucruri pe care nu le spui niciodată" | Nu se generează propunerile afectate. Se spune care e conflictul și se cere decizia omului. |
 | 4 | Pilonul Conversie, dar secțiunea Oferte din profil are ⚠️ | Se semnalează scurt și se generează ce se poate (regula 6), cu `capability_invocations` marcat parțial. |
 | 5 | Se cere un testimonial sau o cifră care nu există în profil | Se refuză, se propune înlocuitor. Regula 7: nu se inventează niciodată rezultate. |
-| 6 | Căutarea semantică întoarce doar potriviri slabe (distanță > ~0.3) | „nu există precedent puternic" — se spune, nu se maschează; propunerile se fac din profil, nu din bibliotecă. |
+| 6 | Căutarea semantică întoarce doar potriviri slabe | „nu există precedent puternic" — se spune, nu se maschează; propunerile se fac din profil, nu din bibliotecă. **Pragul din revizia asta era greșit:** scria „distanță > ~0.3", adică asemănare sub 0,7, ceea ce ar respinge tot. Măsurat la Decizia 6, pe întrebarea din §7, potrivirile bune stau la 0,45–0,55. Pragul scris azi în `references/surse.md` e 0,35, și se recalibrează la Decizia 10, cu setul de evaluare. |
 | 7 | CTA-ul potrivit e încă `⚠️ DE COMPLETAT` în profil | Se propune unul, se spune că e propus, și se cere să fie trecut în profil ca să rămână. Postarea nu se salvează fără CTA. |
 | 8 | Modelul întoarce nouă propuneri, sau una cu patru hook-uri, sau două de același tip | Nu se mai poate impune din schemă (Revizia 5). `SKILL.md` cere forma, `proba_flux.py` o numără după, iar cazul intră în setul de evaluare. |
 | 9 | Mesaj dictat, fără diacritice, cu greșeli de transcriere | Se interpretează cu bunăvoință, fără a corecta utilizatoarea; răspunsul are diacritice. |
@@ -472,7 +474,7 @@ Peste poartă stă regula 10 din `AGENTS.md`, care e mai strictă: postarea se a
 | 3 | Neon + pgvector + schema pe branch, apoi `SQLAlchemySession` | tabelele există; worker-ul își amintește două ture, și le vezi în `agent_messages` |
 | 4 | `propune-postari` ca skill în sandbox (Revizia 5) | la „vreau ceva despre limite" pune cele trei întrebări pe rând, apoi scoate 10 propuneri × 5 hook-uri; și află din `references/surse.md` că azi merge doar sursa Memorie |
 | 5 | Import + embedding: cele 17 cărți; `metoda/` spartă în `references/` lângă skill-ul Fazei 2 (Revizia 5) | o căutare după „vinovăția de a spune nu" întoarce pasaje ordonate, cu pagină |
-| 6 | MCP server `content-data`, patru unelte (`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`) | worker-ul cheamă `cauta_in_carti` într-o rulare reală |
+| 6 | MCP server `content-data`, patru unelte (`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`) | ✅ worker-ul cheamă `cauta_in_carti` într-o rulare reală (`proba_flux.py`, tura 5) |
 | 7 | `dezvolta-postarea` ca al doilea skill + salvarea | un ciclu complet: 10 propuneri → una aleasă → dezvoltată → arătată → salvată; apoi **încă una din aceeași listă**, fără regenerare |
 | 8 | Audit la fiecare graniță + verificare cap-coadă + replay | poți reconstrui ce a făcut, fără să rulezi modelul |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | aprobat trece, respins nu scrie nimic |

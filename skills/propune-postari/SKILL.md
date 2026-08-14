@@ -26,7 +26,8 @@ nu pornești „pe o variantă până răspunde".
 ## Pasul 2 — adună materialul
 
 Din sursa pe care a ales-o **ea**, nu din alta. Citește `references/surse.md`:
-spune ce are voie să dea fiecare sursă și ce nu, și care surse funcționează azi.
+spune ce are voie să dea fiecare sursă și ce nu, care surse funcționează azi, și
+cum se cheamă `cauta_in_carti` dacă a ales Cărți.
 
 Materialul se adună **înainte** de a scrie propunerile. Nu scrii din memorie ca
 apoi doar să adaugi referința.

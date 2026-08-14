@@ -1,20 +1,24 @@
-"""Proba Deciziei 4 în forma cu sandbox și skill-uri.
+"""Proba fluxului: skill-uri în sandbox, date prin MCP.
+
+Cere serverul pornit:  uv run python -m mcp_server.server
 
 Criteriul din §7: la „vreau ceva despre limite" agentul pune întrebările și
-scoate zece propuneri. Dar conversația de aici merge dinadins pe drumul urât,
-fiindcă acolo se vede dacă skill-ul chiar e citit:
+scoate zece propuneri. Conversația merge dinadins pe drumul lung, fiindcă acolo
+se vede dacă skill-ul chiar e citit:
 
   1. „vreau ceva despre limite"  → întreabă formatul
   2. „reel"                      → întreabă pilonul
   3. „conexiune"                 → întreabă sursa
-  4. „din cărți"                 → spune că nu merge azi     ⟵ testul care contează
-  5. „hai pe memorie"            → scoate zece propuneri
+  4. „din cărți"                 → propune 3–4 titluri, nu lista de 17
+  5. „caută în toate"            → cheamă `cauta_in_carti`, apoi scoate cele zece
 
-**Tura 4 e proba de progressive disclosure.** Faptul că azi funcționează doar
-sursa Memorie e scris NUMAI în `skills/propune-postari/references/surse.md`.
-Nu e în SKILL.md și nu e în system prompt. Dacă agentul răspunde corect acolo,
-înseamnă că a deschis referința — adică lanțul index → SKILL.md → references
-chiar funcționează. Dacă răspunde greșit, skill-urile sunt decor.
+**Turele 4 și 5 sunt proba de progressive disclosure.** Că se propun 3–4 titluri
+și niciodată toate șaptesprezece e scris NUMAI în `references/surse.md` — nu e în
+`SKILL.md` și nu e în system prompt. Dacă agentul face asta, lanțul index →
+SKILL.md → references chiar funcționează. Dacă nu, skill-urile sunt decor.
+
+**Și e criteriul Deciziei 6:** că unealta `cauta_in_carti` chiar e chemată într-o
+rulare adevărată. Nu mă uit după cuvinte în răspuns — mă uit în apelurile turei.
 
 Numărul de propuneri și de hook-uri nu se poate impune dintr-un `SKILL.md` — e
 text, nu schemă. Deci se numără după, nu se garantează înainte.
@@ -36,12 +40,13 @@ import sys
 import time
 
 from agents import Runner
+from agents.mcp import MCPServerStreamableHttp
 from agents.run_config import RunConfig, SandboxRunConfig
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from db.config import ia_url_bazei
-from worker import CLIENT_SLUG, SQL_CLIENT, fa_sandbox, fa_worker
+from worker import CLIENT_SLUG, MCP_URL, SQL_CLIENT, fa_sandbox, fa_worker
 
 for flux in (sys.stdout, sys.stderr):
     flux.reconfigure(encoding="utf-8", errors="replace")
@@ -53,7 +58,7 @@ TURE = [
     "reel",
     "conexiune",
     "din cărți",
-    "nu, hai pe memorie atunci",
+    "caută în toate",
 ]
 
 #: Cele cinci tipuri, tolerant la diacritice — modelul scrie „CIFRĂ" sau „CIFRA".
@@ -69,9 +74,6 @@ TIPURI_HOOK = {
 #: („30% mai mult timp"), nu și pe cea vicleană („30 de minute de respiro").
 #: Aia rămâne pentru setul de evaluare de la Decizia 10.
 TIPAR_PROCENT = re.compile(r"\d\s*%|\bla sută\b", re.IGNORECASE)
-
-#: Semne că a înțeles că sursa Cărți nu e disponibilă azi.
-SEMNE_REFUZ = ("memorie", "nu e disponibil", "nu sunt gata", "nu pot", "decizia 6")
 
 #: „dacă nu răspunzi, folosesc X" — regula 9 o interzice explicit.
 TIPAR_IMPLICIT = re.compile(r"dac[ăa] nu r[ăa]spunzi|folosesc implicit|implicit[,:]", re.IGNORECASE)
@@ -95,14 +97,31 @@ def gaseste_lista(raspunsuri: list[str]) -> tuple[int, str]:
     return i + 1, raspunsuri[i]
 
 
-async def ia_profilul() -> str:
+def unelte_chemate(rezultat) -> list[str]:
+    """Numele uneltelor chemate în tura asta.
+
+    Mă uit în apelurile propriu-zise, nu în text: un agent care *spune* că a
+    căutat în cărți și unul care chiar a căutat arată la fel în răspuns.
+    """
+    nume = []
+    for element in rezultat.new_items:
+        brut = getattr(element, "raw_item", None)
+        if getattr(element, "type", "") == "tool_call_item" and hasattr(brut, "name"):
+            nume.append(brut.name)
+    return nume
+
+
+async def ia_profilul_si_titlurile() -> tuple[str, list[str]]:
     url, connect_args = ia_url_bazei()
     engine = create_async_engine(url, connect_args=connect_args)
     try:
         async with engine.begin() as conn:
             brut = (await conn.get_raw_connection()).driver_connection
             rand = await brut.fetchrow(SQL_CLIENT, CLIENT_SLUG)
-        return rand["profil_md"]
+            titluri = await brut.fetch(
+                "SELECT title FROM documents WHERE source = 'biblioteca' ORDER BY title"
+            )
+        return rand["profil_md"], [t["title"] for t in titluri]
     finally:
         await engine.dispose()
 
@@ -112,18 +131,30 @@ async def main() -> int:
         print("Lipsește OPENAI_API_KEY.", file=sys.stderr)
         return 1
 
-    profil_md = await ia_profilul()
-    worker = fa_worker(profil_md)
+    profil_md, titluri_carti = await ia_profilul_si_titlurile()
+
+    date_mcp = MCPServerStreamableHttp(
+        params={"url": MCP_URL}, name="content-data", client_session_timeout_seconds=30
+    )
+    try:
+        await date_mcp.connect()
+    except Exception as e:  # noqa: BLE001
+        print(f"Nu răspunde nimic la {MCP_URL} ({type(e).__name__}).", file=sys.stderr)
+        print("Pornește:  uv run python -m mcp_server.server", file=sys.stderr)
+        return 1
+
+    worker = fa_worker(profil_md, date_mcp)
     client, optiuni = fa_sandbox()
 
     pornit = time.monotonic()
     sandbox = await client.create(options=optiuni)
     print(f"Sandbox pornit în {time.monotonic() - pornit:.0f}s")
-    print(f"Profil: {len(profil_md):,} caractere\n")
+    print(f"Profil: {len(profil_md):,} caractere · {len(titluri_carti)} cărți\n")
 
     config = RunConfig(sandbox=SandboxRunConfig(client=client, session=sandbox))
     istoric: list = []
     raspunsuri: list[str] = []
+    chemate: list[str] = []
 
     try:
         for mesaj in TURE:
@@ -137,12 +168,17 @@ async def main() -> int:
             istoric = rezultat.to_input_list()
             raspuns = str(rezultat.final_output)
             raspunsuri.append(raspuns)
+            unelte = unelte_chemate(rezultat)
+            chemate += unelte
 
             print(f"tu> {mesaj}   ({durata:.0f}s)")
+            if unelte:
+                print(f"   [unelte: {', '.join(unelte)}]")
             print(f"worker> {raspuns}\n")
             print("-" * 72)
     finally:
         await client.delete(sandbox)
+        await date_mcp.cleanup()
 
     print()
     print("=" * 72)
@@ -153,11 +189,19 @@ async def main() -> int:
         greseli += not reusit
         print(f"{'✓' if reusit else '✗'} {eticheta}")
 
-    # Tura 4 — a citit references/surse.md?
+    # Tura 4 — a citit references/surse.md? Acolo scrie „3–4 titluri, niciodată
+    # lista de 17". Număr câte titluri reale din bibliotecă a numit.
     a_patra = raspunsuri[3].lower()
+    numite = [t for t in titluri_carti if t.lower()[:24] in a_patra]
     verifica(
-        any(s in a_patra for s in SEMNE_REFUZ),
-        "tura 4: a aflat din references/surse.md că sursa Cărți nu merge azi",
+        2 <= len(numite) <= 6,
+        f"tura 4: a propus {len(numite)} titluri din bibliotecă (aștept 3–4, nu 17)",
+    )
+
+    # Criteriul Deciziei 6.
+    verifica(
+        "cauta_in_carti" in chemate,
+        f"a chemat cauta_in_carti (unelte în toată rularea: {chemate or '—'})",
     )
 
     unde, lista = gaseste_lista(raspunsuri)

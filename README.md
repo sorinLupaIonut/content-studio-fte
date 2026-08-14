@@ -25,6 +25,14 @@ uv run python -m db.apply
 uv run python -m db.seed
 ```
 
+Apoi două terminale. În primul, serverul MCP — worker-ul nu atinge baza direct:
+
+```bash
+uv run python -m mcp_server.server
+```
+
+În al doilea, worker-ul:
+
 ```bash
 uv run worker.py
 ```
@@ -41,7 +49,7 @@ uv run worker.py
 | 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
 | 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
 | 5 | Import + embedding: cele 17 cărți; metoda mutată lângă skill | ✅ 4.778 bucăți, căutarea dă pagina |
-| 6 | MCP server `content-data`, patru unelte | ⬜ |
+| 6 | MCP server `content-data`, patru unelte | ✅ agentul caută singur în cărți |
 | 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ⬜ |
 | 8 | Audit la fiecare graniță + replay | ⬜ |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ⬜ |
@@ -50,22 +58,26 @@ uv run worker.py
 ## Structura
 
 ```
-worker.py                     agentul unic; sandbox E2B, memorie în Neon
+worker.py                     agentul unic; sandbox E2B, memorie în Neon, date prin MCP
+mcp_server/
+  server.py                     `content-data`: cele patru unelte, peste HTTP
 skills/                       montate în sandbox, descoperite din frontmatter
   propune-postari/
     SKILL.md                    faza 1: cele trei întrebări, apoi cele 10 propuneri
     references/                 deschise doar la nevoie
       piloni.md                   cei 5 piloni
       hookuri.md                  cele 5 tipuri de hook
-      surse.md                    cele 4 surse
+      surse.md                    cele 4 surse, și cum se caută în cărți
+      carti.md                    cele 17 titluri, ca să poată propune 3–4
   dezvolta-postarea/            fără SKILL.md până la Decizia 7; referințele sunt deja aici
     references/                 metoda Brand Legends, 11 fișiere:
                                   manualul de Reels spart în 9 — filmare, editare, structura-reel,
                                   hookuri-si-scripturi, tipuri-de-reels, idei, distribuire,
                                   piloni-si-cont, intrebari-frecvente
                                   plus b-roll.md și stories.md
-proba_flux.py                 criteriul Deciziei 4, plus proba de progressive disclosure
+proba_flux.py                 cele cinci ture, cap-coadă: skill-uri + unealta de căutare
 proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
+proba_mcp.py                  criteriul Deciziei 6: exact patru unelte, cu proveniență
 AGENTS.md                     specificația domeniului + contractul de arhitectură
 plans/digital-fte-plan.md     planul complet, cu motivele fiecărei decizii
 db/

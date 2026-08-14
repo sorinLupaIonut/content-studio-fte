@@ -1,4 +1,4 @@
-"""Content Worker — Decizia 4: un agent în sandbox, cu skill-uri pe disc.
+"""Content Worker — un agent în sandbox, cu skill-uri pe disc și date prin MCP.
 
 **Un singur agent**, care încarcă instrucțiuni din foldere `SKILL.md`.
 
@@ -22,7 +22,13 @@ conține parola bazei Neon, iar agentul are shell — deci n-are ce căuta acolo
 
 Sandbox-ul e E2B: cere `E2B_API_KEY` în `.env`, tier Hobby gratuit.
 
-Rulează:  uv run worker.py          (reia ultima conversație)
+La date ajunge doar prin serverul MCP `content-data` (regula 1), care se pornește
+separat. Sandbox-ul n-are treabă cu el: uneltele MCP se cheamă de aici, din
+procesul ăsta, nu dinăuntrul sandbox-ului.
+
+Rulează, în două terminale:
+          uv run python -m mcp_server.server
+          uv run worker.py          (reia ultima conversație)
           uv run worker.py --nou    (începe una nouă)
 """
 
@@ -38,6 +44,7 @@ from pathlib import Path
 from agents import Runner
 from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
 from agents.extensions.sandbox.e2b import E2BSandboxClient, E2BSandboxClientOptions
+from agents.mcp import MCPServerStreamableHttp
 from agents.run_config import RunConfig, SandboxRunConfig
 from agents.sandbox import SandboxAgent
 from agents.sandbox.capabilities import Capabilities
@@ -59,6 +66,7 @@ MODEL = os.getenv("MODEL", "gpt-5-mini")
 CLIENT_SLUG = "viorela"
 RADACINA = Path(__file__).parent
 SKILLS = RADACINA / "skills"
+MCP_URL = os.getenv("MCP_URL", "http://127.0.0.1:8765/mcp")
 
 # Regulile stau în system prompt, nu într-un skill, fiindcă sunt mereu în
 # vigoare. Progressive disclosure e pentru ce trebuie uneori — metoda, pilonii,
@@ -109,12 +117,17 @@ REGULI OBLIGATORII — contractul de ieșire, nu preferințe de stil:
 Mesajele ei pot veni dictate, fără diacritice, cu greșeli de transcriere. Le
 interpretezi cu bunăvoință, fără s-o corectezi. Răspunsul tău are diacritice.
 
-UNDE EȘTI ACUM — Decizia 4. Ai skill-ul `propune-postari`. NU ai încă: căutare în
-cărți, căutare pe internet, dezvoltarea postării alese, salvarea, modificarea
-profilului. Dacă ți se cere una dintre astea, spui limpede că urmează.
+UNDE EȘTI ACUM — Decizia 6. Ai skill-ul `propune-postari` și patru unelte:
+`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`. NU ai încă:
+căutare pe internet și skill-ul care dezvoltă postarea aleasă. Dacă ți se cere una
+dintre astea, spui limpede că urmează.
+
+Uneltele de scriere se cheamă doar după „da"-ul ei, niciodată din proprie
+inițiativă (regula 10).
 
 Ai un sandbox cu shell și fișiere. Îl folosești ca să citești skill-urile, nu ca
-să inventezi unelte. Nu încerca să te conectezi la baze de date sau la internet.\
+să inventezi unelte. La date ajungi NUMAI prin unelte — nu încerca să te conectezi
+la baza de date din sandbox.\
 """
 
 SQL_CLIENT = "SELECT id, nume, profil_md FROM client WHERE slug = $1"
@@ -149,13 +162,15 @@ async def porneste(engine, nou: bool) -> tuple[str, str, str]:
     return session_id, rand["nume"], rand["profil_md"]
 
 
-def fa_worker(profil_md: str) -> SandboxAgent:
-    """Agentul unic, cu skill-urile montate din `skills/`.
+def fa_worker(profil_md: str, date_mcp: MCPServerStreamableHttp) -> SandboxAgent:
+    """Agentul unic: skill-urile montate din `skills/`, datele prin MCP.
 
     `Skills(from_=LocalDir(...))` descoperă singur folderele: fiecare `SKILL.md`
     își dă numele și descrierea din frontmatter, iar descrierea e ce decide dacă
     skill-ul pornește. Nu declar nimic în Python — skill-urile sunt foldere, așa
     cum trebuie să fie ca să le poți edita fără cod.
+
+    Uneltele nu se declară nici ele: vin de la server, cu tot cu descrieri.
     """
     return SandboxAgent(
         name="Content Worker",
@@ -164,6 +179,7 @@ def fa_worker(profil_md: str) -> SandboxAgent:
             f"{INSTRUCTIUNI_BAZA}\n\n--- PROFILUL CLIENTEI ---\n{profil_md}"
         ),
         capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS))],
+        mcp_servers=[date_mcp],
     )
 
 
@@ -199,12 +215,32 @@ async def main() -> int:
         await engine.dispose()
         return 1
 
-    worker = fa_worker(profil_md)
+    # 30 de secunde, nu 5 cât e implicit: `cauta_in_carti` cheamă întâi OpenAI
+    # pentru embedding și abia apoi Neon, iar cele două puse cap la cap trec
+    # lejer de cinci secunde la primul apel.
+    date_mcp = MCPServerStreamableHttp(
+        params={"url": MCP_URL},
+        name="content-data",
+        cache_tools_list=True,
+        client_session_timeout_seconds=30,
+    )
+    try:
+        await date_mcp.connect()
+        unelte = [u.name for u in await date_mcp.list_tools()]
+    except Exception as e:  # noqa: BLE001
+        print(f"Nu răspunde nimic la {MCP_URL} ({type(e).__name__}).", file=sys.stderr)
+        print("Pornește serverul în alt terminal:", file=sys.stderr)
+        print("  uv run python -m mcp_server.server", file=sys.stderr)
+        await engine.dispose()
+        return 1
 
-    print(f"Content Worker · {MODEL} · Decizia 4 · sandbox")
+    worker = fa_worker(profil_md, date_mcp)
+
+    print(f"Content Worker · {MODEL} · Decizia 6 · sandbox + MCP")
     print(f"Bază     : {descrie(url)}")
     print(f"Clientă  : {nume} · profil {len(profil_md):,} caractere în system prompt")
     print(f"Sesiune  : {session_id}{'  (nouă)' if nou else '  (reluată)'}")
+    print(f"Unelte   : {', '.join(unelte)}")
     print("Sandbox  : pornesc E2B…", end="", flush=True)
 
     # Sandbox-ul se face O SINGURĂ DATĂ și se refolosește la fiecare tură.
@@ -219,6 +255,7 @@ async def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(" a picat.")
         print(f"{type(e).__name__}: {e}", file=sys.stderr)
+        await date_mcp.cleanup()
         await engine.dispose()
         return 1
     print(" gata.")
@@ -262,6 +299,7 @@ async def main() -> int:
             await client.delete(sesiune_sandbox)
         except Exception:  # noqa: BLE001
             pass
+        await date_mcp.cleanup()
         await engine.dispose()
 
     print(f"Conversația a rămas în bază: session_id = {session_id}")
