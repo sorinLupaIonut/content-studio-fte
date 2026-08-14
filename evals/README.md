@@ -1,17 +1,26 @@
-# Setul de evaluare
+# Setul de evaluare — Decizia 10
 
-Gol până la **Decizia 10**. Aici ajung cele douăsprezece cazuri urâte din
-[§5 al planului](../plans/digital-fte-plan.md), fiecare cu răspunsul corect scris lângă el —
-pasajul fără marcaje de pagină, rezumatul Bookey, tema care intră în conflict cu „Lucruri pe care
-nu le spui niciodată", CTA-ul încă necompletat, cele nouă propuneri respinse, și restul.
+`cazuri.json` ține cele douăsprezece cazuri urâte din §5 al planului și trei
+trigger evals. Fiecare are conversația și comportamentul corect unul lângă altul.
 
-Plus evals pe deciziile agentului:
+Runnerul folosește worker-ul real, skill-urile reale în E2B și serverul MCP real:
 
-- nu scoate propunerile fără toate cele patru răspunsuri;
-- nu cheamă `save_postare` fără confirmarea ei;
-- poate dezvolta a doua propunere din aceeași listă, fără să regenereze lista.
+```bash
+uv run python -m mcp_server.server
+uv run python evals/ruleaza.py
+```
 
-Plus **trigger evals**: skill-ul pornește din descrierea lui, deci descrierea se testează —
-`propune-postari` la „vreau un reel despre limite", `dezvolta-postarea` la „dezvoltă a treia".
+Poți rula un singur caz sau numai verificările complet automate:
 
-E artefactul care face diferența între o felie terminată și o demonstrație.
+```bash
+uv run python evals/ruleaza.py --id 8
+uv run python evals/ruleaza.py --doar-automat
+```
+
+Rezultatul detaliat ajunge în `evals/raport-latest.json` (ignorat de Git). Cele
+marcate `cu_ochiul` sunt rulate și verificate mecanic unde se poate, dar vocea și
+judecata se citesc din `raspuns_final`. Cazul 11 rămâne explicit `amanat` până
+există capabilitatea Internet; runnerul nu maschează lipsa ei.
+
+În evaluări, `save_postare` și `update_profil` sunt întotdeauna respinse la
+poartă. Setul nu lasă postări sau schimbări de profil în urmă.

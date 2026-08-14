@@ -14,3 +14,6 @@ content/carti/pdf/
 content/carti/txt/
 content/carti/md/*.md
 !content/carti/md/README.md
+
+# ieșirea modelului din ultima evaluare; runnerul și cazurile rămân în Git
+evals/raport-latest.json

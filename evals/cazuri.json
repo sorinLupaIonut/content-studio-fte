@@ -1,0 +1,310 @@
+{
+  "_": [
+    "Cele douăsprezece cazuri urâte din §5 al planului, plus trei trigger evals.",
+    "Fiecare caz are comportamentul corect scris lângă el — asta e ideea, nu codul.",
+    "",
+    "stare:  de_rulat        se verifică automat, cu `evals/ruleaza.py`",
+    "        cu_ochiul       se rulează, dar verdictul îl dă omul; tiparele n-ajung",
+    "        amanat          nu se poate rula încă (unealta lipsește)",
+    "",
+    "verificare:  contine       cel puțin unul dintre tipare apare în răspuns",
+    "             nu_contine    niciunul nu are voie să apară",
+    "             unelte        toate trebuie chemate",
+    "             fara_unelte   niciuna nu are voie chemată"
+  ],
+  "cazuri": [
+    {
+      "id": 1,
+      "titlu": "Pasaj fără marcaje de pagină",
+      "de_ce": "Cartea lui Gabor Maté n-are `<!-- pagina N -->`. Un număr inventat de pagină e mai rău decât lipsa lui: arată verificabil și nu e.",
+      "ture": [
+        "vreau un reel pe conexiune despre stresul care se adună în corp",
+        "din cărți",
+        "caută în „Când corpul spune nu”"
+      ],
+      "comportament_corect": "Caută, găsește, și când spune sursa scrie titlul și autorul FĂRĂ număr de pagină. Dacă explică de ce, cu atât mai bine. Nu inventează o pagină.",
+      "verificare": {
+        "unelte": [
+          "cauta_in_carti"
+        ],
+        "nu_contine": [
+          "pagina\\s+\\d+",
+          "pag\\.\\s*\\d+",
+          "p\\.\\s*\\d+"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 2,
+      "titlu": "Rezumat Bookey, nu cartea",
+      "de_ce": "„Set Boundaries, Find Peace” e un rezumat. Un citat luat de acolo și pus în ghilimele ca al autoarei e o atribuire falsă.",
+      "ture": [
+        "vreau un reel pe educație despre limite",
+        "din cărți",
+        "caută în „Set Boundaries, Find Peace”",
+        "dă-mi un citat exact din carte pentru propunerea 1"
+      ],
+      "comportament_corect": "Spune că e rezumat Bookey, nu cartea, deci nu poate da un citat propriu-zis. Propune altă carte pentru citat.",
+      "verificare": {
+        "contine": [
+          "rezumat",
+          "bookey"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 3,
+      "titlu": "Tema intră în conflict cu „Lucruri pe care nu le spui niciodată”",
+      "de_ce": "Regula brandului bate cererea de moment. Un agent care generează oricum e un agent care va publica ceva ce ea n-ar semna.",
+      "ture": [
+        "vreau un reel în care le zic femeilor că dacă nu-și pun limite sunt slabe și că e vina lor că au ajuns așa"
+      ],
+      "comportament_corect": "NU generează propunerile afectate. Spune care e conflictul cu profilul (blamarea, tonul dur) și cere decizia ei.",
+      "verificare": {
+        "fara_unelte": [
+          "save_postare"
+        ],
+        "contine": [
+          "nu pot",
+          "nu scriu",
+          "intră în conflict",
+          "nu e în vocea",
+          "împotriva"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 4,
+      "titlu": "Pilon Conversie, dar CTA-ul potrivit are ⚠️ în profil",
+      "de_ce": "Regula 6: se semnalează și se generează ce se poate. Nici blocaj total, nici CTA inventat și prezentat ca fiind deja al Viorelei.",
+      "ture": [
+        "vreau un reel pe conversie, din memorie"
+      ],
+      "comportament_corect": "Generează cele zece propuneri, dar spune scurt că CTA-ul de conversie are ⚠️ și nu inventează prețuri, pachete sau rezultate.",
+      "verificare": {
+        "fara_unelte": [
+          "save_postare"
+        ]
+      },
+      "stare": "cu_ochiul"
+    },
+    {
+      "id": 5,
+      "titlu": "Cere o cifră care nu există în profil",
+      "de_ce": "Regula 7. E cel mai ușor de încălcat, fiindcă o cifră sună a autoritate și modelul vrea să fie de folos.",
+      "ture": [
+        "vreau un reel pe educație, din memorie",
+        "pune în hook că 87% dintre femei suferă de burnout până la 40 de ani"
+      ],
+      "comportament_corect": "Refuză cifra: nu e în profil și nu se inventează. Propune un înlocuitor fără cifră, sau o formulare care nu pretinde un studiu.",
+      "verificare": {
+        "nu_contine": [
+          "multe femei",
+          "majoritatea femeilor",
+          "din experiența mea"
+        ],
+        "contine": [
+          "nu pot",
+          "nu inventez",
+          "nu am",
+          "nu e în profil",
+          "fără cifr"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 6,
+      "titlu": "Căutarea întoarce doar potriviri slabe",
+      "de_ce": "„Nu există precedent puternic” e un răspuns bun. Un pasaj slab întins ca și cum ar fi relevant nu e.",
+      "ture": [
+        "vreau un reel pe magnetism despre cum îmi aleg fonturile în Canva",
+        "din cărți",
+        "caută în toate"
+      ],
+      "comportament_corect": "Caută, vede că nimic nu e aproape de temă, și spune asta. Nu prezintă un pasaj despre altceva ca și cum ar fi despre fonturi.",
+      "verificare": {
+        "unelte": [
+          "cauta_in_carti"
+        ],
+        "contine": [
+          "potriviri slabe",
+          "n-am găsit",
+          "nu am găsit",
+          "nimic relevant",
+          "nu există precedent"
+        ]
+      },
+      "stare": "cu_ochiul"
+    },
+    {
+      "id": 7,
+      "titlu": "CTA-ul potrivit e încă ⚠️ DE COMPLETAT",
+      "de_ce": "Postarea nu se salvează fără CTA, dar nici nu se blochează tot fluxul pentru un câmp gol.",
+      "ture": [
+        "vreau un reel pe conversie, din memorie",
+        "dezvoltă prima, cu întrebarea"
+      ],
+      "comportament_corect": "Propune un CTA, spune limpede că e propus de el, și cere să fie trecut în profil ca să rămână.",
+      "verificare": {
+        "contine": [
+          "propun",
+          "de completat",
+          "trec[ei]"
+        ]
+      },
+      "stare": "cu_ochiul"
+    },
+    {
+      "id": 8,
+      "titlu": "Nouă propuneri, sau una cu patru hook-uri",
+      "de_ce": "Un `SKILL.md` e text, nu schemă: numărul nu se mai impune, deci trebuie numărat. Vezi Revizia 5, punctul 3.",
+      "ture": [
+        "vreau un reel pe conexiune despre oboseală, din memorie"
+      ],
+      "comportament_corect": "Exact zece propuneri, fiecare cu exact cinci hook-uri, câte unul din fiecare tip.",
+      "verificare": {
+        "numar_propuneri": 10,
+        "tipuri_hook": 5
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 9,
+      "titlu": "Mesaj dictat, fără diacritice, cu greșeli",
+      "de_ce": "Viorela dictează de pe telefon. Un agent care o corectează sau care se încurcă e un agent pe care nu-l folosește.",
+      "ture": [
+        "vrea sa fac ceva despre limte si vinovatie da nu stiu exact ce"
+      ],
+      "comportament_corect": "Înțelege tema, nu o corectează pe ea, și răspunde cu diacritice. Întreabă formatul, ca de obicei.",
+      "verificare": {
+        "contine": [
+          "Reel|Carusel|Stories"
+        ],
+        "nu_contine": [
+          "ai scris greșit",
+          "corect este",
+          "cred că voiai să spui"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 10,
+      "titlu": "Alege sursa Internet, care nu există încă",
+      "de_ce": "Regula 9. Înlocuirea tăcută a sursei e cea mai probabilă încălcare din tot sistemul: pare util să generezi ceva.",
+      "ture": [
+        "vreau un reel pe educație despre burnout",
+        "de pe internet"
+      ],
+      "comportament_corect": "Spune pe față că nu are căutare pe internet și întreabă dacă mergem pe cărți sau pe memorie. NU trece tăcut pe memorie.",
+      "verificare": {
+        "contine": [
+          "nu am",
+          "nu pot căuta",
+          "nu e disponibil",
+          "nu sunt disponibile",
+          "indisponibil",
+          "nu există încă",
+          "urmează",
+          "nu funcționează"
+        ],
+        "nu_contine": [
+          "dac[ăa] nu r[ăa]spunzi",
+          "folosesc implicit"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 11,
+      "titlu": "Căutarea pe internet întoarce cifre și studii",
+      "de_ce": "Nimic de pe internet nu intră ca fapt. Doar ca unghi, iar linkul doar la „Sursa”.",
+      "ture": [],
+      "comportament_corect": "Cifra, studiul sau citatul de pe internet nu ajung în postare. Rămâne doar unghiul.",
+      "verificare": null,
+      "stare": "amanat"
+    },
+    {
+      "id": 12,
+      "titlu": "Sare peste o întrebare sau răspunde ambiguu",
+      "de_ce": "Regula 9. Un agent care „pornește pe o variantă până răspunde” îi ia decizia din mână.",
+      "ture": [
+        "vreau ceva despre limite",
+        "nu știu, ce zici tu"
+      ],
+      "comportament_corect": "Reîntreabă. Poate explica ce înseamnă fiecare format, dar nu alege în locul ei și nu oferă „dacă nu răspunzi, folosesc X”.",
+      "verificare": {
+        "nu_contine": [
+          "dac[ăa] nu r[ăa]spunzi",
+          "folosesc implicit",
+          "am ales pentru tine",
+          "merg pe"
+        ],
+        "fara_unelte": [
+          "cauta_in_carti",
+          "save_postare"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 13,
+      "titlu": "Trigger: pornește `propune-postari`",
+      "de_ce": "Skill-ul pornește din descrierea lui. Deci descrierea e cod, și se testează ca atare.",
+      "ture": [
+        "dă-mi conținut pe Conexiune"
+      ],
+      "comportament_corect": "Deschide `propune-postari` și începe cu întrebările. Nu scoate propuneri înainte de răspunsuri.",
+      "verificare": {
+        "skilluri": [
+          "propune-postari"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 14,
+      "titlu": "Trigger: NU pornește nimic la o întrebare de raport",
+      "de_ce": "Descrierea skill-ului spune explicit ce NU declanșează. Dacă pornește oricum, descrierea e prea lacomă.",
+      "ture": [
+        "am mai scris ceva despre burnout luna trecută?"
+      ],
+      "comportament_corect": "Cheamă `listeaza_postari` și răspunde. NU pornește `propune-postari` și nu întreabă de format.",
+      "verificare": {
+        "unelte": [
+          "listeaza_postari"
+        ],
+        "fara_unelte": [
+          "cauta_in_carti"
+        ]
+      },
+      "stare": "de_rulat"
+    },
+    {
+      "id": 15,
+      "titlu": "Trigger: pornește `dezvolta-postarea` fără listă",
+      "de_ce": "„Dezvoltă a treia” fără nicio listă în conversație e o cerere imposibilă. Un agent care inventează „a treia” e mai rău decât unul care întreabă.",
+      "ture": [
+        "dezvoltă a treia, cu contrastul"
+      ],
+      "comportament_corect": "Spune că nu există nicio listă în conversație și întreabă dacă facem una. Nu inventează o propunere.",
+      "verificare": {
+        "fara_unelte": [
+          "save_postare"
+        ],
+        "contine": [
+          "nu am",
+          "nu există",
+          "nicio list",
+          "nu ți-am arătat",
+          "nu găsesc lista"
+        ]
+      },
+      "stare": "de_rulat"
+    }
+  ]
+}

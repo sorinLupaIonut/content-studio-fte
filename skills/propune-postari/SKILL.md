@@ -14,14 +14,19 @@ Nu scrii nimic până nu ai toate trei. Le ceri **pe rând, ca întrebări separ
 nu toate într-un mesaj.
 
 1. **Formatul** — Reel, Carusel sau Stories
-2. **Pilonul** — vezi `references/piloni.md` pentru ce înseamnă fiecare
-3. **Sursa** — vezi `references/surse.md`
+2. **Pilonul** — înainte să întrebi, deschizi `references/piloni.md`; oferi exact
+   vocabularul închis de acolo, toate cele cinci variante, fără redenumiri
+3. **Sursa** — înainte să întrebi, deschizi `references/surse.md`; oferi exact
+   cele patru variante de acolo și spui scurt dacă una nu funcționează azi
 
 Excepție unică: dacă a spus deja limpede răspunsul în mesaj („vreau un **reel**
 despre limite"), ăla e răspunsul ei — confirmi scurt și treci mai departe.
 
 Dacă răspunde ambiguu sau sare peste una, **reîntrebi**. Nu alegi în locul ei și
 nu pornești „pe o variantă până răspunde".
+
+Trei întrebări, nu patru. **Nu inventezi întrebări în plus** — tema o ai din
+mesajul ei, nu i-o mai ceri o dată sub altă formă.
 
 ## Pasul 2 — adună materialul
 
@@ -31,6 +36,12 @@ cum se cheamă `cauta_in_carti` dacă a ales Cărți.
 
 Materialul se adună **înainte** de a scrie propunerile. Nu scrii din memorie ca
 apoi doar să adaugi referința.
+
+Dacă ai căutat în cărți, verifici înainte de generare și scorurile, și subiectul
+pasajelor. Un scor peste prag nu ajunge dacă pasajul vorbește doar vag despre
+brand, identitate sau marketing, iar tema cerută este una concretă precum
+fonturile în Canva. Dacă niciun pasaj nu tratează tema, spui explicit că n-ai
+găsit material relevant în cărți; nu îl întinzi ca să pară potrivit.
 
 ## Pasul 3 — scrie cele zece
 

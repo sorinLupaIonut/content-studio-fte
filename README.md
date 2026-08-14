@@ -50,10 +50,10 @@ uv run worker.py
 | 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
 | 5 | Import + embedding: cele 17 cărți; metoda mutată lângă skill | ✅ 4.778 bucăți, căutarea dă pagina |
 | 6 | MCP server `content-data`, patru unelte | ✅ agentul caută singur în cărți |
-| 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ⬜ |
-| 8 | Audit la fiecare graniță + replay | ⬜ |
-| 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ⬜ |
-| 10 | Setul de evaluare — cele 12 cazuri urâte din §5 al planului | ⬜ |
+| 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ✅ ciclu complet + încă una din aceeași listă |
+| 8 | Audit la fiecare graniță + replay | ✅ urmă legată de conversație, rejucabilă |
+| 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ✅ respins = `blocked`, aprobat = scriere |
+| 10 | Setul de evaluare — cele 12 cazuri urâte + 3 trigger evals | ✅ runner real; 14 rulate, cazul Internet amânat până există capabilitatea |
 
 ## Structura
 
@@ -61,6 +61,7 @@ uv run worker.py
 worker.py                     agentul unic; sandbox E2B, memorie în Neon, date prin MCP
 mcp_server/
   server.py                     `content-data`: cele patru unelte, peste HTTP
+  protocol.py                   ID-ul conversației călătorește intern, nu prin model
 skills/                       montate în sandbox, descoperite din frontmatter
   propune-postari/
     SKILL.md                    faza 1: cele trei întrebări, apoi cele 10 propuneri
@@ -69,13 +70,17 @@ skills/                       montate în sandbox, descoperite din frontmatter
       hookuri.md                  cele 5 tipuri de hook
       surse.md                    cele 4 surse, și cum se caută în cărți
       carti.md                    cele 17 titluri, ca să poată propune 3–4
-  dezvolta-postarea/            fără SKILL.md până la Decizia 7; referințele sunt deja aici
+  dezvolta-postarea/
+    SKILL.md                    faza 2: dezvoltă una, o arată, apoi o salvează după „da”
     references/                 metoda Brand Legends, 11 fișiere:
                                   manualul de Reels spart în 9 — filmare, editare, structura-reel,
                                   hookuri-si-scripturi, tipuri-de-reels, idei, distribuire,
                                   piloni-si-cont, intrebari-frecvente
                                   plus b-roll.md și stories.md
-proba_flux.py                 cele cinci ture, cap-coadă: skill-uri + unealta de căutare
+audit.py                      urma worker-ului: mesaje, skill-uri, unelte și aprobări
+replay.py                     reconstruiește o conversație fără să ruleze modelul
+proba_flux.py                 nouă ture cap-coadă: 10 propuneri → salvare → încă una
+proba_scriere.py              probă scurtă: conversație + blocked/ok + audit tranzacțional
 proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
 proba_mcp.py                  criteriul Deciziei 6: exact patru unelte, cu proveniență
 AGENTS.md                     specificația domeniului + contractul de arhitectură
@@ -91,7 +96,10 @@ content/                      materialul brut, până când intră în Postgres
   carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor)
                                 → documents + embeddings    (Decizia 5)
   postari/                      26 postări → tabelul postari (Decizia 3)
-evals/                        cele 12 cazuri urâte, cu răspunsul corect (Decizia 10)
+evals/
+  cazuri.json                  cele 12 cazuri urâte + 3 trigger evals
+  ruleaza.py                   runner real; worker + E2B + MCP, fără scrieri în evaluare
+  README.md                    rulare, raport și limita capabilității Internet
 ```
 
 Metoda Brand Legends nu are folder propriu în `content/`: nu intră în bază, ci călătorește

@@ -35,6 +35,7 @@ Rulează, în două terminale:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 import uuid
@@ -53,7 +54,9 @@ from agents.sandbox.entries import LocalDir
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from audit import Audit
 from db.config import ConfigurareLipsa, descrie, ia_url_bazei
+from mcp_server.protocol import CONVERSATION_HEADER
 
 # Consola Windows e cp1252, iar agentul ăsta scrie numai română. Fără linia
 # asta, primul „ș" dintr-o propunere omoară rularea cu UnicodeEncodeError.
@@ -67,6 +70,9 @@ CLIENT_SLUG = "viorela"
 RADACINA = Path(__file__).parent
 SKILLS = RADACINA / "skills"
 MCP_URL = os.getenv("MCP_URL", "http://127.0.0.1:8765/mcp")
+
+#: Uneltele care ies sub numele Viorelei. Doar ele au poartă; citirile sunt libere.
+UNELTE_CU_POARTA = ("save_postare", "update_profil")
 
 # Regulile stau în system prompt, nu într-un skill, fiindcă sunt mereu în
 # vigoare. Progressive disclosure e pentru ce trebuie uneori — metoda, pilonii,
@@ -103,7 +109,9 @@ REGULI OBLIGATORII — contractul de ieșire, nu preferințe de stil:
    generezi totuși ce se poate.
 7. Testimonialele și cifrele se folosesc DOAR dacă există în profil. Nu inventezi
    niciodată rezultate, cifre sau dovezi — nici măcar prezentate ca experiență
-   personală a ei. Dacă ți se cere o cifră care nu există, refuzi și propui altceva.
+   personală a ei. Dacă ți se cere o cifră care nu există, refuzi și propui
+   altceva la persoana a II-a, fără cuantificări mascate precum „multe femei",
+   „majoritatea” sau „din experiența mea”.
 8. Sursa de inspirație rămâne în culise. Cartea, autorul, pagina sau linkul se
    notează DOAR pe câmpul `sursa` al postării salvate — NU în hook, în script sau
    în caption. E conținut de social media, nu lucrare cu bibliografie.
@@ -117,17 +125,23 @@ REGULI OBLIGATORII — contractul de ieșire, nu preferințe de stil:
 Mesajele ei pot veni dictate, fără diacritice, cu greșeli de transcriere. Le
 interpretezi cu bunăvoință, fără s-o corectezi. Răspunsul tău are diacritice.
 
-UNDE EȘTI ACUM — Decizia 6. Ai skill-ul `propune-postari` și patru unelte:
-`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`. NU ai încă:
-căutare pe internet și skill-ul care dezvoltă postarea aleasă. Dacă ți se cere una
-dintre astea, spui limpede că urmează.
+UNDE EȘTI ACUM — Deciziile 7–9. Ai skill-urile `propune-postari` și
+`dezvolta-postarea`, și patru unelte: `cauta_in_carti`, `listeaza_postari`,
+`save_postare`, `update_profil`. NU ai încă căutare pe internet. Dacă ți se cere,
+spui că urmează.
 
 Uneltele de scriere se cheamă doar după „da"-ul ei, niciodată din proprie
 inițiativă (regula 10).
 
 Ai un sandbox cu shell și fișiere. Îl folosești ca să citești skill-urile, nu ca
 să inventezi unelte. La date ajungi NUMAI prin unelte — nu încerca să te conectezi
-la baza de date din sandbox.\
+la baza de date din sandbox.
+
+ACTIVAREA SKILL-URILOR ESTE OBLIGATORIE. La orice cerere de conținut nou, deschizi
+`propune-postari` ÎNAINTE de primul răspuns — inclusiv dacă ea a dat deja formatul,
+pilonul sau sursa. Când alege o propunere dintr-o listă existentă, deschizi
+`dezvolta-postarea` înainte s-o scrii. Nu improvizezi fluxul din memorie. O cerere
+de raport despre postările existente nu activează niciunul dintre aceste skill-uri.\
 """
 
 SQL_CLIENT = "SELECT id, nume, profil_md FROM client WHERE slug = $1"
@@ -188,6 +202,65 @@ def fa_sandbox() -> tuple[E2BSandboxClient, E2BSandboxClientOptions]:
     return E2BSandboxClient(), E2BSandboxClientOptions(sandbox_type="e2b")
 
 
+def descrie_cererea(cerere) -> tuple[str, dict, str]:
+    """(numele, argumentele, id-ul apelului) dintr-o cerere de aprobare."""
+    brut = getattr(cerere, "raw_item", None)
+    nume = getattr(cerere, "tool_name", None) or getattr(brut, "name", "?")
+    call_id = getattr(brut, "call_id", None) or getattr(brut, "id", None) or str(id(brut))
+    argumente = getattr(brut, "arguments", None)
+    if isinstance(argumente, str):
+        try:
+            argumente = json.loads(argumente)
+        except ValueError:
+            argumente = {"brut": argumente}
+    return nume, argumente or {}, call_id
+
+
+async def ruleaza_tura(worker, intrare, sesiune, config, urma, session_id, aproba):
+    """O tură, cu poarta de aprobare pe drum.
+
+    Când agentul vrea să scrie, `Runner.run` se oprește și întoarce cereri în
+    loc de răspuns. Le ducem la om, apoi reluăm rularea din aceeași stare —
+    modelul nu reia de la zero, continuă din locul în care a fost oprit.
+    """
+    rezultat = await Runner.run(worker, intrare, session=sesiune, run_config=config)
+
+    while rezultat.interruptions:
+        stare = rezultat.to_state()
+        for cerere in rezultat.interruptions:
+            nume, argumente, call_id = descrie_cererea(cerere)
+            await urma.actiune(session_id, "aprobare_ceruta", nume, argumente)
+
+            aprobat, motiv = await aproba(nume, argumente)
+            if aprobat:
+                stare.approve(cerere)
+            else:
+                stare.reject(cerere, rejection_message=motiv)
+                await urma.actiune(
+                    session_id, "aprobare_respinsa", nume, argumente, {"motiv": motiv}
+                )
+                await urma.capabilitate_blocata(
+                    session_id, nume, argumente, motiv, call_id
+                )
+
+        rezultat = await Runner.run(worker, stare, session=sesiune, run_config=config)
+
+    return rezultat
+
+
+async def intreaba_in_terminal(nume: str, argumente: dict) -> tuple[bool, str]:
+    """Poarta, așa cum o vede Viorela: ce se scrie, și un da/nu."""
+    print(f"\n  ⚠ Vrea să cheme `{nume}`:")
+    for cheie, valoare in argumente.items():
+        text = " ".join(str(valoare).split())
+        print(f"      {cheie:<12} {text[:80]}{'…' if len(text) > 80 else ''}")
+
+    raspuns = input("  Îi dai voie? (da / nu) ").strip().lower()
+    if raspuns in {"da", "d", "yes", "y"}:
+        return True, ""
+    return False, "Viorela n-a aprobat scrierea. Nu insista; întreab-o ce vrea schimbat."
+
+
 async def main() -> int:
     for cheie in ("OPENAI_API_KEY", "E2B_API_KEY"):
         if not os.getenv(cheie):
@@ -219,10 +292,17 @@ async def main() -> int:
     # pentru embedding și abia apoi Neon, iar cele două puse cap la cap trec
     # lejer de cinci secunde la primul apel.
     date_mcp = MCPServerStreamableHttp(
-        params={"url": MCP_URL},
+        params={
+            "url": MCP_URL,
+            "headers": {CONVERSATION_HEADER: session_id},
+        },
         name="content-data",
         cache_tools_list=True,
         client_session_timeout_seconds=30,
+        # Poarta de aprobare stă pe ÎNREGISTRAREA serverului, nu în interiorul
+        # uneltei (Decizia 9). Așa apără scrierea indiferent cine o cheamă și
+        # ce scrie în prompt. Citirile rămân libere.
+        require_approval={"always": {"tool_names": list(UNELTE_CU_POARTA)}},
     )
     try:
         await date_mcp.connect()
@@ -236,7 +316,11 @@ async def main() -> int:
 
     worker = fa_worker(profil_md, date_mcp)
 
-    print(f"Content Worker · {MODEL} · Decizia 6 · sandbox + MCP")
+    # Engine separat de cel de business: regula 2 cere ca urma să aibă
+    # conexiunea ei, în afara oricărei tranzacții care poate să pice.
+    urma = Audit(url, connect_args)
+
+    print(f"Content Worker · {MODEL} · Decizia 9 · sandbox + MCP + audit + poartă")
     print(f"Bază     : {descrie(url)}")
     print(f"Clientă  : {nume} · profil {len(profil_md):,} caractere în system prompt")
     print(f"Sesiune  : {session_id}{'  (nouă)' if nou else '  (reluată)'}")
@@ -284,14 +368,24 @@ async def main() -> int:
             if mesaj.lower() in {"iesire", "ieșire", "exit", "quit"}:
                 break
 
+            # Urma se deschide ÎNAINTE de rulare: dacă tura pică, se vede că a
+            # existat. Un audit scris doar la sfârșit ratează exact turele care
+            # merită cel mai mult explicate.
+            await urma.mesaj_primit(session_id, mesaj)
+
             print("\n  …lucrez\r", end="", flush=True)
             try:
-                rezultat = await Runner.run(
-                    worker, mesaj, session=sesiune, run_config=config
+                rezultat = await ruleaza_tura(
+                    worker, mesaj, sesiune, config, urma, session_id,
+                    intreaba_in_terminal,
                 )
             except Exception as e:  # noqa: BLE001
+                await urma.a_picat(session_id, e)
                 print(f"\nworker> Ceva n-a mers ({type(e).__name__}). Mai încercăm?\n")
                 continue
+
+            await urma.tura(session_id, rezultat)
+            await urma.mesaj_trimis(session_id, str(rezultat.final_output))
 
             print(f"\nworker> {rezultat.final_output}\n")
     finally:
@@ -300,9 +394,11 @@ async def main() -> int:
         except Exception:  # noqa: BLE001
             pass
         await date_mcp.cleanup()
+        await urma.inchide()
         await engine.dispose()
 
     print(f"Conversația a rămas în bază: session_id = {session_id}")
+    print(f"Ce a făcut, rejucat:  uv run python replay.py {session_id}")
     return 0
 
 

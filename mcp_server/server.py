@@ -16,8 +16,9 @@ Cele două unelte de scriere își scriu rândul de audit în ACEEAȘI tranzacț
 scrierea (regula 2). Ori intră amândouă, ori niciuna — o postare fără urmă nu se
 poate întâmpla nici dacă pică conexiunea între cele două comenzi.
 
-Poarta de aprobare nu e aici: vine la Decizia 9, pe înregistrarea serverului.
-Până atunci, „nimic fără confirmarea ei" e ținut de regula 10 din system prompt.
+Poarta de aprobare nu e în corpul uneltei: worker-ul o pune pe înregistrarea
+serverului MCP. Astfel, scrierile se întrerup înainte de apel și se reiau doar
+după răspunsul Viorelei.
 
 Transportul e HTTP, deci serverul se pornește separat de worker, în alt terminal.
 """
@@ -32,11 +33,12 @@ from contextlib import asynccontextmanager
 from datetime import date
 
 from dotenv import load_dotenv
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from db.config import ConfigurareLipsa, descrie, ia_url_bazei
+from mcp_server.protocol import CONVERSATION_HEADER
 
 # Același model la stocare și la căutare — regula 3. Îl iau chiar din scriptul
 # care a scris vectorii, ca să nu poată ajunge diferit fără să se rupă importul.
@@ -110,8 +112,10 @@ async def cauta_in_carti(
     titlul și autorul, atât.
 
     `scor` e cât de aproape e pasajul de ce ai cerut, între 0 și 1. Pe corpusul
-    ăsta, potrivirile bune stau pe la 0,45–0,55; sub 0,35 e mai degrabă zgomot —
-    spune-i că n-ai găsit mare lucru, nu întinde un pasaj slab.
+    ăsta, potrivirile bune stau pe la 0,45–0,55; sub 0,35 e mai degrabă zgomot.
+    Pragul e doar un minim: verifică și dacă pasajul chiar tratează subiectul.
+    O potrivire vagă despre brand nu e material despre fonturi sau Canva. Dacă
+    nimic nu e relevant semantic, spune asta și nu întinde un pasaj slab.
     """
     limit = max(1, min(limit, 20))
     raspuns = await AsyncOpenAI().embeddings.create(model=MODEL_EMBED, input=[descriere])
@@ -216,6 +220,18 @@ def ca_markdown(camp: dict) -> str:
     )
 
 
+def conversatia_din(ctx: Context) -> str:
+    """ID-ul pus de worker pe conexiunea MCP, nu inventat de model."""
+    cerere = ctx.request_context.request
+    headers = getattr(cerere, "headers", None)
+    conversation_id = headers.get(CONVERSATION_HEADER) if headers else None
+    if not conversation_id:
+        raise ValueError(
+            f"Lipsește antetul intern {CONVERSATION_HEADER}; scrierea a fost oprită."
+        )
+    return conversation_id
+
+
 @server.tool()
 async def save_postare(
     titlu: str,
@@ -228,7 +244,7 @@ async def save_postare(
     hashtaguri: str,
     cta: str,
     sursa: str,
-    conversation_id: str | None = None,
+    ctx: Context,
 ) -> dict:
     """Salvează postarea confirmată de Viorela. UNA singură, cea aleasă.
 
@@ -240,6 +256,7 @@ async def save_postare(
     `tip_hook` e unul din PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST.
     `hashtaguri` e un singur șir, cu spații între ele: „#burnout #limite".
     """
+    conversation_id = conversatia_din(ctx)
     camp = {
         "titlu": titlu,
         "pilon": pilon,
@@ -317,7 +334,7 @@ def inlocuieste_sectiune(profil: str, sectiune: str, text_nou: str) -> str:
 
 
 @server.tool()
-async def update_profil(sectiune: str, text_nou: str) -> dict:
+async def update_profil(sectiune: str, text_nou: str, ctx: Context) -> dict:
     """Rescrie o secțiune din profilul Viorelei. Doar la cererea ei explicită.
 
     `sectiune` e o bucată din titlul secțiunii, așa cum apare în profil („Oferte",
@@ -326,6 +343,7 @@ async def update_profil(sectiune: str, text_nou: str) -> dict:
 
     Ce era înainte rămâne în `audit_log`, deci o greșeală se poate întoarce.
     """
+    conversation_id = conversatia_din(ctx)
     async with baza() as conn:
         rand = await conn.fetchrow(SQL_PROFIL, CLIENT_SLUG)
         if rand is None:
@@ -335,7 +353,7 @@ async def update_profil(sectiune: str, text_nou: str) -> dict:
         await conn.execute(SQL_SCRIE_PROFIL, rand["id"], profil_nou)
         await conn.execute(
             SQL_AUDIT,
-            None,
+            conversation_id,
             "profil_actualizat",
             "client",
             json.dumps(
