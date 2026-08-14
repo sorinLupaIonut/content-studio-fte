@@ -18,7 +18,7 @@ Documentul ăsta e planul. Nu se scrie cod până nu e aprobat.
 > 2. **Un singur agent, nu orchestrator plus sub-agenți.** Un context, deci profilul de 30k caractere nu se mai copiază în promptul fiecărui agent.
 > 3. **Prețul, plătit cu ochii deschiși:** un `SKILL.md` e text, deci „exact 10 propuneri × exact 5 hook-uri" nu se mai impune din `output_type`. Devine instrucțiune, verificată **după** (`proba_flux.py`) și judecată la Decizia 10. La fel se pierd uneltele atribuite pe fază: un singur agent le are pe toate.
 > 4. **Sandbox-ul e E2B**, nu Docker. Premisa Reviziei 4 („nu Docker, fiind Windows") era greșită — Docker era instalat și a mers, dar pe Windows calea PTY a backendului întoarce output gol, fiindcă `NpipeSocket.shutdown()` din docker-py închide toată conducta în loc de jumătatea de scriere. E2B n-are problema, are tier gratuit, și a fost mai rapid în practică (96s vs 158s pe aceleași cinci ture).
-> 5. **`get_metoda` rămâne unealtă MCP** (§3b). Sandbox-ul readuce opțiunea de a ține `metoda/` ca fișiere lângă skill; de reevaluat la Decizia 6, nu acum.
+> 5. **`get_metoda` dispare ca unealtă MCP.** Manualul de Reels s-a spart în nouă `references/` lângă skill-ul Fazei 2, deci metoda vine prin același progressive disclosure ca pilonii și hook-urile. Serverul MCP de la Decizia 6 rămâne cu patru unelte, nu cinci.
 
 ---
 
@@ -143,6 +143,8 @@ Regula 10 („nimic nu se salvează fără confirmarea ei") nu depinde de struct
 Distincția din curs: *un agent care întoarce doar text în conversație e o ciornă; ce scrie în sistemul de record e o acțiune.* Doar `save_postare` și `update_profil` sunt acțiuni, și de aia doar ele au poartă.
 
 ### 2.4b `get_metoda(format)` — metoda ca unealtă, nu ca folder
+
+> **Anulat de Revizia 5.** Există sandbox, deci metoda stă ca `references/` lângă skill: `skills/dezvolta-postarea/references/`, nouă fișiere, spartă la Decizia 5. Secțiunea rămâne ca istoric al raționamentului, nu ca plan de construit.
 
 Manualul Brand Legends (`manual-creare-reels.md`, 96 KB) nu intră în context întreg și nu stă pe discul agentului. Rămâne spart pe subiecte, dar ca fișiere pe **discul serverului MCP** — cod de încredere, scris de tine, nu ceva la care agentul are acces direct:
 
@@ -470,8 +472,8 @@ Peste poartă stă regula 10 din `AGENTS.md`, care e mai strictă: postarea se a
 | 2 | Planul schemei și al celor doi sub-agenți, în Plan Mode | acest document, aprobat |
 | 3 | Neon + pgvector + schema pe branch, apoi `SQLAlchemySession` | tabelele există; worker-ul își amintește două ture, și le vezi în `agent_messages` |
 | 4 | `propune-postari` ca skill în sandbox (Revizia 5) | la „vreau ceva despre limite" pune cele trei întrebări pe rând, apoi scoate 10 propuneri × 5 hook-uri; și află din `references/surse.md` că azi merge doar sursa Memorie |
-| 5 | Import + embedding: cele 17 cărți; fișierele `metoda/` mutate pe discul serverului MCP | o căutare după „vinovăția de a spune nu" întoarce pasaje ordonate, cu pagină |
-| 6 | MCP server `content-data`, cinci unelte (`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`, `get_metoda`) | worker-ul cheamă `cauta_in_carti` și `get_metoda` într-o rulare reală |
+| 5 | Import + embedding: cele 17 cărți; `metoda/` spartă în `references/` lângă skill-ul Fazei 2 (Revizia 5) | o căutare după „vinovăția de a spune nu" întoarce pasaje ordonate, cu pagină |
+| 6 | MCP server `content-data`, patru unelte (`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`) | worker-ul cheamă `cauta_in_carti` într-o rulare reală |
 | 7 | `dezvolta-postarea` ca al doilea skill + salvarea | un ciclu complet: 10 propuneri → una aleasă → dezvoltată → arătată → salvată; apoi **încă una din aceeași listă**, fără regenerare |
 | 8 | Audit la fiecare graniță + verificare cap-coadă + replay | poți reconstrui ce a făcut, fără să rulezi modelul |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | aprobat trece, respins nu scrie nimic |

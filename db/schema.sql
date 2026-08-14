@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
     chunk_index     INT  NOT NULL,
     embedding       VECTOR(1536) NOT NULL,
     model           TEXT NOT NULL,
+    metadata        JSONB NOT NULL DEFAULT '{}'::jsonb,  -- {pagina, capitol} — Decizia 5
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CHECK (
         (document_id IS NOT NULL)::int + (conversation_id IS NOT NULL)::int = 1
@@ -69,6 +70,11 @@ CREATE TABLE IF NOT EXISTS embeddings (
 );
 CREATE INDEX IF NOT EXISTS idx_embeddings_hnsw
     ON embeddings USING hnsw (embedding vector_cosine_ops);
+
+-- Pentru bazele făcute la Decizia 3, înainte să existe coloana: `CREATE TABLE
+-- IF NOT EXISTS` nu atinge un tabel care există deja, deci coloana se adaugă
+-- separat. Pe o bază nouă, linia asta nu face nimic.
+ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -40,8 +40,8 @@ uv run worker.py
 | 2 | Planul schemei și al celor doi sub-agenți | ✅ `plans/digital-fte-plan.md` |
 | 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
 | 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
-| 5 | Import + embedding: cele 17 cărți; `metoda/` spartă pe subiecte | ⬜ |
-| 6 | MCP server `content-data`, cinci unelte | ⬜ |
+| 5 | Import + embedding: cele 17 cărți; `metoda/` spartă pe subiecte | ✅ 4.778 bucăți, căutarea dă pagina |
+| 6 | MCP server `content-data`, patru unelte | ⬜ |
 | 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ⬜ |
 | 8 | Audit la fiecare graniță + replay | ⬜ |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ⬜ |
@@ -58,7 +58,12 @@ skills/                       montate în sandbox, descoperite din frontmatter
       piloni.md                   cei 5 piloni          ⟵ deschis doar la nevoie
       hookuri.md                  cele 5 tipuri de hook ⟵ deschis doar la nevoie
       surse.md                    cele 4 surse          ⟵ deschis doar la nevoie
+  dezvolta-postarea/            fără SKILL.md până la Decizia 7; referințele sunt deja aici
+    references/                   manualul de Reels spart în 9: filmare, editare, structura-reel,
+                                  hookuri-si-scripturi, tipuri-de-reels, idei, distribuire,
+                                  piloni-si-cont, intrebari-frecvente
 proba_flux.py                 criteriul Deciziei 4, plus proba de progressive disclosure
+proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
 AGENTS.md                     specificația domeniului + contractul de arhitectură
 plans/digital-fte-plan.md     planul complet, cu motivele fiecărei decizii
 db/
@@ -66,13 +71,13 @@ db/
   config.py                     normalizează DATABASE_URL pentru asyncpg
   apply.py                      aplică schema, idempotent
   seed.py                       profil.md → client; 26 postări → postari
+  import_carti.py               cele 17 cărți → documents + embeddings (Decizia 5)
 content/                      materialul brut, până când intră în Postgres
   profil.md                     → client.profil_md          (Decizia 3)
-  carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor),
-                                se copiază înainte de Decizia 5 → documents + embeddings
+  carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor)
+                                → documents + embeddings    (Decizia 5)
   postari/                      26 postări → tabelul postari (Decizia 3)
-  metoda/                       manualul întreg, de spart    (Decizia 5)
-mcp_server/content/metoda/    fișierele servite de get_metoda (Decizia 6)
+  metoda/                       manualul întreg; originalul rămâne aici după spargere
 evals/                        cele 12 cazuri urâte, cu răspunsul corect (Decizia 10)
 ```
 
