@@ -39,10 +39,10 @@ uv run worker.py
 | 1 | `AGENTS.md` cu regulile de arhitectură | ✅ scris |
 | 2 | Planul schemei și al celor doi sub-agenți | ✅ `plans/digital-fte-plan.md` |
 | 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
-| 4 | `propune_postari` — sub-agent cu `output_type=Propuneri`, chemat cu `as_tool` | ⬜ |
+| 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
 | 5 | Import + embedding: cele 17 cărți; `metoda/` spartă pe subiecte | ⬜ |
 | 6 | MCP server `content-data`, cinci unelte | ⬜ |
-| 7 | `dezvolta_postarea` ca al doilea `as_tool` + salvarea | ⬜ |
+| 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ⬜ |
 | 8 | Audit la fiecare graniță + replay | ⬜ |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ⬜ |
 | 10 | Setul de evaluare — cele 12 cazuri urâte din §5 al planului | ⬜ |
@@ -50,7 +50,15 @@ uv run worker.py
 ## Structura
 
 ```
-worker.py                     agentul; memorie în Neon + profilul în system prompt
+worker.py                     agentul unic; sandbox E2B, memorie în Neon
+skills/                       montate în sandbox, descoperite din frontmatter
+  propune-postari/
+    SKILL.md                    faza 1: cele trei întrebări, apoi cele 10 propuneri
+    references/
+      piloni.md                   cei 5 piloni          ⟵ deschis doar la nevoie
+      hookuri.md                  cele 5 tipuri de hook ⟵ deschis doar la nevoie
+      surse.md                    cele 4 surse          ⟵ deschis doar la nevoie
+proba_flux.py                 criteriul Deciziei 4, plus proba de progressive disclosure
 AGENTS.md                     specificația domeniului + contractul de arhitectură
 plans/digital-fte-plan.md     planul complet, cu motivele fiecărei decizii
 db/
@@ -73,4 +81,8 @@ evals/                        cele 12 cazuri urâte, cu răspunsul corect (Deciz
 `openai-agents` · `gpt-5-mini` pentru generare · `text-embedding-3-small` pentru căutare ·
 Neon Postgres + pgvector · MCP Python SDK · proiect `uv`.
 
-Fără Docker, fără sandbox, fără infrastructură pe Windows.
+**Sandbox E2B**, cu skill-urile montate din `skills/`. Cere `E2B_API_KEY` în `.env` —
+tierul Hobby e gratuit, sesiunile țin până la o oră.
+
+Din proiect **nu se montează nimic** în sandbox în afară de `skills/`. `.env` are parola
+bazei, iar agentul are shell.

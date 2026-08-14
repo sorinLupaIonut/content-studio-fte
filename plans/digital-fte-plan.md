@@ -11,6 +11,14 @@ Documentul ăsta e planul. Nu se scrie cod până nu e aprobat.
 > 1. **Rămâne un singur client, Viorela.** Multi-tenant (izolare, RLS, upload self-service, onboarding din Instagram) e amânat, nu anulat — motivul e o felie completă cap-coadă, nu un SaaS pe jumătate. Singura urmă lăsată azi: `documents.client_id`, o coloană, mereu aceeași valoare, ca ziua în care apare a doua clientă să fie migrare de date, nu de schemă.
 > 2. **Fără `SandboxAgent`.** Testul din [Build AI Agents, Conceptul 14](https://agentfactory.panaversity.org/docs/build-agents-crash-course): sandbox se cere doar când agentul are nevoie de shell, pachete, date montate sau **fișiere pe care el însuși le citește/scrie**. Uneltele MCP ale planului lovesc toate un API peste HTTPS — niciun declanșator nu se aprinde. Singurul motiv pentru care Revizia 3 avea sandbox era `metoda/` ca `references/` pe disc și înlănțuirea skill-urilor prin `tmp/*.md`. Ambele dispar: `metoda/` devine unealtă MCP (`get_metoda`), iar înlănțuirea trece prin obiecte Pydantic. Corolar: `Skills()` din SDK (folderele auto-descoperite, cu progressive disclosure pe trei etape) nu se mai folosesc.
 > 3. **Un orchestrator, doi sub-agenți chemați ca unelte** (`Agent.as_tool()`), nu trei agenți legați prin `handoffs`. Vezi §1.1 pentru de ce — pe scurt: fluxul se **întoarce** (ea poate cere dezvoltarea încă unei propuneri din aceeași listă), iar un `handoff` transferă controlul definitiv.
+>
+> **Revizia 5** (14 aug 2026) — **punctele 2 și 3 ale Reviziei 4 se anulează.** Decizia 4 s-a construit întâi cu sub-agenți și `as_tool`, a funcționat, și a fost ștearsă la cerere: forma dorită era cea din Revizia 3, cu sandbox și skill-uri. Ce rămâne valabil din Revizia 4: punctul 1, un singur client.
+>
+> 1. **`SandboxAgent` cu `Skills(from_=LocalDir("skills"))`.** Fazele sunt foldere `SKILL.md` cu `references/`, nu obiecte `Agent`. Progressive disclosure real: indexul mereu în context, corpul la potrivire, referințele doar dacă `SKILL.md` trimite acolo. Verificat la Decizia 4 — faptul că azi merge doar sursa Memorie a fost pus **numai** în `references/surse.md`, iar agentul l-a găsit. Metoda se editează fără să atingi codul.
+> 2. **Un singur agent, nu orchestrator plus sub-agenți.** Un context, deci profilul de 30k caractere nu se mai copiază în promptul fiecărui agent.
+> 3. **Prețul, plătit cu ochii deschiși:** un `SKILL.md` e text, deci „exact 10 propuneri × exact 5 hook-uri" nu se mai impune din `output_type`. Devine instrucțiune, verificată **după** (`proba_flux.py`) și judecată la Decizia 10. La fel se pierd uneltele atribuite pe fază: un singur agent le are pe toate.
+> 4. **Sandbox-ul e E2B**, nu Docker. Premisa Reviziei 4 („nu Docker, fiind Windows") era greșită — Docker era instalat și a mers, dar pe Windows calea PTY a backendului întoarce output gol, fiindcă `NpipeSocket.shutdown()` din docker-py închide toată conducta în loc de jumătatea de scriere. E2B n-are problema, are tier gratuit, și a fost mai rapid în practică (96s vs 158s pe aceleași cinci ture).
+> 5. **`get_metoda` rămâne unealtă MCP** (§3b). Sandbox-ul readuce opțiunea de a ține `metoda/` ca fișiere lângă skill; de reevaluat la Decizia 6, nu acum.
 
 ---
 
@@ -461,10 +469,10 @@ Peste poartă stă regula 10 din `AGENTS.md`, care e mai strictă: postarea se a
 | 1 | `AGENTS.md` nou, cu cele trei reguli de arhitectură | regulile apar în diff |
 | 2 | Planul schemei și al celor doi sub-agenți, în Plan Mode | acest document, aprobat |
 | 3 | Neon + pgvector + schema pe branch, apoi `SQLAlchemySession` | tabelele există; worker-ul își amintește două ture, și le vezi în `agent_messages` |
-| 4 | `propune_postari` — sub-agent cu `output_type=Propuneri`, chemat cu `as_tool` de orchestrator | orchestratorul îl cheamă la „vreau ceva despre limite" și primește exact 10 propuneri valide |
+| 4 | `propune-postari` ca skill în sandbox (Revizia 5) | la „vreau ceva despre limite" pune cele trei întrebări pe rând, apoi scoate 10 propuneri × 5 hook-uri; și află din `references/surse.md` că azi merge doar sursa Memorie |
 | 5 | Import + embedding: cele 17 cărți; fișierele `metoda/` mutate pe discul serverului MCP | o căutare după „vinovăția de a spune nu" întoarce pasaje ordonate, cu pagină |
 | 6 | MCP server `content-data`, cinci unelte (`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`, `get_metoda`) | worker-ul cheamă `cauta_in_carti` și `get_metoda` într-o rulare reală |
-| 7 | `dezvolta_postarea` ca al doilea `as_tool` + salvarea din orchestrator | un ciclu complet: 10 propuneri → una aleasă → dezvoltată → arătată → salvată; apoi **încă una din aceeași listă**, fără regenerare |
+| 7 | `dezvolta-postarea` ca al doilea skill + salvarea | un ciclu complet: 10 propuneri → una aleasă → dezvoltată → arătată → salvată; apoi **încă una din aceeași listă**, fără regenerare |
 | 8 | Audit la fiecare graniță + verificare cap-coadă + replay | poți reconstrui ce a făcut, fără să rulezi modelul |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | aprobat trece, respins nu scrie nimic |
 | 10 | Setul de evaluare din secțiunea 5, rulat | toate cele douăsprezece cazuri au răspunsul decis, nu improvizat |
@@ -485,7 +493,7 @@ Pasul 5 e singurul cu volum real de date: 17 cărți întregi, ~4–5.000 de chu
 
 - Un orchestrator și doi sub-agenți, atât. `/provocare`, `/trend` rămân în afara scopului.
 - **Un singur client.** Multi-tenant, auth, upload self-service, onboarding din Instagram — amânate (Revizia 4).
-- **Fără sandbox.** Dacă apare vreodată nevoia (ex. ingestie de PDF condusă de model: shell + fișiere + pachete), se reevaluează atunci, cu `E2BSandboxClient` — nu Docker, fiind Windows.
+- **Sandbox E2B** (Revizia 5), montând doar `skills/`. Nimic altceva din proiect nu ajunge acolo: `.env` are parola bazei, iar agentul are shell.
 - **Profilul se editează din Worker** (varianta A), dar numai prin `update_profil`, cu poartă. Nu există editare liberă de fișiere.
 - Nu e always-on și nu e proactiv. Rulează când e chemat.
 - Aprobarea e sincronă: dacă răspunsul vine peste o oră, din alt proces, e nevoie de `run_states` (Decizia 10 opțională din curs). Cazul concret care ar declanșa asta: Viorela confirmă postarea de pe telefon a doua zi.
