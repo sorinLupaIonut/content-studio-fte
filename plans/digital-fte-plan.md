@@ -18,7 +18,7 @@ Documentul ăsta e planul. Nu se scrie cod până nu e aprobat.
 > 2. **Un singur agent, nu orchestrator plus sub-agenți.** Un context, deci profilul de 30k caractere nu se mai copiază în promptul fiecărui agent.
 > 3. **Prețul, plătit cu ochii deschiși:** un `SKILL.md` e text, deci „exact 10 propuneri × exact 5 hook-uri" nu se mai impune din `output_type`. Devine instrucțiune, verificată **după** (`proba_flux.py`) și judecată la Decizia 10. La fel se pierd uneltele atribuite pe fază: un singur agent le are pe toate.
 > 4. **Sandbox-ul e E2B**, nu Docker. Premisa Reviziei 4 („nu Docker, fiind Windows") era greșită — Docker era instalat și a mers, dar pe Windows calea PTY a backendului întoarce output gol, fiindcă `NpipeSocket.shutdown()` din docker-py închide toată conducta în loc de jumătatea de scriere. E2B n-are problema, are tier gratuit, și a fost mai rapid în practică (96s vs 158s pe aceleași cinci ture).
-> 5. **`get_metoda` dispare ca unealtă MCP.** Manualul de Reels s-a spart în nouă `references/` lângă skill-ul Fazei 2, deci metoda vine prin același progressive disclosure ca pilonii și hook-urile. Serverul MCP de la Decizia 6 rămâne cu patru unelte, nu cinci.
+> 5. **`get_metoda` dispare ca unealtă MCP.** Manualul de Reels s-a spart în nouă `references/` lângă skill-ul Fazei 2, deci metoda vine prin același progressive disclosure ca pilonii și hook-urile. Serverul MCP a avut patru unelte la Decizia 6; a cincea adăugată ulterior este `cauta_pe_internet`, nu întoarcerea metodei în MCP.
 
 ---
 
@@ -400,7 +400,7 @@ Aici nu e cazul. Profilul, biblioteca și postările acoperă tot ce cere rezult
 
 ---
 
-## 4. MCP server `content-data` — patru unelte, fără SQL general
+## 4. MCP server `content-data` — cinci unelte, fără SQL general
 
 Transport: streamable HTTP, varianta stateless, pe `127.0.0.1:8765`. Construit la Decizia 6, într-un singur fișier — `mcp_server/server.py`. Se pornește separat de worker, în alt terminal.
 
@@ -409,6 +409,7 @@ Uneltele de scriere își pun rândul de audit în **aceeași tranzacție** cu s
 **Citire (rulează liber):**
 
 - `cauta_in_carti(descriere, titluri?, limit)` → căutare semantică peste `documents` unde `source='biblioteca'`; întoarce pasajul **plus toată proveniența din `metadata`** (titlu, autor, pagină, `are_marcaje_pagina`, `este_rezumat`, `temei_drepturi`, clasă). Filtrarea pe `titluri` servește cazul „a ales trei cărți din cele patru propuse".
+- `cauta_pe_internet(descriere, limit)` → Responses API cu unealta OpenAI `web_search`; întoarce numai unghiuri de inspirație și linkurile citate. Cifrele, studiile și citatele găsite nu devin fapte în postare.
 - `listeaza_postari(pilon?, format?, de_la?, limit)` → postările deja făcute, pentru „am mai scris despre asta?" și pentru rapoarte simple.
 **Scriere (poartă de aprobare):**
 
@@ -419,11 +420,11 @@ Uneltele de scriere își pun rândul de audit în **aceeași tranzacție** cu s
 
 - `get_brand_profile()` — profilul intră în system prompt la pornire, nu se cere ca unealtă. O unealtă pe care modelul o cheamă *dacă vrea* e o unealtă pe care poate să n-o cheme.
 - `list_cta()` — CTA-urile sunt în `profil_md`, deci deja în context.
-- `get_metoda(format)` — propus la Revizia 4, anulat de Revizia 5. Metoda stă ca `references/` lângă skill (§2.4b), deci nu mai are nevoie de unealtă. De aici „patru", nu „cinci".
+- `get_metoda(format)` — propus la Revizia 4, anulat de Revizia 5. Metoda stă ca `references/` lângă skill (§2.4b), deci nu mai are nevoie de unealtă.
 
 **Ce NU există deloc:** nicio unealtă de tip `run_sql`, niciun DDL, niciun parametru de text liber din care se construiește SQL.
 
-**Căutarea pe internet nu trece prin MCP-ul ăsta.** E o capabilitate a agentului, nu o unealtă peste sistemul de record. **⚠️ De decis:** ce unealtă concret (unealta de web search a SDK-ului, sau un MCP separat). Nu e blocant pentru Deciziile 0–5.
+**Căutarea pe internet trece prin același MCP**, ca agentul să aibă un singur contract de capabilități și audit. În interior, serverul folosește Responses API cu `web_search`; nu scrie nimic în baza de date.
 
 **Neon, două capcane:** endpoint-ul pooled sparge prepared statements în asyncpg, deci `statement_cache_size=0` pe pool-ul serverului și pe cel de audit; pgvector se înregistrează pe conexiune, altfel vectorii se scriu aiurea. Iar pentru Session: extra-ul `[sqlalchemy]` **nu** trage `greenlet`, și URL-ul trebuie în forma `postgresql+asyncpg://`, nu `postgresql://`.
 
@@ -444,7 +445,7 @@ Partea care lipsește azi din `content-studio-vio-2`. Fiecare caz primește un c
 | 7 | CTA-ul potrivit e încă `⚠️ DE COMPLETAT` în profil | Se propune unul, se spune că e propus, și se cere să fie trecut în profil ca să rămână. Postarea nu se salvează fără CTA. |
 | 8 | Modelul întoarce nouă propuneri, sau una cu patru hook-uri, sau două de același tip | Nu se mai poate impune din schemă (Revizia 5). `SKILL.md` cere forma, `proba_flux.py` o numără după, iar cazul intră în setul de evaluare. |
 | 9 | Mesaj dictat, fără diacritice, cu greșeli de transcriere | Se interpretează cu bunăvoință, fără a corecta utilizatoarea; răspunsul are diacritice. |
-| 10 | A ales sursa „Internet" dar platforma nu are acces la web | Se spune pe loc și se întreabă dacă mergem pe cărți sau pe memorie. **Nu** se înlocuiește tăcut cu ce știe modelul (regula 9). |
+| 10 | A ales sursa „Internet", dar apelul web nu este disponibil temporar | Se spune pe loc și se întreabă dacă mergem pe cărți sau pe memorie. **Nu** se înlocuiește tăcut cu ce știe modelul (regula 9). |
 | 11 | Căutarea pe internet întoarce cifre, studii sau citate | Intră doar ca unghi. Nicio cifră și niciun citat de pe internet nu ajunge în postare. Linkul, doar la „Sursa". |
 | 12 | Ea sare peste o întrebare sau răspunde ambiguu la format / pilon / sursă | Se reîntreabă. Nu se alege în locul ei, nu se pornește „pe o variantă până răspunde". |
 
@@ -472,9 +473,9 @@ Peste poartă stă regula 10 din `AGENTS.md`, care e mai strictă: postarea se a
 | 1 | `AGENTS.md` nou, cu cele trei reguli de arhitectură | regulile apar în diff |
 | 2 | Planul schemei și al fluxului, în Plan Mode | acest document, aprobat |
 | 3 | Neon + pgvector + schema pe branch, apoi `SQLAlchemySession` | tabelele există; worker-ul își amintește două ture, și le vezi în `agent_messages` |
-| 4 | `propune-postari` ca skill în sandbox (Revizia 5) | la „vreau ceva despre limite" pune cele trei întrebări pe rând, apoi scoate 10 propuneri × 5 hook-uri; și află din `references/surse.md` că azi merge doar sursa Memorie |
+| 4 | `propune-postari` ca skill în sandbox (Revizia 5) | la „vreau ceva despre limite" pune cele trei întrebări pe rând, apoi scoate 10 propuneri × 5 hook-uri și respectă sursa aleasă |
 | 5 | Import + embedding: cele 17 cărți; `metoda/` spartă în `references/` lângă skill-ul Fazei 2 (Revizia 5) | o căutare după „vinovăția de a spune nu" întoarce pasaje ordonate, cu pagină |
-| 6 | MCP server `content-data`, patru unelte (`cauta_in_carti`, `listeaza_postari`, `save_postare`, `update_profil`) | ✅ worker-ul cheamă `cauta_in_carti` într-o rulare reală (`proba_flux.py`, tura 5) |
+| 6 | MCP server `content-data`, cinci unelte (`cauta_in_carti`, `cauta_pe_internet`, `listeaza_postari`, `save_postare`, `update_profil`) | ✅ căutările în cărți și pe internet sunt probate cu proveniență |
 | 7 | `dezvolta-postarea` ca al doilea skill + salvarea | un ciclu complet: 10 propuneri → una aleasă → dezvoltată → arătată → salvată; apoi **încă una din aceeași listă**, fără regenerare |
 | 8 | Audit la fiecare graniță + verificare cap-coadă + replay | poți reconstrui ce a făcut, fără să rulezi modelul |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | aprobat trece, respins nu scrie nimic |

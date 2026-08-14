@@ -34,6 +34,7 @@ from audit import apeluri_din  # noqa: E402
 from db.config import ia_url_bazei  # noqa: E402
 from worker import (  # noqa: E402
     CLIENT_SLUG,
+    MCP_TIMEOUT,
     MCP_URL,
     SQL_CLIENT,
     UNELTE_CU_POARTA,
@@ -88,14 +89,22 @@ def incarca_cazuri(optiuni: argparse.Namespace) -> tuple[list[dict], list[dict]]
     return toate, alese
 
 
-def unelte_si_skilluri(rezultat) -> tuple[set[str], set[str]]:
+def unelte_si_skilluri(rezultat) -> tuple[set[str], set[str], list[dict]]:
     unelte: set[str] = set()
     skilluri: set[str] = set()
+    detalii: list[dict] = []
     for apel in apeluri_din(rezultat):
         unelte.add(apel["nume"])
         text = json.dumps(apel["argumente"], ensure_ascii=False)
         skilluri.update(TIPAR_SKILL.findall(text))
-    return unelte, skilluri
+        detalii.append(
+            {
+                "nume": apel["nume"],
+                "argumente": apel["argumente"],
+                "rezultat": str(apel["rezultat"] or "")[:2000],
+            }
+        )
+    return unelte, skilluri, detalii
 
 
 async def ruleaza_fara_scriere(worker, intrare, config):
@@ -219,7 +228,7 @@ async def main() -> int:
         params={"url": MCP_URL},
         name="content-data",
         cache_tools_list=True,
-        client_session_timeout_seconds=30,
+        client_session_timeout_seconds=MCP_TIMEOUT,
         require_approval={"always": {"tool_names": list(UNELTE_CU_POARTA)}},
     )
     try:
@@ -248,6 +257,7 @@ async def main() -> int:
             raspunsuri: list[str] = []
             unelte: set[str] = set()
             skilluri: set[str] = set()
+            apeluri_raport: list[dict] = []
             eroare_rulare: str | None = None
 
             try:
@@ -259,10 +269,11 @@ async def main() -> int:
                     )
                     istoric = rezultat.to_input_list()
                     raspunsuri.append(str(rezultat.final_output))
-                    t_unelte, t_skilluri = unelte_si_skilluri(rezultat)
+                    t_unelte, t_skilluri, t_apeluri = unelte_si_skilluri(rezultat)
                     unelte.update(t_unelte)
                     unelte.update(incercari)
                     skilluri.update(t_skilluri)
+                    apeluri_raport.extend(t_apeluri)
             except Exception as e:  # noqa: BLE001
                 eroare_rulare = f"{type(e).__name__}: {e}"
 
@@ -292,6 +303,7 @@ async def main() -> int:
                     "erori": erori,
                     "unelte": sorted(unelte),
                     "skilluri": sorted(skilluri),
+                    "apeluri": apeluri_raport,
                     "raspuns_final": raspunsuri[-1] if raspunsuri else "",
                     "comportament_corect": caz["comportament_corect"],
                 }

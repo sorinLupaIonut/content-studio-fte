@@ -70,6 +70,7 @@ CLIENT_SLUG = "viorela"
 RADACINA = Path(__file__).parent
 SKILLS = RADACINA / "skills"
 MCP_URL = os.getenv("MCP_URL", "http://127.0.0.1:8765/mcp")
+MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT", "90"))
 
 #: Uneltele care ies sub numele Viorelei. Doar ele au poartă; citirile sunt libere.
 UNELTE_CU_POARTA = ("save_postare", "update_profil")
@@ -126,9 +127,27 @@ Mesajele ei pot veni dictate, fără diacritice, cu greșeli de transcriere. Le
 interpretezi cu bunăvoință, fără s-o corectezi. Răspunsul tău are diacritice.
 
 UNDE EȘTI ACUM — Deciziile 7–9. Ai skill-urile `propune-postari` și
-`dezvolta-postarea`, și patru unelte: `cauta_in_carti`, `listeaza_postari`,
-`save_postare`, `update_profil`. NU ai încă căutare pe internet. Dacă ți se cere,
-spui că urmează.
+`dezvolta-postarea`, și cinci unelte: `cauta_in_carti`, `cauta_pe_internet`,
+`listeaza_postari`, `save_postare`, `update_profil`. Când sursa aleasă este
+Internet sau Combinat cu Internet, folosești `cauta_pe_internet` înainte să
+scrii propunerile. Din rezultat iei numai unghiuri; cifrele, studiile, citatele
+și afirmațiile găsite pe web nu intră în postare ca fapte. Unghiul poate decide
+despre ce vorbești, dar conținutul concret se sprijină numai pe profilul aflat
+deja în context și pe exemple obișnuite formulate ca posibilități, nu ca adevăruri
+generale, cauze sau sfaturi medicale. Dacă unealta web dă eroare, te oprești și
+spui asta; nu generezi din memorie și nu schimbi sursa fără răspunsul ei.
+
+MODUL INTERNET — verificare obligatorie înainte de răspuns. Sunt permise
+întrebări de reflecție („ce observi?”, „ce ai putea refuza?”), situații obișnuite
+și formulări de limite sprijinite de profil. Sunt interzise afirmațiile generale
+de forma „X cauzează / previne / arată / înseamnă Y”, listele de simptome sau
+„semne”, diagnosticele, recomandările medicale și reguli inventate precum
+„50–50”. Un hook CIFRĂ poate număra întrebări, pași ori formulări create de tine
+(„3 întrebări”), dar nu oameni, rezultate, simptome, efecte, procente, raporturi
+sau durate precum „48h” ori „în 2 minute”. Ca regulă simplă, în modul Internet
+fiecare idee și hook este o întrebare, un îndemn către ea sau descrierea formei
+postării — nu o propoziție declarativă care promite un rezultat. Dacă un bloc nu
+trece verificarea, îl rescrii înainte să-l arăți.
 
 Uneltele de scriere se cheamă doar după „da"-ul ei, niciodată din proprie
 inițiativă (regula 10).
@@ -298,7 +317,7 @@ async def main() -> int:
         },
         name="content-data",
         cache_tools_list=True,
-        client_session_timeout_seconds=30,
+        client_session_timeout_seconds=MCP_TIMEOUT,
         # Poarta de aprobare stă pe ÎNREGISTRAREA serverului, nu în interiorul
         # uneltei (Decizia 9). Așa apără scrierea indiferent cine o cheamă și
         # ce scrie în prompt. Citirile rămân libere.

@@ -32,7 +32,13 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 #: Uneltele care trec granița MCP. Restul (`exec_command` și tot ce ține de
 #: sandbox) sunt unelte de sistem, nu capabilități de business.
-UNELTE_MCP = {"cauta_in_carti", "listeaza_postari", "save_postare", "update_profil"}
+UNELTE_MCP = {
+    "cauta_in_carti",
+    "cauta_pe_internet",
+    "listeaza_postari",
+    "save_postare",
+    "update_profil",
+}
 
 #: `.agents/propune-postari/SKILL.md` dintr-o comandă de shell.
 TIPAR_SKILL = re.compile(r"\.agents/([\w-]+)/SKILL\.md")

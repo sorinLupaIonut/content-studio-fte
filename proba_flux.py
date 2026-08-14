@@ -49,6 +49,7 @@ from audit import Audit
 from db.config import ia_url_bazei
 from worker import (
     MCP_URL,
+    MCP_TIMEOUT,
     UNELTE_CU_POARTA,
     fa_sandbox,
     fa_worker,
@@ -227,7 +228,7 @@ async def main() -> int:
             "headers": {CONVERSATION_HEADER: session_id},
         },
         name="content-data",
-        client_session_timeout_seconds=30,
+        client_session_timeout_seconds=MCP_TIMEOUT,
         require_approval={"always": {"tool_names": list(UNELTE_CU_POARTA)}},
     )
     try:

@@ -2,9 +2,10 @@
 
     uv run python -m mcp_server.server
 
-Patru unelte, atât:
+Cinci unelte, atât:
 
     cauta_in_carti     citire   — căutare după înțeles în cele 17 cărți
+    cauta_pe_internet  citire   — unghiuri actuale, cu linkurile surselor
     listeaza_postari   citire   — ce s-a scris deja
     save_postare       scriere  — o postare, plus rândul ei de audit
     update_profil      scriere  — o secțiune din profil, plus rândul de audit
@@ -50,6 +51,7 @@ for flux in (sys.stdout, sys.stderr):
 CLIENT_SLUG = "viorela"
 GAZDA = os.getenv("MCP_HOST", "127.0.0.1")
 PORT = int(os.getenv("MCP_PORT", "8765"))
+MODEL_WEB = os.getenv("WEB_SEARCH_MODEL", os.getenv("MODEL", "gpt-5-mini"))
 
 server = MCPServer(
     "content-data",
@@ -140,6 +142,83 @@ async def cauta_in_carti(
         }
         for r in randuri
     ]
+
+
+def sursele_web(response, limit: int) -> list[dict]:
+    """Titlurile și URL-urile citate de Responses API, fără duplicate."""
+    vazute: set[str] = set()
+    surse: list[dict] = []
+    for item in response.output:
+        if getattr(item, "type", None) != "message":
+            continue
+        for content in getattr(item, "content", []):
+            for annotation in getattr(content, "annotations", []):
+                if getattr(annotation, "type", None) != "url_citation":
+                    continue
+                url = getattr(annotation, "url", "")
+                if not url or url in vazute:
+                    continue
+                vazute.add(url)
+                surse.append(
+                    {
+                        "titlu": getattr(annotation, "title", "") or url,
+                        "url": url,
+                    }
+                )
+                if len(surse) >= limit:
+                    return surse
+    return surse
+
+
+@server.tool()
+async def cauta_pe_internet(
+    descriere: str,
+    limit: int = 5,
+) -> dict:
+    """Caută unghiuri actuale pe internet pentru tema aleasă de Viorela.
+
+    Folosește-o DOAR când sursa aleasă este „Internet” sau „Combinat”. Rezultatul
+    este inspirație: teme de sezon și lucruri discutate acum. Nu transforma
+    cifrele, studiile sau citatele găsite pe web în fapte pentru postare.
+
+    Pune subiectul în `descriere`. `surse` conține titlul și linkul paginilor
+    citate. Ele merg numai în câmpul `sursa` la salvare, nu în hook, script sau
+    caption.
+    """
+    cautare = descriere.strip()
+    if not cautare:
+        return {
+            "status": "eroare",
+            "mesaj": "Lipsește descrierea temei pentru căutare.",
+            "unghiuri": "",
+            "surse": [],
+        }
+    limit = max(1, min(limit, 8))
+    prompt = f"""Caută pe web idei actuale pentru conținut social în limba română
+pe tema: {cautare!r}.
+
+Întoarce cel mult {limit} denumiri scurte de unghiuri, ca sintagme, fără să le
+explici și fără să afirmi nimic despre cauze, efecte, simptome, prevenție sau
+tratament. Exemple de formă: „limite după concediu”, „presiunea de a fi mereu
+disponibilă”. Nu da procente, statistici, rezultate de studii, citate ori
+afirmații medicale. Nu scrie o postare și nu da reguli; oferă numai subiecte de
+explorat și citează paginile consultate."""
+    response = await AsyncOpenAI().responses.create(
+        model=MODEL_WEB,
+        tools=[{"type": "web_search", "search_context_size": "low"}],
+        input=prompt,
+    )
+    return {
+        "status": "ok",
+        "tema": cautare,
+        "unghiuri": response.output_text,
+        "surse": sursele_web(response, limit),
+        "regula": (
+            "Unghiurile spun numai despre ce poți vorbi. Nu afirma cauze, efecte, "
+            "simptome, prevenție, diagnostice sau reguli. Nu prelua cifre, studii "
+            "ori citate. Linkurile merg doar la sursa."
+        ),
+    }
 
 
 SQL_POSTARI = """
@@ -386,7 +465,7 @@ def main() -> int:
 
     _engine = create_async_engine(url, connect_args=connect_args)
 
-    print(f"content-data · patru unelte · http://{GAZDA}:{PORT}/mcp")
+    print(f"content-data · cinci unelte · http://{GAZDA}:{PORT}/mcp")
     print(f"Bază: {descrie(url)}")
     print("Lasă-l pornit și deschide worker-ul în alt terminal.\n")
 

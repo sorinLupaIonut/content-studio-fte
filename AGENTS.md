@@ -49,6 +49,7 @@ Content Worker  ·  SandboxAgent  ·  singurul cu care vorbește Viorela
                          references/: metoda Brand Legends, 11 fișiere
   tools:
     cauta_in_carti     ← MCP
+    cauta_pe_internet  ← MCP
     listeaza_postari   ← MCP
     save_postare       ← MCP, cu poartă de aprobare
     update_profil      ← MCP, cu poartă de aprobare
@@ -159,7 +160,7 @@ Viorela alege una, obligatoriu. Profilul nu e în listă pentru că nu e o alege
 | Alegerea ei | De unde | Ce are voie să dea | Ce NU are voie |
 |---|---|---|---|
 | **📚 Cărți** | `documents` + `embeddings`, prin `cauta_in_carti` | idee, cadru, citat — cu titlul, autorul, pagina | să fie prezentată ca „așa se face"; să i se atribuie ce nu scrie în ea |
-| **🌐 Internet** | căutare web | unghi, temă de sezon, ce se discută acum | cifre, studii, citate — nimic de pe internet nu intră ca fapt |
+| **🌐 Internet** | `cauta_pe_internet`, prin Responses API | unghi, temă de sezon, ce se discută acum | cifre, studii, citate — nimic de pe internet nu intră ca fapt |
 | **🧠 Memorie** | profilul + ce știe modelul | structură, formulare, exemple de viață obișnuită | orice cifră, studiu, nume sau afirmație dată ca fapt verificat |
 | **🔀 Combinat** | mai multe de mai sus | ce dă fiecare | regulile fiecăreia se cumulează, nu se anulează |
 

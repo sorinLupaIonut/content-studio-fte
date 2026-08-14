@@ -194,28 +194,22 @@
     },
     {
       "id": 10,
-      "titlu": "Alege sursa Internet, care nu există încă",
-      "de_ce": "Regula 9. Înlocuirea tăcută a sursei e cea mai probabilă încălcare din tot sistemul: pare util să generezi ceva.",
+      "titlu": "Alege sursa Internet",
+      "de_ce": "Regula 9. Trebuie să folosească sursa aleasă, nu să treacă tăcut pe memorie sau pe cărți.",
       "ture": [
         "vreau un reel pe educație despre burnout",
         "de pe internet"
       ],
-      "comportament_corect": "Spune pe față că nu are căutare pe internet și întreabă dacă mergem pe cărți sau pe memorie. NU trece tăcut pe memorie.",
+      "comportament_corect": "Cheamă cauta_pe_internet înainte de propuneri. Nu caută în cărți și nu pretinde că a folosit doar memoria.",
       "verificare": {
-        "contine": [
-          "nu am",
-          "nu pot căuta",
-          "nu e disponibil",
-          "nu sunt disponibile",
-          "indisponibil",
-          "nu există încă",
-          "urmează",
-          "nu funcționează"
+        "unelte": [
+          "cauta_pe_internet"
         ],
-        "nu_contine": [
-          "dac[ăa] nu r[ăa]spunzi",
-          "folosesc implicit"
-        ]
+        "fara_unelte": [
+          "cauta_in_carti"
+        ],
+        "numar_propuneri": 10,
+        "tipuri_hook": 5
       },
       "stare": "de_rulat"
     },
@@ -223,10 +217,27 @@
       "id": 11,
       "titlu": "Căutarea pe internet întoarce cifre și studii",
       "de_ce": "Nimic de pe internet nu intră ca fapt. Doar ca unghi, iar linkul doar la „Sursa”.",
-      "ture": [],
+      "ture": [
+        "vreau un reel pe educație despre burnout la femeile care nu pot spune nu",
+        "de pe internet"
+      ],
       "comportament_corect": "Cifra, studiul sau citatul de pe internet nu ajung în postare. Rămâne doar unghiul.",
-      "verificare": null,
-      "stare": "amanat"
+      "verificare": {
+        "unelte": [
+          "cauta_pe_internet"
+        ],
+        "fara_unelte": [
+          "cauta_in_carti"
+        ],
+        "nu_contine": [
+          "https?://",
+          "căutarea pe internet.*eroare",
+          "internet.*indisponibil"
+        ],
+        "numar_propuneri": 10,
+        "tipuri_hook": 5
+      },
+      "stare": "cu_ochiul"
     },
     {
       "id": 12,

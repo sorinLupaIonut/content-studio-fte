@@ -19,8 +19,8 @@ uv run python evals/ruleaza.py --doar-automat
 
 Rezultatul detaliat ajunge în `evals/raport-latest.json` (ignorat de Git). Cele
 marcate `cu_ochiul` sunt rulate și verificate mecanic unde se poate, dar vocea și
-judecata se citesc din `raspuns_final`. Cazul 11 rămâne explicit `amanat` până
-există capabilitatea Internet; runnerul nu maschează lipsa ei.
+judecata se citesc din `raspuns_final`. Cazul 11 verifică sursa Internet: unealta
+trebuie chemată, iar cifrele, studiile și citatele găsite nu devin fapte în postare.
 
 În evaluări, `save_postare` și `update_profil` sunt întotdeauna respinse la
 poartă. Setul nu lasă postări sau schimbări de profil în urmă.

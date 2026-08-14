@@ -49,18 +49,18 @@ uv run worker.py
 | 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
 | 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
 | 5 | Import + embedding: cele 17 cărți; metoda mutată lângă skill | ✅ 4.778 bucăți, căutarea dă pagina |
-| 6 | MCP server `content-data`, patru unelte | ✅ agentul caută singur în cărți |
+| 6 | MCP server `content-data`, cinci unelte | ✅ cărți, internet, postări și scrieri protejate |
 | 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ✅ ciclu complet + încă una din aceeași listă |
 | 8 | Audit la fiecare graniță + replay | ✅ urmă legată de conversație, rejucabilă |
 | 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ✅ respins = `blocked`, aprobat = scriere |
-| 10 | Setul de evaluare — cele 12 cazuri urâte + 3 trigger evals | ✅ runner real; 14 rulate, cazul Internet amânat până există capabilitatea |
+| 10 | Setul de evaluare — cele 12 cazuri urâte + 3 trigger evals | ✅ runner real; inclusiv sursa Internet |
 
 ## Structura
 
 ```
 worker.py                     agentul unic; sandbox E2B, memorie în Neon, date prin MCP
 mcp_server/
-  server.py                     `content-data`: cele patru unelte, peste HTTP
+  server.py                     `content-data`: cele cinci unelte, peste HTTP
   protocol.py                   ID-ul conversației călătorește intern, nu prin model
 skills/                       montate în sandbox, descoperite din frontmatter
   propune-postari/
@@ -82,7 +82,8 @@ replay.py                     reconstruiește o conversație fără să ruleze m
 proba_flux.py                 nouă ture cap-coadă: 10 propuneri → salvare → încă una
 proba_scriere.py              probă scurtă: conversație + blocked/ok + audit tranzacțional
 proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
-proba_mcp.py                  criteriul Deciziei 6: exact patru unelte, cu proveniență
+proba_mcp.py                  cele cinci unelte: cărți + web cu proveniență
+proba_internet.py             probă izolată pentru web, fără citirea datelor din Neon
 AGENTS.md                     specificația domeniului + contractul de arhitectură
 plans/digital-fte-plan.md     planul complet, cu motivele fiecărei decizii
 db/
@@ -99,7 +100,7 @@ content/                      materialul brut, până când intră în Postgres
 evals/
   cazuri.json                  cele 12 cazuri urâte + 3 trigger evals
   ruleaza.py                   runner real; worker + E2B + MCP, fără scrieri în evaluare
-  README.md                    rulare, raport și limita capabilității Internet
+  README.md                    rulare și raport
 ```
 
 Metoda Brand Legends nu are folder propriu în `content/`: nu intră în bază, ci călătorește
@@ -107,8 +108,9 @@ cu skill-ul care o folosește.
 
 ## Stack
 
-`openai-agents` · `gpt-5-mini` pentru generare · `text-embedding-3-small` pentru căutare ·
-Neon Postgres + pgvector · MCP Python SDK · proiect `uv`.
+`openai-agents` · `gpt-5-mini` pentru generare și web search ·
+`text-embedding-3-small` pentru căutarea în cărți · Neon Postgres + pgvector ·
+MCP Python SDK · proiect `uv`.
 
 **Sandbox E2B**, cu skill-urile montate din `skills/`. Cere `E2B_API_KEY` în `.env` —
 tierul Hobby e gratuit, sesiunile țin până la o oră.
