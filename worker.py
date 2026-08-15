@@ -377,7 +377,12 @@ async def main() -> int:
         return 1
     print(" gata.")
 
-    config = RunConfig(sandbox=SandboxRunConfig(client=client, session=sesiune_sandbox))
+    config = RunConfig(
+        sandbox=SandboxRunConfig(client=client, session=sesiune_sandbox),
+        # Fiecare mesaj rămâne un trace separat, dar toate trace-urile aceleiași
+        # conversații se pot filtra și vedea împreună în dashboard-ul OpenAI.
+        group_id=session_id,
+    )
 
     sesiune = SQLAlchemySession(
         session_id,
