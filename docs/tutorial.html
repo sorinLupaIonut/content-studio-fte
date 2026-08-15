@@ -630,7 +630,7 @@
             <text x="562" y="70" font-size="10.5" fill="currentColor" opacity=".7">același session_id</text>
           </svg>
         </div>
-        <figcaption>Tabelele punctate nu sunt în <code>schema.sql</code>: le creează <code>SQLAlchemySession</code> singur, în aceeași bază, legate prin <code>session_id</code>. Transcrierea tură-cu-tură e a lor; <code>conversations</code> ține doar foaia de gardă.</figcaption>
+        <figcaption>Tabelele punctate nu sunt în <code>schema.sql</code>: le creează <code>SQLAlchemySession</code> singur, în aceeași bază, legate prin <code>session_id</code>. Transcrierea tură-cu-tură e a lor; <code>conversations</code> ține foaia de gardă, cu starea și rezumatul factual refăcut din audit.</figcaption>
       </figure>
 
       <h4>Ce ține fiecare</h4>
@@ -638,7 +638,7 @@
         <table>
           <tr><th>Tabel</th><th>Ce ține</th><th>Cine scrie în el</th></tr>
           <tr><td><code>client</code></td><td>Profilul de brand, un singur câmp Markdown</td><td><code>db/seed.py</code>, apoi <code>update_profil</code></td></tr>
-          <tr><td><code>conversations</code></td><td>Cine, când, id-ul sesiunii</td><td><code>worker.py</code> la pornire</td></tr>
+          <tr><td><code>conversations</code></td><td>Cine, când, starea, rezumatul și id-ul sesiunii</td><td><code>worker.py</code> la fiecare tură și la închidere</td></tr>
           <tr><td><code>postari</code></td><td>26 postări vechi + ciornele noi</td><td><code>seed.py</code>, apoi <code>save_postare</code></td></tr>
           <tr><td><code>documents</code></td><td>Cele 17 cărți, întregi, cu proveniență</td><td><code>db/import_carti.py</code></td></tr>
           <tr><td><code>embeddings</code></td><td>4.778 bucăți vectorizate</td><td><code>db/import_carti.py</code></td></tr>

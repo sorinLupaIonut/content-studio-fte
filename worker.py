@@ -55,6 +55,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from audit import Audit
+from conversation_state import actualizeaza_conversatia, metadata_initiale
 from db.config import ConfigurareLipsa, descrie, ia_url_bazei
 from mcp_server.protocol import CONVERSATION_HEADER, PROFIL_URI
 
@@ -172,18 +173,53 @@ INSERT INTO conversations (session_id, user_id, metadata)
 VALUES ($1, $2, $3::jsonb)
 ON CONFLICT (session_id) DO NOTHING
 """
+SQL_CONV_ACTIVA = """
+UPDATE conversations
+   SET ended_at = NULL,
+       metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+ WHERE session_id = $1
+"""
 
 
 async def porneste(engine, nou: bool) -> str:
-    """Alege sesiunea și creează foaia ei de gardă, fără date de business."""
+    """Alege sesiunea și deschide foaia ei de gardă."""
     async with engine.begin() as conn:
         brut = (await conn.get_raw_connection()).driver_connection
         session_id = None if nou else await brut.fetchval(SQL_ULTIMA, CLIENT_SLUG)
         if session_id is None:
             session_id = f"{CLIENT_SLUG}-{date.today():%Y%m%d}-{uuid.uuid4().hex[:8]}"
-            await brut.execute(SQL_CONV_NOUA, session_id, CLIENT_SLUG, "{}")
+            await brut.execute(
+                SQL_CONV_NOUA,
+                session_id,
+                CLIENT_SLUG,
+                json.dumps(metadata_initiale(MODEL), ensure_ascii=False),
+            )
+        # O conversație închisă poate fi reluată prin comanda fără `--nou`.
+        # Atunci redevine activă, iar ora de închidere va fi rescrisă la ieșire.
+        await brut.execute(
+            SQL_CONV_ACTIVA,
+            session_id,
+            json.dumps(metadata_initiale(MODEL), ensure_ascii=False),
+        )
 
     return session_id
+
+
+async def actualizeaza_foaia(engine, session_id: str, **optiuni) -> None:
+    """Starea ajută, dar o eroare la rezumat nu are voie să oprească discuția."""
+    try:
+        await actualizeaza_conversatia(
+            engine,
+            session_id,
+            model=MODEL,
+            **optiuni,
+        )
+    except Exception as e:  # noqa: BLE001
+        print(
+            f"[conversations] n-am putut actualiza foaia de gardă: "
+            f"{type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
 
 
 async def citeste_profil(date_mcp: MCPServerStreamableHttp) -> tuple[str, str]:
@@ -343,6 +379,13 @@ async def main() -> int:
         print(f"Nu pot inițializa datele prin MCP la {MCP_URL} ({type(e).__name__}: {e}).", file=sys.stderr)
         print("Pornește serverul în alt terminal:", file=sys.stderr)
         print("  uv run python -m mcp_server.server", file=sys.stderr)
+        await actualizeaza_foaia(
+            engine,
+            session_id,
+            status="eroare_initializare",
+            inchide=True,
+            motiv_inchidere="mcp_indisponibil",
+        )
         await date_mcp.cleanup()
         await engine.dispose()
         return 1
@@ -372,6 +415,13 @@ async def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(" a picat.")
         print(f"{type(e).__name__}: {e}", file=sys.stderr)
+        await actualizeaza_foaia(
+            engine,
+            session_id,
+            status="eroare_initializare",
+            inchide=True,
+            motiv_inchidere="sandbox_indisponibil",
+        )
         await date_mcp.cleanup()
         await engine.dispose()
         return 1
@@ -393,23 +443,29 @@ async def main() -> int:
 
     print("Scrie un mesaj, sau „iesire” ca să termini.\n")
 
+    motiv_inchidere = "sfarsit_intrare"
     try:
         while True:
             try:
                 mesaj = input("tu> ").strip()
             except (EOFError, KeyboardInterrupt):
                 print()
+                motiv_inchidere = "intrerupere_terminal"
                 break
 
             if not mesaj:
                 continue
             if mesaj.lower() in {"iesire", "ieșire", "exit", "quit"}:
+                motiv_inchidere = "comanda_iesire"
                 break
 
             # Urma se deschide ÎNAINTE de rulare: dacă tura pică, se vede că a
             # existat. Un audit scris doar la sfârșit ratează exact turele care
             # merită cel mai mult explicate.
             await urma.mesaj_primit(session_id, mesaj)
+            # Scriem și înainte de model. Dacă tura pică sau procesul este oprit,
+            # summary arată corect că există un mesaj rămas fără răspuns.
+            await actualizeaza_foaia(engine, session_id, status="activa")
 
             print("\n  …lucrez\r", end="", flush=True)
             try:
@@ -419,14 +475,23 @@ async def main() -> int:
                 )
             except Exception as e:  # noqa: BLE001
                 await urma.a_picat(session_id, e)
+                await actualizeaza_foaia(engine, session_id, status="activa")
                 print(f"\nworker> Ceva n-a mers ({type(e).__name__}). Mai încercăm?\n")
                 continue
 
             await urma.tura(session_id, rezultat)
             await urma.mesaj_trimis(session_id, str(rezultat.final_output))
+            await actualizeaza_foaia(engine, session_id, status="activa")
 
             print(f"\nworker> {rezultat.final_output}\n")
     finally:
+        await actualizeaza_foaia(
+            engine,
+            session_id,
+            status="inchisa",
+            inchide=True,
+            motiv_inchidere=motiv_inchidere,
+        )
         try:
             await client.delete(sesiune_sandbox)
         except Exception:  # noqa: BLE001

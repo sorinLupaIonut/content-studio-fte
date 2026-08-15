@@ -41,6 +41,16 @@ uv run worker.py
 
 `worker.py` reia ultima conversație; cu `--nou` începe una nouă.
 
+La fiecare tură, `conversations.summary` și `conversations.metadata` se refac
+factual din `audit_log`; nu există un apel suplimentar la model. La `ieșire` sau
+`Ctrl+C`, worker-ul completează și `ended_at`. Pentru rândurile istorice create
+înaintea acestei funcții:
+
+```bash
+uv run python -m db.backfill_conversations          # doar arată ce ar schimba
+uv run python -m db.backfill_conversations --aplica # completează rândurile vechi
+```
+
 ## Unde suntem
 
 | # | Decizia | Stare |
@@ -80,6 +90,7 @@ skills/                       montate în sandbox, descoperite din frontmatter
                                   piloni-si-cont, intrebari-frecvente
                                   plus b-roll.md și stories.md
 audit.py                      urma worker-ului: mesaje, skill-uri, unelte și aprobări
+conversation_state.py         metadata + rezumat factual + închiderea conversației
 replay.py                     reconstruiește o conversație fără să ruleze modelul
 proba_flux.py                 nouă ture cap-coadă: 10 propuneri → salvare → încă una
 proba_bootstrap.py            probă fără model/scrieri: cinci unelte + profil prin MCP
@@ -93,6 +104,7 @@ db/
   schema.sql                    5 tabele din Concept 7 + client și postari
   config.py                     normalizează DATABASE_URL pentru asyncpg
   apply.py                      aplică schema, idempotent
+  backfill_conversations.py     completează conversațiile istorice din audit
   seed.py                       profil.md → client; 26 postări → postari
   import_carti.py               cele 17 cărți → documents + embeddings (Decizia 5)
 content/                      materialul brut, până când intră în Postgres
