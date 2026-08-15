@@ -220,6 +220,38 @@ E2B, căutare în cărți, dezvoltare, poartă și audit. Postarea de probă est
 | `evals/ruleaza.py` | profil + mesaje + pasaje folosite | da | citește | refuză scrierile |
 | `proba_flux.py` | profil + conversație + pasaje folosite | da | citește și dummy | șterge postarea |
 
+## Debug în VS Code
+
+Configurațiile sunt scrise deja, în `.vscode/launch.json`. Deschizi proiectul,
+apeși `F5` și alegi din listă. Interpretorul e `.venv`-ul proiectului, iar `.env`
+se încarcă singur.
+
+Pentru un drum complet, alege configurația compusă **`Server + Worker`**: pornește
+ambele procese sub debugger, deci te poți opri și în worker, și înăuntrul uneltei
+MCP pe care o cheamă. Bara de debug are un selector cu care sari de la un proces
+la altul.
+
+### Cele cinci locuri din care se vede tot
+
+| Fișier și linie | Ce prinzi acolo |
+|---|---|
+| `worker.py:411` — `rezultat = await ruleaza_tura(` | Intrarea în tură. De aici, `F11` te duce prin tot restul. |
+| `worker.py:264` — `aprobat, motiv = await aproba(` | Poarta, exact în clipa opririi. În `argumente` vezi tot ce voia să scrie, câmp cu câmp, înainte să existe rândul în bază. |
+| `mcp_server/server.py:158` — prima linie din `cauta_in_carti` | Corpul unei unelte: descrierea primită, vectorul, pasajele întoarse. **Merge doar dacă serverul e pornit din VS Code**, nu din terminalul tău. |
+| `audit.py:184` — `for apel in apeluri_din(rezultat)` | Lista apelurilor cu argumente, așa cum a scos-o din `new_items`, înainte să ajungă în `audit_log`. |
+| `evals/ruleaza.py:158` — `def verifica(` | De ce a picat un caz: compari `raspunsuri[-1]` cu tiparele din `cazuri.json`. |
+
+Liniile se mai mișcă pe măsură ce codul crește; caută numele funcției, nu numărul.
+
+### Ce NU se poate debuga
+
+Ce rulează **în sandbox-ul E2B** — e altă mașină, în cloud. Skill-urile sunt
+text, nu cod, deci n-ai ce opri acolo: ce citește agentul din ele vezi la
+`audit.py:184`, în argumentele comenzilor de shell.
+
+`justMyCode` e pe `false` în toate configurațiile, deci `F11` te lasă să intri și
+în codul SDK-ului — util când vrei să vezi ce face `Runner.run` pe dinăuntru.
+
 ## Limite cunoscute
 
 - „Exact 10 × 5” este o instrucțiune pentru model, nu o schemă rigidă. Probele

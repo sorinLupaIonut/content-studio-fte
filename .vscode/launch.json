@@ -1,0 +1,194 @@
+{
+  // Configurații de debug pentru Content Studio FTE.
+  //
+  // Interpretorul e scris explicit în fiecare configurație: `.venv` din proiect,
+  // făcut de `uv sync`. Dacă l-ai lăsa pe VS Code să-l aleagă, ar putea nimeri
+  // Python-ul de sistem, unde nu e instalat niciun pachet, iar eroarea ar fi
+  // `ModuleNotFoundError: No module named 'agents'` — care arată a altceva.
+  //
+  // `justMyCode: false` peste tot: poți intra cu F11 și în codul SDK-ului, nu
+  // doar în al tău. Când vrei să vezi ce face Runner.run pe dinăuntru, acolo e.
+  //
+  // `.env` se încarcă singur (debugpy îl caută în rădăcina proiectului), deci
+  // cheile și DATABASE_URL sunt acolo fără să le scrii aici. Nu pune secrete în
+  // fișierul ăsta: el intră în git, `.env` nu.
+  "version": "0.2.0",
+
+  "inputs": [
+    {
+      "id": "idCaz",
+      "type": "promptString",
+      "description": "Care caz din evals/cazuri.json? (1–15)",
+      "default": "13"
+    }
+  ],
+
+  "configurations": [
+    {
+      // Pornește-l ÎNTÂI. Fără el, worker-ul n-are date.
+      // Breakpoint aici = te oprești în corpul uneltelor: `cauta_in_carti`,
+      // `save_postare` și restul.
+      "name": "Server MCP",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "mcp_server.server",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      // Conversația adevărată. `integratedTerminal` e obligatoriu: worker-ul
+      // citește cu `input()`, iar în Debug Console n-ai unde să scrii.
+      "name": "Worker — reia conversația",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/worker.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Worker — conversație nouă",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/worker.py",
+      "args": ["--nou"],
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      // Varianta folosită de configurația compusă „Server + Worker".
+      // Diferența față de cea de sus: așteaptă portul 8765 înainte să pornească.
+      "name": "Worker — după server",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/worker.py",
+      "args": ["--nou"],
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "preLaunchTask": "asteapta-mcp"
+    },
+    {
+      // Cea mai ieftină: nu cheamă modelul, nu scrie nimic. Bună ca să verifici
+      // că serverul răspunde și că debuggerul chiar se oprește unde ai pus.
+      "name": "Probă — bootstrap (fără model)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/proba_bootstrap.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Probă — cele cinci unelte",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/proba_mcp.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Probă — poartă, scriere, audit",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/proba_scriere.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Probă — căutarea în cărți",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/proba_cautare.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Probă — internet",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/proba_internet.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      // Cea mai scumpă și cea mai lentă: nouă ture reale, cu E2B și model.
+      "name": "Probă — fluxul cap-coadă (9 ture)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/proba_flux.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Evaluări — un singur caz",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/evals/ruleaza.py",
+      "args": ["--id", "${input:idCaz}"],
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Evaluări — toate cele 15",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/evals/ruleaza.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Replay — ultima conversație",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/replay.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      // Pentru scripturi de moment: rulează fișierul deschis în editor.
+      "name": "Fișierul deschis",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ],
+
+  "compounds": [
+    {
+      // Amândouă procesele sub debugger, în aceeași sesiune: te poți opri și în
+      // worker, și înăuntrul uneltei MCP pe care o cheamă. Bara de debug are un
+      // selector cu care sari de la un proces la altul.
+      "name": "Server + Worker",
+      "configurations": ["Server MCP", "Worker — după server"],
+      "stopAll": true
+    }
+  ]
+}

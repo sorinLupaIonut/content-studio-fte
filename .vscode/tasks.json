@@ -1,0 +1,29 @@
+{
+  // O singură sarcină, folosită de configurația compusă „Server + Worker".
+  //
+  // Fără ea, VS Code pornește ambele procese deodată, iar worker-ul încearcă să
+  // citească profilul prin MCP înainte ca serverul să fi apucat să asculte.
+  // Rezultatul ar fi o eroare care apare o dată din trei — genul care te pune
+  // să cauți în cod o problemă care nu există.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "asteapta-mcp",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        // Portul e 8765, cât `MCP_PORT` implicit. Dacă îl schimbi în `.env`,
+        // schimbă-l și aici — altfel aștepți degeaba un port pe care nu ascultă nimeni.
+        "$limita = (Get-Date).AddSeconds(40); while ((Get-Date) -lt $limita) { try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', 8765); $c.Close(); Write-Host 'Serverul MCP asculta.'; exit 0 } catch { Start-Sleep -Milliseconds 400 } }; Write-Host 'Serverul MCP n-a raspuns in 40 de secunde.'; exit 1"
+      ],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "close": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
