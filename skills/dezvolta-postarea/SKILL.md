@@ -1,6 +1,12 @@
 ---
 name: dezvolta-postarea
-description: Faza 2 — dezvoltă UNA din cele zece propuneri, pe hook-ul ales de ea, până la postare completă: script, caption, hashtaguri, CTA. Folosește-l când Viorela a ales dintr-o listă deja arătată: „dezvoltă a treia, cu contrastul", „îmi place 7", „scrie-o pe aia cu vinovăția", „hai pe prima". Îl folosești și când cere încă una din aceeași listă. NU-l folosi ca să scoți propuneri noi — aia e faza 1.
+description: >-
+  Faza 2 — dezvoltă UNA din cele zece propuneri, pe hook-ul ales de ea, până la
+  postare completă: script, caption, hashtaguri, CTA. Folosește-l când Viorela
+  a ales dintr-o listă deja arătată: „dezvoltă a treia, cu contrastul",
+  „îmi place 7", „scrie-o pe aia cu vinovăția", „hai pe prima". Îl folosești
+  și când cere încă una din aceeași listă. NU-l folosi ca să scoți propuneri noi
+  — aia e faza 1.
 ---
 
 # Faza 2 — postarea întreagă

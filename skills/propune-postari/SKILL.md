@@ -1,6 +1,13 @@
 ---
 name: propune-postari
-description: Faza 1 a producției de conținut — scoate zece propuneri de postare, fiecare cu cinci hook-uri, după ce afli formatul, pilonul și sursa. Folosește-l când Viorela cere conținut nou: „vreau un reel despre limite", „dă-mi conținut pe Conexiune", „zece propuneri pe Educație", „ceva despre vinovăția de a spune nu", „conținut pentru săptămâna asta". NU-l folosi pentru editarea unei postări existente, pentru o întrebare despre profil, sau pentru o cerere de raport.
+description: >-
+  Faza 1 a producției de conținut — scoate zece propuneri de postare, fiecare cu
+  cinci hook-uri, după ce afli formatul, pilonul și sursa. Folosește-l când
+  Viorela cere conținut nou: „vreau un reel despre limite", „dă-mi conținut pe
+  Conexiune", „zece propuneri pe Educație", „ceva despre vinovăția de a spune
+  nu", „conținut pentru săptămâna asta". NU-l folosi pentru editarea unei
+  postări existente, pentru o întrebare despre profil, sau pentru o cerere de
+  raport.
 ---
 
 # Faza 1 — cele zece propuneri
