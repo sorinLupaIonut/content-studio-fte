@@ -1,4 +1,4 @@
-# secrete
+# secrets
 .env
 
 # python
@@ -6,14 +6,15 @@
 __pycache__/
 *.py[cod]
 
-# Cărțile rămân doar local, în content-studio-vio-2. Sunt volume publicate, sub drept
-# de autor — nu au ce căuta într-un repo, nici privat. Sunt materie primă pentru
-# Decizia 5: o dată sparte în chunk-uri și vectorizate, adevărul lor stă în Neon.
-# README-ul rămâne urmărit, ca inventarul corpusului să fie vizibil fără text.
-content/carti/pdf/
-content/carti/txt/
-content/carti/md/*.md
-!content/carti/md/README.md
+# The books stay local only. They are published volumes under copyright — they do
+# not belong in a repository, not even a private one. They are raw material for
+# Decision 5: once chunked and embedded, their truth lives in Neon. The README
+# stays tracked, so the inventory of the corpus is visible without the text.
+content/books/pdf/
+content/books/txt/
+content/books/md/*.md
+!content/books/md/README.md
 
-# ieșirea modelului din ultima evaluare; runnerul și cazurile rămân în Git
+# the model's output from the last eval run; the runner and the cases stay in Git
+evals/report-latest.json
 evals/raport-latest.json

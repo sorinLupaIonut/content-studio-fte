@@ -1,22 +1,22 @@
 {
-  // O singură sarcină, folosită de configurația compusă „Server + Worker".
+  // One task, used by the "Server + Worker" compound.
   //
-  // Fără ea, VS Code pornește ambele procese deodată, iar worker-ul încearcă să
-  // citească profilul prin MCP înainte ca serverul să fi apucat să asculte.
-  // Rezultatul ar fi o eroare care apare o dată din trei — genul care te pune
-  // să cauți în cod o problemă care nu există.
+  // Without it VS Code starts both processes at once, and the worker tries to read
+  // the profile over MCP before the server has begun listening. The result is an
+  // error that shows up one time in three — the kind that sends you looking through
+  // the code for a problem that does not exist.
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "asteapta-mcp",
+      "label": "wait-for-mcp",
       "type": "shell",
       "command": "powershell",
       "args": [
         "-NoProfile",
         "-Command",
-        // Portul e 8765, cât `MCP_PORT` implicit. Dacă îl schimbi în `.env`,
-        // schimbă-l și aici — altfel aștepți degeaba un port pe care nu ascultă nimeni.
-        "$limita = (Get-Date).AddSeconds(40); while ((Get-Date) -lt $limita) { try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', 8765); $c.Close(); Write-Host 'Serverul MCP asculta.'; exit 0 } catch { Start-Sleep -Milliseconds 400 } }; Write-Host 'Serverul MCP n-a raspuns in 40 de secunde.'; exit 1"
+        // The port is 8765, the default MCP_PORT. If you change it in `.env`,
+        // change it here too — otherwise you wait on a port nobody listens on.
+        "$deadline = (Get-Date).AddSeconds(40); while ((Get-Date) -lt $deadline) { try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', 8765); $c.Close(); Write-Host 'The MCP server is listening.'; exit 0 } catch { Start-Sleep -Milliseconds 400 } }; Write-Host 'The MCP server did not answer within 40 seconds.'; exit 1"
       ],
       "presentation": {
         "reveal": "silent",

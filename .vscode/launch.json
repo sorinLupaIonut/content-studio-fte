@@ -1,176 +1,187 @@
 {
-  // Configurații de debug pentru Content Studio FTE.
+  // Debug configurations for Content Studio FTE.
   //
-  // Interpretorul e scris explicit în fiecare configurație: `.venv` din proiect,
-  // făcut de `uv sync`. Dacă l-ai lăsa pe VS Code să-l aleagă, ar putea nimeri
-  // Python-ul de sistem, unde nu e instalat niciun pachet, iar eroarea ar fi
-  // `ModuleNotFoundError: No module named 'agents'` — care arată a altceva.
+  // The interpreter is spelled out in every configuration: the project's `.venv`,
+  // built by `uv sync`. Left to choose, VS Code might pick the system Python, where
+  // nothing is installed, and the error would read `ModuleNotFoundError: No module
+  // named 'agents'` — which looks like something else entirely.
   //
-  // `justMyCode: false` peste tot: poți intra cu F11 și în codul SDK-ului, nu
-  // doar în al tău. Când vrei să vezi ce face Runner.run pe dinăuntru, acolo e.
+  // `justMyCode: false` everywhere: F11 steps into the SDK too, not only your own
+  // code. When you want to see what Runner.run does inside, that is how.
   //
-  // `.env` se încarcă singur (debugpy îl caută în rădăcina proiectului), deci
-  // cheile și DATABASE_URL sunt acolo fără să le scrii aici. Nu pune secrete în
-  // fișierul ăsta: el intră în git, `.env` nu.
+  // `.env` loads itself (config.py reads it from the project root), so the keys and
+  // DATABASE_URL are there without being written here. Never put secrets in this
+  // file: it is committed, `.env` is not.
   "version": "0.2.0",
 
   "inputs": [
     {
-      "id": "idCaz",
+      "id": "caseId",
       "type": "promptString",
-      "description": "Care caz din evals/cazuri.json? (1–15)",
+      "description": "Which case from evals/cases.json? (1–15)",
       "default": "13"
     }
   ],
 
   "configurations": [
     {
-      // Pornește-l ÎNTÂI. Fără el, worker-ul n-are date.
-      // Breakpoint aici = te oprești în corpul uneltelor: `cauta_in_carti`,
-      // `save_postare` și restul.
-      "name": "Server MCP",
+      // Start this FIRST. Without it the worker has no data.
+      // A breakpoint here stops inside the tool bodies: `search_books`,
+      // `save_post` and the rest.
+      "name": "MCP server",
       "type": "debugpy",
       "request": "launch",
-      "module": "mcp_server.server",
+      "module": "content_studio.mcp_server.server",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      // Conversația adevărată. `integratedTerminal` e obligatoriu: worker-ul
-      // citește cu `input()`, iar în Debug Console n-ai unde să scrii.
-      "name": "Worker — reia conversația",
+      // The real conversation. `integratedTerminal` is required: the worker reads
+      // with `input()`, and the Debug Console has nowhere to type.
+      "name": "Worker — resume conversation",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/worker.py",
+      "module": "content_studio.worker",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Worker — conversație nouă",
+      "name": "Worker — new conversation",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/worker.py",
-      "args": ["--nou"],
+      "module": "content_studio.worker",
+      "args": ["--new"],
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      // Varianta folosită de configurația compusă „Server + Worker".
-      // Diferența față de cea de sus: așteaptă portul 8765 înainte să pornească.
-      "name": "Worker — după server",
+      // The variant used by the "Server + Worker" compound.
+      // The difference from the one above: it waits for port 8765 before starting.
+      "name": "Worker — after the server",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/worker.py",
-      "args": ["--nou"],
+      "module": "content_studio.worker",
+      "args": ["--new"],
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false,
-      "preLaunchTask": "asteapta-mcp"
+      "preLaunchTask": "wait-for-mcp"
     },
     {
-      // Cea mai ieftină: nu cheamă modelul, nu scrie nimic. Bună ca să verifici
-      // că serverul răspunde și că debuggerul chiar se oprește unde ai pus.
-      "name": "Probă — bootstrap (fără model)",
+      // Free and offline. The fastest way to check the debugger stops where you put it.
+      "name": "Unit tests",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/proba_bootstrap.py",
+      "module": "unittest",
+      "args": ["discover", "-s", "tests/unit", "-v"],
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Probă — cele cinci unelte",
+      // The cheapest live check: no model call, no writes.
+      "name": "Check — bootstrap (no model)",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/proba_mcp.py",
+      "program": "${workspaceFolder}/tests/checks/bootstrap.py",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Probă — poartă, scriere, audit",
+      "name": "Check — the five tools",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/proba_scriere.py",
+      "program": "${workspaceFolder}/tests/checks/tools.py",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Probă — căutarea în cărți",
+      "name": "Check — gate, write, audit",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/proba_cautare.py",
+      "program": "${workspaceFolder}/tests/checks/write_gate.py",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Probă — internet",
+      "name": "Check — book search",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/proba_internet.py",
+      "program": "${workspaceFolder}/tests/checks/search.py",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      // Cea mai scumpă și cea mai lentă: nouă ture reale, cu E2B și model.
-      "name": "Probă — fluxul cap-coadă (9 ture)",
+      "name": "Check — web",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/proba_flux.py",
+      "program": "${workspaceFolder}/tests/checks/web.py",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Evaluări — un singur caz",
+      // The most expensive and the slowest: nine real turns, with E2B and the model.
+      "name": "Check — full flow (9 turns)",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/evals/ruleaza.py",
-      "args": ["--id", "${input:idCaz}"],
+      "program": "${workspaceFolder}/tests/checks/full_flow.py",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Evaluări — toate cele 15",
+      "name": "Evals — a single case",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/evals/ruleaza.py",
+      "program": "${workspaceFolder}/evals/run.py",
+      "args": ["--id", "${input:caseId}"],
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      "name": "Replay — ultima conversație",
+      "name": "Evals — all fifteen",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/replay.py",
+      "program": "${workspaceFolder}/evals/run.py",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     },
     {
-      // Pentru scripturi de moment: rulează fișierul deschis în editor.
-      "name": "Fișierul deschis",
+      "name": "Replay — the last conversation",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "content_studio.replay",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      // For throwaway scripts: runs whatever file is open in the editor.
+      "name": "The open file",
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
@@ -183,11 +194,11 @@
 
   "compounds": [
     {
-      // Amândouă procesele sub debugger, în aceeași sesiune: te poți opri și în
-      // worker, și înăuntrul uneltei MCP pe care o cheamă. Bara de debug are un
-      // selector cu care sari de la un proces la altul.
+      // Both processes under the debugger, in one session: you can stop in the
+      // worker and inside the MCP tool it calls. The debug toolbar has a picker to
+      // jump between the two.
       "name": "Server + Worker",
-      "configurations": ["Server MCP", "Worker — după server"],
+      "configurations": ["MCP server", "Worker — after the server"],
       "stopAll": true
     }
   ]

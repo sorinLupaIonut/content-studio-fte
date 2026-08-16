@@ -1,134 +1,219 @@
 # Content Studio FTE
 
-Content Worker pentru Viorela — life coach — construit ca **Digital FTE** cu OpenAI Agents SDK,
-Neon Postgres + pgvector și un server MCP propriu.
+A **Digital FTE** — a digital full-time employee — rather than a chatbot with a
+prompt. One sandboxed agent does the work of a content assistant for a real
+coaching business: it asks what it needs to know, gathers material from a private
+library of 17 books or from the web, proposes ten posts, develops the one that is
+chosen, and saves it only after a human says yes.
 
-Succesorul lui `content-studio-vio-2`, care rămâne funcțional pentru ea până când ăsta îl înlocuiește.
+Built on the OpenAI Agents SDK, a purpose-built MCP server, and Neon Postgres with
+pgvector. It runs in production for one client.
 
-- **Ce face și după ce reguli** → [AGENTS.md](AGENTS.md)
-- **De ce e construit așa** → [plans/digital-fte-plan.md](plans/digital-fte-plan.md)
-- **Cum îl verifici, de la sigur la complet** → [TESTARE.md](TESTARE.md)
-- **Cum funcționează, pe îndelete** → [docs/tutorial.html](docs/tutorial.html) — ghid cu scheme, deschide-l în browser
-- **Modelul de construcție** → [Building a Digital FTE](https://agentfactory.panaversity.org/docs/digital-fte-crash-course), Partea 4
+> **A note on language.** The agent works in Romanian, because the person it works
+> for does. Everything the model reads at runtime — the system prompt, the tool
+> descriptions, every file under `skills/` — is Romanian, and so is the terminal
+> the client types into. Everything a developer reads — code, comments, docs,
+> tests — is English. That split is deliberate and enforced throughout.
 
-## Cum se rulează
+---
 
-Baza: proiectul Neon `content-studio-fte` (`dry-fog-12289707`), branch `main`, Postgres 17, us-east-1.
+## What makes it more than a wrapper
 
-Copiază `.env.example` în `.env`, pune cheia OpenAI și `DATABASE_URL` din Neon.
-Șirul din consola Neon (cu `sslmode=require&channel_binding=require`) merge lipit ca atare —
-`db/config.py` îl normalizează pentru `asyncpg`.
+Six architecture rules hold the design together. They are in [AGENTS.md](AGENTS.md),
+and every one of them is visible in the code:
 
-```bash
-uv run python -m db.apply
+1. **Business data moves only through the MCP server.** The worker never runs SQL
+   against the business tables. There is no `run_sql` tool, no DDL, and no tool
+   takes free text that a query is built from. Five tools, and that is the whole
+   surface.
+2. **The audit trail has its own connection.** A write and its audit row commit in
+   the *same transaction* — a saved post with no trail cannot happen, even if the
+   connection dies between the two statements.
+3. **One embedding model at both ends.** Store and search with
+   `text-embedding-3-small`, always. Two different models return garbage without
+   complaining, so every row carries the model it was made with.
+4. **Skills are folders, not code.** `SKILL.md` plus a `references/` directory,
+   mounted into an E2B sandbox and disclosed progressively: the index is always in
+   context, the body opens when the task matches, the references open only when the
+   skill points at them. The method can be edited without touching Python.
+5. **One agent, not a crew.** The two phases are skills, not separate agents — one
+   context, so the 30k-character client profile is not copied twice.
+6. **Nothing is saved without human approval.** The gate sits on the MCP server
+   *registration*, not inside the tool, so it protects every call the agent can
+   make regardless of what the prompt says.
+
+## How it fits together
+
+```mermaid
+flowchart TB
+    U["The client<br/>(terminal, Romanian)"] --> W
+
+    subgraph proc["worker.py — one process"]
+        W["SandboxAgent<br/>profile + 10 output rules in the system prompt"]
+        A["audit.py<br/>own connection"]
+    end
+
+    W -->|"skills mounted"| S["E2B sandbox<br/>propune-postari · dezvolta-postarea"]
+    W -->|"5 tools, HTTP"| M["MCP server<br/>content-data"]
+    W -.->|"gate: save_post · update_profile"| G{"approve?"}
+    G -->|"no"| W
+
+    M --> DB[("Neon Postgres<br/>+ pgvector")]
+    A -.->|"trail only"| DB
+    W -.->|"conversation memory only"| DB
 ```
 
-```bash
-uv run python -m db.seed
-```
+The dotted lines are the only direct database access the worker keeps: its own
+conversation state and the audit trail. The profile, the books and the posts — the
+business data — all travel through MCP.
 
-Apoi două terminale. În primul, serverul MCP — worker-ul nu atinge baza direct:
+### The five tools
 
-```bash
-uv run python -m mcp_server.server
-```
-
-În al doilea, worker-ul:
-
-```bash
-uv run worker.py
-```
-
-`worker.py` reia ultima conversație; cu `--nou` începe una nouă.
-
-La fiecare tură, `conversations.summary` și `conversations.metadata` se refac
-factual din `audit_log`; nu există un apel suplimentar la model. La `ieșire` sau
-`Ctrl+C`, worker-ul completează și `ended_at`. Pentru rândurile istorice create
-înaintea acestei funcții:
-
-```bash
-uv run python -m db.backfill_conversations          # doar arată ce ar schimba
-uv run python -m db.backfill_conversations --aplica # completează rândurile vechi
-```
-
-## Unde suntem
-
-| # | Decizia | Stare |
+| Tool | Kind | What it does |
 |---|---|---|
-| 0 | Agent minimal de chat — `uv`, Agents SDK, `Agent` simplu, fără sandbox | ✅ răspunde |
-| 1 | `AGENTS.md` cu regulile de arhitectură | ✅ scris |
-| 2 | Planul schemei și al fluxului, cu motivele fiecărei decizii | ✅ `plans/digital-fte-plan.md` |
-| 3 | Neon + pgvector + schema, apoi `SQLAlchemySession` | ✅ 7 tabele, memorie peste repornire |
-| 4 | `propune-postari` ca skill în sandbox: cele 3 întrebări, apoi 10 propuneri × 5 hook-uri | ✅ probă trecută |
-| 5 | Import + embedding: cele 17 cărți; metoda mutată lângă skill | ✅ 4.778 bucăți, căutarea dă pagina |
-| 6 | MCP server `content-data`, cinci unelte | ✅ cărți, internet, postări și scrieri protejate |
-| 7 | `dezvolta-postarea` ca al doilea skill + salvarea | ✅ ciclu complet + încă una din aceeași listă |
-| 8 | Audit la fiecare graniță + replay | ✅ urmă legată de conversație, rejucabilă |
-| 9 | Poarta de aprobare pe `save_postare` și `update_profil` | ✅ respins = `blocked`, aprobat = scriere |
-| 10 | Setul de evaluare — cele 12 cazuri urâte + 3 trigger evals | ✅ runner real; inclusiv sursa Internet |
+| `search_books` | read | meaning search over 4,778 chunks from 17 books, each with its page |
+| `search_web` | read | current angles, with the links of the pages cited |
+| `list_posts` | read | what has already been written — "have I covered this?" |
+| `save_post` | **write, gated** | one post, plus its audit row, in one transaction |
+| `update_profile` | **write, gated** | one profile section, plus its audit row |
 
-## Structura
+Every passage returned by `search_books` carries its provenance — title, author,
+page or chapter, rights basis, and whether the source was a summary rather than the
+book. A quote with no page number never receives an invented one.
 
-```
-worker.py                     agentul unic; sandbox E2B, memorie în Neon, date prin MCP
-mcp_server/
-  server.py                     `content-data`: cele cinci unelte, peste HTTP
-  protocol.py                   ID-ul conversației și resursa internă de profil
-skills/                       montate în sandbox, descoperite din frontmatter
-  propune-postari/
-    SKILL.md                    faza 1: cele trei întrebări, apoi cele 10 propuneri
-    references/                 deschise doar la nevoie
-      piloni.md                   cei 5 piloni
-      hookuri.md                  cele 5 tipuri de hook
-      surse.md                    cele 4 surse, și cum se caută în cărți
-      carti.md                    cele 17 titluri, ca să poată propune 3–4
-  dezvolta-postarea/
-    SKILL.md                    faza 2: dezvoltă una, o arată, apoi o salvează după „da”
-    references/                 metoda Brand Legends, 11 fișiere:
-                                  manualul de Reels spart în 9 — filmare, editare, structura-reel,
-                                  hookuri-si-scripturi, tipuri-de-reels, idei, distribuire,
-                                  piloni-si-cont, intrebari-frecvente
-                                  plus b-roll.md și stories.md
-audit.py                      urma worker-ului: mesaje, skill-uri, unelte și aprobări
-conversation_state.py         metadata + rezumat factual + închiderea conversației
-replay.py                     reconstruiește o conversație fără să ruleze modelul
-proba_flux.py                 nouă ture cap-coadă: 10 propuneri → salvare → încă una
-proba_bootstrap.py            probă fără model/scrieri: cinci unelte + profil prin MCP
-proba_scriere.py              probă scurtă: conversație + blocked/ok + audit tranzacțional
-proba_cautare.py              criteriul Deciziei 5: pasaje ordonate, cu pagina lor
-proba_mcp.py                  cele cinci unelte: cărți + web cu proveniență
-proba_internet.py             probă izolată pentru web, fără citirea datelor din Neon
-AGENTS.md                     specificația domeniului + contractul de arhitectură
-plans/digital-fte-plan.md     planul complet, cu motivele fiecărei decizii
-db/
-  schema.sql                    5 tabele din Concept 7 + client și postari
-  config.py                     normalizează DATABASE_URL pentru asyncpg
-  apply.py                      aplică schema, idempotent
-  backfill_conversations.py     completează conversațiile istorice din audit
-  seed.py                       profil.md → client; 26 postări → postari
-  import_carti.py               cele 17 cărți → documents + embeddings (Decizia 5)
-content/                      materialul brut, până când intră în Postgres
-  profil.md                     → client.profil_md          (Decizia 3)
-  carti/md/                     doar README-ul e în git; cărțile stau local (drept de autor)
-                                → documents + embeddings    (Decizia 5)
-  postari/                      26 postări → tabelul postari (Decizia 3)
-evals/
-  cazuri.json                  cele 12 cazuri urâte + 3 trigger evals
-  ruleaza.py                   runner real; worker + E2B + MCP, fără scrieri în evaluare
-  README.md                    rulare și raport
+## Quickstart
+
+Requires Python 3.13+, [uv](https://docs.astral.sh/uv/), a Neon Postgres database,
+an OpenAI key, and an [E2B](https://e2b.dev) key (free tier).
+
+```bash
+git clone https://github.com/sorinLupaIonut/content-studio-fte
 ```
 
-Metoda Brand Legends nu are folder propriu în `content/`: nu intră în bază, ci călătorește
-cu skill-ul care o folosește.
+```bash
+cd content-studio-fte && uv sync
+```
 
-## Stack
+Copy `.env.example` to `.env` and fill it in. The connection string from the Neon
+console works as-is — `config.py` normalizes it for asyncpg.
 
-`openai-agents` · `gpt-5-mini` pentru generare și web search ·
-`text-embedding-3-small` pentru căutarea în cărți · Neon Postgres + pgvector ·
-MCP Python SDK · proiect `uv`.
+```bash
+uv run python -m content_studio.db.apply
+```
 
-**Sandbox E2B**, cu skill-urile montate din `skills/`. Cere `E2B_API_KEY` în `.env` —
-tierul Hobby e gratuit, sesiunile țin până la o oră.
+```bash
+uv run python -m content_studio.db.seed
+```
 
-Din proiect **nu se montează nimic** în sandbox în afară de `skills/`. `.env` are parola
-bazei, iar agentul are shell.
+Then two terminals. The MCP server in the first:
+
+```bash
+uv run content-studio-server
+```
+
+The worker in the second:
+
+```bash
+uv run content-studio
+```
+
+`content-studio` resumes the last conversation; `--new` starts a fresh one.
+
+To fill the library, put Markdown files in `content/books/md/` and run
+`uv run python -m content_studio.db.import_books`. The import is per-book and
+content-addressed: unchanged books are skipped, so adding an eighteenth title only
+embeds that one.
+
+**Upgrading a database created before the English rename:**
+
+```bash
+uv run python -m content_studio.db.migrate rename --apply
+```
+
+It is idempotent, it moves tables, columns, constraints and JSONB keys, and it does
+not touch the vectors.
+
+## Layout
+
+```
+src/content_studio/
+  worker.py            the agent and the conversation loop
+  audit.py             the replayable trail, on its own connection
+  conversation.py      the cover sheet: status, counters, summary
+  replay.py            reconstructs a past conversation, no model involved
+  config.py            environment, paths, DATABASE_URL normalization
+  mcp_server/          the `content-data` server: five tools, one resource
+  db/                  schema, migrations, seed, book import
+
+skills/                mounted into the sandbox; Romanian, edited without code
+  propune-postari/       phase 1: three questions, then 10 proposals × 5 hooks
+  dezvolta-postarea/     phase 2: develop the chosen one, then save it
+
+tests/unit/            free, no network — these run in CI
+tests/checks/          checks against the real services, from cheapest to fullest
+evals/                 15 cases: the ugly ones, plus three trigger evals
+docs/                  architecture, testing, and a long illustrated tutorial
+```
+
+## Testing
+
+Four rungs, from free to expensive. The ladder is described in
+[docs/TESTING.md](docs/TESTING.md).
+
+```bash
+uv run python -m unittest discover -s tests/unit
+```
+
+```bash
+uv run python tests/checks/bootstrap.py
+```
+
+```bash
+uv run python evals/run.py --automatic-only
+```
+
+```bash
+uv run python tests/checks/full_flow.py
+```
+
+The eval set is the interesting one: twelve cases chosen because they are the ways
+this kind of agent fails quietly — an invented page number, a quote attributed to a
+book that was only a summary, a figure that sounds like a study, a topic that
+conflicts with what the client will not say — plus three trigger evals that check a
+skill fires when it should and stays quiet when it should not.
+
+## Where it stands
+
+| # | Decision | State |
+|---|---|---|
+| 0 | Minimal chat agent — uv, Agents SDK, no sandbox | ✅ |
+| 1 | The architecture rules | ✅ |
+| 2 | Schema and flow planned, with the reason for each choice | ✅ |
+| 3 | Neon + pgvector + schema, then `SQLAlchemySession` | ✅ 7 tables, memory across restarts |
+| 4 | `propune-postari` as a sandboxed skill | ✅ 10 proposals × 5 hooks |
+| 5 | Import + embedding of the 17 books | ✅ 4,778 chunks, search returns the page |
+| 6 | `content-data` MCP server, five tools | ✅ books, web, posts, guarded writes |
+| 7 | `dezvolta-postarea` + saving | ✅ full cycle, and a second post from the same list |
+| 8 | Audit at every boundary + replay | ✅ trail tied to the conversation, replayable |
+| 9 | Approval gate on both write tools | ✅ refused = `blocked`, approved = written |
+| 10 | The eval set — 12 ugly cases + 3 trigger evals | ✅ real runner |
+
+Next: deploy it to the cloud, widen the eval set, and give it an interface that is
+not a terminal.
+
+## Documentation
+
+- [AGENTS.md](AGENTS.md) — the contract, for humans and for coding agents
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — why it is built this way
+- [docs/TESTING.md](docs/TESTING.md) — how to verify it, rung by rung
+- [docs/tutorial.html](docs/tutorial.html) — a long illustrated walkthrough of the
+  whole system, diagrams included (open it in a browser)
+
+Built following [Building a Digital FTE](https://agentfactory.panaversity.org/docs/digital-fte-crash-course),
+Part 4.
+
+## License
+
+MIT — see [LICENSE](LICENSE). The client's profile, her published posts and the
+book library are her material, not part of the license: the books are gitignored,
+and `content/` holds only what she agreed to keep in the repository.

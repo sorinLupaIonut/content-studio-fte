@@ -39,7 +39,7 @@ mesajul ei, nu i-o mai ceri o dată sub altă formă.
 
 Din sursa pe care a ales-o **ea**, nu din alta. Citește `references/surse.md`:
 spune ce are voie să dea fiecare sursă și ce nu, cum se cheamă
-`cauta_in_carti` dacă a ales Cărți și `cauta_pe_internet` dacă a ales Internet.
+`search_books` dacă a ales Cărți și `search_web` dacă a ales Internet.
 
 Materialul se adună **înainte** de a scrie propunerile. Nu scrii din memorie ca
 apoi doar să adaugi referința.

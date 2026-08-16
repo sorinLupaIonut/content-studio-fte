@@ -1,26 +1,58 @@
-# Setul de evaluare — Decizia 10
+# The eval set — Decision 10
 
-`cazuri.json` ține cele douăsprezece cazuri urâte din §5 al planului și trei
-trigger evals. Fiecare are conversația și comportamentul corect unul lângă altul.
+`cases.json` holds the twelve ugly cases from §5 of the plan plus three trigger
+evals. Each one carries the conversation and the correct behaviour side by side —
+the plain-language `expected` field is the real specification, and the matcher is
+only what can be automated of it.
 
-Runnerul folosește worker-ul real, skill-urile reale în E2B și serverul MCP real:
-
-```bash
-uv run python -m mcp_server.server
-uv run python evals/ruleaza.py
-```
-
-Poți rula un singur caz sau numai verificările complet automate:
+The runner uses the real worker, the real skills in E2B and the real MCP server:
 
 ```bash
-uv run python evals/ruleaza.py --id 8
-uv run python evals/ruleaza.py --doar-automat
+uv run content-studio-server
 ```
 
-Rezultatul detaliat ajunge în `evals/raport-latest.json` (ignorat de Git). Cele
-marcate `cu_ochiul` sunt rulate și verificate mecanic unde se poate, dar vocea și
-judecata se citesc din `raspuns_final`. Cazul 11 verifică sursa Internet: unealta
-trebuie chemată, iar cifrele, studiile și citatele găsite nu devin fapte în postare.
+```bash
+uv run python evals/run.py
+```
 
-În evaluări, `save_postare` și `update_profil` sunt întotdeauna respinse la
-poartă. Setul nu lasă postări sau schimbări de profil în urmă.
+You can run a single case, or only the fully automatic checks:
+
+```bash
+uv run python evals/run.py --id 8
+```
+
+```bash
+uv run python evals/run.py --automatic-only
+```
+
+The detailed result lands in `evals/report-latest.json` (gitignored). Cases marked
+`by_eye` are run and checked mechanically where possible, but the voice and the
+judgement are read out of `final_answer`. Case 11 covers the Internet source: the
+tool must be called, and the figures, studies and quotes it finds must not become
+facts in the post.
+
+During evals, `save_post` and `update_profile` are always refused at the gate. The
+set leaves no posts and no profile changes behind.
+
+## The case format
+
+```json
+{
+  "id": 13,
+  "title": "Trigger: `propune-postari` fires",
+  "why": "A skill fires from its description. So the description is code.",
+  "turns": ["dă-mi conținut pe Conexiune"],
+  "expected": "It opens `propune-postari` and starts with the questions.",
+  "checks": { "skills": ["propune-postari"] },
+  "state": "automatic"
+}
+```
+
+`state` is `automatic` (checked mechanically), `by_eye` (it runs, a human gives the
+verdict) or `deferred` (cannot run yet).
+
+`checks` accepts `contains`, `must_not_contain`, `tools`, `forbidden_tools`,
+`skills`, `proposal_count` and `hook_types`.
+
+The turns and the regex patterns are Romanian, because they are what the client
+types and what the model answers.

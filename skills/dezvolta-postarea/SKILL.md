@@ -57,7 +57,7 @@ scrie încă `⚠️ DE COMPLETAT`, propui unul, spui limpede că e propus de ti
 o rogi să-l treacă în profil ca să rămână.
 
 **SURSA** nu intră în postare. Nici în hook, nici în script, nici în caption —
-doar pe câmpul `sursa` la salvare (regula 8). Excepție: un citat prezentat ca
+doar pe câmpul `source` la salvare (regula 8). Excepție: un citat prezentat ca
 citat, sau dacă ea cere explicit.
 
 ## Pasul 3 — arată-i-o întreagă și așteaptă
@@ -69,12 +69,12 @@ Dacă cere modificări, o rescrii și i-o arăți din nou. De câte ori e nevoie
 
 ## Pasul 4 — salvează, o singură dată
 
-După „da"-ul ei, `save_postare(...)`, cu:
+După „da"-ul ei, `save_post(...)`, cu:
 
-- `titlu`, `pilon`, `format` — cele alese la faza 1
-- `hook` și `tip_hook` — hook-ul ales de ea, textul lui și tipul
-- `script`, `caption`, `hashtaguri`, `cta` — exact ce i-ai arătat, nu altă variantă
-- `sursa` — adevărul despre de unde vine materialul:
+- `title`, `pillar`, `format` — cele alese la faza 1
+- `hook` și `hook_type` — hook-ul ales de ea, textul lui și tipul
+- `script`, `caption`, `hashtags`, `cta` — exact ce i-ai arătat, nu altă variantă
+- `source` — adevărul despre de unde vine materialul:
   - carte → `„Titlu" — Autor, pagina N`; fără pagină, doar titlul și autorul
   - rezumat Bookey → scrii că e rezumat
   - memorie → `din memorie 🧠 (profil + avatar), fără sursă externă`

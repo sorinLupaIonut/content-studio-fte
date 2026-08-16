@@ -1,25 +1,26 @@
 {
-  // Interpretorul proiectului, ca să nu-l alegi de fiecare dată din paletă.
+  // The project interpreter, so you do not pick it from the palette every time.
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
   "python.terminal.activateEnvironment": true,
 
-  // Consola Windows e cp1252, iar tot ce scrie proiectul ăsta e în română.
-  // Punctele de intrare își repară singure ieșirea, dar bibliotecile din afară
-  // nu — de-aia forțez UTF-8 și din mediu, pentru terminalul integrat.
+  // The Windows console is cp1252, and everything this project says to its user is
+  // Romanian. The entry points fix their own output, but third-party libraries do
+  // not — hence UTF-8 forced from the environment as well, for the integrated
+  // terminal.
   "terminal.integrated.env.windows": {
     "PYTHONUTF8": "1",
     "PYTHONIOENCODING": "utf-8"
   },
   "files.encoding": "utf8",
 
-  // Ieșirea programului se vede în terminalul integrat, nu în Debug Console:
-  // worker-ul citește cu `input()`, deci acolo e conversația.
+  // Program output goes to the integrated terminal, not the Debug Console: the
+  // worker reads with `input()`, so that is where the conversation happens.
   "debug.internalConsoleOptions": "neverOpen",
 
-  // Fișierele mari de conținut n-au ce căuta în căutarea din editor.
+  // The large content files have no business in editor search.
   "search.exclude": {
     "**/.venv": true,
-    "content/carti/md": true,
-    "evals/raport-latest.json": true
+    "content/books/md": true,
+    "evals/report-latest.json": true
   }
 }

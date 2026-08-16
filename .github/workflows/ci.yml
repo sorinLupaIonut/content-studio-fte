@@ -1,0 +1,44 @@
+name: CI
+
+# Only what can run without secrets: lint and the offline unit tests. Everything
+# that touches OpenAI, E2B or Neon lives in tests/checks and evals, and is run by
+# hand — see docs/TESTING.md.
+on:
+  push:
+    branches: [main, english]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install the project
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Unit tests
+        run: uv run python -m unittest discover -s tests/unit -v
+
+      - name: The eval cases stay valid JSON
+        run: |
+          uv run python -c "
+          import json, pathlib
+          data = json.loads(pathlib.Path('evals/cases.json').read_text(encoding='utf-8'))
+          cases = data['cases']
+          assert len(cases) == 15, f'expected 15 cases, found {len(cases)}'
+          states = {'automatic', 'by_eye', 'deferred'}
+          for case in cases:
+              assert case['state'] in states, case
+              assert case['turns'] and case['expected'], case['id']
+          print(f'{len(cases)} eval cases, all well formed')
+          "

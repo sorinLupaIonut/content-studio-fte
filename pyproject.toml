@@ -1,9 +1,28 @@
 [project]
 name = "content-studio-fte"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Digital FTE content worker: one sandboxed agent with folder-based skills, a purpose-built MCP server, Neon Postgres + pgvector, an audit trail you can replay, and an approval gate on every write."
 readme = "README.md"
 requires-python = ">=3.13"
+license = { text = "MIT" }
+keywords = [
+    "openai-agents",
+    "mcp",
+    "model-context-protocol",
+    "digital-fte",
+    "pgvector",
+    "neon",
+    "e2b",
+    "agent-skills",
+    "rag",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "asyncpg>=0.31.0",
     "mcp>=2.0.0",
@@ -11,3 +30,38 @@ dependencies = [
     "pgvector>=0.5.0",
     "python-dotenv>=1.2.2",
 ]
+
+[project.urls]
+Repository = "https://github.com/sorinLupaIonut/content-studio-fte"
+Documentation = "https://github.com/sorinLupaIonut/content-studio-fte/blob/main/docs/tutorial.html"
+
+[project.scripts]
+content-studio = "content_studio.worker:cli"
+content-studio-server = "content_studio.mcp_server.server:main"
+
+[dependency-groups]
+dev = ["ruff>=0.14.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/content_studio"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["content"]
+
+[tool.ruff.lint]
+# E/F  pycodestyle + pyflakes, the usual floor
+# I    import order, so diffs stay small
+# UP   modern syntax for the Python this project requires
+# B    bugbear: the mistakes that survive review
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# The check scripts print wide report lines on purpose; wrapping them would make
+# the output harder to read than the source.
+"tests/checks/*.py" = ["E501"]
