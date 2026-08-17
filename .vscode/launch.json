@@ -1,33 +1,10 @@
 {
-  // Debug configurations for Content Studio FTE.
-  //
-  // The interpreter is spelled out in every configuration: the project's `.venv`,
-  // built by `uv sync`. Left to choose, VS Code might pick the system Python, where
-  // nothing is installed, and the error would read `ModuleNotFoundError: No module
-  // named 'agents'` — which looks like something else entirely.
-  //
-  // `justMyCode: false` everywhere: F11 steps into the SDK too, not only your own
-  // code. When you want to see what Runner.run does inside, that is how.
-  //
-  // `.env` loads itself (config.py reads it from the project root), so the keys and
-  // DATABASE_URL are there without being written here. Never put secrets in this
-  // file: it is committed, `.env` is not.
+  // D1: the two long-running services used during local development.
+  // Secrets stay in `.env`; this committed file never contains keys.
   "version": "0.2.0",
-
-  "inputs": [
-    {
-      "id": "caseId",
-      "type": "promptString",
-      "description": "Which case from evals/cases.json? (1–15)",
-      "default": "13"
-    }
-  ],
-
   "configurations": [
     {
-      // Start this FIRST. Without it the worker has no data.
-      // A breakpoint here stops inside the tool bodies: `search_books`,
-      // `save_post` and the rest.
+      // Internal business-data service. Start this before the harness.
       "name": "MCP server",
       "type": "debugpy",
       "request": "launch",
@@ -38,167 +15,32 @@
       "justMyCode": false
     },
     {
-      // The real conversation. `integratedTerminal` is required: the worker reads
-      // with `input()`, and the Debug Console has nowhere to type.
-      "name": "Worker — resume conversation",
+      // Uvicorn serves the FastAPI object `app` from harness/main.py.
+      // No --reload: it creates a child process that makes debugger ownership
+      // and breakpoints less predictable.
+      "name": "FastAPI harness",
       "type": "debugpy",
       "request": "launch",
-      "module": "content_studio.worker",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Worker — new conversation",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "content_studio.worker",
-      "args": ["--new"],
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      // The variant used by the "Server + Worker" compound.
-      // The difference from the one above: it waits for port 8765 before starting.
-      "name": "Worker — after the server",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "content_studio.worker",
-      "args": ["--new"],
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false,
-      "preLaunchTask": "wait-for-mcp"
-    },
-    {
-      // Free and offline. The fastest way to check the debugger stops where you put it.
-      "name": "Unit tests",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "unittest",
-      "args": ["discover", "-s", "tests/unit", "-v"],
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      // The cheapest live check: no model call, no writes.
-      "name": "Check — bootstrap (no model)",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/tests/checks/bootstrap.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Check — the five tools",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/tests/checks/tools.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Check — gate, write, audit",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/tests/checks/write_gate.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Check — book search",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/tests/checks/search.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Check — web",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/tests/checks/web.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      // The most expensive and the slowest: nine real turns, with E2B and the model.
-      "name": "Check — full flow (9 turns)",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/tests/checks/full_flow.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Evals — a single case",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/evals/run.py",
-      "args": ["--id", "${input:caseId}"],
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Evals — all fifteen",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/evals/run.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      "name": "Replay — the last conversation",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "content_studio.replay",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": false
-    },
-    {
-      // For throwaway scripts: runs whatever file is open in the editor.
-      "name": "The open file",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${file}",
+      "module": "uvicorn",
+      "args": [
+        "content_studio.harness.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false
     }
   ],
-
   "compounds": [
     {
-      // Both processes under the debugger, in one session: you can stop in the
-      // worker and inside the MCP tool it calls. The debug toolbar has a picker to
-      // jump between the two.
-      "name": "Server + Worker",
-      "configurations": ["MCP server", "Worker — after the server"],
+      // Select this one to start both debug sessions concurrently with one F5.
+      // The harness may boot before MCP; /health reports degraded until MCP is ready.
+      "name": "MCP + Harness",
+      "configurations": ["MCP server", "FastAPI harness"],
       "stopAll": true
     }
   ]
