@@ -44,7 +44,7 @@ adapted to this project. We stop after each decision for a human go/no-go.
 | # | Decision | Status |
 |---|---|---|
 | D0 | Probe the SDK and reconcile the brief | ✅ done — SDK 0.20.0 probed and brief reconciled below |
-| D1 | Harness: FastAPI + the gate on Postgres | 🟡 **the gate is built and verified** — it lives on `public.runs`; `harness/` is what is left |
+| D1 | Harness: FastAPI + the gate on Postgres | ✅ complete — HTTP park/approve/resume contract, 21 free tests; paid live round trip stays at the testing stage |
 | D1b | Blazor WebAssembly interface | ⬜ not started |
 | D2 | Containerize (multi-stage: .NET SDK → Python) | ⬜ not started |
 | D3 | Deploy to Azure Container Apps | ⬜ blocked: Azure subscription unconfirmed |
@@ -118,11 +118,11 @@ you start, release it when you are done.
 
 | Zone | Files | Owner |
 |---|---|---|
-| Harness | `src/content_studio/harness/**` | **Claude Code** (D1, in progress) |
+| Harness | `src/content_studio/harness/**` | *unclaimed* — D1 completed by Codex |
 | Blazor UI | `ui/**` | *unclaimed* |
 | Container + infra | `Dockerfile`, `.dockerignore`, `infra/**` | *unclaimed* |
-| Schema + migrations | `src/content_studio/db/**` | **Claude Code** (D4 prep) |
-| Existing worker/CLI | `worker.py`, `audit.py`, `conversation.py`, `replay.py` | **Claude Code** — the `conversations` removal lands here; coordinate before touching |
+| Schema + migrations | `src/content_studio/db/**` | *unclaimed* — D4 prep checkpointed in `327d297` |
+| Existing worker/CLI | `worker.py`, `audit.py`, `conversation.py`, `replay.py` | *unclaimed* — D4 prep checkpointed; D1 only extended the gate query in `audit.py` |
 | Azure access + infra provisioning | Azure portal, subscription, `az` CLI | **Codex** (D3) |
 | Docs | `README.md`, `AGENTS.md`, `docs/**` | *unclaimed* — they will lie until the `conversations` removal is reflected |
 | This board | `plans/DEPLOYMENT.md` | shared — append, do not rewrite |
@@ -343,6 +343,21 @@ The remaining infrastructure blocker is unchanged — D3: Azure access, Codex's
 zone, needs Sorin for MFA.
 
 ## Changelog
+
+- **2026-08-17 · Codex** — **D1 complete.** Added the FastAPI control plane with
+  `GET /health`, `POST /runs`, durable pending lookup, and a separate decisions
+  endpoint that restores `RunState` and resumes the same run. The process boots
+  degraded when infrastructure is absent, but model work is refused unless
+  Neon, MCP, E2B and the skill folders are available; there is deliberately no
+  SQLite or R2 shadow architecture. Added header-safe session IDs, exact
+  one-decision-per-call validation, and reset of old decision metadata when a
+  run reaches a second approval gate. Verified with lock check, ruff, compile,
+  real `/health`, and 21 free unit/HTTP contract tests. No model or sandbox call.
+- **2026-08-17 · Codex** — Baseline published before D1: local `main`
+  fast-forwarded to `origin/main`, checkpoint `327d297` pushed on `deploy`, and
+  draft PR #3 opened. Claude Code is paused; Codex claimed `harness/**` and is
+  implementing D1 against the existing SDK 0.20.0, Neon gate, MCP tools and E2B
+  sandbox architecture. No SQLite/R2 or Maya-specific tools will be introduced.
 
 - **2026-08-17 · Claude Code** — **D4, second pass: the course's state schema is
   now the one in Neon.** Sorin's decision, taken after the companion files were

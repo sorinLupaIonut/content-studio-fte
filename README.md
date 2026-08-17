@@ -119,6 +119,18 @@ uv run content-studio
 
 `content-studio` resumes the last conversation; `--new` starts a fresh one.
 
+Or start the D1 HTTP harness instead of the terminal worker:
+
+```bash
+uv run content-studio-harness
+```
+
+`GET http://127.0.0.1:8000/health` reports the active backends without making a
+model or sandbox call. The interactive API contract is at
+`http://127.0.0.1:8000/docs`. A missing dependency leaves health available as
+`degraded`, but `/runs` refuses safely rather than replacing the Neon approval
+gate with temporary state.
+
 To fill the library, put Markdown files in `content/books/md/` and run
 `uv run python -m content_studio.db.import_books`. The import is per-book and
 content-addressed: unchanged books are skipped, so adding an eighteenth title only
@@ -138,8 +150,8 @@ not touch the vectors.
 ```
 src/content_studio/
   worker.py            the agent and the conversation loop
-  audit.py             the replayable trail, on its own connection
-  conversation.py      the cover sheet: status, counters, summary
+  audit.py             durable runs, replayable trail, and approval gate
+  harness/             FastAPI control plane: run, park, approve, resume
   replay.py            reconstructs a past conversation, no model involved
   config.py            environment, paths, DATABASE_URL normalization
   mcp_server/          the `content-data` server: five tools, one resource
@@ -197,9 +209,10 @@ skill fires when it should and stays quiet when it should not.
 | 8 | Audit at every boundary + replay | ✅ trail tied to the conversation, replayable |
 | 9 | Approval gate on both write tools | ✅ refused = `blocked`, approved = written |
 | 10 | The eval set — 12 ugly cases + 3 trigger evals | ✅ real runner |
+| 11/D1 | FastAPI harness + durable HTTP approval gate | ✅ free contract tests; paid round trip deferred to the testing stage |
 
-Next: deploy it to the cloud, widen the eval set, and give it an interface that is
-not a terminal.
+Next: build the Blazor interface, containerize both processes, and deploy them to
+Azure Container Apps.
 
 ## Documentation
 

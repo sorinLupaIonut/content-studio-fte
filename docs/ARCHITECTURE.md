@@ -88,8 +88,10 @@ transactions.
 Two tables that used to be here are gone: `conversations` and
 `capability_invocations` at Decision 11, both second copies of a truth another
 table already held. `pending_runs` went at D4 with the rest of the old state
-half — **which leaves the approval gate without durable storage**; see
-`db/migration_d4_course_schema.sql`.
+half. The gate itself moved onto six columns of `public.runs`: a pending run keeps
+its serialized `RunState`, every approval request, and later every decision. A
+database constraint forbids `pending` without resumable state, while a partial
+unique index allows at most one pending run per session.
 
 What the trail no longer keeps: the arguments a tool was called with and what it
 returned. A row says `capability_invoked: save_post`; the post itself is in
@@ -98,6 +100,26 @@ returned. A row says `capability_invoked: save_post`; the post itself is in
 `posts.body_md` keeps each source file whole alongside the parsed columns. The
 existing posts came in three different shapes; a parser that splits them into columns
 loses whatever it does not recognize, and that loss would be silent.
+
+### The HTTP control plane (deployment D1)
+
+The terminal loop still works, but the FastAPI harness is the cloud-facing front
+door. It owns the run lifecycle; E2B remains only the execution plane. In
+particular the harness passes `SandboxRunConfig(client=…, options=…)`, never a
+live `session=`, so the SDK can serialize the sandbox resume payload together
+with `RunState`.
+
+| Endpoint | Contract |
+|---|---|
+| `GET /health` | reports OpenAI, Postgres, MCP, E2B and artifact backends without a model or sandbox call |
+| `POST /runs` | starts or continues a session; returns `200 completed` or `202 pending` |
+| `GET /sessions/{session_id}/pending` | restores the approval screen after refresh or scale-to-zero |
+| `POST /runs/{run_id}/decisions` | requires one decision per interrupted call and resumes that exact run |
+
+The process may boot in a degraded state so Azure can expose diagnostics, but it
+does not fall back to SQLite: a run is refused unless Neon can hold the approval
+gate durably. R2 is likewise not faked locally; it remains the explicit D5
+decision, and `posts` are domain rows rather than artifacts.
 
 ## 4. The flow: two phases, four questions
 
@@ -200,8 +222,9 @@ so the database can be asked which rows are stale.
 
 - **Vector search over the posts.** At 26 rows, a `WHERE` on title, pillar and date
   answers the question. It becomes worth it in the hundreds.
-- **Multi-user.** `conversations.user_id` exists and is always `'viorela'`. The
-  column is the deferral, not the decision.
+- **Multi-user authentication.** `runs.resolved_by` records `'viorela'` today.
+  Authentication and a real user identity are deferred to the production
+  checklist; the column keeps that decision reversible.
 - **A tool for the profile.** It is a resource precisely so the model cannot choose
   to call it.
 - **Anything from the project mounted into the sandbox except `skills/`.** `.env`

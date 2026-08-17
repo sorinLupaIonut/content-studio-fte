@@ -128,13 +128,14 @@ SESSIONS_TABLE_SQL = "SELECT to_regclass('public.agent_sessions')"
 # stops a second interruption from overwriting a run that is already parked.
 SUSPEND_SQL = """
 UPDATE public.runs
-   SET status = 'pending', requests = $2::jsonb, state = $3
+   SET status = 'pending', requests = $2::jsonb, state = $3,
+       decisions = NULL, resolved_at = NULL, resolved_by = NULL
  WHERE id = $1 AND status = 'running'
 RETURNING id
 """
 
 PENDING_SQL = """
-SELECT id, requests, created_at, input_message
+SELECT id, requests, state, created_at, input_message
   FROM public.runs
  WHERE session_id = $1 AND status = 'pending'
 """

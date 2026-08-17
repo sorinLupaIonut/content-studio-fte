@@ -25,10 +25,12 @@ classifiers = [
 ]
 dependencies = [
     "asyncpg>=0.31.0",
+    "fastapi>=0.116.0",
     "mcp>=2.0.0",
     "openai-agents[e2b,sqlalchemy]>=0.20.0",
     "pgvector>=0.5.0",
     "python-dotenv>=1.2.2",
+    "uvicorn>=0.52.0",
 ]
 
 [project.urls]
@@ -37,6 +39,7 @@ Documentation = "https://github.com/sorinLupaIonut/content-studio-fte/blob/main/
 
 [project.scripts]
 content-studio = "content_studio.worker:cli"
+content-studio-harness = "content_studio.harness.main:run"
 content-studio-server = "content_studio.mcp_server.server:main"
 
 [dependency-groups]

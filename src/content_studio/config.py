@@ -84,6 +84,9 @@ MCP_URL = os.getenv("MCP_URL", f"http://{MCP_HOST}:{MCP_PORT}/mcp")
 #: Web search can run past 30 seconds on cold connections.
 MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT", "90"))
 
+HARNESS_HOST = os.getenv("HARNESS_HOST", "0.0.0.0")
+HARNESS_PORT = int(os.getenv("PORT", os.getenv("HARNESS_PORT", "8000")))
+
 # libpq parameters asyncpg refuses as connection arguments.
 # `sslmode` is not dropped — it is translated into `ssl` below.
 LIBPQ_PARAMS = {"sslmode", "channel_binding", "connect_timeout", "application_name"}
@@ -101,6 +104,16 @@ SSL_TRANSLATION = {
 
 class MissingConfig(RuntimeError):
     """DATABASE_URL is absent or unusable."""
+
+
+def has_openai_key() -> bool:
+    """Whether model calls are configured, without exposing the key."""
+    return bool(os.getenv("OPENAI_API_KEY"))
+
+
+def has_e2b_key() -> bool:
+    """Whether sandbox creation is configured, without exposing the key."""
+    return bool(os.getenv("E2B_API_KEY"))
 
 
 def normalize_url(url: str) -> tuple[str, dict[str, object]]:
