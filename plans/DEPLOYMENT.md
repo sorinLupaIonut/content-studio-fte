@@ -1,0 +1,467 @@
+# Decision 11 — Deployment. Live status board.
+
+**Purpose of this file.** Two coding agents (Claude Code and Codex) and one human
+work this repository in parallel. This file is the shared truth about *where the
+work stands*, *what is locked*, and *who owns which files right now*. Read it
+before you touch anything; update it when you finish a step.
+
+Language follows the repo rule in [AGENTS.md](../AGENTS.md): this is a developer
+document, so it is English. Everything the client reads stays Romanian.
+
+Last updated: 2026-08-17 · owner of this update: Codex
+
+---
+
+## The goal
+
+Take the project from "runs in two terminals on Sorin's laptop" to "Viorela opens
+a URL, works in Romanian, approves writes with a button, closes the browser and
+loses nothing" — on infrastructure that sleeps (and costs nothing) when idle.
+
+The hard part is not packaging. It is **rule 6**: nothing is saved without her
+confirmation, implemented today as `input("Îi dai voie? (da / nu)")` in
+[worker.py](../src/content_studio/worker.py). A container has no keyboard, so the
+gate has to be rebuilt before anything can be deployed.
+
+## Locked decisions
+
+Do not reopen these without saying so here.
+
+| # | Decision | Choice |
+|---|---|---|
+| 1 | Cloud provider | Azure Container Apps — `az acr build`, external ingress, scale-to-zero |
+| 2 | The approval gate | `RunState.to_string()` into Postgres on interruption; `RunState.from_string()` on approval |
+| 3 | Client interface | **Blazor WebAssembly (CSR)**, published as static files and served by the Python harness |
+| 4 | .NET version | **10 LTS** (installed: 10.0.301). Retarget to 11 after its GA on 2026-11-10, if it pays |
+| 5 | What is public | Only the harness. The MCP server gets **internal ingress** — it does not exist on the internet |
+| 6 | Image strategy | One multi-stage image, two Container Apps, different `--command` |
+
+## Roadmap
+
+Mirrors Part 5 of the *Deploy Your Agent Harness to the Cloud* crash course,
+adapted to this project. We stop after each decision for a human go/no-go.
+
+| # | Decision | Status |
+|---|---|---|
+| D0 | Probe the SDK and reconcile the brief | ✅ done — SDK 0.20.0 probed and brief reconciled below |
+| D1 | Harness: FastAPI + the gate on Postgres | 🟡 **the gate is built and verified** — it lives on `public.runs`; `harness/` is what is left |
+| D1b | Blazor WebAssembly interface | ⬜ not started |
+| D2 | Containerize (multi-stage: .NET SDK → Python) | ⬜ not started |
+| D3 | Deploy to Azure Container Apps | ⬜ blocked: Azure subscription unconfirmed |
+| D4 | Neon from the cloud + schema changes | 🟡 the course's five-table state model **adopted and verified functionally**; pooled/direct split enforced in code; the "from the cloud" half waits for D3 |
+| D5 | Cloudflare R2 — wire it or skip it on purpose | ⬜ open decision |
+| D6 | Sandbox execution from the cloud | ⬜ not started |
+| D7 | Observability | ⬜ not started |
+| D8 | Evals as a deploy gate | ⬜ not started |
+| D9 | Production checklist | ⬜ not started |
+
+## D0 findings — read these before writing harness code
+
+Confirmed against the installed SDK, not against the course brief. Where the two
+disagree, the installed SDK wins.
+
+| Symbol | Result |
+|---|---|
+| `openai-agents` | **0.20.0** (the Maya brief pins 0.17.x — ignore that here) |
+| `mcp` / `openai` | 2.0.0 / 2.54.0 |
+| `RunState.to_string` / `from_string` | both present; `to_string()` is **synchronous** and returns `str`, while `from_string(...)` is **async** — await only `from_string(...)` |
+| `from_string(initial_agent, state_string)` | the agent is stored **by reference** and resolved against `initial_agent`; rebuilding the `SandboxAgent` per request is the intended path |
+| `RunState._sandbox` | a dedicated field, *"serialized sandbox resume payload for sandbox-aware runs"*, written in `to_json` and read in `from_json` — resuming a sandboxed run is designed for, not a hack |
+| `E2BSandboxClient` | `create` / `delete` / `resume(state)` / `serialize_session_state` |
+| already installed via `mcp` | `uvicorn` 0.52.3, `starlette` 1.6.0, `sse-starlette` 3.4.8 |
+| missing, to add | `fastapi`, `itsdangerous` (`boto3` only if D5 says yes) |
+| .NET SDK | 10.0.301 (LTS) |
+
+Still unproven: a live round trip — interrupt on `save_post`, serialize,
+deserialize **in a fresh process**, resume. It is a confirmation now, not a
+gamble. It costs a model turn plus a sandbox, so it runs at the testing stage.
+
+### The one thing that decides the harness: never pass `SandboxRunConfig.session`
+
+Traced through the installed SDK, function by function:
+
+| step | file:line | what happens |
+|---|---|---|
+| after the run | `run.py:1848` | `sandbox_resume_state = await sandbox_runtime.cleanup()` |
+| | `run.py:1855` | → `result._sandbox_resume_state` |
+| `result.to_state()` | `result.py:165-169` | → `state._sandbox` (deep-copied) |
+| `state.to_string()` | `run_state.py:1197-1208` | → the `"sandbox"` key of the JSON |
+| `RunState.from_string()` | `run_state.py:3640-3641` | JSON `"sandbox"` → `state._sandbox` |
+| next run | `runtime_session_manager.py:329-359` | payload found → `client.deserialize_session_state(...)` → `await client.resume(...)` |
+
+And the trap, `runtime_session_manager.py:237-238`, inside `serialize_resume_state`:
+
+```python
+if self._sandbox_config.session is not None:
+    return None
+```
+
+**A live `session=` in `SandboxRunConfig` makes the SDK serialize no sandbox
+payload at all** — silently. The state still saves, still restores, and then the
+resumed run starts a *different* sandbox: the skills are remounted, and whatever
+the agent had written to disk mid-turn is gone.
+
+That is exactly what [worker.py](../src/content_studio/worker.py) does today, and
+it is correct there: the CLI holds one process and one sandbox for the whole
+conversation, so nothing has to survive serialization.
+
+The harness must do the opposite — pass `client` and `options`, never `session`,
+and let the SDK own the sandbox lifecycle. This is not a workaround; it is the
+resume path the SDK is built around. Consequence for D6: the harness does not
+call `client.create()` or `client.delete()` itself, so sandbox reuse across turns
+is a separate question, answered there.
+
+## Parallel work: who owns what
+
+To keep Claude Code and Codex from colliding. Claim a zone in this table before
+you start, release it when you are done.
+
+| Zone | Files | Owner |
+|---|---|---|
+| Harness | `src/content_studio/harness/**` | **Claude Code** (D1, in progress) |
+| Blazor UI | `ui/**` | *unclaimed* |
+| Container + infra | `Dockerfile`, `.dockerignore`, `infra/**` | *unclaimed* |
+| Schema + migrations | `src/content_studio/db/**` | **Claude Code** (D4 prep) |
+| Existing worker/CLI | `worker.py`, `audit.py`, `conversation.py`, `replay.py` | **Claude Code** — the `conversations` removal lands here; coordinate before touching |
+| Azure access + infra provisioning | Azure portal, subscription, `az` CLI | **Codex** (D3) |
+| Docs | `README.md`, `AGENTS.md`, `docs/**` | *unclaimed* — they will lie until the `conversations` removal is reflected |
+| This board | `plans/DEPLOYMENT.md` | shared — append, do not rewrite |
+
+Working branch: **`deploy`**, cut from `main` after `main` was fast-forwarded to
+`english`. Both agents work there. Nothing is pushed yet.
+
+Rules for both agents:
+
+1. **The CLI must keep working.** `uv run content-studio` is what the client uses
+   today. The harness is a second front door, not a replacement.
+2. **The six architecture rules in [AGENTS.md](../AGENTS.md) still hold** — in
+   particular rule 1 (business data only through MCP) and rule 2 (the audit has
+   its own connection and commits in the same transaction).
+3. **No commits and no pushes unless the human asks.**
+4. `uv run ruff check .` and `uv run python -m unittest discover -s tests/unit`
+   before handing a zone back.
+5. Paid checks (`tests/checks/*`, `evals/run.py`) are run deliberately, by the
+   human's decision — not on every change.
+
+## The database — migrated 2026-08-17 ✅
+
+Neon project `dry-fog-12289707` (`content-studio-fte`), branch `main`.
+Backup before the work: Neon branch **`pre-deployment-2026-08-17`**
+(`br-lively-cell-avhqk36f`), verified to hold the pre-migration row counts.
+Note the project's history retention is only **6 hours**, so point-in-time
+restore was never a substitute for that branch.
+
+| table | before | after |
+|---|---:|---|
+| `documents` | 17 | **17** — untouched |
+| `embeddings` | 4,778 | **4,778** — untouched, `conversation_id` column dropped, HNSW index not rebuilt |
+| `clients` | 1 | **1** — the profile, 30,748 chars |
+| `posts` | 27 | 0 — all 27 still exist as files in `content/posts/`, so `db.seed` can bring them back |
+| `audit_log` | 117 | 0 |
+| `agent_sessions` / `agent_messages` | 2 / 56 | 0 / 0 |
+| `conversations` | 7 | **dropped** |
+| `capability_invocations` | 11 | **dropped** |
+| `pending_runs` | — | created here, then **dropped again at D4** — see below |
+
+The four foreign keys were dropped by their real names rather than with a blind
+`CASCADE` — and the names were not the obvious ones: those on `posts` still
+carried pre-rename Romanian spellings (`postari_conversation_id_fkey`).
+
+Applied via the Neon MCP server:
+[reset_for_deployment.sql](../src/content_studio/db/reset_for_deployment.sql).
+
+### D4 verification — the schema works, not just exists
+
+Structure, constraints and indexes were read back out of `pg_catalog` and match
+[schema.sql](../src/content_studio/db/schema.sql) exactly. Beyond that, checked
+by doing rather than by looking — writes on a throwaway Neon branch
+(`schema-check-tmp`, `br-ancient-night-avt8x3uj`), reads on `main`:
+
+| what | result |
+|---|---|
+| pgvector search over the library | ✅ probe chunk returns itself at 1.0000, then neighbours at ~0.72 across three different books, page + model metadata intact |
+| the MCP server's own `SEARCH_SQL`, `LIST_POSTS_SQL`, `PROFILE_SQL` | ✅ run through the app's real path — `config.normalize_url` → asyncpg → the **pooled** endpoint — including the `$1::vector` cast and the title filter |
+| `pending_runs` insert / resolve / reopen | ✅ |
+| two open runs in one session | ✅ **rejected** by `idx_pending_runs_one_open_per_session` — one turn in flight per conversation is enforced by the database, not by hope |
+| `approval_granted` accepted | ✅ |
+| an old Romanian action (`aprobare_ceruta`) | ✅ **rejected** by the CHECK — the vocabulary is still closed |
+| a post with an orphan `conversation_id` | ✅ accepted now; the old FK to `conversations` would have refused it |
+| a post with a non-existent `client_id` | ✅ **rejected** — `posts_client_id_fkey` still bites |
+| refused-vs-allowed derived from the trail | ✅ `save_post`→blocked, `search_web`→ok despite its own `status: error` |
+
+**One inconsistency found and fixed.** `rename_to_english.sql` renamed the tables
+and columns but not the constraints Postgres had already named after them, so
+this database still said `client_pkey` and `postari_client_id_fisier_sursa_key`
+while a database created fresh from `schema.sql` says `clients_pkey` and
+`posts_client_id_source_file_key`. Same shape, different names — and that is
+precisely how the Decision 11 migration nearly failed silently, since
+`DROP CONSTRAINT IF EXISTS <guessed name>` is a no-op that reports success.
+`schema.sql` now carries an idempotent rename block, so `db.apply` repairs any
+database that still carries the old names. Applied to `main` through `apply.py`
+rather than by hand, to prove the file does the work.
+
+## D4, second pass — the course's state schema adopted (2026-08-17)
+
+Sorin's call, made with the companion files in hand: replace our state half with
+the crash course's, keeping only the domain. The companion lives at
+`C:\Users\sorin\Downloads\AI\deploying-agents` — `schema.sql` and
+`src/maya_harness/state.py`.
+
+Backup first: Neon branch **`pre-d4-course-schema-2026-08-17`**
+(`br-billowing-forest-avqqtni2`).
+
+What the database holds now:
+
+| table | origin | state |
+|---|---|---|
+| `documents`, `embeddings` | ours | untouched — 17 / 4,778 |
+| `clients`, `posts` | ours | untouched — 1 / 0 |
+| `runs`, `traces`, `artifacts` | **the course**, column-for-column | created, empty |
+| `audit_log` | **the course** — `(run_id, event)` | replaced, empty |
+| `pending_runs` | ours | **dropped** |
+| `agent_sessions`, `agent_messages` | the SDK | the only session table |
+
+Two departures from the companion, both deliberate:
+
+1. **The course's `sessions` table is not created.** `agent_sessions` already
+   exists, the SDK writes it, and `agent_messages` already keys off it — so
+   `runs.session_id` references `public.agent_sessions(session_id)` instead. A
+   second session table would be the same mistake `conversations` was.
+2. **`artifacts` is not `posts`.** The course's artifacts are pointers to objects
+   in R2; a post is a structured row of the client's work. Kept apart. `artifacts`
+   stays empty until D5.
+
+### What this costs — read before building the harness
+
+- ~~**The approval gate has no durable home.**~~ Fixed the same day — see "The
+  gate" below. It lives on `public.runs` now.
+- **The trail lost its detail.** No arguments, no results, no actor, no CHECK.
+  `event` is free text; the vocabulary is now a shared constant in `audit.py`
+  that `replay.py` imports, and nothing in the database enforces it.
+- **`update_profile` became destructive.** The previous text used to be
+  recoverable from `audit_log.payload`. It is not stored anywhere now. The tool's
+  own description was rewritten to say so.
+
+### Verified by doing, not by looking
+
+Structure read back from `pg_catalog` matches the companion's `schema.sql`
+column-for-column. Then, through the app's real path (`config.normalize_url` →
+asyncpg → the **pooled** endpoint) with the real `Audit` class:
+
+| what | result |
+|---|---|
+| `open_run` → events → `close_run` | ✅ run, trace and six events written in order |
+| the SDK session row | ✅ ensured once, not duplicated |
+| `replay.py`'s own `RUNS_SQL` / `EVENTS_SQL` / `LIST_SQL` | ✅ all three read it back |
+| blocked vs allowed derived from the trail | ✅ `save_post`→blocked, `search_books`→ok |
+| a run on a session that does not exist | ✅ **rejected** — `runs_session_id_fkey` bites |
+| a trace / artifact on a run that does not exist | ✅ **rejected** |
+| an audit row with no event text | ✅ **rejected** — NOT NULL |
+| an audit row with `run_id` NULL | ✅ accepted — the `db.seed` case |
+
+### The gate — six columns on `public.runs`, not a table of its own
+
+Sorin's call. A run waiting for an answer is still a run, so the state goes where
+the run already is: `status`, `requests`, `state`, `decisions`, `resolved_at`,
+`resolved_by`. Everything the companion's `state.py` writes is still written in
+the columns it expects — the additions are additive, so `runs` is the course's
+shape *plus* the gate.
+
+Three things the **database** enforces, so no code has to remember them:
+
+- `runs_status_check` — `running | pending | completed | failed | expired`.
+- `runs_pending_is_resumable` — a run may not claim to be `pending` without both
+  `state` and `requests`. Without it, a half-written suspend produces a row the
+  harness would show her as "waiting for your answer" and then fail to continue.
+- `idx_runs_one_open_per_session` — unique over `status = 'pending'`. Two browser
+  tabs cannot each leave a run waiting. Deliberately **not** extended to
+  `running`: a crashed turn would then lock the session out forever.
+
+`audit.py` grew `suspend_run` / `pending_run` / `resume_run`. These are the only
+methods in the file that do **not** swallow their exceptions — they raise
+`GateError`. The trail can afford to lose a row; the gate cannot, because the
+failure mode is telling her the agent is waiting when nothing is.
+
+Verified through a real process boundary — parked by one `Audit`, that engine
+disposed, then read and resumed by a **different** one sharing nothing but the
+database. 22 checks, all passing:
+
+| what | result |
+|---|---|
+| a `RunState`-shaped string with diacritics, quotes, backslashes and base64 | ✅ round-trips byte for byte |
+| both interruptions of one run, arguments nested inside | ✅ survive |
+| a second run waiting in the same session | ✅ **rejected** — `UniqueViolationError` |
+| `pending` with no state to resume from | ✅ **rejected** — `CheckViolationError` |
+| an invented status | ✅ **rejected** |
+| parking an already-parked run / resuming one that is not waiting | ✅ **`GateError`**, not a silent success |
+| resume → `running`, so the same run can stop at the gate again | ✅ the normal two-write case |
+| `resolved_by`, `resolved_at`, both decisions | ✅ stored |
+| the gate's own trail | ✅ `approval_requested` ×2, `granted` ×2, `rejected` ×1 |
+
+**One trap found while doing it, worth knowing before writing harness code.**
+Bare asyncpg returns `JSONB` as a **string**; SQLAlchemy's asyncpg dialect
+registers a JSON codec on every connection it manages, so the same column comes
+back **already decoded**. Code written against one and run against the other dies
+on a `json.loads` that suddenly receives a list. `pending_run` now normalizes it,
+so callers get the decoded value either way.
+
+### The pooled/direct split is now enforced, not just documented
+
+`reset_for_deployment.sql` told you to use the direct endpoint; nothing stopped
+you. `apply.py` and `migrate.py` now take `config.migration_url()`, which reads
+`DATABASE_URL_DIRECT` and **refuses to run DDL through a `-pooler` host**. The
+app keeps `database_url()` and the pooled endpoint. Both migrations above ran
+through the direct one.
+
+Every SQL statement in the codebase is schema-qualified (`public.runs`). Measured
+first: the effective `search_path` is the default and there are zero role or
+database overrides, so bare names were working — this is insurance against the
+day someone sets one, not a bug that was biting.
+
+`apply.py` also grew the `--file` flag its own migration files had been
+documenting for two decisions without it existing.
+
+## Open questions blocking work
+
+1. ~~**Branch base.**~~ Resolved: `main` fast-forwarded to `english`, branch
+   `deploy` cut from it. Local only, nothing pushed.
+2. ~~**Neon branch before the migration.**~~ Resolved. The Neon MCP server is
+   declared in this repo's `.mcp.json`, but a project `.mcp.json` is only loaded
+   from the session's own working directory — the agent was running elsewhere.
+   Copying the file to that directory and restarting loaded it. **Lesson for both
+   agents: run from `E:\aplicatii_noi\content-studio-fte`, or the repo's MCP
+   servers are silently absent.**
+3. ~~**Code that dies with `conversations`.**~~ Done — see the changelog.
+4. ~~**`E2B_API_KEY` is missing from `.env`.**~~ Wrong — it is present and set,
+   as are `OPENAI_API_KEY`, `MODEL` and `DATABASE_URL`. The CLI is not blocked.
+5. ~~**Where does the approval gate live now?**~~ Resolved the same day, Sorin's
+   call: on `public.runs`, as six more columns. `runs` is therefore the course's
+   shape **plus** the gate — everything the companion writes is still written in
+   the same columns. Verified across a process boundary; see below.
+
+The remaining infrastructure blocker is unchanged — D3: Azure access, Codex's
+zone, needs Sorin for MFA.
+
+## Changelog
+
+- **2026-08-17 · Claude Code** — **D4, second pass: the course's state schema is
+  now the one in Neon.** Sorin's decision, taken after the companion files were
+  read rather than guessed at — they were sitting in the session's own working
+  directory, `C:\Users\sorin\Downloads\AI\deploying-agents`.
+
+  Backup branch `pre-d4-course-schema-2026-08-17` (`br-billowing-forest-avqqtni2`)
+  first. Then `migration_d4_course_schema.sql` (drops only, both guarded against
+  running on non-empty tables) and the rewritten `schema.sql`, both through the
+  **direct** endpoint.
+
+  Code moved with it, because the CLI broke the moment the tables did:
+  `audit.py` rebuilt around `open_run`/`close_run`/`event` with the vocabulary as
+  shared constants; `replay.py` rebuilt on `runs` + `audit_log`; `worker.py`,
+  `mcp_server/server.py`, `seed.py`, `migrate.py`, `import_books.py` and both
+  paid checks updated; every statement schema-qualified; `config.migration_url()`
+  added and wired into `apply.py` and `migrate.py`; `apply.py --file` implemented.
+  `ruff` clean, 11 unit tests pass, all modules import, and the new schema was
+  exercised end-to-end against the pooled endpoint (results above).
+
+  **One loss carried forward, accepted knowingly:** `update_profile` can no
+  longer be undone from the trail. The event says the profile changed and which
+  section; the previous text is not kept. `content/profile.md` on disk plus
+  `db.seed` is the remaining safety net, and it does not cover changes she made
+  through the agent since the last seed.
+- **2026-08-17 · Claude Code** — **The gate is back, on `public.runs`.** Sorin's
+  call: six columns rather than a restored `pending_runs`. Three database-level
+  guarantees (status CHECK, resumable-if-pending CHECK, one-waiting-per-session
+  unique index), and `suspend_run`/`pending_run`/`resume_run` in `audit.py`,
+  which raise `GateError` instead of swallowing — the only writes in the file
+  that do. Verified across a real process boundary, 22 checks green. Found and
+  neutralized a JSONB decoding asymmetry between bare asyncpg and the SQLAlchemy
+  dialect. **Blocker 5 closed; D1 is unblocked and `harness/` is the last piece.**
+- **2026-08-17 · Codex** — Re-ran `uv sync` and the complete D0 import probe
+  against installed `openai-agents` 0.20.0, then compared the sandbox API with
+  the live official documentation. Corrected one material brief mismatch:
+  `RunState.to_string()` is synchronous; `RunState.from_string(...)` is async.
+  All repository SDK imports pass. No application code changed and no paid model
+  or sandbox call was made. D0 remains closed with the corrected findings.
+- **2026-08-17** — Board created. D0 closed by reading the SDK source: the gate
+  architecture is sound. Decisions 1–6 locked. Awaiting go on branch base and on
+  the destructive schema work.
+- **2026-08-17 · Codex** — Started D3 Azure access/subscription discovery only.
+  No code or infrastructure zone is claimed yet. Browser work is paused because
+  the ChatGPT extension and native host are not installed for Chrome; Sorin must
+  reconnect the Browser plugin, then complete Azure MFA personally. Azure CLI is
+  also not installed or not on `PATH`, so no CLI session can be used as a fallback.
+  Codex will resume at subscription and resource inventory after authentication.
+- **2026-08-17 · Claude Code** — Branch base resolved: `main` fast-forwarded to
+  `english` (5 commits), `deploy` cut from it, nothing pushed. Read-only inventory
+  of the live database taken and recorded above. Wrote
+  `db/reset_for_deployment.sql` — not applied, waiting on a Neon branch. Claimed
+  the harness, schema and worker zones; D3/Azure is Codex's. Found `E2B_API_KEY`
+  missing from `.env`. Next: D1, the harness and the gate, which does not need the
+  database to be migrated first.
+- **2026-08-17 · Claude Code** — Correction: `E2B_API_KEY` is *not* missing; all
+  four variables in `.env` are set. Blocker 4 withdrawn. Blocker 2 re-diagnosed:
+  the Neon MCP server is declared in this repo's `.mcp.json` but never loaded,
+  because the session's working directory is elsewhere — see above for the two
+  ways out. Starting D1.
+- **2026-08-17 · Claude Code** — D1 design settled by tracing the SDK: the harness
+  must pass `SandboxRunConfig(client=…, options=…)` and **never** `session=`,
+  or the sandbox resume payload is silently dropped. Written up under D0 findings
+  with the exact call chain. No harness code written yet; next session starts
+  with `harness/pending.py` and the `pending_runs` table.
+- **2026-08-17 · Claude Code** — **The migration ran.** Neon branch
+  `pre-deployment-2026-08-17` taken and verified first; then the four foreign
+  keys, the two table drops and the truncations, all through the Neon MCP server.
+  Verified after: 17 documents, 4,778 embeddings still joined to a real document,
+  the HNSW index intact, the profile at 30,748 chars.
+
+  Then the code that depended on the dropped tables, since the CLI was broken the
+  moment they went:
+  - `schema.sql` rewritten — `conversations` and `capability_invocations` gone,
+    `embeddings.document_id` NOT NULL, `pending_runs` added, and the audit
+    vocabulary widened with **`approval_granted`** (in the terminal a "yes" left
+    no trace of its own; over HTTP it can arrive an hour later from another
+    device, so it gets its own row).
+  - `worker.py` — session resume moved onto the SDK's `agent_sessions`; the
+    cover-sheet writes are gone; a granted approval is now audited.
+  - `audit.py` — the second call log is gone; `capability_blocked` writes only
+    the trail.
+  - `conversation.py` and `tests/unit/test_conversation.py` **deleted**.
+  - `replay.py`, `db/apply.py`, `db/migrate.py` (the `backfill` subcommand had
+    nothing left to fill in), `tests/checks/write_gate.py`,
+    `tests/checks/full_flow.py` — all read the trail now.
+
+  One trap worth knowing: deriving "was this call refused" from the trail cannot
+  just look for a `status` key, because `search_web` returns a `status` of its
+  own. The test is an exact match on `status = 'blocked'`, so a failed web search
+  still counts as a call that was allowed — which is how the dropped table
+  counted it too.
+
+  Verified: `ruff` clean, 11 unit tests pass, `db.apply` idempotent against the
+  live database, `open_session` resumes correctly on an empty `agent_sessions`,
+  `replay --list` and `migrate rename` both fine. No model call, no sandbox, no
+  money spent. **Next: `harness/` itself.**
+- **2026-08-17 · Claude Code** — D4's schema half closed properly: the database
+  was checked by exercising it, not by reading it. Full table above. Two things
+  came out of it — the constraint names were still Romanian on `clients` and
+  `posts` (now renamed, idempotently, from `schema.sql`), and the earlier claim
+  that one post existed only in the database was wrong: all 27 are in
+  `content/posts/`, so `db.seed` can restore them if the client wants that memory
+  back. A throwaway branch `schema-check-tmp` (`br-ancient-night-avt8x3uj`) still
+  exists and can be deleted; the backup `pre-deployment-2026-08-17` must stay.
+  Still no model call and no sandbox.
+- **2026-08-17 · Codex** — Azure portal access is now working in Chrome. The
+  account explicitly reports that the current sign-in used multifactor
+  authentication. Azure Free Trial is now active: the portal shows one active
+  subscription (`Azure subscription 1`), Owner RBAC access, and USD 200 credit
+  remaining. Billing scopes also confirm `Billing account owner` on the active
+  Microsoft Customer Agreement account. The free-account spending limit is
+  present. Its direct removal blade emits a stale/generic `Account Administrator`
+  authorization message; for a Free Account the supported removal path is an
+  upgrade to pay-as-you-go, so this is not evidence of missing admin rights. Do
+  not upgrade and do not purchase separately billed Marketplace/support products.
+  D3 is now unblocked for a 30-day deployment test using first-party Azure
+  resources covered by the credit. Without a pay-as-you-go upgrade, Microsoft
+  says the services do not continue after the credit is exhausted or day 30; the
+  advertised 12-month free quotas require moving to pay-as-you-go. A permanent
+  deployment therefore still needs a later billing/subscription decision. No
+  Azure resource or infrastructure file has been created or changed yet.

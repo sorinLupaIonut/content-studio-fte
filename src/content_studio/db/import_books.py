@@ -63,16 +63,16 @@ HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$")
 H1 = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 
 FIND_SQL = (
-    "SELECT id, metadata->>'sha256' AS sha FROM documents "
+    "SELECT id, metadata->>'sha256' AS sha FROM public.documents "
     "WHERE source='library' AND title=$1"
 )
-DELETE_SQL = "DELETE FROM documents WHERE source='library' AND title=$1"
+DELETE_SQL = "DELETE FROM public.documents WHERE source='library' AND title=$1"
 DOCUMENT_SQL = """
-INSERT INTO documents (source, title, body, metadata)
+INSERT INTO public.documents (source, title, body, metadata)
 VALUES ('library', $1, $2, $3::jsonb) RETURNING id
 """
 CHUNK_SQL = """
-INSERT INTO embeddings (document_id, chunk_text, chunk_index, embedding, model, metadata)
+INSERT INTO public.embeddings (document_id, chunk_text, chunk_index, embedding, model, metadata)
 VALUES ($1, $2, $3, $4::vector, $5, $6::jsonb)
 """
 

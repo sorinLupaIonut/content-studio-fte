@@ -35,7 +35,6 @@ could not find.
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 import sys
 import unicodedata
@@ -46,6 +45,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
+from content_studio.audit import CORPUS_SEEDED, event_name
 from content_studio.config import (
     CLIENT_SLUG,
     CONTENT_DIR,
@@ -215,7 +215,7 @@ def parse(path: Path) -> Post | None:
 
 
 CLIENT_SQL = """
-INSERT INTO clients (slug, name, profile_md)
+INSERT INTO public.clients (slug, name, profile_md)
 VALUES ($1, $2, $3)
 ON CONFLICT (slug) DO UPDATE
    SET profile_md = EXCLUDED.profile_md,
@@ -225,8 +225,8 @@ RETURNING id
 """
 
 POST_SQL = """
-INSERT INTO posts (client_id, posted_on, title, pillar, format, hook, hook_type,
-                   script, caption, hashtags, cta, source, body_md,
+INSERT INTO public.posts (client_id, posted_on, title, pillar, format, hook,
+                   hook_type, script, caption, hashtags, cta, source, body_md,
                    source_file, status)
 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'imported')
 ON CONFLICT (client_id, source_file) DO UPDATE
@@ -237,10 +237,10 @@ ON CONFLICT (client_id, source_file) DO UPDATE
        body_md=EXCLUDED.body_md
 """
 
-AUDIT_SQL = """
-INSERT INTO audit_log (conversation_id, actor, action, target, payload, result)
-VALUES (NULL, 'system', 'corpus_seeded', $1, $2::jsonb, $3::jsonb)
-"""
+# `run_id` is NULL: seeding happens outside any conversation, which is exactly
+# what the course's nullable foreign key is for. The counts that used to go into
+# `payload` now ride in the event text — the trail has no payload column since D4.
+AUDIT_SQL = "INSERT INTO public.audit_log (run_id, event) VALUES (NULL, $1)"
 
 FIELDS = ["pillar", "format", "hook", "hook_type", "script",
           "caption", "hashtags", "cta", "source"]
@@ -287,11 +287,7 @@ async def main() -> int:
             print(f"posts    ✓ {len(posts)} rows")
 
             await raw.execute(
-                AUDIT_SQL,
-                "clients,posts",
-                json.dumps({"profile": PROFILE.name, "posts": len(posts)},
-                           ensure_ascii=False),
-                json.dumps({"status": "ok"}, ensure_ascii=False),
+                AUDIT_SQL, event_name(CORPUS_SEEDED, f"{len(posts)} posts + profile")
             )
     except Exception as e:  # noqa: BLE001
         print(f"\nThe seed failed:\n  {type(e).__name__}: {e}", file=sys.stderr)

@@ -1,8 +1,12 @@
-"""Short check for the write → conversation → audit link.
+"""Short check for the write → run → audit link.
 
-Needs the server running and never calls the model. It writes a dummy post inside a
-brand new conversation, verifies exactly one blocked call and one successful one,
-then deletes every row of that conversation. It does not touch the client's posts.
+Needs the server running and never calls the model. It opens a run, writes a dummy
+post inside it, verifies that exactly one call was refused and one allowed, then
+deletes every row it created. It does not touch the client's posts.
+
+Rebuilt for the D4 schema: the trail is `(run_id, event)` now, so the assertions
+are about which events landed rather than about the `result` column each one
+carried — that column no longer exists.
 """
 
 from __future__ import annotations
@@ -15,7 +19,14 @@ from agents.mcp import MCPServerStreamableHttp
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
-from content_studio.audit import Audit
+from content_studio.audit import (
+    CAPABILITY_BLOCKED,
+    CAPABILITY_INVOKED,
+    POST_CHOSEN,
+    POST_SAVED,
+    Audit,
+    split_event,
+)
 from content_studio.config import MCP_URL, database_url
 from content_studio.mcp_server.protocol import CONVERSATION_HEADER
 from content_studio.worker import open_session
@@ -42,15 +53,23 @@ def call_result(call_id: str, arguments: dict, result: object):
 
 
 async def clean_up(engine, session_id: str) -> None:
-    """Only the test conversation's rows, in the order that is safe for the FKs."""
+    """Only this check's rows. In dependency order: the trail points at the run."""
     async with engine.begin() as sa_conn:
         conn = (await sa_conn.get_raw_connection()).driver_connection
-        await conn.execute("DELETE FROM posts WHERE conversation_id = $1", session_id)
-        await conn.execute("DELETE FROM audit_log WHERE conversation_id = $1", session_id)
         await conn.execute(
-            "DELETE FROM capability_invocations WHERE conversation_id = $1", session_id
+            "DELETE FROM public.posts WHERE conversation_id = $1", session_id
         )
-        await conn.execute("DELETE FROM conversations WHERE session_id = $1", session_id)
+        await conn.execute(
+            """DELETE FROM public.audit_log
+                WHERE run_id IN (SELECT id FROM public.runs WHERE session_id = $1)""",
+            session_id,
+        )
+        await conn.execute(
+            """DELETE FROM public.traces
+                WHERE run_id IN (SELECT id FROM public.runs WHERE session_id = $1)""",
+            session_id,
+        )
+        await conn.execute("DELETE FROM public.runs WHERE session_id = $1", session_id)
 
 
 async def main() -> int:
@@ -84,49 +103,53 @@ async def main() -> int:
     try:
         await server.connect()
 
+        # The run has to exist before the tool is called: the MCP server links its
+        # audit row to the newest run of this session, and without one it would
+        # write NULL.
+        run_id = await trail.open_run(session_id, "probă pentru poarta de scriere")
+        if run_id is None:
+            print("✗ the run could not be opened — nothing else can be checked")
+            return 1
+
         blocked_call = "check-blocked"
-        reason = "Viorela n-a aprobat scrierea."
-        await trail.capability_blocked(
-            session_id, "save_post", arguments, reason, blocked_call
-        )
-        await trail.turn(session_id, call_result(blocked_call, arguments, reason))
+        await trail.capability_blocked(run_id, "save_post", blocked_call)
+        await trail.turn(run_id, call_result(blocked_call, arguments, "refuzat"))
 
         response = await server.call_tool("save_post", arguments)
         result = response.structured_content or {}
-        await trail.turn(session_id, call_result("check-approved", arguments, result))
+        await trail.turn(run_id, call_result("check-approved", arguments, result))
 
         async with engine.begin() as sa_conn:
             conn = (await sa_conn.get_raw_connection()).driver_connection
             posts = await conn.fetchval(
-                "SELECT count(*) FROM posts WHERE conversation_id = $1", session_id
+                "SELECT count(*) FROM public.posts WHERE conversation_id = $1", session_id
             )
-            actions = await conn.fetch(
-                """SELECT action FROM audit_log
-                    WHERE conversation_id = $1 ORDER BY id""",
-                session_id,
+            rows = await conn.fetch(
+                "SELECT event FROM public.audit_log WHERE run_id = $1 ORDER BY id",
+                run_id,
             )
-            statuses = await conn.fetch(
-                """SELECT status FROM capability_invocations
-                    WHERE conversation_id = $1 AND capability = 'tool:save_post'
-                    ORDER BY status""",
-                session_id,
+            linked = await conn.fetchval(
+                """SELECT count(*) FROM public.audit_log
+                    WHERE run_id = $1 AND event LIKE $2 || '%'""",
+                run_id,
+                POST_SAVED,
             )
 
-        actions = [r["action"] for r in actions]
-        statuses = [r["status"] for r in statuses]
+        kinds = [split_event(r["event"])[0] for r in rows]
+        gate = sorted(k for k in kinds if k in (CAPABILITY_INVOKED, CAPABILITY_BLOCKED))
         checks = [
             (posts == 1, f"exactly one post linked to the conversation: {posts}"),
             (
-                actions.count("post_saved") == 1,
-                f"transactional audit linked to the conversation: {actions.count('post_saved')}",
+                linked == 1,
+                f"the MCP server's audit row hangs off this run: {linked}",
             ),
             (
-                actions.count("post_chosen") == 1,
-                f"only the successful call counts as chosen: {actions.count('post_chosen')}",
+                kinds.count(POST_CHOSEN) == 1,
+                f"only the successful call counts as chosen: {kinds.count(POST_CHOSEN)}",
             ),
             (
-                statuses == ["blocked", "ok"],
-                f"the capability has blocked + ok: {statuses}",
+                gate == [CAPABILITY_BLOCKED, CAPABILITY_INVOKED],
+                f"one refused call and one allowed: {gate}",
             ),
         ]
         for passed, message in checks:

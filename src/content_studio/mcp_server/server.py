@@ -43,6 +43,11 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
+
+# The event vocabulary is shared rather than spelled out here: since D4 the
+# `event` column is free text, so a typo on this side would simply produce a row
+# `replay.py` cannot group. One import keeps both ends honest.
+from content_studio.audit import POST_SAVED, PROFILE_UPDATED, event_name
 from content_studio.config import (
     CLIENT_SLUG,
     MCP_HOST,
@@ -85,7 +90,10 @@ async def connection():
         yield (await conn.get_raw_connection()).driver_connection
 
 
-PROFILE_SQL = "SELECT id, name, profile_md FROM clients WHERE slug = $1"
+# Every statement names its schema. The app talks to Neon's pooled endpoint,
+# which is PgBouncer in transaction mode and makes no promise about `search_path`
+# holding from one transaction to the next (D4).
+PROFILE_SQL = "SELECT id, name, profile_md FROM public.clients WHERE slug = $1"
 
 
 @server.resource(
@@ -124,8 +132,8 @@ SELECT d.title                                                  AS title,
        e.chunk_text                                             AS text,
        e.model                                                  AS embedding_model,
        1 - (e.embedding <=> $1::vector)                         AS score
-  FROM embeddings e
-  JOIN documents  d ON d.id = e.document_id
+  FROM public.embeddings e
+  JOIN public.documents  d ON d.id = e.document_id
  WHERE d.source = 'library'
    AND ($2::text[] IS NULL OR d.title = ANY($2::text[]))
  ORDER BY e.embedding <=> $1::vector
@@ -270,8 +278,8 @@ explorat și citează paginile consultate."""
 LIST_POSTS_SQL = """
 SELECT p.posted_on, p.title, p.pillar, p.format, p.hook, p.hook_type,
        p.source, p.status
-  FROM posts   p
-  JOIN clients c ON c.id = p.client_id
+  FROM public.posts   p
+  JOIN public.clients c ON c.id = p.client_id
  WHERE c.slug = $1
    AND ($2::text IS NULL OR p.pillar ILIKE '%' || $2 || '%')
    AND ($3::text IS NULL OR p.format ILIKE '%' || $3 || '%')
@@ -305,19 +313,32 @@ async def list_posts(
     return [{**dict(r), "posted_on": r["posted_on"].isoformat()} for r in rows]
 
 
-CLIENT_ID_SQL = "SELECT id FROM clients WHERE slug = $1"
+CLIENT_ID_SQL = "SELECT id FROM public.clients WHERE slug = $1"
 
 INSERT_POST_SQL = """
-INSERT INTO posts (client_id, conversation_id, posted_on, title, pillar, format,
-                   hook, hook_type, script, caption, hashtags, cta, source,
-                   status, body_md)
+INSERT INTO public.posts (client_id, conversation_id, posted_on, title, pillar,
+                          format, hook, hook_type, script, caption, hashtags,
+                          cta, source, status, body_md)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'draft', $14)
 RETURNING id
 """
 
+# Rule 2, second half: the trail is written in the SAME transaction as the write
+# it describes, so a saved post without its audit row cannot exist.
+#
+# Since D4 the trail hangs off a run rather than a conversation, and this server
+# only ever learns the session_id — it comes in on the connection header, set by
+# the worker. So the run is looked up here, in the same statement: the newest run
+# of that session. The worker opens exactly one run per turn and waits for it, so
+# "newest" is "the one that called this tool". If no run exists yet, `run_id`
+# lands NULL, which the column allows: a trail row with no run beats none at all.
 AUDIT_SQL = """
-INSERT INTO audit_log (conversation_id, actor, action, target, payload, result)
-VALUES ($1, 'worker:content-studio', $2, $3, $4::jsonb, $5::jsonb)
+INSERT INTO public.audit_log (run_id, event)
+VALUES (
+    (SELECT id FROM public.runs
+      WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1),
+    $2
+)
 """
 
 
@@ -420,20 +441,13 @@ async def save_post(
             source,
             as_markdown(fields),
         )
-        await conn.execute(
-            AUDIT_SQL,
-            conversation_id,
-            "post_saved",
-            "posts",
-            json.dumps(fields, ensure_ascii=False),
-            json.dumps({"id": str(post_id)}, ensure_ascii=False),
-        )
+        await conn.execute(AUDIT_SQL, conversation_id, event_name(POST_SAVED, title))
 
     return {"id": str(post_id), "title": title, "posted_on": date.today().isoformat()}
 
 
 WRITE_PROFILE_SQL = """
-UPDATE clients SET profile_md = $2, updated_at = NOW() WHERE id = $1
+UPDATE public.clients SET profile_md = $2, updated_at = NOW() WHERE id = $1
 """
 
 
@@ -470,8 +484,15 @@ async def update_profile(section: str, new_text: str, ctx: Context) -> dict:
     „CTA"). `new_text` e corpul întreg al secțiunii, fără linia de titlu — ce
     trimiți înlocuiește tot ce era acolo, deci scrie-l complet, nu doar adaosul.
 
-    Ce era înainte rămâne în `audit_log`, deci o greșeală se poate întoarce.
+    ATENȚIE: ce era înainte NU se mai păstrează nicăieri. Cere-i confirmarea pe
+    textul întreg înainte să chemi unealta.
     """
+    # Until D4 the previous text was kept in `audit_log.payload`, and a mistaken
+    # rewrite could be undone from the trail. The course's trail has no payload
+    # column, so that safety net is gone: this tool is now destructive. The
+    # profile is still on disk at content/profile.md, which is what `db.seed`
+    # restores from — but anything she changed through the agent since the last
+    # seed is not there either. Worth a column of its own if this bites.
     conversation_id = conversation_of(ctx)
     async with connection() as conn:
         row = await conn.fetchrow(PROFILE_SQL, CLIENT_SLUG)
@@ -481,15 +502,7 @@ async def update_profile(section: str, new_text: str, ctx: Context) -> dict:
         new_profile = replace_section(row["profile_md"], section, new_text)
         await conn.execute(WRITE_PROFILE_SQL, row["id"], new_profile)
         await conn.execute(
-            AUDIT_SQL,
-            conversation_id,
-            "profile_updated",
-            "clients",
-            json.dumps(
-                {"section": section, "previous_text": row["profile_md"]},
-                ensure_ascii=False,
-            ),
-            json.dumps({"characters": len(new_profile)}, ensure_ascii=False),
+            AUDIT_SQL, conversation_id, event_name(PROFILE_UPDATED, section)
         )
 
     return {

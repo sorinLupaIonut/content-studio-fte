@@ -2,18 +2,18 @@
 
     uv run python -m content_studio.db.migrate rename            (dry run)
     uv run python -m content_studio.db.migrate rename --apply
-    uv run python -m content_studio.db.migrate backfill --apply
 
 `rename` moves a database created with Romanian identifiers to the English schema
 in schema.sql. Run it BEFORE db.apply — otherwise db.apply creates empty English
 tables beside the Romanian ones and the data is left behind. It is idempotent, so
 running it on an already-migrated database changes nothing.
 
-`backfill` fills in the cover sheet of old conversations from the audit trail:
-summary, metadata and closing time. Conversations touched in the last hour are
-skipped, so a worker that is still running does not get closed behind its back.
-The closing time of historical ones is their last known activity, and it is
-flagged as estimated rather than presented as fact.
+There used to be a `backfill` command here, which reconstructed the cover sheet of
+old conversations from the audit trail. Decision 11 removed the `conversations`
+table, so it has nothing left to fill in.
+
+The one-way change of Decision 11 itself is not a subcommand: it is
+`db/reset_for_deployment.sql`, applied once, deliberately, after a Neon branch.
 """
 
 from __future__ import annotations
@@ -26,8 +26,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
-from content_studio.config import MissingConfig, database_url, describe_database
-from content_studio.conversation import update_conversation
+from content_studio.config import MissingConfig, describe_database, migration_url
 
 enable_utf8_output()
 
@@ -48,49 +47,28 @@ SELECT 'column ' || table_name || '.' || column_name
                        'titlu', 'pilon', 'tip_hook', 'hashtaguri', 'sursa',
                        'corp_md', 'fisier_sursa')
 UNION ALL
-SELECT 'value  audit_log.action = ' || action
-  FROM audit_log
- WHERE action IN ('propuneri_generate', 'postare_aleasa', 'postare_salvata',
-                  'profil_actualizat', 'aprobare_ceruta', 'aprobare_respinsa')
- GROUP BY action
-UNION ALL
 -- These three use EXISTS rather than LIMIT: a LIMIT inside a UNION branch needs
 -- parentheses in Postgres, and one forgotten pair is a syntax error at runtime.
 SELECT 'value  documents.source = biblioteca'
- WHERE EXISTS (SELECT 1 FROM documents WHERE source = 'biblioteca')
+ WHERE EXISTS (SELECT 1 FROM public.documents WHERE source = 'biblioteca')
 UNION ALL
 SELECT 'keys   documents.metadata (Romanian)'
- WHERE EXISTS (SELECT 1 FROM documents
+ WHERE EXISTS (SELECT 1 FROM public.documents
                 WHERE metadata ?| ARRAY['autor', 'clasa', 'versiune', 'temei_drepturi'])
 UNION ALL
 SELECT 'keys   embeddings.metadata (Romanian)'
- WHERE EXISTS (SELECT 1 FROM embeddings WHERE metadata ?| ARRAY['pagina', 'capitol'])
+ WHERE EXISTS (SELECT 1 FROM public.embeddings WHERE metadata ?| ARRAY['pagina', 'capitol'])
  ORDER BY 1
 """
 
+# There used to be a fourth check here, for the Romanian action names left in
+# `audit_log` ('aprobare_ceruta' and friends). D4 replaced that table with the
+# course's (run_id, event) shape, so the column those values lived in is gone and
+# the check with it.
 COUNTS = """
-SELECT (SELECT count(*) FROM documents)  AS documents,
-       (SELECT count(*) FROM embeddings) AS embeddings,
-       (SELECT count(*) FROM audit_log)  AS audit_rows
+SELECT (SELECT count(*) FROM public.documents)  AS documents,
+       (SELECT count(*) FROM public.embeddings) AS embeddings
 """
-
-BACKFILL_CANDIDATES = """
-WITH activity AS (
-    SELECT conversation_id, max(created_at) AS last_activity
-      FROM audit_log
-     WHERE conversation_id IS NOT NULL
-     GROUP BY conversation_id
-)
-SELECT c.session_id,
-       COALESCE(a.last_activity, c.started_at) AS last_activity
-  FROM conversations c
-  LEFT JOIN activity a ON a.conversation_id = c.session_id
- WHERE (c.summary IS NULL OR c.metadata = '{}'::jsonb OR c.ended_at IS NULL)
-   AND COALESCE(a.last_activity, c.started_at)
-       < NOW() - ($1::double precision * INTERVAL '1 hour')
- ORDER BY c.started_at
-"""
-
 
 async def rename(engine, apply: bool) -> int:
     async with engine.connect() as conn:
@@ -121,7 +99,7 @@ async def rename(engine, apply: bool) -> int:
         after = dict(await raw.fetchrow(COUNTS))
 
     print("\nRow counts, before → after (they must not move):")
-    for key in ("documents", "embeddings", "audit_rows"):
+    for key in ("documents", "embeddings"):
         arrow = "✓" if before[key] == after[key] else "✗ CHANGED"
         print(f"  {arrow:<10} {key:<12} {before[key]:>6} → {after[key]:>6}")
 
@@ -135,35 +113,6 @@ async def rename(engine, apply: bool) -> int:
     return 0
 
 
-async def backfill(engine, apply: bool, idle_hours: float) -> int:
-    async with engine.connect() as conn:
-        raw = (await conn.get_raw_connection()).driver_connection
-        candidates = await raw.fetch(BACKFILL_CANDIDATES, idle_hours)
-
-    print(f"Historical conversations to complete: {len(candidates)}")
-    if not apply:
-        for row in candidates:
-            print(f"  · {row['session_id']}  last activity: {row['last_activity']}")
-        print("\nNothing was written. Add --apply to complete them.")
-        return 0
-
-    for row in candidates:
-        await update_conversation(
-            engine,
-            row["session_id"],
-            model=None,
-            status="closed",
-            close=True,
-            closure_estimated=True,
-            closure_reason="backfilled_from_audit",
-            closed_at=row["last_activity"],
-        )
-        print(f"  ✓ {row['session_id']}")
-
-    print(f"\nCompleted: {len(candidates)}. No OpenAI call was made.")
-    return 0
-
-
 async def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -171,21 +120,11 @@ async def main() -> int:
     rename_parser = sub.add_parser("rename", help="Romanian schema → English schema")
     rename_parser.add_argument("--apply", action="store_true", help="write to Neon")
 
-    backfill_parser = sub.add_parser("backfill", help="complete old conversations from the audit")
-    backfill_parser.add_argument("--apply", action="store_true", help="write to Neon")
-    backfill_parser.add_argument(
-        "--idle-hours",
-        type=float,
-        default=1.0,
-        help="skip conversations newer than this (default: 1 hour)",
-    )
     args = parser.parse_args()
 
-    if args.command == "backfill" and args.idle_hours < 0:
-        parser.error("--idle-hours must be at least 0")
-
+    # DDL, so the direct endpoint — never `-pooler`. See config.migration_url.
     try:
-        url, connect_args = database_url()
+        url, connect_args = migration_url()
     except MissingConfig as e:
         print(e, file=sys.stderr)
         return 1
@@ -193,9 +132,7 @@ async def main() -> int:
     print(f"Database: {describe_database(url)}")
     engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
     try:
-        if args.command == "rename":
-            return await rename(engine, args.apply)
-        return await backfill(engine, args.apply, args.idle_hours)
+        return await rename(engine, args.apply)
     except Exception as e:  # noqa: BLE001
         print(f"{args.command} failed: {type(e).__name__}: {e}", file=sys.stderr)
         return 1

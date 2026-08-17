@@ -1,19 +1,26 @@
-"""Apply db/schema.sql to the database in DATABASE_URL. Decision 3.
+"""Apply a SQL file to the database. Decision 3, extended at D4.
 
     uv run python -m content_studio.db.apply
+    uv run python -m content_studio.db.apply --file migration_d4_course_schema.sql
 
-Idempotent — everything is `CREATE ... IF NOT EXISTS`, so run it as often as you
-like. It prints the tables that exist afterwards, so you can see Decision 3's
-acceptance criterion with your own eyes instead of taking it on trust.
+With no arguments it applies `schema.sql`, which is idempotent — everything is
+`CREATE ... IF NOT EXISTS` — so run it as often as you like. It prints the tables
+that exist afterwards, so you can see the acceptance criterion with your own eyes
+instead of taking it on trust.
 
-Why not through SQLAlchemy directly: `schema.sql` holds several statements in one
-file, and the asyncpg dialect sends every `text()` as a prepared statement — and a
-prepared statement takes exactly one command. Dropping down to the raw asyncpg
-connection, `execute()` runs the whole script as a simple query.
+WHICH ENDPOINT (D4): this script runs DDL, so it takes the DIRECT one through
+`migration_url()` and refuses `-pooler`. The app keeps using the pooled endpoint.
+If `DATABASE_URL_DIRECT` is missing, the refusal says exactly what to add.
+
+Why not through SQLAlchemy directly: a SQL file holds several statements, and the
+asyncpg dialect sends every `text()` as a prepared statement — and a prepared
+statement takes exactly one command. Dropping down to the raw asyncpg connection,
+`execute()` runs the whole script as a simple query.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import sys
 from pathlib import Path
@@ -21,23 +28,25 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
-from content_studio.config import MissingConfig, database_url, describe_database
+from content_studio.config import MissingConfig, describe_database, migration_url
 
 enable_utf8_output()
 
-SCHEMA = Path(__file__).parent / "schema.sql"
+HERE = Path(__file__).parent
 
-# What has to exist at the end. The first five are the Concept 7 backbone, the
-# last two are the domain from §3. `agent_sessions` and `agent_messages` are NOT
+# What has to exist at the end. `agent_sessions` and `agent_messages` are NOT
 # here: SQLAlchemySession creates them on the worker's first run, not this script.
+# `conversations` and `capability_invocations` left at Decision 11;
+# `pending_runs` left at D4 — see the header of schema.sql for both.
 EXPECTED = [
-    "conversations",
     "documents",
     "embeddings",
-    "audit_log",
-    "capability_invocations",
     "clients",
     "posts",
+    "runs",
+    "traces",
+    "artifacts",
+    "audit_log",
 ]
 
 TABLE_QUERY = """
@@ -52,16 +61,31 @@ SELECT c.relname AS table_name,
 
 
 async def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--file",
+        default="schema.sql",
+        help="SQL file to apply, relative to db/ (default: schema.sql)",
+    )
+    args = parser.parse_args()
+
+    sql_file = Path(args.file)
+    if not sql_file.is_absolute():
+        sql_file = HERE / sql_file
+    if not sql_file.is_file():
+        print(f"No such SQL file: {sql_file}", file=sys.stderr)
+        return 1
+
     try:
-        url, connect_args = database_url()
+        url, connect_args = migration_url()
     except MissingConfig as e:
         print(f"{e}", file=sys.stderr)
         return 1
 
     print(f"Database: {describe_database(url)}")
-    print(f"Schema  : {SCHEMA}")
+    print(f"Applying: {sql_file.name}")
 
-    sql = SCHEMA.read_text(encoding="utf-8")
+    sql = sql_file.read_text(encoding="utf-8")
     engine = create_async_engine(url, connect_args=connect_args, echo=False)
 
     try:
@@ -73,7 +97,7 @@ async def main() -> int:
             raw = await conn.get_raw_connection()
             rows = await raw.driver_connection.fetch(TABLE_QUERY)
     except Exception as e:  # noqa: BLE001 — the raw message is the point here
-        print(f"\nApplying the schema failed:\n  {type(e).__name__}: {e}", file=sys.stderr)
+        print(f"\nApplying {sql_file.name} failed:\n  {type(e).__name__}: {e}", file=sys.stderr)
         if "vector" in str(e).lower():
             print(
                 "\nIf this is about the `vector` extension: on Neon you enable it with\n"
@@ -86,6 +110,16 @@ async def main() -> int:
         await engine.dispose()
 
     found = {r["table_name"]: r["row_count"] for r in rows}
+
+    # EXPECTED describes what schema.sql builds. A migration file is applied for
+    # what it removes, so checking it against that list would report failure for
+    # doing its job — list the result and stop there.
+    if sql_file.name != "schema.sql":
+        print(f"\n{sql_file.name} applied. Tables in public:")
+        for name, count in sorted(found.items()):
+            print(f"  ·           {name:<24} {count:>6} rows")
+        print("\nNext: uv run python -m content_studio.db.apply")
+        return 0
 
     print("\nTables in public:")
     for name in EXPECTED:
@@ -110,7 +144,7 @@ async def main() -> int:
             )
         return 1
 
-    print("\nSchema applied. Next: uv run python -m content_studio.db.seed")
+    print(f"\n{sql_file.name} applied.")
     return 0
 
 

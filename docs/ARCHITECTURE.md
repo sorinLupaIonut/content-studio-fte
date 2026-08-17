@@ -62,19 +62,40 @@ which still runs no SQL of its own.
 
 ## 3. The data model
 
-Five tables from the reference design, plus two for this domain.
+Two halves: the domain, which is this project's own, and durable state, which is
+the deployment crash course's five-table model adopted whole at D4.
+
+**The domain.**
 
 | Table | Holds | Note |
 |---|---|---|
-| `conversations` | the cover sheet: who, when, status, summary | the turn-by-turn transcript belongs to the SDK's own tables, linked by `session_id` |
 | `documents` | the library, one row per book | provenance lives in `metadata`, per row |
-| `embeddings` | 4,778 chunks, 1536 dimensions, HNSW index | one table for documents *and* conversations; a CHECK forces exactly one link |
-| `audit_log` | the replayable trail | `action` is a **closed** vocabulary — widening it is a migration |
-| `capability_invocations` | every skill or tool call, with status | `blocked` is what a refused approval looks like |
+| `embeddings` | 4,778 chunks, 1536 dimensions, HNSW index | one link, to a document, enforced by NOT NULL since Decision 11 |
 | `clients` | one content column, `profile_md` | it lives here rather than in embeddings because it is the only material that gets *written to*: you cannot UPDATE a vector |
-| `posts` | the finished posts | at 26 rows, "have I written about this?" is a WHERE, not a vector search |
+| `posts` | the finished posts | at 27 rows, "have I written about this?" is a WHERE, not a vector search |
 
-`posts.body_md` keeps each source file whole alongside the parsed columns. The 26
+**Durable state** (D4). Every statement names its schema — `public.runs` — because
+Neon's pooled endpoint makes no promise about `search_path` surviving between
+transactions.
+
+| Table | Holds | Note |
+|---|---|---|
+| `runs` | one row per turn: the message in, the answer out | `session_id` points at `agent_sessions`, the SDK's own and the **only** session table |
+| `traces` | one payload per run | `{"output": …}`; the real SDK traces are in the OpenAI dashboard, grouped by `group_id` |
+| `artifacts` | pointers to files in object storage | empty until D5 decides on R2. A post is *not* an artifact |
+| `audit_log` | the replayable trail | `(run_id, event)`; `event` is free text, so the vocabulary is a shared constant in `audit.py`, not a CHECK |
+
+Two tables that used to be here are gone: `conversations` and
+`capability_invocations` at Decision 11, both second copies of a truth another
+table already held. `pending_runs` went at D4 with the rest of the old state
+half — **which leaves the approval gate without durable storage**; see
+`db/migration_d4_course_schema.sql`.
+
+What the trail no longer keeps: the arguments a tool was called with and what it
+returned. A row says `capability_invoked: save_post`; the post itself is in
+`posts`, and the message and answer are columns on `runs`.
+
+`posts.body_md` keeps each source file whole alongside the parsed columns. The
 existing posts came in three different shapes; a parser that splits them into columns
 loses whatever it does not recognize, and that loss would be silent.
 
@@ -94,7 +115,8 @@ pick several. The agent never picks for her.
 **Phase 2 — `dezvolta-postarea`.** The chosen proposal becomes a full post: script
 shaped by the format, caption, 3–5 hashtags, and the CTA from her profile. It is
 shown whole in the chat and nothing is saved until she says yes. Then exactly one
-post is saved. The other nine proposals stay in `audit_log`, not in `posts`.
+post is saved. The other nine proposals stay in `runs.output_message`, not in
+`posts` — the turn that produced them is the record of them.
 
 ### The five pillars
 

@@ -27,6 +27,20 @@ Three things break if you paste that straight into `.env`:
 
 `normalize_url` takes any of those shapes and returns one that works, so you can
 paste the Neon console line without fixing it by hand.
+
+TWO ENDPOINTS, TWO JOBS (D4). The running app uses the pooled endpoint —
+PgBouncer multiplexes many app connections into few real ones, which is what
+makes scale-out affordable. DDL does not go through it. In transaction pooling a
+`SET` from one transaction is not guaranteed to reach the next, and a migration
+that half-applies its session settings fails intermittently rather than loudly.
+So `migration_url()` demands the DIRECT endpoint and refuses `-pooler`, while
+`database_url()` stays exactly as it was. Put both in `.env`:
+
+    DATABASE_URL          …-pooler.<region>.aws.neon.tech/…   the app
+    DATABASE_URL_DIRECT   …<region>.aws.neon.tech/…           migrations only
+
+The app never relies on `search_path` either — every statement names its schema
+(`public.runs`). See the header of db/schema.sql.
 """
 
 from __future__ import annotations
@@ -53,7 +67,8 @@ SKILLS_DIR = Path(os.getenv("SKILLS_DIR", PROJECT_ROOT / "skills"))
 #: Raw material before it reaches Postgres: profile, books, published posts.
 CONTENT_DIR = Path(os.getenv("CONTENT_DIR", PROJECT_ROOT / "content"))
 
-#: The only client for now. Also the value of `conversations.user_id`.
+#: The only client for now. Also the prefix of every `session_id`, which is what
+#: lets the worker find the last conversation to resume.
 CLIENT_SLUG = os.getenv("CLIENT_SLUG", "viorela")
 
 MODEL = os.getenv("MODEL", "gpt-5-mini")
@@ -155,6 +170,38 @@ def database_url() -> tuple[str, dict[str, object]]:
             "Their form with sslmode=require is fine — it gets normalized here."
         )
     return normalize_url(raw)
+
+
+def is_pooled(url: str) -> bool:
+    """True for Neon's PgBouncer endpoint, whose host carries `-pooler`."""
+    return "-pooler" in (urlsplit(url).hostname or "")
+
+
+def migration_url() -> tuple[str, dict[str, object]]:
+    """The endpoint DDL is allowed through: direct, never `-pooler`.
+
+    Falls back to DATABASE_URL when DATABASE_URL_DIRECT is absent — but only if
+    that one is already direct. A pooled URL is refused rather than used, because
+    the failure it causes is intermittent and shows up long after the migration
+    appeared to succeed.
+    """
+    raw = os.getenv("DATABASE_URL_DIRECT") or os.getenv("DATABASE_URL")
+    if not raw:
+        raise MissingConfig(
+            "Neither DATABASE_URL_DIRECT nor DATABASE_URL is set.\n"
+            "Copy .env.example to .env and put the Neon console strings there."
+        )
+
+    url, connect_args = normalize_url(raw)
+    if is_pooled(url):
+        raise MissingConfig(
+            "Migrations must not run through the pooled endpoint.\n"
+            f"  {describe_database(url)}\n\n"
+            "Add DATABASE_URL_DIRECT to .env — the same connection string with\n"
+            "`-pooler` removed from the host. In the Neon console it is the string\n"
+            "you get with 'Connection pooling' switched off."
+        )
+    return url, connect_args
 
 
 def describe_database(url: str) -> str:

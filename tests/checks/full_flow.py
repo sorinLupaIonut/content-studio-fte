@@ -45,7 +45,16 @@ from agents.run_config import RunConfig, SandboxRunConfig
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
-from content_studio.audit import Audit
+from content_studio.audit import (
+    CAPABILITY_BLOCKED,
+    CAPABILITY_INVOKED,
+    MESSAGE_RECEIVED,
+    POST_CHOSEN,
+    POST_SAVED,
+    RUN_COMPLETED,
+    Audit,
+    split_event,
+)
 from content_studio.config import MCP_TIMEOUT, MCP_URL, database_url
 from content_studio.mcp_server.protocol import CONVERSATION_HEADER
 from content_studio.worker import (
@@ -155,49 +164,55 @@ async def session_drafts_and_delete(session_id: str) -> list[dict]:
             rows = await raw.fetch(
                 """SELECT id, title, hook_type, source, length(script) AS script,
                           length(caption) AS caption, hashtags, cta
-                     FROM posts
+                     FROM public.posts
                     WHERE status = 'draft' AND conversation_id = $1""",
                 session_id,
             )
             written = [dict(r) | {"id": str(r["id"])} for r in rows]
             for r in written:
-                await raw.execute("DELETE FROM posts WHERE id = $1::uuid", r["id"])
+                await raw.execute("DELETE FROM public.posts WHERE id = $1::uuid", r["id"])
         return written
     finally:
         await engine.dispose()
 
 
-async def session_trail(session_id: str) -> list[str]:
-    """The actions written to `audit_log` for this session, in order."""
+TRAIL_SQL = """
+SELECT a.event
+  FROM public.audit_log a
+  JOIN public.runs      r ON r.id = a.run_id
+ WHERE r.session_id = $1
+ ORDER BY a.id
+"""
+
+
+async def session_events(session_id: str) -> list[tuple[str, str]]:
+    """Every (kind, subject) written for this session's runs, in order.
+
+    Since D4 the trail hangs off `runs`, so the session is reached through the
+    join rather than through a column of its own.
+    """
     url, connect_args = database_url()
     engine = create_async_engine(url, connect_args=connect_args)
     try:
         async with engine.begin() as conn:
             raw = (await conn.get_raw_connection()).driver_connection
-            rows = await raw.fetch(
-                "SELECT action FROM audit_log WHERE conversation_id = $1 ORDER BY id",
-                session_id,
-            )
-        return [r["action"] for r in rows]
+            rows = await raw.fetch(TRAIL_SQL, session_id)
+        return [split_event(r["event"]) for r in rows]
     finally:
         await engine.dispose()
 
 
-async def session_capabilities(session_id: str) -> list[tuple[str, str]]:
-    """(capability, status), to tell refused apart from executed."""
-    url, connect_args = database_url()
-    engine = create_async_engine(url, connect_args=connect_args)
-    try:
-        async with engine.begin() as conn:
-            raw = (await conn.get_raw_connection()).driver_connection
-            rows = await raw.fetch(
-                """SELECT capability, status FROM capability_invocations
-                    WHERE conversation_id = $1 ORDER BY created_at, id""",
-                session_id,
-            )
-        return [(r["capability"], r["status"]) for r in rows]
-    finally:
-        await engine.dispose()
+def capabilities_in(events: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """(capability, status), to tell refused apart from executed.
+
+    `blocked` is its own event since D4, not a status read out of a result — so a
+    `search_web` that failed still counts as a call that was allowed to happen.
+    """
+    return [
+        (subject, "blocked" if kind == CAPABILITY_BLOCKED else "ok")
+        for kind, subject in events
+        if kind in (CAPABILITY_INVOKED, CAPABILITY_BLOCKED) and subject
+    ]
 
 
 async def main() -> int:
@@ -213,7 +228,7 @@ async def main() -> int:
         book_titles = [
             r["title"]
             for r in await raw.fetch(
-                "SELECT title FROM documents WHERE source = 'library' ORDER BY title"
+                "SELECT title FROM public.documents WHERE source = 'library' ORDER BY title"
             )
         ]
     await engine.dispose()
@@ -254,7 +269,7 @@ async def main() -> int:
     try:
         for message in TURNS:
             t0 = time.monotonic()
-            await trail.message_received(session_id, message)
+            run_id = await trail.open_run(session_id, message)
             print(f"tu> {message}")
 
             result = await run_turn(
@@ -263,7 +278,7 @@ async def main() -> int:
                 None,
                 config,
                 trail,
-                session_id,
+                run_id,
                 gatekeeper,
             )
 
@@ -273,8 +288,8 @@ async def main() -> int:
             tools = tools_called(result)
             called += tools
 
-            await trail.turn(session_id, result)
-            await trail.message_sent(session_id, answer)
+            await trail.turn(run_id, result)
+            await trail.close_run(run_id, answer)
 
             print(f"   ({time.monotonic() - t0:.0f}s)")
             if tools:
@@ -358,33 +373,33 @@ async def main() -> int:
         f"turn 9 did not regenerate the list: {len(numbers_in(answers[8]))} numbers",
     )
 
-    # Decision 8 — the trail.
-    actions = await session_trail(session_id)
+    # Decision 8 — the trail, on the D4 schema.
+    events = await session_events(session_id)
+    kinds = [kind for kind, _ in events]
     for required in (
-        "message_received",
-        "message_sent",
+        MESSAGE_RECEIVED,
+        RUN_COMPLETED,
         "skill_activated",
-        "capability_invoked",
+        CAPABILITY_INVOKED,
         "approval_requested",
         "approval_rejected",
-        "post_chosen",
+        POST_CHOSEN,
         "proposals_generated",
     ):
-        check(required in actions, f"the trail has `{required}`")
+        check(required in kinds, f"the trail has `{required}`")
     check(
-        actions.count("message_received") == len(TURNS),
-        f"the trail has all {len(TURNS)} turns: {actions.count('message_received')}",
+        kinds.count(MESSAGE_RECEIVED) == len(TURNS),
+        f"the trail has all {len(TURNS)} turns: {kinds.count(MESSAGE_RECEIVED)}",
     )
     check(
-        actions.count("post_chosen") == 1,
-        f"only the approved call is `post_chosen`: {actions.count('post_chosen')}",
+        kinds.count(POST_CHOSEN) == 1,
+        f"only the approved call is `post_chosen`: {kinds.count(POST_CHOSEN)}",
     )
     check(
-        actions.count("post_saved") == 1,
-        f"the server's save is linked to the session: {actions.count('post_saved')}",
+        kinds.count(POST_SAVED) == 1,
+        f"the server's save is linked to the run: {kinds.count(POST_SAVED)}",
     )
-    capabilities = await session_capabilities(session_id)
-    save_statuses = [s for c, s in capabilities if c == "tool:save_post"]
+    save_statuses = [s for c, s in capabilities_in(events) if c == "save_post"]
     check(
         sorted(save_statuses) == ["blocked", "ok"],
         f"save_post has one blocked and one ok: {save_statuses}",

@@ -4,6 +4,16 @@ For anyone editing this repository, human or agent. Short on purpose: it holds t
 rules that are expensive to rediscover, and points at the file that owns each truth
 instead of repeating it.
 
+## What changed since the deployment brief
+
+Verified on 2026-08-17 against the installed `openai-agents` 0.20.0 package and
+the live OpenAI Sandbox Agents documentation. One behavioral difference matters:
+`RunState.to_string()` is synchronous and returns `str`; only
+`RunState.from_string(...)` is asynchronous. Do not `await state.to_string()`.
+All other SDK names used by this repository passed the import probe. The complete
+probe record and sandbox-resume findings live in
+[plans/DEPLOYMENT.md](plans/DEPLOYMENT.md#d0-findings--read-these-before-writing-harness-code).
+
 Domain spec — pillars, hook types, sources, the two phases — is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

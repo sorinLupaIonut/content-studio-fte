@@ -33,8 +33,8 @@ SELECT d.title,
        e.metadata->>'chapter'  AS chapter,
        e.chunk_text,
        1 - (e.embedding <=> $1::vector) AS score
-  FROM embeddings e
-  JOIN documents  d ON d.id = e.document_id
+  FROM public.embeddings e
+  JOIN public.documents  d ON d.id = e.document_id
  WHERE d.source = 'library'
  ORDER BY e.embedding <=> $1::vector
  LIMIT 8

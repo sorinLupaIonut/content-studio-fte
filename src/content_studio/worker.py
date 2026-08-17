@@ -56,7 +56,12 @@ from agents.sandbox.entries import LocalDir
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
-from content_studio.audit import Audit
+from content_studio.audit import (
+    APPROVAL_GRANTED,
+    APPROVAL_REJECTED,
+    APPROVAL_REQUESTED,
+    Audit,
+)
 from content_studio.config import (
     CLIENT_SLUG,
     MCP_TIMEOUT,
@@ -67,7 +72,6 @@ from content_studio.config import (
     database_url,
     describe_database,
 )
-from content_studio.conversation import initial_metadata, update_conversation
 from content_studio.mcp_server.protocol import CONVERSATION_HEADER, PROFILE_URI
 
 enable_utf8_output()
@@ -163,57 +167,42 @@ pilonul sau sursa. Când alege o propunere dintr-o listă existentă, deschizi
 de raport despre postările existente nu activează niciunul dintre aceste skill-uri.\
 """
 
+#: The last conversation this client touched. Since Decision 11 the answer comes
+#: from the SDK's own session table rather than from a cover sheet of our own —
+#: see db/schema.sql for why the second copy had to go.
 LAST_SESSION_SQL = """
-SELECT session_id FROM conversations
- WHERE user_id = $1 ORDER BY started_at DESC LIMIT 1
+SELECT session_id FROM public.agent_sessions
+ WHERE session_id LIKE $1 ORDER BY updated_at DESC LIMIT 1
 """
-NEW_CONVERSATION_SQL = """
-INSERT INTO conversations (session_id, user_id, metadata)
-VALUES ($1, $2, $3::jsonb)
-ON CONFLICT (session_id) DO NOTHING
-"""
-ACTIVATE_CONVERSATION_SQL = """
-UPDATE conversations
-   SET ended_at = NULL,
-       metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
- WHERE session_id = $1
-"""
+
+
+def new_session_id() -> str:
+    """A fresh conversation id. The slug prefix is what makes resume possible."""
+    return f"{CLIENT_SLUG}-{date.today():%Y%m%d}-{uuid.uuid4().hex[:8]}"
 
 
 async def open_session(engine, new: bool) -> str:
-    """Pick the session and open its cover sheet."""
+    """Pick the session: the last one the SDK wrote, or a fresh id.
+
+    Nothing is inserted here any more. A conversation now exists because the SDK
+    wrote a turn into `agent_sessions`, not because we announced it in advance —
+    which also means a conversation that never got a message leaves no trace,
+    instead of an empty row that looks like a lost session.
+
+    `agent_sessions` is created by `SQLAlchemySession(create_tables=True)` later
+    in `main`, so on a brand-new database it does not exist yet. That is not an
+    error: it means there is nothing to resume.
+    """
+    if new:
+        return new_session_id()
+
     async with engine.begin() as conn:
         raw = (await conn.get_raw_connection()).driver_connection
-        session_id = None if new else await raw.fetchval(LAST_SESSION_SQL, CLIENT_SLUG)
-        if session_id is None:
-            session_id = f"{CLIENT_SLUG}-{date.today():%Y%m%d}-{uuid.uuid4().hex[:8]}"
-            await raw.execute(
-                NEW_CONVERSATION_SQL,
-                session_id,
-                CLIENT_SLUG,
-                json.dumps(initial_metadata(MODEL), ensure_ascii=False),
-            )
-        # A closed conversation can be resumed by the command without `--new`.
-        # It then becomes active again, and the closing time is rewritten on exit.
-        await raw.execute(
-            ACTIVATE_CONVERSATION_SQL,
-            session_id,
-            json.dumps(initial_metadata(MODEL), ensure_ascii=False),
-        )
+        if await raw.fetchval("SELECT to_regclass('public.agent_sessions')") is None:
+            return new_session_id()
+        session_id = await raw.fetchval(LAST_SESSION_SQL, f"{CLIENT_SLUG}-%")
 
-    return session_id
-
-
-async def update_cover_sheet(engine, session_id: str, **options) -> None:
-    """State helps, but a failed summary must never stop the conversation."""
-    try:
-        await update_conversation(engine, session_id, model=MODEL, **options)
-    except Exception as e:  # noqa: BLE001
-        print(
-            f"[conversations] n-am putut actualiza foaia de gardă: "
-            f"{type(e).__name__}: {e}",
-            file=sys.stderr,
-        )
+    return session_id or new_session_id()
 
 
 async def read_profile(data_mcp: MCPServerStreamableHttp) -> tuple[str, str]:
@@ -277,12 +266,18 @@ def describe_request(request) -> tuple[str, dict, str]:
     return name, arguments or {}, call_id
 
 
-async def run_turn(worker, message, session, config, trail, session_id, approve):
+async def run_turn(worker, message, session, config, trail, run_id, approve):
     """One turn, with the approval gate on the way.
 
     When the agent wants to write, `Runner.run` stops and returns requests instead
     of an answer. We take them to the human, then resume the run from the same
     state — the model does not start over, it continues from where it was stopped.
+
+    Here the state stays in this process's memory, which is fine: the person
+    answering is sitting at the process. Over HTTP nobody is, so the harness
+    parks the run instead — `Audit.suspend_run` / `pending_run` / `resume_run`,
+    on the gate columns of `public.runs`. This function is the terminal's
+    shortcut past all that, not a different design.
     """
     result = await Runner.run(worker, message, session=session, run_config=config)
 
@@ -290,19 +285,16 @@ async def run_turn(worker, message, session, config, trail, session_id, approve)
         state = result.to_state()
         for request in result.interruptions:
             name, arguments, call_id = describe_request(request)
-            await trail.action(session_id, "approval_requested", name, arguments)
+            await trail.event(run_id, APPROVAL_REQUESTED, name)
 
             approved, reason = await approve(name, arguments)
             if approved:
                 state.approve(request)
+                await trail.event(run_id, APPROVAL_GRANTED, name)
             else:
                 state.reject(request, rejection_message=reason)
-                await trail.action(
-                    session_id, "approval_rejected", name, arguments, {"reason": reason}
-                )
-                await trail.capability_blocked(
-                    session_id, name, arguments, reason, call_id
-                )
+                await trail.event(run_id, APPROVAL_REJECTED, name)
+                await trail.capability_blocked(run_id, name, call_id)
 
         result = await Runner.run(worker, state, session=session, run_config=config)
 
@@ -378,13 +370,6 @@ async def main() -> int:
         )
         print("Pornește serverul în alt terminal:", file=sys.stderr)
         print("  uv run content-studio-server", file=sys.stderr)
-        await update_cover_sheet(
-            engine,
-            session_id,
-            status="init_error",
-            close=True,
-            closure_reason="mcp_unavailable",
-        )
         await data_mcp.cleanup()
         await engine.dispose()
         return 1
@@ -414,13 +399,6 @@ async def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(" a picat.")
         print(f"{type(e).__name__}: {e}", file=sys.stderr)
-        await update_cover_sheet(
-            engine,
-            session_id,
-            status="init_error",
-            close=True,
-            closure_reason="sandbox_unavailable",
-        )
         await data_mcp.cleanup()
         await engine.dispose()
         return 1
@@ -442,55 +420,40 @@ async def main() -> int:
 
     print("Scrie un mesaj, sau „iesire” ca să termini.\n")
 
-    closure_reason = "end_of_input"
     try:
         while True:
             try:
                 message = input("tu> ").strip()
             except (EOFError, KeyboardInterrupt):
                 print()
-                closure_reason = "terminal_interrupt"
                 break
 
             if not message:
                 continue
             if message.lower() in {"iesire", "ieșire", "exit", "quit"}:
-                closure_reason = "exit_command"
                 break
 
-            # The trail opens BEFORE the run: if the turn dies, you can see that it
-            # existed. An audit written only at the end misses exactly the turns
-            # that most deserve explaining.
-            await trail.message_received(session_id, message)
-            # Written before the model too. If the turn fails or the process is
-            # killed, the summary correctly shows a message left unanswered.
-            await update_cover_sheet(engine, session_id, status="active")
+            # The run row opens BEFORE the model is called: if the turn dies, you
+            # can see that it existed. Since D4 that is also what makes a dead
+            # turn visible without counting — `output_message` simply stays NULL.
+            run_id = await trail.open_run(session_id, message)
 
             print("\n  …lucrez\r", end="", flush=True)
             try:
                 result = await run_turn(
-                    worker, message, session, config, trail, session_id,
+                    worker, message, session, config, trail, run_id,
                     ask_in_terminal,
                 )
             except Exception as e:  # noqa: BLE001
-                await trail.failed(session_id, e)
-                await update_cover_sheet(engine, session_id, status="active")
+                await trail.failed(run_id, e)
                 print(f"\nworker> Ceva n-a mers ({type(e).__name__}). Mai încercăm?\n")
                 continue
 
-            await trail.turn(session_id, result)
-            await trail.message_sent(session_id, str(result.final_output))
-            await update_cover_sheet(engine, session_id, status="active")
+            await trail.turn(run_id, result)
+            await trail.close_run(run_id, str(result.final_output))
 
             print(f"\nworker> {result.final_output}\n")
     finally:
-        await update_cover_sheet(
-            engine,
-            session_id,
-            status="closed",
-            close=True,
-            closure_reason=closure_reason,
-        )
         try:
             await client.delete(sandbox_session)
         except Exception:  # noqa: BLE001
