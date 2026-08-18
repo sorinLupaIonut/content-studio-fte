@@ -958,3 +958,55 @@ zone, needs Sorin for MFA.
   **Not yet done:** no real generation batch has run against the new contract, so
   the caption length and quality are unproven against the model. That costs money
   and is Sorin's call.
+
+- **2026-08-18 · Claude Code** — **Debugging made real, and the code documented in
+  Romanian, both aimed at D2.** Sorin asked to test with a debugger and to have a
+  tutorial before we containerize.
+
+  **What was actually broken.** `docs/TESTING.md` still told you to pick a compound
+  named `Server + Worker`, which stopped existing when the three-service compound
+  replaced it, and its breakpoint table only covered the CLI era — nothing about the
+  harness, the generator or the chat path. The CLI debug configuration itself had
+  been lost in the same edit. Fixed both: `launch.json` now carries **CLI worker**,
+  **Unit tests** and **Attach to a running process** beside the original three, plus
+  a second compound `Terminal (MCP + CLI)`.
+
+  **The attach path, which is the one that matters for the container.** New
+  `src/content_studio/debug.py`: with no `DEBUGPY_PORT` in the environment it returns
+  after one `os.getenv`, so it is safe in the startup path of both entry points; with
+  one, it opens a debugpy listener on `0.0.0.0` — loopback would be unreachable from
+  outside a container. `debugpy` added to the dev group. Two things were found by
+  running it rather than by reasoning about it: the call had to move from
+  `harness.main.run()` to module level, because uvicorn is handed the import string
+  `…main:app` and never calls the console entry point (locally *and* in the image);
+  and every message needs `flush=True`, because stdout under a pipe is buffered and
+  the listener was up while its announcement was still in the buffer. Verified live:
+  both services started with a port set, `content-data: debugger listening on port
+  5679` and `harness: debugger listening on port 5678`, both adapters bound, and
+  `/health` still `ready` on all four required backends.
+
+  **A finding worth deciding before D3.** `/health` returned `degraded` on the first
+  call after Neon had been idle, and `ready` on the second. `HarnessService.health`
+  probes Postgres under `asyncio.timeout(3)` and the Neon compute takes longer than
+  that to wake. Harmless locally; in Azure a liveness probe pointed at `/health`
+  would flap a cold replica. Either the probe does not point there, or the timeout
+  rises. Not changed unilaterally — it is a deployment decision.
+
+  **The tutorial.** `docs/tutorial-ro.html`, ten chapters, Romanian, sharing the
+  stylesheet of the English `docs/tutorial.html` so the two read as one set. It
+  describes the system as it is now — three processes but two containers from one
+  image, the 22 thin routes over a thick `service.py`, the generator's two stages,
+  where the silent reel's contract is chosen — and it is written towards D2: a
+  chapter on what enters the image and what must not, a table of every environment
+  variable with which service needs it and whether it is a secret, and the traps
+  (Neon's cold start, frozen modules, buffered stdout, the statement cache and
+  PgBouncer). Structure validated: tags balanced, all ten table-of-contents anchors
+  resolve.
+
+  Corrected while writing it: the gate's durable home is `public.runs` with
+  `status='pending'`, not the `pending_runs` table the plan named — D4 folded it in.
+
+  **Verified without spending anything:** `ruff` clean, 105 unit tests pass, both
+  services start under a debugger, `/health` `ready`. **Not done:** no model call was
+  made, so nothing here proves a turn behaves under the debugger — that costs money
+  and is Sorin's call. Nothing was committed.

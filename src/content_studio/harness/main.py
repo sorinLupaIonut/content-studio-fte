@@ -16,6 +16,7 @@ from content_studio.config import (
     UI_DEV_ORIGINS,
     UI_STATIC_DIR,
 )
+from content_studio.debug import attach_if_requested
 from content_studio.harness.auth import Identity, IdentityError, IdentityResolver
 from content_studio.harness.chat import ChatRunAccepted, ChatRunRequest
 from content_studio.harness.generation import (
@@ -360,6 +361,11 @@ def create_app(
 
     return app
 
+
+# No-op unless DEBUGPY_PORT is set. Module level rather than inside `run()`,
+# because uvicorn is normally handed the import string `…main:app` and never calls
+# the console entry point — locally from launch.json, and in the container too.
+attach_if_requested("harness")
 
 app = create_app()
 

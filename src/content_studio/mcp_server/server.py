@@ -77,11 +77,12 @@ from content_studio.config import (
     database_url,
     describe_database,
 )
+from content_studio.db.import_books import EMBEDDING_MODEL, as_vector
 
 # The same model at write time and at search time — rule 3. It is imported from
 # the script that wrote the vectors, so the two cannot drift apart without the
 # import breaking too.
-from content_studio.db.import_books import EMBEDDING_MODEL, as_vector
+from content_studio.debug import attach_if_requested
 from content_studio.harness.generation import (
     GenerationBatchRequest,
     IdeaDetails,
@@ -881,6 +882,9 @@ async def ui_get_saved_post(post_id: str) -> dict:
 
 def main() -> int:
     global _engine
+
+    # First, so that a failure in the configuration below is itself debuggable.
+    attach_if_requested("content-data")
 
     if not os.getenv("OPENAI_API_KEY"):
         print("OPENAI_API_KEY is missing. Search does not work without it.", file=sys.stderr)

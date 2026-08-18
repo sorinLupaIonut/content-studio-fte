@@ -43,7 +43,10 @@ content-studio-harness = "content_studio.harness.main:run"
 content-studio-server = "content_studio.mcp_server.server:main"
 
 [dependency-groups]
-dev = ["ruff>=0.14.0"]
+# `debugpy` so a process the editor did not launch can still be attached to:
+# a service left running in a terminal, or one inside a container. See
+# `src/content_studio/debug.py`.
+dev = ["debugpy>=1.8.0", "ruff>=0.14.0"]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,5 +1,6 @@
 {
-  // D1b: the three services used during local development.
+  // The services used during local development, plus the two ways to debug
+  // something the editor did not start itself.
   // Secrets stay in `.env`; this committed file never contains keys.
   "version": "0.2.0",
   "configurations": [
@@ -61,6 +62,55 @@
         "action": "openExternally",
         "pattern": "Now listening on:\\s+(https?://\\S+)"
       }
+    },
+    {
+      // The terminal front. Same worker, same gate, no browser — the cheapest
+      // place to step through a turn, because you drive it by typing.
+      // It reads with `input()`, so the integrated terminal is mandatory here.
+      "name": "CLI worker",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "content_studio.worker",
+      "args": ["--new"],
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      // The whole free suite under the debugger. Put a breakpoint in a failing
+      // test and start here instead of reading the traceback.
+      "name": "Unit tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "unittest",
+      "args": ["discover", "-s", "tests/unit"],
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      // For a process the editor did not launch: one left running in a terminal,
+      // or — the case this is really here for — one inside a container.
+      // Start it with DEBUGPY_PORT=5678 (see src/content_studio/debug.py), publish
+      // that port, then run this.
+      // `remoteRoot` is where the sources live in the image; it has to match the
+      // WORKDIR the Dockerfile sets, or breakpoints bind to nothing.
+      "name": "Attach to a running process",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/src",
+          "remoteRoot": "/app/src"
+        }
+      ],
+      "justMyCode": false
     }
   ],
   "compounds": [
@@ -69,6 +119,14 @@
       // The harness may boot before MCP; /health reports degraded until MCP is ready.
       "name": "Studio complet (3 servicii)",
       "configurations": ["MCP server", "FastAPI harness", "Blazor UI"],
+      "stopAll": true
+    },
+    {
+      // The terminal path: the data service plus the worker that talks to it.
+      // Two processes, so the debug toolbar gets a process picker and you can
+      // stop inside the worker and inside the MCP tool it calls.
+      "name": "Terminal (MCP + CLI)",
+      "configurations": ["MCP server", "CLI worker"],
       "stopAll": true
     }
   ]

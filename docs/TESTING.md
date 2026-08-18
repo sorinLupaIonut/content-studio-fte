@@ -192,31 +192,86 @@ Messages, skills opened, tools called, approval requests, refusals and saves.
 
 ## Debugging in VS Code
 
-The configurations are already written, in `.vscode/launch.json`. Open the project,
+The configurations are written already, in `.vscode/launch.json`. Open the project,
 press `F5` and pick from the list. The interpreter is the project's `.venv` and
 `.env` loads itself.
 
-For the full path, choose the compound configuration **`Server + Worker`**: it starts
-both processes under the debugger, so you can stop inside the worker and inside the
-MCP tool it calls. The debug toolbar has a process picker to switch between them.
+Nothing else may hold the ports first. If `8000` or `8765` is already taken by a
+service you started in a terminal, the launch fails on bind — stop it, or attach to
+it instead (below).
 
-### Five places that show you everything
-
-| File and line | What you catch there |
+| Pick this | To debug |
 |---|---|
-| `worker.py` — `result = await run_turn(` | the entry to a turn. From there, `F11` walks the rest. |
-| `worker.py` — `approved, reason = await approve(` | the gate, at the moment it stops. `arguments` holds everything it wanted to write, field by field, before the row exists. |
-| `mcp_server/server.py` — first line of `search_books` | the body of a tool: the description received, the vector, the passages returned. **Only fires if the server was started from VS Code**, not from your terminal. |
-| `audit.py` — `for call in calls_in(result)` | the list of calls with their arguments, as pulled from `new_items`, before it reaches `audit_log`. |
-| `evals/run.py` — `def verify(` | why a case failed: compare `answers[-1]` with the patterns from `cases.json`. |
+| **Studio complet (3 servicii)** | the product as the client uses it: MCP, harness, Blazor. One `F5`. |
+| **Terminal (MCP + CLI)** | the same worker without a browser. The cheapest place to step through a turn. |
+| **Unit tests** | a failing test from inside, instead of from its traceback. |
+| **FastAPI harness** alone | a request whose data service is already running elsewhere. |
+| **Attach to a running process** | something this editor did not start — including a container. |
 
-Search for the function name rather than the line number — lines move.
+The compounds start two or three processes, so the debug toolbar grows a process
+picker: you can stop inside the harness and inside the MCP tool it calls, in the same
+session.
+
+### The one thing worth understanding before anything else
+
+The approval gate is one rule in two shapes, and the shapes are what the deployment
+turns on. Put a breakpoint in both and the difference is visible in one sitting:
+
+| Where | What happens |
+|---|---|
+| `worker.py` — `while result.interruptions:` | the terminal shape. The loop **waits**: `input()` further down blocks the process until she types. |
+| `service.py` — `if result.interruptions:` in `_finish` | the HTTP shape. Nothing waits. The run is serialized into `pending_runs` and the request returns `202`. |
+| `service.py` — `RunState.from_string(worker, …)` in `decide` | the other half, in a **different request**, possibly a different process, possibly hours later. |
+
+A container cannot block on a keyboard, and a replica scaled to zero cannot hold a
+Python frame. That is the whole reason the second shape exists.
+
+### Where to stop, by surface
+
+| File and symbol | What you catch there |
+|---|---|
+| `service.py` — `_run_message` | a turn entering from HTTP: the message, the session, before any model call. |
+| `service.py` — `decide` | the gate resolving. `matched` holds what she answered; the row still does not exist. |
+| `service.py` — `health` | why `/health` says `degraded` — every backend is probed separately here. |
+| `generator.py` — `_generate_one_detail` | one idea's detail run, retry included. Where a bad batch gets diagnosed. |
+| `generation.py` — `detail_output_type` | which contract a format gets. Step in to watch a Reel choose the silent one. |
+| `mcp_server/server.py` — `save_post` | the body of the write, after approval, before the row exists. |
+| `audit.py` — `calls_in(result)` | the calls with their arguments, as pulled from `new_items`, before `audit_log`. |
+| `worker.py` — `run_turn` | the terminal path's entry. From there `F11` walks the rest. |
+| `evals/run.py` — `verify` | why a case failed: compare `answers[-1]` with the patterns in `cases.json`. |
+
+Search for the symbol rather than the line number — lines move.
+
+### Attaching instead of launching
+
+For a process the editor did not start. Give it a port and it opens a listener on the
+way up (`src/content_studio/debug.py`; with no `DEBUGPY_PORT` it does nothing):
+
+```bash
+DEBUGPY_PORT=5678 uv run python -X frozen_modules=off -m uvicorn content_studio.harness.main:app --port 8000
+```
+
+Then pick **Attach to a running process**. Add `DEBUGPY_WAIT=1` when the bug is in
+startup itself, and the process holds until you connect.
+
+`-X frozen_modules=off` is not decoration. CPython ships frozen copies of the import
+machinery, and a breakpoint reached through them can silently fail to bind — debugpy
+warns about it in a line that reads like noise.
+
+This is also how the container gets debugged after Decision 2: publish `5678`, set
+the same variable, and point `remoteRoot` in the attach configuration at the image's
+`WORKDIR`. Breakpoints bind by path, so a mapping that does not match the image binds
+to nothing and looks exactly like code that never runs.
 
 ### What cannot be debugged
 
 Whatever runs **inside the E2B sandbox** — that is another machine, in the cloud.
 Skills are text, not code, so there is nothing to stop there: what the agent reads
 from them shows up in `audit.py`, in the arguments of the shell commands.
+
+The Blazor half runs in the browser, not in Python. Use the browser's own debugger
+for it; .NET WebAssembly debugging needs the standalone **Blazor UI** configuration
+rather than the published files served by FastAPI.
 
 `justMyCode` is `false` in every configuration, so `F11` steps into the SDK too —
 useful when you want to see what `Runner.run` does from the inside.
