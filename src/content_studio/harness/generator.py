@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable
@@ -37,6 +38,13 @@ from content_studio.worker import build_sandbox, build_worker, read_profile
 
 RUN_TIMEOUT_SECONDS = 600
 SOURCE_TEXT_LIMIT = 2_000
+
+
+# `safe_generation_error` deliberately hands the client a short Romanian sentence
+# and the exception class name — she must never read a stack trace. The operator
+# still needs one, so both boundaries below log it here. Second half of D7; the
+# first was the 502 handler in service.py.
+logger = logging.getLogger("content_studio.harness.generator")
 
 
 class ActiveBatchError(RuntimeError):
@@ -447,6 +455,7 @@ class GenerationCoordinator:
         except asyncio.CancelledError:
             raise
         except BaseException as exc:  # noqa: BLE001 - background task boundary
+            logger.exception("generation batch %s failed", batch_id)
             with suppress(Exception):
                 await GenerationDraftClient(internal).fail_batch(
                     batch_id, safe_generation_error(exc)
@@ -546,6 +555,7 @@ class GenerationCoordinator:
             except asyncio.CancelledError:
                 raise
             except BaseException as exc:  # noqa: BLE001 - per-idea isolation
+                logger.exception("idea %s of batch %s failed", idea.ordinal, batch_id)
                 retryable = attempt == 1 and retryable_generation_error(exc)
                 await drafts.fail_idea(
                     batch_id,

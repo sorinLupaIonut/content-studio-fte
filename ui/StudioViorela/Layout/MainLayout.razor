@@ -2,24 +2,27 @@
 @inject StudioApiClient Api
 
 <div class="app-shell">
-    <header class="topbar">
+    <div class="rail">
         <a class="brand" href="/generator" aria-label="Studio Viorela, pagina principală">
-            <span class="brand-mark">V</span>
+            <span class="brand-mark" aria-hidden="true">V</span>
             <span>
                 <strong>Studio Viorela</strong>
                 <small>Conținut care sună ca tine</small>
             </span>
         </a>
-        <div class="identity" title="@(_me?.Email ?? "Sesiune locală")">
-            <span class="identity-avatar">@Initial</span>
-            <span class="identity-copy">
-                <strong>@(_me?.Email ?? "Se verifică accesul…")</strong>
-                <small>@(_me?.IsDevelopment == true ? "mod local" : "cont autorizat")</small>
-            </span>
-        </div>
-    </header>
 
-    <PrimaryNav />
+        <PrimaryNav />
+
+        <div class="rail-foot">
+            <div class="identity" title="@(_me?.Email ?? "Sesiune locală")">
+                <span class="identity-avatar" aria-hidden="true">@Initial</span>
+                <span class="identity-copy">
+                    <strong>@(_me?.Email ?? "Se verifică accesul…")</strong>
+                    <small>@(_me?.IsDevelopment == true ? "mod local" : "cont autorizat")</small>
+                </span>
+            </div>
+        </div>
+    </div>
 
     <main class="page-content">
         @if (_identityError is not null)

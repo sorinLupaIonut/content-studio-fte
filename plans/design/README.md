@@ -1,7 +1,8 @@
 # Studio Viorela — the dashboard shell. Design decisions.
 
-**Status: proposed, not implemented.** The mockup is a static HTML page. The
-Blazor application still ships the horizontal `PrimaryNav` under a topbar.
+**Status: implemented (2026-08-18).** The Blazor application now ships the rail.
+`shell-mockup.html` stays as the reference the implementation was measured
+against, not as a plan.
 
 Language follows the repo rule in [AGENTS.md](../../AGENTS.md): this is a
 developer document, so it is English. Every string the client reads is Romanian
@@ -65,19 +66,40 @@ scrolled past.
 active marker flips to a bar under the item. Thumb reach, not aesthetics: the
 four destinations are the only global navigation in the product.
 
-## What porting costs
+## What porting cost, in the end
 
-Rewrite `ui/StudioViorela/Layout/MainLayout.razor` and
-`ui/StudioViorela/Components/PrimaryNav.razor`, and the shell half of
-`ui/StudioViorela/wwwroot/css/app.css` — the tokens, `.app-shell`, `.topbar`,
-`.primary-nav`, and the mobile block.
+`MainLayout.razor` and `PrimaryNav.razor` were rewritten; the topbar is gone and
+its two halves moved into the rail (brand at the top, identity in `.rail-foot`).
+In `app.css` the token block, the whole shell section and the mobile block were
+replaced, and 67 colour values written for a cream background were mapped onto
+the dark palette.
 
-The four page components keep their markup and all of their logic. The Generator
-idea grid and the Saved list/editor split already exist; they need class names
-and colours, not new behaviour.
+The four page components were not touched at all — no markup, no logic. That was
+the point of doing this as a palette plus a shell rather than a redesign.
+`NavLink` already emits `active`, so the active tab is CSS only, with no state.
 
-`NavLink` already emits `active` on the matching route, so the active-tab styling
-is CSS only — no state to track.
+### Three things the port surfaced
+
+**`color: white` had to invert.** On the light theme the accents were dark
+(`--plum: #654a5d`) so white text sat on them. Dark-theme accents are *light*
+(`#b98ea8`), so every one of those eleven declarations became `--on-accent`,
+a near-black. The same reasoning retired `--plum-deep` as a text colour: it was
+picked to read on cream and measured 3.53:1 on the new surfaces. A primary
+button that darkened on hover now lifts instead (`--plum-lift`), because
+darkening moved it *towards* its own dark ink.
+
+**`--faint` was too faint.** #6f667e measured 3.23:1 against the rail — it labels
+the rail groups and the identity line, so it has to clear 4.5:1, not merely look
+quiet. Now #948aa3, measured at 5.35:1.
+
+**The bottom bar inherited `top: 0`.** The desktop rail is `position: sticky;
+top: 0`. The mobile rule set `bottom: 0` without clearing `top`, so the bar
+stretched over the entire screen. `top: auto` fixes it; the bar is 78px with
+four 88×61 targets.
+
+All three were found by walking the live DOM and computing contrast ratios
+against composited backgrounds, not by looking at screenshots. Every page now
+reports zero failures at WCAG AA.
 
 ## Open, if the light theme is wanted back
 

@@ -565,7 +565,8 @@ else if (_batch is not null)
             _saveRun = null;
             if (approved && result.Status == "completed")
             {
-                _saveMessage = $"Am salvat {_toSave.Count} postări. Le găsești în „Salvate”.";
+                _saveMessage = $"Am salvat {RomanianText.Posts(_toSave.Count)}. "
+            + (_toSave.Count == 1 ? "O găsești în „Salvate”." : "Le găsești în „Salvate”.");
                 _toSave.Clear();
             }
             else

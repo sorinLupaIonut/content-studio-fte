@@ -12,7 +12,7 @@
         <h1>Postări salvate</h1>
         <p>Aici sunt numai postările finale pe care ai ales explicit să le păstrezi.</p>
     </div>
-    <span class="step-chip">@_posts.Count salvate</span>
+    <span class="step-chip">@RomanianText.SavedPosts(_posts.Count)</span>
 </section>
 
 @if (_error is not null)

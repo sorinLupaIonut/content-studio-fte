@@ -1,14 +1,22 @@
+@* Two groups, because the split carries meaning: the first pair is what she
+   does, the second is what feeds it. See plans/design/README.md, decision 1. *@
 <nav class="primary-nav" aria-label="Navigare principală">
-    <NavLink href="/generator" Match="NavLinkMatch.All">
-        <span aria-hidden="true">✦</span> Generator
-    </NavLink>
-    <NavLink href="/saved">
-        <span aria-hidden="true">♡</span> Salvate
-    </NavLink>
-    <NavLink href="/profile">
-        <span aria-hidden="true">◎</span> Profil
-    </NavLink>
-    <NavLink href="/library">
-        <span aria-hidden="true">▤</span> Materiale
-    </NavLink>
+    <div class="rail-group" role="group" aria-labelledby="rail-group-work">
+        <span class="rail-label" id="rail-group-work">Lucrezi</span>
+        <NavLink href="/generator" Match="NavLinkMatch.All">
+            <span class="ico" aria-hidden="true">✦</span> Generator
+        </NavLink>
+        <NavLink href="/saved">
+            <span class="ico" aria-hidden="true">♡</span> Salvate
+        </NavLink>
+    </div>
+    <div class="rail-group" role="group" aria-labelledby="rail-group-you">
+        <span class="rail-label" id="rail-group-you">Ce te reprezintă</span>
+        <NavLink href="/profile">
+            <span class="ico" aria-hidden="true">◎</span> Profil
+        </NavLink>
+        <NavLink href="/library">
+            <span class="ico" aria-hidden="true">▤</span> Materiale
+        </NavLink>
+    </div>
 </nav>

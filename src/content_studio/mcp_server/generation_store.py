@@ -93,15 +93,23 @@ SELECT i.id
    AND b.is_current AND NOT b.cancel_requested
 """
 
+# A batch is finished when every idea has settled, not when every idea has
+# succeeded. Demanding ten out of ten left a batch with one permanently failed
+# idea stuck in 'generating' for ever, and the nine good ideas unreachable with
+# it. 'failed' is now reserved for the case where nothing at all came back.
 REFRESH_BATCH_STATUS_SQL = """
 UPDATE public.generation_batches b
    SET status = CASE
        WHEN b.cancel_requested THEN 'cancelled'
-       WHEN NOT EXISTS (
+       WHEN EXISTS (
            SELECT 1 FROM public.generation_ideas i
-            WHERE i.batch_id = b.id AND i.status <> 'ready'
+            WHERE i.batch_id = b.id AND i.status NOT IN ('ready', 'failed')
+       ) THEN 'generating'
+       WHEN EXISTS (
+           SELECT 1 FROM public.generation_ideas i
+            WHERE i.batch_id = b.id AND i.status = 'ready'
        ) THEN 'ready'
-       ELSE 'generating'
+       ELSE 'failed'
    END,
        updated_at = now()
  WHERE b.id = $1
@@ -352,14 +360,9 @@ async def fail_idea(
     row = await conn.fetchrow(FAIL_IDEA_SQL, batch_id, ordinal, safe_error, retryable)
     if row is None:
         raise ValueError("the batch was cancelled, replaced, or does not contain the idea")
-    if not retryable:
-        await conn.execute(
-            """
-            UPDATE public.generation_batches SET status = 'failed', updated_at = now()
-             WHERE id = $1
-            """,
-            batch_id,
-        )
+    # One idea giving up is not the batch giving up. Let the same rule that
+    # promotes a batch to 'ready' decide, so nine good ideas survive the tenth.
+    await conn.fetchval(REFRESH_BATCH_STATUS_SQL, batch_id)
     return _row(row)
 
 

@@ -857,3 +857,53 @@ zone, needs Sorin for MFA.
   advertised 12-month free quotas require moving to pay-as-you-go. A permanent
   deployment therefore still needs a later billing/subscription decision. No
   Azure resource or infrastructure file has been created or changed yet.
+- **2026-08-18 · Claude Code** — The dashboard shell is implemented and the
+  generator was proved end to end, with money spent by Sorin's explicit
+  decision. Two real batches, one save through the gate.
+
+  **The shell.** `MainLayout.razor` and `PrimaryNav.razor` were rewritten around
+  a 250px left rail with two labelled groups; the topbar is gone and its halves
+  moved into the rail. `app.css` got the warm-dark palette and 67 light-theme
+  colour values were mapped onto it. The four page components were not touched.
+  Decisions and the three things the port surfaced are in
+  [plans/design/README.md](design/README.md).
+
+  **The bug behind "nu am putut genera".** Two coupled defects in
+  `mcp_server/generation_store.py`. `fail_idea(retryable=False)` set the whole
+  batch to `failed`, and `REFRESH_BATCH_STATUS_SQL` promoted a batch to `ready`
+  only when all ten ideas were ready. Together, one idea that exhausted its
+  retry made the other nine unreachable — the live batch had **eight ready ideas
+  behind a failed batch status**. A batch is now finished when every idea has
+  settled, `ready` if at least one succeeded, `failed` only if none did. Proved
+  by running the new rule against the existing eight-ready batch: `generating` →
+  `ready`, no model call. Seven new tests in `tests/unit/test_generation_status.py`.
+
+  **D7, second half.** `generator.py` caught every batch and idea failure and
+  turned it into a safe Romanian sentence without logging it, so the first failed
+  batch could only say `RuntimeError`. Both boundaries now `logger.exception`
+  first. That is how the `ModelBehaviorError: Invalid JSON` above was found at
+  all. `service.py` got the same treatment earlier.
+
+  **The gate, end to end, on live data.** Variant selected → `Pregătește
+  salvarea` → the run interrupted on `save_posts_batch` and persisted **48,811
+  bytes of `RunState`** into `public.runs` with `status='pending'`, while
+  `posts` stayed at 0 and `audit_log` recorded `approval_requested`. After
+  `Confirmă`: `approval_granted` → `post_saved` → `capability_invoked`, run
+  `completed`, `posts` at 1. This is the D0 serialization question answered on
+  production data, not a probe.
+
+  **Language.** "1 postări" and "1 salvate" were wrong. `RomanianText.cs` now
+  handles agreement including the "de" rule from twenty upwards; the chip reads
+  "o postare salvată".
+
+  **Verified:** `ruff` clean, 95 unit tests pass, all four pages driven in a real
+  browser at 1280 and 375, zero WCAG AA contrast failures across 109 measured
+  text nodes, no horizontal overflow.
+
+  **Open, needs Sorin's call — quality, not correctness.** The detail model
+  (`gpt-5-mini`) returned invalid JSON on 2 of 10 ideas even after the one retry
+  each gets, and titles 6–10 of that batch came back as structure labels ("Hook
+  principal", "CTA-uri pentru Reel") rather than ideas. Neither is a crash and
+  both are now survivable, but a batch that loses a fifth of its output is worth
+  a prompt or retry-budget change. More attempts cost more money per batch, so
+  that is a decision, not a fix.
