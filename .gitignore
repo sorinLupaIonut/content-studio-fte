@@ -27,3 +27,6 @@ ui/**/dist/
 # Visual Studio per-user workspace state. The editor writes these next to the
 # solution and next to the project; nothing in them is shared work.
 .vs/
+
+# Personal Claude Code overrides (e.g. bypassPermissions) - not shared with the team.
+.claude/settings.local.json
