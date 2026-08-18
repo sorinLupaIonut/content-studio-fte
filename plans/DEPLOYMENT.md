@@ -572,12 +572,19 @@ zone, needs Sorin for MFA.
   **Not verified, because it costs money and that is Sorin's call:** the actual
   10-idea generation past `drafts.create`. Everything up to the model is proven.
 
-  **Design.** Sorin chose a dashboard shell: fixed left rail, four tabs
-  (Generator, Salvate, Profil, Materiale), visibly active tab. Working mockup at
-  [design/shell-mockup.html](design/shell-mockup.html) — open it in a browser,
-  the tabs switch. It is a mockup, not wired to the API. Porting it means
-  rewriting `MainLayout.razor` and `PrimaryNav.razor` plus the shell half of
-  `app.css`; the four page components keep their markup and their logic.
+  **Design — decided, not implemented.** Sorin chose a dashboard shell: fixed
+  left rail, four tabs (Generator, Salvate, Profil, Materiale), visibly active
+  tab. The mockup and the reasoning behind every choice are checked in under
+  [plans/design/](design/) — `shell-mockup.html` is clickable and carries a
+  laptop/phone switch so both layouts are visible in a narrow preview pane;
+  `README.md` records the seven decisions and what porting costs. Statistics
+  cards were proposed and then **dropped on Sorin's call**: two of four needed
+  new queries and none changed what the client does next, so the space went to
+  the ten generated ideas instead.
+
+  Porting is `MainLayout.razor`, `PrimaryNav.razor` and the shell half of
+  `app.css`. The four page components keep their markup and their logic, and
+  `NavLink` already emits `active`, so the active-tab treatment is CSS only.
 
 - **2026-08-18 · Claude Code** — **Benchmark residue purged from
   `public.posts`; library verified empty and the studio handed over for manual

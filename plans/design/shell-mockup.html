@@ -8,47 +8,56 @@
 :root{
   --canvas:#14121a; --rail:#1b1822; --surface:#211d2b; --surface-2:#2a2534;
   --line:#332c41; --ink:#f3eff7; --muted:#a9a0b6; --faint:#6f667e;
-  --plum:#b98ea8; --plum-deep:#8d6a80; --gold:#d8b46a;
+  --plum:#b98ea8; --plum-deep:#8d6a80; --gold:#d8b46a; --sage:#8fae9b;
   --radius:18px;
   --serif:"Source Serif 4",Georgia,serif;
   --sans:Manrope,Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
-.shell{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+html,body{margin:0;background:#0d0b12;color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
 
-.rail{background:var(--rail);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh}
+/* ── comutatorul de vizualizare (nu face parte din produs) ── */
+.viewbar{display:flex;gap:8px;align-items:center;padding:10px 14px;background:#0d0b12;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.viewbar span{color:var(--faint);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;margin-right:4px}
+.viewbar button{border:1px solid var(--line);background:#17141d;color:var(--muted);border-radius:9px;padding:6px 13px;font-family:inherit;font-size:13px;cursor:pointer}
+.viewbar button.on{background:var(--surface-2);color:var(--ink);border-color:var(--plum)}
+.viewbar em{margin-left:auto;color:var(--faint);font-size:12px;font-style:normal}
+
+.stage{overflow:hidden}
+.frame{transform-origin:top left;background:var(--canvas)}
+.frame.laptop{width:1280px;min-height:860px}
+.frame.phone{width:390px;min-height:820px;box-shadow:0 0 0 1px var(--line)}
+
+.shell{display:grid;grid-template-columns:250px 1fr;min-height:860px}
+
+/* ── raftul din stânga ─────────────────────────────────── */
+.rail{background:var(--rail);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:26px}
 .brand{display:flex;gap:11px;align-items:center;padding:0 8px;text-decoration:none;color:inherit}
-.brand-mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--plum),var(--plum-deep));display:grid;place-items:center;font-family:var(--serif);font-size:19px;color:#fff}
+.brand-mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--plum),var(--plum-deep));display:grid;place-items:center;font-family:var(--serif);font-size:19px;color:#fff;flex:none}
 .brand strong{display:block;font-size:15px;letter-spacing:-.01em}
 .brand small{display:block;color:var(--faint);font-size:11.5px}
 .rail-group{display:flex;flex-direction:column;gap:3px}
 .rail-label{color:var(--faint);font-size:11px;letter-spacing:.09em;text-transform:uppercase;padding:0 10px 7px}
-.tab{position:relative;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--muted);text-decoration:none;font-weight:500;font-size:14.5px;border:0;background:none;cursor:pointer;width:100%;text-align:left;font-family:inherit}
-.tab .ico{width:22px;text-align:center;font-size:15px;opacity:.75}
+.tab{position:relative;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--muted);font-weight:500;font-size:14.5px;border:0;background:none;cursor:pointer;width:100%;text-align:left;font-family:inherit}
+.tab .ico{width:22px;text-align:center;font-size:15px;opacity:.75;flex:none}
 .tab:hover{background:var(--surface);color:var(--ink)}
 .tab.active{background:var(--surface-2);color:var(--ink);font-weight:650}
 .tab.active .ico{opacity:1;color:var(--plum)}
 .tab.active::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--plum)}
 .tab .count{margin-left:auto;font-size:11.5px;color:var(--faint);background:var(--canvas);border-radius:999px;padding:2px 8px}
 .rail-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:14px;display:flex;gap:10px;align-items:center}
-.avatar{width:32px;height:32px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:13px;color:var(--plum)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:13px;color:var(--plum);flex:none}
 .rail-foot small{display:block;color:var(--faint);font-size:11.5px}
 
-.main{padding:26px 30px 60px;max-width:1180px}
-.topline{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:26px}
+/* ── conținutul ────────────────────────────────────────── */
+.main{padding:26px 30px 60px}
+.topline{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:24px}
 .eyebrow{color:var(--faint);font-size:11px;letter-spacing:.09em;text-transform:uppercase}
 h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:4px 0 6px;letter-spacing:-.015em}
 .sub{color:var(--muted);font-size:14.5px;margin:0;max-width:62ch}
 .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 16px;border-radius:11px;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
 .btn-primary{background:linear-gradient(135deg,var(--plum),var(--plum-deep));border-color:transparent;color:#fff;font-weight:600}
 .btn-ghost{background:none}
-
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-bottom:24px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
-.card .k{color:var(--faint);font-size:12px;letter-spacing:.05em;text-transform:uppercase}
-.card .v{font-family:var(--serif);font-size:30px;margin-top:6px;line-height:1}
-.card .n{color:var(--muted);font-size:12.5px;margin-top:5px}
 
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px}
 .panel h2{font-family:var(--serif);font-size:19px;font-weight:600;margin:0 0 4px}
@@ -60,41 +69,70 @@ h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:4px 0 6px;lett
 .field label{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
 .input{width:100%;background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:11px 13px;color:var(--ink);font-family:inherit;font-size:14px}
 
-.list{display:flex;flex-direction:column;gap:10px}
-.row{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 17px;display:flex;gap:14px;align-items:center}
-.row .date{color:var(--faint);font-size:12px;min-width:78px}
-.row strong{font-weight:600;font-size:14.5px}
-.row small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
-.row .tag{margin-left:auto;font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
-.row.sel{border-color:var(--plum);box-shadow:0 0 0 1px var(--plum) inset}
+.ideas{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.idea{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.idea .no{color:var(--faint);font-size:11.5px;letter-spacing:.08em}
+.idea h3{font-family:var(--serif);font-size:16.5px;font-weight:600;margin:5px 0 9px;line-height:1.35}
+.idea .hooks{display:flex;gap:6px;flex-wrap:wrap}
+.hook{font-size:11.5px;border:1px solid var(--line);border-radius:8px;padding:3px 9px;color:var(--muted)}
+.hook.pick{background:var(--sage);border-color:var(--sage);color:#16241c;font-weight:600}
+.idea .bar{margin-top:12px;height:3px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.idea .bar i{display:block;height:100%;background:var(--plum)}
+.idea.wait h3{color:var(--muted)}
+.idea .check{float:right;width:20px;height:20px;border-radius:6px;border:1px solid var(--line)}
+.idea.on{border-color:var(--plum)}
+.idea.on .check{background:var(--plum);border-color:var(--plum)}
 
-.approve{border:1px solid var(--gold);background:linear-gradient(180deg,rgba(216,180,106,.10),transparent);border-radius:var(--radius);padding:18px;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
-.approve .mark{width:34px;height:34px;border-radius:10px;background:var(--gold);color:#22190a;display:grid;place-items:center;font-weight:700}
+.approve{border:1px solid var(--gold);background:linear-gradient(180deg,rgba(216,180,106,.10),transparent);border-radius:var(--radius);padding:18px;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
+.approve .mark{width:34px;height:34px;border-radius:10px;background:var(--gold);color:#22190a;display:grid;place-items:center;font-weight:700;flex:none}
 .approve h3{margin:0 0 3px;font-family:var(--serif);font-size:17px;font-weight:600}
 .approve p{margin:0;color:var(--muted);font-size:13.5px}
 .approve .acts{margin-left:auto;display:flex;gap:9px}
 
+.list{display:flex;flex-direction:column;gap:10px}
+.row{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 17px;display:flex;gap:14px;align-items:center}
+.row .date{color:var(--faint);font-size:12px;min-width:70px;flex:none}
+.row strong{font-weight:600;font-size:14.5px}
+.row small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.row .tag{margin-left:auto;font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted);flex:none}
+.row.sel{border-color:var(--plum);box-shadow:0 0 0 1px var(--plum) inset}
+
 .split{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
-.empty{text-align:center;padding:56px 20px;border:1px dashed var(--line);border-radius:var(--radius);color:var(--muted)}
+.empty{text-align:center;padding:48px 20px;border:1px dashed var(--line);border-radius:var(--radius);color:var(--muted)}
 .empty .glyph{font-size:34px;color:var(--plum);display:block;margin-bottom:10px}
 .empty h2{font-family:var(--serif);font-size:20px;color:var(--ink);margin:0 0 6px;font-weight:600}
 .page{display:none}.page.on{display:block}
 
-@media(max-width:1000px){
-  .shell{grid-template-columns:1fr}
-  .rail{position:fixed;bottom:0;top:auto;left:0;right:0;height:auto;flex-direction:row;gap:4px;padding:8px;border-right:0;border-top:1px solid var(--line);z-index:9}
-  .brand,.rail-label,.rail-foot,.tab .count{display:none}
-  .rail-group{flex-direction:row;flex:1}
-  .tab{flex-direction:column;gap:4px;font-size:11px;padding:8px 4px;justify-content:center}
-  .tab.active::before{left:12px;right:12px;top:auto;bottom:-8px;width:auto;height:3px;border-radius:3px 3px 0 0}
-  .main{padding:20px 16px 96px}
-  .split{grid-template-columns:1fr}
-  .topline{flex-direction:column}
-}
+/* ── telefon: aceleași reguli, dar comandate de clasă ──── */
+.frame.phone .shell{grid-template-columns:1fr;min-height:820px}
+.frame.phone .rail{position:fixed;bottom:0;left:0;width:390px;height:auto;flex-direction:row;gap:4px;padding:8px;border-right:0;border-top:1px solid var(--line);z-index:9}
+.frame.phone .brand,
+.frame.phone .rail-label,
+.frame.phone .rail-foot,
+.frame.phone .tab .count{display:none}
+.frame.phone .rail-group{flex-direction:row;flex:1;gap:2px}
+.frame.phone .tab{flex-direction:column;gap:4px;font-size:11px;padding:8px 2px;justify-content:center}
+.frame.phone .tab.active::before{left:10px;right:10px;top:auto;bottom:-8px;width:auto;height:3px;border-radius:3px 3px 0 0}
+.frame.phone .main{padding:20px 16px 96px}
+.frame.phone .split,
+.frame.phone .ideas{grid-template-columns:1fr}
+.frame.phone .topline{flex-direction:column}
+.frame.phone h1{font-size:25px}
 </style>
 </head>
 <body>
-<div class="shell">
+
+<div class="viewbar">
+  <span>Vezi ca pe</span>
+  <button id="b-laptop" class="on">Laptop 1280</button>
+  <button id="b-phone">Telefon 390</button>
+  <em id="scale-note"></em>
+</div>
+
+<div class="stage" id="stage">
+<div class="frame laptop" id="frame">
+  <div class="shell">
+
   <aside class="rail">
     <a class="brand" href="#"><span class="brand-mark">V</span><span><strong>Studio Viorela</strong><small>Conținut care sună ca tine</small></span></a>
 
@@ -125,13 +163,6 @@ h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:4px 0 6px;lett
         <button class="btn btn-primary">Generează 10 idei</button>
       </div>
 
-      <div class="cards">
-        <div class="card"><div class="k">Săptămâna aceasta</div><div class="v">3</div><div class="n">postări salvate</div></div>
-        <div class="card"><div class="k">Lot curent</div><div class="v">10</div><div class="n">idei, 7 dezvoltate</div></div>
-        <div class="card"><div class="k">Pilonul cel mai rar</div><div class="v" style="font-size:21px">Conversie</div><div class="n">ultima acum 18 zile</div></div>
-        <div class="card"><div class="k">Materiale</div><div class="v">17</div><div class="n">cărți indexate</div></div>
-      </div>
-
       <div class="panel">
         <h2>Din ce pornim</h2><p class="hint">Sursa se colectează o singură dată și e folosită identic pentru toate cele 10 idei.</p>
         <div class="chips"><span class="chip on">Memorie</span><span class="chip">Cărți</span><span class="chip">Internet</span><span class="chip">Combinat</span></div>
@@ -142,8 +173,23 @@ h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:4px 0 6px;lett
 
       <div class="approve">
         <span class="mark">&#10003;</span>
-        <div><h3>4 postări sunt gata de salvat</h3><p>Nimic nu se scrie în bibliotecă până nu confirmi tu.</p></div>
+        <div><h3>3 postări sunt gata de salvat</h3><p>Nimic nu se scrie în bibliotecă până nu confirmi tu.</p></div>
         <div class="acts"><button class="btn btn-ghost">Renunță</button><button class="btn btn-primary">Confirmă</button></div>
+      </div>
+
+      <div class="ideas">
+        <article class="idea on"><span class="check"></span><div class="no">IDEEA 1</div><h3>Trei semne că te-ai pierdut în „ar trebui”</h3>
+          <div class="hooks"><span class="hook pick">Provocare</span><span class="hook">Cifră</span><span class="hook">Secret</span><span class="hook">Întrebare</span><span class="hook">Contrast</span></div>
+          <div class="bar"><i style="width:100%"></i></div></article>
+        <article class="idea on"><span class="check"></span><div class="no">IDEEA 2</div><h3>Ce înseamnă de fapt o limită sănătoasă</h3>
+          <div class="hooks"><span class="hook">Provocare</span><span class="hook">Cifră</span><span class="hook">Secret</span><span class="hook pick">Întrebare</span><span class="hook">Contrast</span></div>
+          <div class="bar"><i style="width:100%"></i></div></article>
+        <article class="idea on"><span class="check"></span><div class="no">IDEEA 3</div><h3>4 din 5 femei amână exact lucrul ăsta</h3>
+          <div class="hooks"><span class="hook">Provocare</span><span class="hook pick">Cifră</span><span class="hook">Secret</span><span class="hook">Întrebare</span><span class="hook">Contrast</span></div>
+          <div class="bar"><i style="width:100%"></i></div></article>
+        <article class="idea wait"><span class="check"></span><div class="no">IDEEA 4</div><h3>Odihna nu se merită, se ia</h3>
+          <div class="hooks"><span class="hook">se dezvoltă…</span></div>
+          <div class="bar"><i style="width:45%"></i></div></article>
       </div>
     </section>
 
@@ -158,6 +204,7 @@ h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:4px 0 6px;lett
           <div class="row sel"><span class="date">18 aug</span><span><strong>Trei semne că te-ai pierdut în „ar trebui”</strong><small>Reel · Educație · Provocare</small></span><span class="tag">ciornă</span></div>
           <div class="row"><span class="date">16 aug</span><span><strong>Ce înseamnă de fapt o limită sănătoasă</strong><small>Carusel · Conexiune · Întrebare</small></span><span class="tag">salvată</span></div>
           <div class="row"><span class="date">14 aug</span><span><strong>4 din 5 femei amână asta</strong><small>Reel · Educație · Cifră</small></span><span class="tag">salvată</span></div>
+          <div class="row"><span class="date">11 aug</span><span><strong>Odihna nu se merită, se ia</strong><small>Stories · Conexiune · Contrast</small></span><span class="tag">salvată</span></div>
         </div>
         <div class="panel" style="margin:0">
           <h2>Editor</h2><p class="hint">Modificările rămân ciornă până confirmi.</p>
@@ -190,18 +237,51 @@ h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:4px 0 6px;lett
     </section>
 
   </main>
+  </div>
+</div>
 </div>
 
 <script>
+var frame = document.getElementById("frame");
+var stage = document.getElementById("stage");
+var note = document.getElementById("scale-note");
+var bLaptop = document.getElementById("b-laptop");
+var bPhone = document.getElementById("b-phone");
+
+function fit() {
+  var wide = frame.classList.contains("laptop");
+  var width = wide ? 1280 : 390;
+  var available = stage.clientWidth;
+  var k = Math.min(1, available / width);
+  frame.style.transform = "scale(" + k + ")";
+  stage.style.height = (frame.offsetHeight * k) + "px";
+  note.textContent = k < 0.999
+    ? "micșorat la " + Math.round(k * 100) + "% ca să încapă"
+    : "mărime reală";
+}
+
+function show(wide) {
+  frame.className = "frame " + (wide ? "laptop" : "phone");
+  bLaptop.classList.toggle("on", wide);
+  bPhone.classList.toggle("on", !wide);
+  fit();
+}
+
+bLaptop.addEventListener("click", function () { show(true); });
+bPhone.addEventListener("click", function () { show(false); });
+window.addEventListener("resize", fit);
+
 document.querySelectorAll(".tab").forEach(function (tab) {
   tab.addEventListener("click", function () {
     document.querySelectorAll(".tab").forEach(function (other) { other.classList.remove("active"); });
     document.querySelectorAll(".page").forEach(function (page) { page.classList.remove("on"); });
     tab.classList.add("active");
     document.getElementById(tab.dataset.p).classList.add("on");
-    window.scrollTo(0, 0);
+    fit();
   });
 });
+
+fit();
 </script>
 </body>
 </html>
