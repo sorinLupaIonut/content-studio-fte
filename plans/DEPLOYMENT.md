@@ -548,6 +548,37 @@ zone, needs Sorin for MFA.
 
 ## Changelog
 
+- **2026-08-18 · Claude Code** — **Checkpoint for Codex. Everything committed
+  and pushed to `deploy` (`4f297c0`). Generation bug found and fixed. Design
+  direction chosen: dashboard shell with a left rail.**
+
+  **The bug Sorin hit.** `POST /api/generation-batches` answered 502
+  `DraftDataError` and nothing said why, because the generic handler kept only
+  the exception class name. Root cause, reproduced and then proven fixed without
+  a single model call: an MCP tool returning an **empty list** comes back with
+  zero content blocks and no structured content, and `tool_payload` read that as
+  a fault. So `list_posts` on an empty library broke source collection — the
+  exact first-run case, which the five benchmark rows had been masking. The fix
+  is explicit rather than clever: callers that know an empty answer is legitimate
+  pass `empty=[]` (`list_posts`, `search_books`); the guard stays for genuinely
+  ambiguous multi-block responses. Four unit tests cover it, including two that
+  prove the default does not mask a real tool error or an ambiguous payload.
+  `collect_source_packet` now returns `recent_posts: []` against live Neon.
+
+  Also added `logger.exception` behind the generic 502 handlers. The client keeps
+  reading one short Romanian sentence; the operator finally gets the stack. First
+  half of D7.
+
+  **Not verified, because it costs money and that is Sorin's call:** the actual
+  10-idea generation past `drafts.create`. Everything up to the model is proven.
+
+  **Design.** Sorin chose a dashboard shell: fixed left rail, four tabs
+  (Generator, Salvate, Profil, Materiale), visibly active tab. Working mockup at
+  [design/shell-mockup.html](design/shell-mockup.html) — open it in a browser,
+  the tabs switch. It is a mockup, not wired to the API. Porting it means
+  rewriting `MainLayout.razor` and `PrimaryNav.razor` plus the shell half of
+  `app.css`; the four page components keep their markup and their logic.
+
 - **2026-08-18 · Claude Code** — **Benchmark residue purged from
   `public.posts`; library verified empty and the studio handed over for manual
   testing.** Backed the five rows up to JSON, deleted them inside one transaction
