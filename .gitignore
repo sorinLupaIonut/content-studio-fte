@@ -23,3 +23,7 @@ evals/raport-latest.json
 ui/**/bin/
 ui/**/obj/
 ui/**/dist/
+
+# Visual Studio per-user workspace state. The editor writes these next to the
+# solution and next to the project; nothing in them is shared work.
+.vs/

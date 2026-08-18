@@ -760,6 +760,7 @@ def detail_output_type(format): return DETAIL_CONTRACTS[format]</code></pre>
           <tr><td><code>content/books/</code></td><td class="no">NU</td><td>Cărți sub drept de autor. Adevărul lor e deja în Neon, ca vectori.</td></tr>
           <tr><td><code>.venv/</code></td><td class="no">NU</td><td>E construit pentru Windows. În imagine se face din nou.</td></tr>
           <tr><td><code>ui/**/bin</code>, <code>obj</code></td><td class="no">NU</td><td>Rezultate de build de pe mașina ta.</td></tr>
+          <tr><td><code>ui/**/dist</code></td><td class="no">NU</td><td>UI-ul compilat vine din etapa 1. <code>dotnet publish</code> nu curăță niciodată, deci un <code>dist</code> local poate căra copii vechi ale aplicației — trei, ultima oară când am verificat.</td></tr>
         </tbody>
       </table>
       </div>
