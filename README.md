@@ -135,9 +135,11 @@ gate with temporary state.
 
 For the Blazor UI, open the repository in VS Code and choose the single compound
 debug target `Studio complet (3 servicii)`. It starts `content-data`, FastAPI and
-the .NET 10 WebAssembly development host. Local auth is loopback-only. A Release
-publish places the SPA under `ui/StudioViorela/dist/wwwroot`, which FastAPI serves
-directly for the Azure container:
+the .NET 10 WebAssembly development host on `5178`; no .NET extension is needed,
+because the host runs as a command rather than under a .NET debugger. Local auth is
+loopback-only. A Release publish places the SPA under `ui/StudioViorela/dist/wwwroot`,
+which FastAPI serves at `/` — the shape the Azure container has, and the one the
+`Studio ca in container (MCP + harness)` compound reproduces on `8000`:
 
 ```bash
 dotnet publish ui/StudioViorela/StudioViorela.csproj -c Release

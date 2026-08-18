@@ -1010,3 +1010,45 @@ zone, needs Sorin for MFA.
   services start under a debugger, `/health` `ready`. **Not done:** no model call was
   made, so nothing here proves a turn behaves under the debugger — that costs money
   and is Sorin's call. Nothing was committed.
+
+- **2026-08-18 · Claude Code** — **The compound could not start: the Blazor entry
+  needed an extension nobody had.** Pressing `F5` on `Studio complet (3 servicii)`
+  raised *Configured debug type 'coreclr' is not supported*. MCP and the harness came
+  up; the third configuration died on the dialog. No .NET extension is installed —
+  zero of the fifteen in the editor are `ms-dotnettools.*`.
+
+  Installing the C# extension would have removed the dialog and bought nothing.
+  `coreclr` would attach to the Blazor **DevServer**, which is a static file server;
+  the application itself runs in the browser's WebAssembly runtime, out of reach of a
+  .NET debugger on this side. So the entry is now `node-terminal` — a type that ships
+  inside VS Code, needs no extension, and does the only thing that process needs: run
+  the command and stop with the rest of the compound. The C# that executes in the
+  browser is debugged from the browser's devtools, which is where it always was.
+
+  **A second compound, aimed at D2: `Studio ca in container (MCP + harness)`.** It
+  runs the new `.vscode/tasks.json` task to publish the UI, then starts only the two
+  Python processes; FastAPI serves `ui/StudioViorela/dist/wwwroot` at `/`. **Zero
+  .NET processes — exactly the shape of the image.** Anything that breaks about the
+  served build (base href, fingerprinted assets, SPA fallback) now breaks here, on
+  `8000`, before it breaks in Azure.
+
+  **The publish on disk was stale and dirty.** `dist` dated from 11:20 while the
+  Razor sources had moved to 13:36 — the silent-reel UI was simply not in it — and it
+  had accumulated **three** fingerprinted copies of the application assembly, because
+  `dotnet publish` never cleans. Rebuilt from an empty `dist`: one assembly, 135
+  files in `_framework`, 18 MB. **`.dockerignore` must exclude `ui/**/dist` too**, or
+  the image copies whatever an old build left behind — one more line for D2 than the
+  tutorial's chapter 07 currently lists.
+
+  **Verified on the served path, free:** a throwaway harness on port 8010, chosen so
+  it would not take `8000` from the editor — `/` returns the Blazor index, the
+  fingerprinted `_framework/StudioViorela.*.wasm` returns 200, an unknown route falls
+  back to the SPA, `/health` `ready` on all four backends. Stopped afterwards; the
+  MCP server on 8765 belongs to Sorin's own debug session and was left alone. No
+  Python changed, so no lint or unit run was warranted.
+
+  Docs follow the code: `docs/TESTING.md` gains the compound and the reason the
+  Blazor entry is not a debugger (and loses one more `pending_runs`, corrected to
+  `public.runs`), `README.md` says no .NET extension is needed, and the tutorial's
+  chapter 01 explains why — the same sentence that makes Blazor build-time rather
+  than runtime is what makes it undebuggable from this side. Nothing committed.

@@ -1,0 +1,25 @@
+{
+  // Build steps the debugger can depend on. Nothing here needs a key, so every
+  // task is safe to run at any time.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Compiles the Blazor application into `ui/StudioViorela/dist/wwwroot`,
+      // which is the directory FastAPI mounts at `/` (config.UI_STATIC_DIR) and
+      // the directory the container image will copy. `PublishDir` lives in the
+      // .csproj, so the output path is not repeated here.
+      "label": "Publică UI-ul",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "ui/StudioViorela/StudioViorela.csproj",
+        "-c",
+        "Release"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "silent", "panel": "shared" }
+    }
+  ]
+}

@@ -204,6 +204,7 @@ it instead (below).
 |---|---|
 | **Studio complet (3 servicii)** | the product as the client uses it: MCP, harness, Blazor. One `F5`. |
 | **Terminal (MCP + CLI)** | the same worker without a browser. The cheapest place to step through a turn. |
+| **Studio ca in container (MCP + harness)** | the served build. It publishes the UI first and FastAPI serves it from `/`, the way the image will. Open `8000`, not `5178`. |
 | **Unit tests** | a failing test from inside, instead of from its traceback. |
 | **FastAPI harness** alone | a request whose data service is already running elsewhere. |
 | **Attach to a running process** | something this editor did not start — including a container. |
@@ -211,6 +212,12 @@ it instead (below).
 The compounds start two or three processes, so the debug toolbar grows a process
 picker: you can stop inside the harness and inside the MCP tool it calls, in the same
 session.
+
+No .NET extension is required. The Blazor entry is not a `coreclr` launch: with the
+C# extension installed it would attach to the DevServer, a static file server, while
+the application runs in the browser's WebAssembly runtime where a debugger on this
+side cannot reach it. It runs as a plain command instead, and the C# that executes in
+the browser is debugged from the browser's own devtools.
 
 ### The one thing worth understanding before anything else
 
@@ -220,7 +227,7 @@ turns on. Put a breakpoint in both and the difference is visible in one sitting:
 | Where | What happens |
 |---|---|
 | `worker.py` — `while result.interruptions:` | the terminal shape. The loop **waits**: `input()` further down blocks the process until she types. |
-| `service.py` — `if result.interruptions:` in `_finish` | the HTTP shape. Nothing waits. The run is serialized into `pending_runs` and the request returns `202`. |
+| `service.py` — `if result.interruptions:` in `_finish` | the HTTP shape. Nothing waits. The run is serialized into `public.runs` (`status='pending'`) and the request returns `202`. |
 | `service.py` — `RunState.from_string(worker, …)` in `decide` | the other half, in a **different request**, possibly a different process, possibly hours later. |
 
 A container cannot block on a keyboard, and a replica scaled to zero cannot hold a

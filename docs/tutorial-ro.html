@@ -386,6 +386,22 @@
       </div>
 
       <p>
+        Aceeași frază explică și de ce configurația <code>Blazor UI</code> din
+        <code>launch.json</code> nu e o configurație de debugger. Un debugger .NET
+        s-ar atașa la procesul care servește fișierele, nu la codul care rulează în
+        browser — acolo ajungi doar din devtools-urile browserului. Așa că pornește
+        procesul și atât, fără să-ți ceară vreo extensie .NET instalată.
+      </p>
+
+      <p>
+        Dacă vrei să vezi <em>exact</em> forma din container, alege compound-ul
+        <strong>Studio ca in container (MCP + harness)</strong>: publică întâi
+        interfața, apoi pornește doar cele două procese Python, iar interfața o iei
+        de pe <code>8000</code>, nu de pe <code>5178</code>. Zero procese .NET —
+        adică fix ce se întâmplă în Azure.
+      </p>
+
+      <p>
         Împărțirea harness / content-data nu e ornament. E <strong>regula 1</strong>
         din <code>AGENTS.md</code>, făcută imposibil de încălcat: agentul nu are un
         client de bază de date, are un client MCP. Dacă mâine vrei să știi tot ce s-a

@@ -41,20 +41,19 @@
     },
     {
       // Standalone Blazor WebAssembly development host. It calls FastAPI on 8000.
+      // Deliberately not `type: coreclr`. That type comes from the C# extension,
+      // and even with the extension installed it would attach to the DevServer
+      // process, which is a static file server; the application itself runs in the
+      // browser's WebAssembly runtime, where a .NET debugger on this side cannot
+      // see it. `node-terminal` ships inside VS Code, needs no extension, and does
+      // the one thing this process needs: run the command in a terminal and stop
+      // with the rest of the compound. Debug the C# that runs in the browser from
+      // the browser's own devtools instead.
       "name": "Blazor UI",
-      "type": "coreclr",
+      "type": "node-terminal",
       "request": "launch",
-      "program": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
-      "args": [
-        "run",
-        "--project",
-        "${workspaceFolder}/ui/StudioViorela/StudioViorela.csproj",
-        "--no-launch-profile",
-        "--urls",
-        "http://127.0.0.1:5178"
-      ],
+      "command": "dotnet run --project ui/StudioViorela/StudioViorela.csproj --no-launch-profile --urls http://127.0.0.1:5178",
       "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
@@ -119,6 +118,17 @@
       // The harness may boot before MCP; /health reports degraded until MCP is ready.
       "name": "Studio complet (3 servicii)",
       "configurations": ["MCP server", "FastAPI harness", "Blazor UI"],
+      "stopAll": true
+    },
+    {
+      // The shape the container will have: no .NET process at all. The UI is
+      // published to disk first (the pre-launch task) and FastAPI serves it from
+      // `/`, exactly as the image will. Open http://127.0.0.1:8000 — not 5178.
+      // Slower to start and no hot reload, so use it to check the served build
+      // rather than to write Razor.
+      "name": "Studio ca in container (MCP + harness)",
+      "configurations": ["MCP server", "FastAPI harness"],
+      "preLaunchTask": "Publică UI-ul",
       "stopAll": true
     },
     {
