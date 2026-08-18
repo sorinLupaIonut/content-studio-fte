@@ -1,6 +1,6 @@
 {
-  // Build steps the debugger can depend on. Nothing here needs a key, so every
-  // task is safe to run at any time.
+  // Build steps the debugger can depend on, and the three services it attaches
+  // to. Nothing here needs a key, so every task is safe to run at any time.
   "version": "2.0.0",
   "tasks": [
     {
@@ -20,6 +20,165 @@
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "silent", "panel": "shared" }
+    },
+
+    // The three services below start WITHOUT a debugger and open a debugpy port
+    // instead, so the editor can attach once they are up. That order is the
+    // whole point: importing the harness raises ~131k exceptions inside Pydantic
+    // — all caught, all normal — and a debugger present during those imports
+    // inspects every one of them, turning a 5-second start into minutes.
+    // Attaching afterwards skips all of it and still stops on every breakpoint.
+    //
+    // Each is a background task: `endsPattern` matches the line
+    // `attach_if_requested` prints, so the compound in launch.json waits for the
+    // port to be open and only then attaches.
+
+    {
+      "label": "Pornește MCP server (port debug 5679)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      // `-Xfrozen_modules=off`: CPython ships frozen copies of the import
+      // machinery, and a breakpoint in a module reached through them binds to
+      // nothing — silently. See the note in src/content_studio/debug.py.
+      "args": ["-Xfrozen_modules=off", "-m", "content_studio.mcp_server.server"],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "DEBUGPY_PORT": "5679",
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "studio",
+        "pattern": [{ "regexp": "^(?!x)x$", "file": 1, "message": 2 }],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*$",
+          "endsPattern": "debugger listening on port"
+        }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Pornește harness (port debug 5678)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      // `-Xfrozen_modules=off` for the same reason as the MCP server above.
+      "args": [
+        "-Xfrozen_modules=off",
+        "-m",
+        "uvicorn",
+        "content_studio.harness.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "DEBUGPY_PORT": "5678",
+          "AUTH_MODE": "development",
+          "HARNESS_HOST": "127.0.0.1",
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "studio",
+        "pattern": [{ "regexp": "^(?!x)x$", "file": 1, "message": 2 }],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*$",
+          "endsPattern": "debugger listening on port"
+        }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      // No debug port here: the C# in this project runs in the browser's
+      // WebAssembly runtime, not in this process. Debug it from the browser's
+      // own devtools. `Now listening on` is what the DevServer prints when the
+      // port is ready.
+      "label": "Pornește Blazor UI",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "ui/StudioViorela/StudioViorela.csproj",
+        "--no-launch-profile",
+        "--urls",
+        "http://127.0.0.1:5178"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "ASPNETCORE_ENVIRONMENT": "Development" }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "studio",
+        "pattern": [{ "regexp": "^(?!x)x$", "file": 1, "message": 2 }],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*$",
+          "endsPattern": "Now listening on"
+        }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      // Stopping a debug session detaches the editor but leaves the three
+      // terminals running. Without this, the next F5 re-attaches to the OLD
+      // processes and a change made in this file appears to have had no effect
+      // — the failure looks like a broken config and costs an hour to diagnose.
+      //
+      // The filter is deliberately narrow: a process qualifies only if its
+      // command line names BOTH this workspace and one of our two entry points.
+      // Matching on a port would be shorter but would kill whatever else
+      // happened to hold 8000; matching on the path alone would take down the
+      // C# language server, which also runs under dotnet.exe.
+      //
+      // Single quotes only, and no `-Filter`. VS Code hands this string to
+      // `powershell.exe -Command`, and that parser strips double quotes on the
+      // way in — a `-Filter "Name='python.exe'"` arrives as bare `Name=...` and
+      // the whole sweep dies with a binding error it would then swallow.
+      "label": "Oprește serviciile Studio",
+      "type": "shell",
+      "command": "Get-CimInstance Win32_Process | Where-Object { ($_.Name -eq 'python.exe' -or $_.Name -eq 'dotnet.exe') -and $_.CommandLine -like '*${workspaceFolderBasename}*' -and ($_.CommandLine -like '*content_studio*' -or $_.CommandLine -like '*StudioViorela*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; exit 0",
+      "options": {
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-NoProfile", "-NonInteractive", "-Command"]
+        }
+      },
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent", "panel": "shared" }
+    },
+
+    {
+      // Parallel, because the harness reports `degraded` until MCP answers but
+      // starts fine without it.
+      "label": "Pornește cele trei servicii",
+      "dependsOn": [
+        "Pornește MCP server (port debug 5679)",
+        "Pornește harness (port debug 5678)",
+        "Pornește Blazor UI"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      // What the compound in launch.json depends on: sweep first, then start.
+      // Sequential, so the new processes never race the ones being killed for
+      // the same ports.
+      "label": "Pornește toate serviciile",
+      "dependsOn": ["Oprește serviciile Studio", "Pornește cele trei servicii"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
     }
   ]
 }

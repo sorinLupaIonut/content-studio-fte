@@ -2,6 +2,13 @@
   // The services used during local development, plus the two ways to debug
   // something the editor did not start itself.
   // Secrets stay in `.env`; this committed file never contains keys.
+  // Every configuration keeps `justMyCode: true`, and the launch configurations
+  // are paired with attach ones. Both exist for the same measured reason:
+  // importing `harness.main` raises 130_891 exceptions — all caught inside
+  // Pydantic and FastAPI, all normal — and any pydevd setting that inspects them
+  // walks the stack per exception (~84 frames each, ~11M in total). The import
+  // goes from 5s to minutes, which reads as a frozen launch. Attaching after
+  // startup skips all of it, because by then the imports are done.
   "version": "0.2.0",
   "configurations": [
     {
@@ -13,7 +20,7 @@
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "justMyCode": false
+      "justMyCode": true
     },
     {
       // Uvicorn serves the FastAPI object `app` from harness/main.py.
@@ -37,7 +44,7 @@
         "AUTH_MODE": "development",
         "HARNESS_HOST": "127.0.0.1"
       },
-      "justMyCode": false
+      "justMyCode": true
     },
     {
       // Standalone Blazor WebAssembly development host. It calls FastAPI on 8000.
@@ -74,7 +81,7 @@
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "justMyCode": false
+      "justMyCode": true
     },
     {
       // The whole free suite under the debugger. Put a breakpoint in a failing
@@ -87,16 +94,52 @@
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "justMyCode": false
+      "justMyCode": true
+    },
+    // Attaching comes in two flavours, and the difference is `pathMappings`.
+    // A local process reports real Windows paths (E:\...\src\...), so a mapping
+    // onto the image's /app/src describes a filesystem that is not there; the
+    // editor then looks for the breakpoint's file under a path the process never
+    // reports, and it binds to nothing. In a container the same mapping is
+    // exactly what makes it work. One config each, rather than one that is
+    // subtly wrong half the time.
+
+    {
+      // For a process this editor did not launch but that runs on this machine:
+      // the terminals the tasks open, or one started by hand —
+      //
+      //   $env:DEBUGPY_PORT=5678; uv run uvicorn content_studio.harness.main:app `
+      //     --host 127.0.0.1 --port 8000
+      //
+      // Add DEBUGPY_WAIT=1 when the bug is in startup itself, so the process
+      // blocks until this configuration connects.
+      "name": "Attach: harness (local)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5678
+      },
+      "justMyCode": true
     },
     {
-      // For a process the editor did not launch: one left running in a terminal,
-      // or — the case this is really here for — one inside a container.
-      // Start it with DEBUGPY_PORT=5678 (see src/content_studio/debug.py), publish
-      // that port, then run this.
-      // `remoteRoot` is where the sources live in the image; it has to match the
-      // WORKDIR the Dockerfile sets, or breakpoints bind to nothing.
-      "name": "Attach to a running process",
+      // The same door for the data service. Two ports, because both processes
+      // can be under the debugger at once and one listener cannot serve both.
+      "name": "Attach: MCP server (local)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5679
+      },
+      "justMyCode": true
+    },
+    {
+      // Once the service runs in an image: docker run -e DEBUGPY_PORT=5678 -p 5678:5678
+      // `remoteRoot` is where the sources live inside it, and it has to match the
+      // WORKDIR the Dockerfile sets — that file does not exist yet (decision D2),
+      // so treat /app/src as the value to keep in sync, not as a fact.
+      "name": "Attach: harness (container)",
       "type": "debugpy",
       "request": "attach",
       "connect": {
@@ -109,14 +152,34 @@
           "remoteRoot": "/app/src"
         }
       ],
-      "justMyCode": false
+      "justMyCode": true
     }
   ],
   "compounds": [
     {
-      // Select this one to start the entire local product with one F5.
-      // The harness may boot before MCP; /health reports degraded until MCP is ready.
-      "name": "Studio complet (3 servicii)",
+      // The one to select. The pre-launch task starts all three services in
+      // their own terminals — none of them under a debugger — and waits until
+      // each reports its port open; only then do the two attach configurations
+      // connect. That order is what makes debugging usable here: see the note at
+      // the top of the file.
+      //
+      // The UI is at http://127.0.0.1:5178 and the harness at :8000.
+      // Stopping the debug session detaches; the three terminals keep running,
+      // so re-attaching costs nothing. Starting again is also safe: the task
+      // sweeps this workspace's leftover processes before it starts new ones,
+      // so a second F5 can no longer silently re-attach to the old ones.
+      "name": "Studio complet (attach pe MCP + harness)",
+      "configurations": ["Attach: harness (local)", "Attach: MCP server (local)"],
+      "preLaunchTask": "Pornește toate serviciile",
+      "stopAll": true
+    },
+    {
+      // The old shape, kept because it is the one every VS Code tutorial shows:
+      // the editor launches each service itself. On this project it is slow to
+      // the point of looking frozen — the debugger inspects every exception
+      // raised while Pydantic builds its models — so reach for the compound
+      // above instead. This one stays useful only for a stripped-down process.
+      "name": "Studio complet (launch direct — lent)",
       "configurations": ["MCP server", "FastAPI harness", "Blazor UI"],
       "stopAll": true
     },
