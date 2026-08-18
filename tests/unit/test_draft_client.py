@@ -5,6 +5,8 @@ import unittest
 from types import SimpleNamespace
 from uuid import UUID
 
+from mcp_types import CallToolResult, TextContent
+
 from content_studio.harness.drafts import (
     DraftDataError,
     GenerationDraftClient,
@@ -26,8 +28,8 @@ class FakeServer:
     async def call_tool(self, name, arguments):
         self.calls.append((name, arguments))
         return SimpleNamespace(
-            isError=False,
-            structuredContent={"id": str(BATCH_ID), "status": "gathering"},
+            is_error=False,
+            structured_content={"id": str(BATCH_ID), "status": "gathering"},
             content=[],
         )
 
@@ -35,22 +37,22 @@ class FakeServer:
 class TestToolPayload(unittest.TestCase):
     def test_prefers_structured_content(self) -> None:
         result = SimpleNamespace(
-            isError=False, structuredContent={"answer": 42}, content=[]
+            is_error=False, structured_content={"answer": 42}, content=[]
         )
         self.assertEqual(tool_payload(result), {"answer": 42})
 
     def test_decodes_text_fallback(self) -> None:
         result = SimpleNamespace(
-            isError=False,
-            structuredContent=None,
+            is_error=False,
+            structured_content=None,
             content=[SimpleNamespace(type="text", text=json.dumps({"answer": 42}))],
         )
         self.assertEqual(tool_payload(result), {"answer": 42})
 
     def test_raises_a_safe_tool_error(self) -> None:
         result = SimpleNamespace(
-            isError=True,
-            structuredContent=None,
+            is_error=True,
+            structured_content=None,
             content=[SimpleNamespace(type="text", text="batch not found")],
         )
         with self.assertRaisesRegex(DraftDataError, "batch not found"):
@@ -109,7 +111,7 @@ class EmptyPayloadTests(unittest.TestCase):
     @staticmethod
     def _result(**kwargs):
         return SimpleNamespace(
-            isError=False, structuredContent=None, content=[], **kwargs
+            is_error=False, structured_content=None, content=[], **kwargs
         )
 
     def test_empty_result_without_default_still_refuses(self):
@@ -121,8 +123,8 @@ class EmptyPayloadTests(unittest.TestCase):
 
     def test_default_does_not_mask_a_tool_error(self):
         error = SimpleNamespace(
-            isError=True,
-            structuredContent=None,
+            is_error=True,
+            structured_content=None,
             content=[SimpleNamespace(type="text", text="boom")],
         )
         with self.assertRaises(DraftDataError):
@@ -130,8 +132,8 @@ class EmptyPayloadTests(unittest.TestCase):
 
     def test_default_does_not_mask_an_ambiguous_payload(self):
         two = SimpleNamespace(
-            isError=False,
-            structuredContent=None,
+            is_error=False,
+            structured_content=None,
             content=[
                 SimpleNamespace(type="text", text="{}"),
                 SimpleNamespace(type="text", text="{}"),
@@ -139,3 +141,27 @@ class EmptyPayloadTests(unittest.TestCase):
         )
         with self.assertRaises(DraftDataError):
             tool_payload(two, empty=[])
+
+
+class RealResultTests(unittest.TestCase):
+    """Against the SDK's own class, not a stand-in.
+
+    The stand-ins above are written by hand, so a field the SDK renames stays
+    spelled the old way on both sides and the suite keeps passing while the
+    running harness fails. That is exactly what happened when MCP 2.0 moved to
+    snake_case: `structuredContent` read as absent and `isError` as false, so a
+    tool error surfaced as "no unambiguous payload". These two build the real
+    `CallToolResult`, which cannot drift from the wire format.
+    """
+
+    def test_structured_content_is_read(self):
+        result = CallToolResult(content=[], structured_content={"answer": 42})
+        self.assertEqual(tool_payload(result), {"answer": 42})
+
+    def test_tool_error_is_raised_not_swallowed(self):
+        result = CallToolResult(
+            content=[TextContent(type="text", text="batch not found")],
+            is_error=True,
+        )
+        with self.assertRaisesRegex(DraftDataError, "batch not found"):
+            tool_payload(result)

@@ -606,7 +606,19 @@ class GenerationCoordinator:
             timeout=RUN_TIMEOUT_SECONDS,
         )
         if result.interruptions:
-            raise RuntimeError("structured generation unexpectedly requested approval")
+            # Naming the tools matters: this path is reached only when the model
+            # reached for a gated write while producing a structured draft, and
+            # which write it was decides whether the prompt or the gate is wrong.
+            requested = sorted(
+                {
+                    getattr(getattr(item, "raw_item", None), "name", None) or "?"
+                    for item in result.interruptions
+                }
+            )
+            raise RuntimeError(
+                f"structured generation unexpectedly requested approval for: "
+                f"{', '.join(requested)}"
+            )
         return result.final_output_as(output_type, raise_if_incorrect_type=True)
 
     async def _get_raw(

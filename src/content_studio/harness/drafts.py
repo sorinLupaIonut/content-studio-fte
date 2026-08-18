@@ -25,6 +25,24 @@ class DraftDataError(RuntimeError):
 _NO_DEFAULT = object()
 
 
+def _result_field(result, snake: str, camel: str) -> Any:
+    """Read one `CallToolResult` field under either spelling.
+
+    MCP 2.0 renamed the wire fields to snake_case (`structured_content`,
+    `is_error`); 1.x exposed them camelCase. Reading only one spelling fails
+    silently rather than loudly — `getattr` with a default turns a renamed field
+    into "absent", so a tool error reads as success and a structured payload
+    reads as missing. That is the bug this closes, and the reason both spellings
+    stay accepted: the harness has to work against whichever SDK the image ends
+    up with.
+    """
+
+    value = getattr(result, snake, None)
+    if value is None:
+        value = getattr(result, camel, None)
+    return value
+
+
 def tool_payload(result, *, empty: Any = _NO_DEFAULT) -> Any:
     """Normalize MCP structured content and the text fallback into one value.
 
@@ -37,7 +55,7 @@ def tool_payload(result, *, empty: Any = _NO_DEFAULT) -> Any:
     because `list_posts` returned nothing and the decoder read that as a fault.
     """
 
-    if getattr(result, "isError", False):
+    if _result_field(result, "is_error", "isError"):
         messages = [
             str(getattr(item, "text", ""))
             for item in getattr(result, "content", [])
@@ -46,7 +64,7 @@ def tool_payload(result, *, empty: Any = _NO_DEFAULT) -> Any:
         detail = " ".join(message for message in messages if message).strip()
         raise DraftDataError(detail or "content-data returned an internal tool error")
 
-    structured = getattr(result, "structuredContent", None)
+    structured = _result_field(result, "structured_content", "structuredContent")
     if structured is not None:
         # MCP servers may wrap a non-object return under `result` when exposing a
         # structured channel. Our operations return objects, but accepting the
