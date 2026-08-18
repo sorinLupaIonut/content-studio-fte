@@ -63,3 +63,58 @@ class DecisionsRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=200)
     decisions: list[ApprovalDecision] = Field(min_length=1)
     resolved_by: str = Field(default="viorela", min_length=1, max_length=200)
+
+
+class TrustedDecisionsRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=200)
+    decisions: list[ApprovalDecision] = Field(min_length=1)
+
+
+class MeResponse(BaseModel):
+    principal_id: str
+    email: str
+    provider: str
+    is_development: bool
+
+
+ProfileGroup = Literal[
+    "identity",
+    "ideal_client",
+    "voice",
+    "offer",
+    "pillars",
+    "ctas",
+    "restrictions",
+    "results",
+]
+ProfileBlockKind = Literal["paragraph", "bullet", "ordered", "quote"]
+
+
+class ProfileBlock(BaseModel):
+    kind: ProfileBlockKind
+    text: str = Field(min_length=1, max_length=12_000)
+
+    @field_validator("text")
+    @classmethod
+    def compact_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("profile block must not be blank")
+        return value
+
+
+class ProfileSection(BaseModel):
+    key: str
+    title: str
+    group: ProfileGroup
+    update_name: str = Field(exclude=True)
+    blocks: list[ProfileBlock]
+    read_only: bool = False
+
+
+class ProfileSectionsResponse(BaseModel):
+    sections: list[ProfileSection]
+
+
+class ProfileUpdateRequest(BaseModel):
+    blocks: list[ProfileBlock] = Field(min_length=1, max_length=250)

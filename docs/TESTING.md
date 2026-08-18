@@ -51,7 +51,7 @@ uv run content-studio-server
 Leave it open. A good start says:
 
 ```text
-content-data · five tools · http://127.0.0.1:8765/mcp
+content-data · seven tools · http://127.0.0.1:8765/mcp
 ```
 
 Everything below uses a second terminal.
@@ -63,7 +63,8 @@ uv run python tests/checks/bootstrap.py
 ```
 
 No model call, no writes. It reads the profile over MCP without printing its
-content. Expect four ticks: exactly five tools, no SQL tool, the client's name, and
+content. Expect five ticks: the seven model-visible tools plus the internal UI
+operations, no SQL tool, the client's name, and
 roughly 30,000 characters of profile.
 
 ## Rung 2 — one service at a time

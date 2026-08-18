@@ -1,0 +1,707 @@
+@page "/"
+@page "/generator"
+@implements IAsyncDisposable
+@inject StudioApiClient Api
+@inject GenerationEventStream Events
+@inject StudioContextState ContextState
+
+<PageTitle>Generator · Studio Viorela</PageTitle>
+
+<section class="page-heading generator-heading">
+    <div>
+        <span class="eyebrow">Planifică simplu</span>
+        <h1>Ce vrei să creezi astăzi?</h1>
+        <p>Primești întâi 10 idei clare. Fiecare idee se dezvoltă apoi în fundal cu 5 hook-uri și conținutul complet.</p>
+    </div>
+    <span class="step-chip">nano titluri · mini detalii · 5 în paralel</span>
+</section>
+
+@if (_error is not null)
+{
+    <div class="notice notice-error" role="alert">
+        <span>@_error</span>
+        <button class="icon-button" type="button" @onclick="() => _error = null" aria-label="Închide mesajul">×</button>
+    </div>
+}
+
+<section class="generator-card">
+    <div class="field-grid">
+        <label>
+            <span>Sursa ideilor</span>
+            <select @bind="_source" disabled="@_busy">
+                <option>Memorie</option>
+                <option>Cărți</option>
+                <option>Internet</option>
+                <option>Combinat</option>
+            </select>
+        </label>
+        <label>
+            <span>Pilon</span>
+            <select @bind="_pillar" disabled="@_busy">
+                <option>Poziționare</option>
+                <option>Educație</option>
+                <option>Conexiune</option>
+                <option>Conversie</option>
+                <option>Magnetism</option>
+            </select>
+        </label>
+        <label>
+            <span>Format</span>
+            <select @bind="_format" disabled="@_busy">
+                <option>Reel</option>
+                <option>Carusel</option>
+                <option>Stories</option>
+            </select>
+        </label>
+    </div>
+
+    @if (UsesBooks)
+    {
+        <fieldset class="book-picker">
+            <legend>Cărți preferate <small>(opțional — fără selecție caută în toate)</small></legend>
+            @if (_libraryLoading)
+            {
+                <span class="muted-copy">Se încarcă biblioteca…</span>
+            }
+            else
+            {
+                <div class="book-options">
+                    @foreach (var item in _library)
+                    {
+                        <label>
+                            <input type="checkbox" checked="@_selectedBooks.Contains(item.Id)" @onchange="eventArgs => ToggleBook(item.Id, eventArgs)" />
+                            <span>
+                                <strong>@item.Title</strong>
+                                <small>@item.Author@(item.IsSummary ? " · rezumat" : "")</small>
+                            </span>
+                        </label>
+                    }
+                </div>
+            }
+        </fieldset>
+    }
+
+    <label class="focus-field">
+        <span>Ce focus ai pentru săptămâna aceasta? <small>(opțional)</small></span>
+        <textarea @bind="_focus" disabled="@_busy" placeholder="De exemplu: cum recunoști că ai intrat din nou în people pleasing"></textarea>
+    </label>
+    <p class="field-note">Sursa se colectează o singură dată și este folosită identic pentru toate cele 10 idei.</p>
+    <button class="button button-primary generate-button" disabled="@_busy" @onclick="() => StartAsync(false)">
+        @(_busy ? "Se pregătește lotul…" : "Generează 10 idei")
+    </button>
+</section>
+
+@if (_confirmReplace)
+{
+    <section class="replace-panel" role="alertdialog" aria-label="Înlocuiește lotul curent">
+        <div>
+            <span class="eyebrow">Ai deja un lot curent</span>
+            <h3>Vrei să-l înlocuiești?</h3>
+            <p>Lotul existent nu va mai fi curent. Postările deja salvate nu sunt afectate.</p>
+        </div>
+        <div>
+            <button class="button button-ghost" @onclick="() => _confirmReplace = false">Păstrează-l</button>
+            <button class="button button-primary" @onclick="() => StartAsync(true)">Înlocuiește și generează</button>
+        </div>
+    </section>
+}
+
+@if (_loadingBatch)
+{
+    <section class="loading-card"><span class="spinner"></span> Se recuperează lotul curent…</section>
+}
+else if (_batch is not null)
+{
+    <section class="ideas-list" aria-label="Ideile generate">
+        <header>
+            <div>
+                <span class="eyebrow">Lotul tău curent</span>
+                <h2>Ideile tale</h2>
+                <p>@BatchStatus(_batch)</p>
+            </div>
+            <div class="batch-actions">
+                <span class="count-chip">@_batch.Ideas.Count / 10 titluri</span>
+                @if (!IsTerminal(_batch.Status))
+                {
+                    <button class="button button-ghost" disabled="@_busy" @onclick="CancelAsync">Oprește</button>
+                }
+            </div>
+        </header>
+
+        @if (_batch.Ideas.Count == 0)
+        {
+            @for (var index = 1; index <= 10; index++)
+            {
+                <article class="idea-card idea-waiting">
+                    <span class="idea-number">@index</span>
+                    <div class="idea-title-copy">
+                        <strong>Se pregătește titlul…</strong>
+                        <small>nano lucrează la prima listă</small>
+                    </div>
+                    <span class="mini-spinner"></span>
+                </article>
+            }
+        }
+        else
+        {
+            @foreach (var idea in _batch.Ideas.OrderBy(item => item.Ordinal))
+            {
+                <article class="idea-card status-@idea.Status">
+                    <button class="idea-card-header" type="button" disabled="@(idea.Status != "ready")" @onclick="() => ToggleIdea(idea)" aria-expanded="@IsExpanded(idea.Id)">
+                        <span class="idea-number">@idea.Ordinal</span>
+                        <span class="idea-title-copy">
+                            <strong>@idea.Title</strong>
+                            <small>@_batch.Format · @_batch.Pillar · @IdeaStatus(idea)</small>
+                        </span>
+                        <span class="idea-state">@IdeaStateIcon(idea.Status)</span>
+                        <span class="chevron @(IsExpanded(idea.Id) ? "open" : null)">⌄</span>
+                    </button>
+
+                    @if (idea.Status == "failed")
+                    {
+                        <div class="idea-error">@idea.LastError</div>
+                    }
+
+                    @if (IsExpanded(idea.Id) && idea.Status == "ready")
+                    {
+                        var active = ActiveVariant(idea);
+                        <div class="idea-details">
+                            <div class="variant-tabs" role="tablist" aria-label="Tipuri de hook">
+                                @foreach (var variant in idea.Variants)
+                                {
+                                    <button type="button" role="tab" class="@VariantTabClass(idea, variant)" aria-selected="@(active?.Id == variant.Id)" @onclick="() => ActivateVariant(idea, variant)">
+                                        @HookLabel(variant.HookType)
+                                        @if (variant.IsSelected)
+                                        {
+                                            <span title="Variantă aleasă">✓</span>
+                                        }
+                                    </button>
+                                }
+                            </div>
+
+                            @if (active is not null)
+                            {
+                                <div class="variant-content" role="tabpanel">
+                                    <section class="content-block hook-block">
+                                        <span class="content-label">Hook · @HookLabel(active.HookType)</span>
+                                        <p>@active.Hook</p>
+                                    </section>
+                                    <section class="content-block">
+                                        <span class="content-label">Script / conținut</span>
+                                        <p class="preserve-lines">@active.Script</p>
+                                    </section>
+                                    @if (active.FormatDetails is not null)
+                                    {
+                                        <section class="content-block format-production">
+                                            <span class="content-label">Producție · @active.FormatDetails.DurationOrCount</span>
+                                            <p>@active.FormatDetails.VisualDirection</p>
+                                            <ol>
+                                                @foreach (var block in active.FormatDetails.ContentBlocks)
+                                                {
+                                                    <li>@block</li>
+                                                }
+                                            </ol>
+                                        </section>
+                                    }
+                                    <section class="content-block">
+                                        <span class="content-label">Caption</span>
+                                        <p class="preserve-lines">@active.Caption</p>
+                                    </section>
+                                    <div class="variant-meta">
+                                        <p><strong>CTA:</strong> @active.Cta</p>
+                                        <p><strong>Hashtaguri:</strong> @string.Join(" ", active.Hashtags ?? [])</p>
+                                        <p><strong>Sursă:</strong> @active.Source</p>
+                                    </div>
+                                    <button class="button @(active.IsSelected ? "button-selected" : "button-primary")" disabled="@(_busy || active.IsSelected)" @onclick="() => SelectVariantAsync(active)">
+                                        @(active.IsSelected ? "✓ Varianta aleasă" : "Alege această variantă")
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+                </article>
+            }
+        }
+    </section>
+}
+
+@if (_batch is not null && SaveCandidates.Count > 0)
+{
+    <section class="save-panel" aria-label="Postările pregătite pentru salvare">
+        <header>
+            <div>
+                <span class="eyebrow">Gata de salvat</span>
+                <h2>Postările finale</h2>
+                <p>Bifează ce vrei să păstrezi. Se salvează toate odată sau niciuna, după confirmarea ta.</p>
+            </div>
+            <span class="count-chip">@_toSave.Count / @SaveCandidates.Count bifate</span>
+        </header>
+
+        <ul class="save-list">
+            @foreach (var candidate in SaveCandidates)
+            {
+                <li>
+                    <label>
+                        <input type="checkbox" checked="@_toSave.Contains(candidate.Variant.Id)" @onchange="eventArgs => ToggleSave(candidate.Variant.Id, eventArgs)" />
+                        <span>
+                            <strong>@candidate.Idea.Title</strong>
+                            <small>@HookLabel(candidate.Variant.HookType) · @_batch.Format · @_batch.Pillar</small>
+                        </span>
+                    </label>
+                </li>
+            }
+        </ul>
+
+        <div class="save-actions">
+            <span>Nimic nu se scrie fără confirmarea ta.</span>
+            <button class="button button-primary" disabled="@(_busy || _toSave.Count == 0)" @onclick="PrepareSaveAsync">
+                @(_busy && _saveRun is null ? "Se pregătește…" : $"Pregătește salvarea ({_toSave.Count})")
+            </button>
+        </div>
+
+        @if (_saveRun is not null)
+        {
+            <ApprovalPanel Run="_saveRun"
+                           Busy="_busy"
+                           Title="Salvezi postările alese?"
+                           Message="Ajung în „Salvate” numai după ce apeși Confirmă. Se salvează toate odată sau niciuna."
+                           RejectLabel="Nu acum"
+                           Summary="SaveSummary"
+                           OnDecision="DecideSaveAsync" />
+        }
+
+        @if (_saveMessage is not null)
+        {
+            <div class="notice notice-success" role="status">@_saveMessage</div>
+        }
+    </section>
+}
+
+@code {
+    private readonly HashSet<string> _selectedBooks = [];
+    private readonly HashSet<string> _expandedIdeas = [];
+    private readonly Dictionary<string, string> _activeHooks = [];
+    private readonly HashSet<string> _toSave = [];
+    private List<LibraryItemDto> _library = [];
+    private GenerationBatchDto? _batch;
+    private string _source = "Memorie";
+    private string _pillar = "Educație";
+    private string _format = "Reel";
+    private string? _focus;
+    private string? _error;
+    private bool _busy;
+    private bool _loadingBatch = true;
+    private bool _libraryLoading = true;
+    private bool _confirmReplace;
+    private bool _disposed;
+    private RunResponseDto? _saveRun;
+    private string? _saveMessage;
+
+    private bool UsesBooks => _source is "Cărți" or "Combinat";
+
+    /// <summary>One chosen, ready variant per idea — the only things savable.</summary>
+    private List<SaveCandidate> SaveCandidates =>
+        _batch is null
+            ? []
+            : _batch.Ideas
+                .OrderBy(idea => idea.Ordinal)
+                .Select(idea => new
+                {
+                    Idea = idea,
+                    Variant = idea.Variants.FirstOrDefault(
+                        variant => variant.IsSelected && variant.Status == "ready")
+                })
+                .Where(entry => entry.Variant is not null)
+                .Select(entry => new SaveCandidate(entry.Idea, entry.Variant!))
+                .ToList();
+
+    private List<string> SaveSummary => SaveCandidates
+        .Where(candidate => _toSave.Contains(candidate.Variant.Id))
+        .Select(candidate => $"{candidate.Idea.Title} · {HookLabel(candidate.Variant.HookType)}")
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Events.EventReceived += OnGenerationEventAsync;
+        Events.ConnectionInterrupted += OnConnectionInterruptedAsync;
+        ContextState.GenerationPatched += OnGenerationPatchedAsync;
+        await Task.WhenAll(LoadLibraryAsync(), LoadCurrentAsync());
+    }
+
+    private async Task LoadLibraryAsync()
+    {
+        try
+        {
+            _library = (await Api.GetLibraryAsync()).Items;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _libraryLoading = false;
+        }
+    }
+
+    private async Task LoadCurrentAsync()
+    {
+        try
+        {
+            _batch = (await Api.GetCurrentGenerationAsync()).Batch;
+            if (_batch is not null && !IsTerminal(_batch.Status))
+            {
+                await Events.ConnectAsync(Api.GenerationEventsUrl(_batch.Id));
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loadingBatch = false;
+        }
+    }
+
+    private async Task StartAsync(bool replace)
+    {
+        if (_batch is not null && !replace)
+        {
+            _confirmReplace = true;
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _confirmReplace = false;
+        try
+        {
+            var envelope = await Api.StartGenerationAsync(new GenerationStartDto
+            {
+                Format = _format,
+                Pillar = _pillar,
+                Source = _source,
+                Focus = _focus,
+                MaterialIds = UsesBooks ? _selectedBooks.ToList() : [],
+                ReplaceCurrent = replace
+            });
+            _batch = envelope.Batch;
+            _expandedIdeas.Clear();
+            _activeHooks.Clear();
+            if (_batch is not null)
+            {
+                await Events.ConnectAsync(Api.GenerationEventsUrl(_batch.Id));
+            }
+        }
+        catch (StudioApiException ex) when (ex.StatusCode == 409)
+        {
+            _confirmReplace = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RefreshBatchAsync()
+    {
+        if (_batch is not null)
+        {
+            _batch = (await Api.GetGenerationAsync(_batch.Id)).Batch;
+            // A variant she un-chose, or one a rewrite reset, must not stay
+            // silently ticked in a save she is about to confirm.
+            var savable = SaveCandidates.Select(candidate => candidate.Variant.Id).ToHashSet();
+            _toSave.RemoveWhere(id => !savable.Contains(id));
+        }
+    }
+
+    private async Task OnGenerationEventAsync(string eventType)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        await InvokeAsync(async () =>
+        {
+            try
+            {
+                await RefreshBatchAsync();
+                if (eventType == "idea.ready" && _batch is not null)
+                {
+                    var firstReady = _batch.Ideas.FirstOrDefault(idea => idea.Status == "ready");
+                    if (firstReady is not null && _expandedIdeas.Count == 0)
+                    {
+                        _expandedIdeas.Add(firstReady.Id);
+                        SetChatTarget(firstReady);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _error = ex.Message;
+            }
+            StateHasChanged();
+        });
+    }
+
+    private Task OnConnectionInterruptedAsync()
+    {
+        if (_disposed || _batch is null || IsTerminal(_batch.Status))
+        {
+            return Task.CompletedTask;
+        }
+        return InvokeAsync(() =>
+        {
+            _error = "Conexiunea live se reface automat. Lotul rămâne salvat.";
+            StateHasChanged();
+        });
+    }
+
+    private async Task CancelAsync()
+    {
+        if (_batch is null)
+        {
+            return;
+        }
+        _busy = true;
+        try
+        {
+            await Api.CancelGenerationAsync(_batch.Id);
+            await Events.DisconnectAsync();
+            await RefreshBatchAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SelectVariantAsync(GenerationVariantDto variant)
+    {
+        _busy = true;
+        try
+        {
+            await Api.SelectVariantAsync(variant.Id);
+            await RefreshBatchAsync();
+            _toSave.Add(variant.Id);
+            _saveMessage = null;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ToggleBook(string id, ChangeEventArgs eventArgs)
+    {
+        if (eventArgs.Value is true)
+        {
+            _selectedBooks.Add(id);
+        }
+        else
+        {
+            _selectedBooks.Remove(id);
+        }
+    }
+
+    private void ToggleSave(string variantId, ChangeEventArgs eventArgs)
+    {
+        if (eventArgs.Value is true)
+        {
+            _toSave.Add(variantId);
+        }
+        else
+        {
+            _toSave.Remove(variantId);
+        }
+        _saveRun = null;
+    }
+
+    private async Task PrepareSaveAsync()
+    {
+        _busy = true;
+        _error = null;
+        _saveMessage = null;
+        _saveRun = null;
+        try
+        {
+            _saveRun = await Api.PrepareBatchSaveAsync(_toSave);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DecideSaveAsync(bool approved)
+    {
+        if (_saveRun is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = await Api.DecideAsync(_saveRun, approved);
+            _saveRun = null;
+            if (approved && result.Status == "completed")
+            {
+                _saveMessage = $"Am salvat {_toSave.Count} postări. Le găsești în „Salvate”.";
+                _toSave.Clear();
+            }
+            else
+            {
+                _saveMessage = "Salvarea a fost anulată. Nimic nu s-a scris.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ToggleIdea(GenerationIdeaDto idea)
+    {
+        if (!_expandedIdeas.Remove(idea.Id))
+        {
+            _expandedIdeas.Add(idea.Id);
+            SetChatTarget(idea);
+        }
+    }
+
+    private bool IsExpanded(string id) => _expandedIdeas.Contains(id);
+
+    private GenerationVariantDto? ActiveVariant(GenerationIdeaDto idea)
+    {
+        var hook = _activeHooks.GetValueOrDefault(idea.Id);
+        return idea.Variants.FirstOrDefault(item => item.HookType == hook)
+            ?? idea.Variants.FirstOrDefault(item => item.IsSelected)
+            ?? idea.Variants.FirstOrDefault();
+    }
+
+    private void ActivateVariant(GenerationIdeaDto idea, GenerationVariantDto variant)
+    {
+        _activeHooks[idea.Id] = variant.HookType;
+        if (_batch is not null)
+        {
+            ContextState.SetGenerationVariant(
+                _batch.Id, idea.Id, idea.Title, variant);
+        }
+    }
+
+    private void SetChatTarget(GenerationIdeaDto idea)
+    {
+        var variant = ActiveVariant(idea);
+        if (_batch is not null && variant is not null)
+        {
+            ContextState.SetGenerationVariant(
+                _batch.Id, idea.Id, idea.Title, variant);
+        }
+    }
+
+    private async Task OnGenerationPatchedAsync(string variantId)
+    {
+        await InvokeAsync(async () =>
+        {
+            await RefreshBatchAsync();
+            if (_batch is not null)
+            {
+                var idea = _batch.Ideas.FirstOrDefault(item =>
+                    item.Variants.Any(variant => variant.Id == variantId));
+                if (idea is not null)
+                {
+                    var variant = idea.Variants.First(item => item.Id == variantId);
+                    ContextState.SetGenerationVariant(
+                        _batch.Id, idea.Id, idea.Title, variant);
+                }
+            }
+            StateHasChanged();
+        });
+    }
+
+    private string VariantTabClass(GenerationIdeaDto idea, GenerationVariantDto variant) =>
+        ActiveVariant(idea)?.Id == variant.Id ? "active" : "";
+
+    private static bool IsTerminal(string status) =>
+        status is "ready" or "failed" or "cancelled" or "replaced";
+
+    private static string HookLabel(string value) => value switch
+    {
+        "PROVOCARE" => "Provocare",
+        "CIFRA" => "Cifră",
+        "SECRET" => "Secret",
+        "INTREBARE" => "Întrebare",
+        "CONTRAST" => "Contrast",
+        _ => value
+    };
+
+    private static string IdeaStateIcon(string status) => status switch
+    {
+        "ready" => "✓",
+        "failed" => "!",
+        "cancelled" => "×",
+        _ => "·"
+    };
+
+    private static string IdeaStatus(GenerationIdeaDto idea) => idea.Status switch
+    {
+        "waiting" => "așteaptă detaliile",
+        "generating" => "se dezvoltă acum",
+        "retrying" => $"se reîncearcă · încercarea {idea.RetryCount + 1}",
+        "ready" => "5 variante gata",
+        "failed" => "nefinalizată",
+        "cancelled" => "oprită",
+        _ => idea.Status
+    };
+
+    private static string BatchStatus(GenerationBatchDto batch) => batch.Status switch
+    {
+        "gathering" => "Se generează cele 10 titluri. Poți lăsa pagina deschisă.",
+        "titles_ready" => "Titlurile sunt gata; pornesc detaliile.",
+        "generating" => $"{batch.Ideas.Count(idea => idea.Status == "ready")}/10 idei dezvoltate complet.",
+        "ready" => "Toate cele 10 idei au câte 5 variante complete.",
+        "failed" => "Lotul s-a oprit; ideile gata au rămas disponibile.",
+        "cancelled" => "Lotul a fost oprit.",
+        "replaced" => "Lotul a fost înlocuit.",
+        _ => batch.Status
+    };
+
+    private sealed record SaveCandidate(
+        GenerationIdeaDto Idea, GenerationVariantDto Variant);
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Events.EventReceived -= OnGenerationEventAsync;
+        Events.ConnectionInterrupted -= OnConnectionInterruptedAsync;
+        ContextState.GenerationPatched -= OnGenerationPatchedAsync;
+        if (_batch is not null)
+        {
+            ContextState.ClearGenerationVariant(_batch.Id);
+        }
+        await Events.DisconnectAsync();
+    }
+}

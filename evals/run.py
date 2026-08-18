@@ -27,6 +27,7 @@ from agents.run_config import RunConfig, SandboxRunConfig
 from content_studio import enable_utf8_output
 from content_studio.audit import calls_in
 from content_studio.config import MCP_TIMEOUT, MCP_URL
+from content_studio.mcp_server.protocol import MODEL_VISIBLE_TOOLS
 from content_studio.worker import (
     GATED_TOOLS,
     build_sandbox,
@@ -199,6 +200,7 @@ async def main() -> int:
         params={"url": MCP_URL},
         name="content-data",
         cache_tools_list=True,
+        tool_filter={"allowed_tool_names": sorted(MODEL_VISIBLE_TOOLS)},
         client_session_timeout_seconds=MCP_TIMEOUT,
         require_approval={"always": {"tool_names": list(GATED_TOOLS)}},
     )
@@ -283,7 +285,7 @@ async def main() -> int:
                 }
             )
     finally:
-        await client.delete(sandbox)
+        await sandbox.aclose()
         await data_mcp.cleanup()
 
     options.report.parent.mkdir(parents=True, exist_ok=True)

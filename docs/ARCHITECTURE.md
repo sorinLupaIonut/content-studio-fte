@@ -29,15 +29,15 @@ The design answers those three, in that order.
 
 ## 2. The shape
 
-One `SandboxAgent` with the client profile and ten output rules in its system
-prompt. Two folder-shaped skills mounted into an E2B sandbox. Five tools reached
-over HTTP from a purpose-built MCP server. One Postgres database behind that server,
-plus two direct connections the worker keeps for itself — conversation memory and
-the audit trail.
+One `SandboxAgent` definition with the client profile and ten output rules in its
+system prompt. Two folder-shaped skills mounted into E2B. Five model-visible tools
+and typed internal UI operations reached over HTTP from a purpose-built MCP server.
+One Postgres database behind that server, plus two direct connections the harness
+keeps only for SDK conversation memory and the approval/audit trail.
 
 ```
 The client
-    │  terminal, Romanian
+    │  terminal or Blazor WebAssembly, Romanian
     ▼
 worker.py ─── profile + 10 output rules ──► one SandboxAgent
     │                                            │
@@ -50,7 +50,16 @@ worker.py ─── profile + 10 output rules ──► one SandboxAgent
          ├─ search_web        ─► OpenAI web search
          ├─ list_posts        ─► Neon
          ├─ save_post         ─► Neon, only after approval
+         ├─ save_posts_batch  ─► Neon, only after approval, all or none
+         ├─ update_post       ─► Neon, only after approval
          └─ update_profile    ─► Neon, only after approval
+
+FastAPI harness
+    ├─ trusted identity (local loopback or Azure Easy Auth headers)
+    ├─ structured profile API + approval resume
+    ├─ title-first generation + SSE
+    ├─ saved posts: batch save and rewrite, both through the same gate
+    └─ internal `ui_*` MCP operations ─► durable generation drafts
 
 audit.py ─── own connection ──► messages, skills, calls, approvals, results
 ```
@@ -73,6 +82,9 @@ the deployment crash course's five-table model adopted whole at D4.
 | `embeddings` | 4,778 chunks, 1536 dimensions, HNSW index | one link, to a document, enforced by NOT NULL since Decision 11 |
 | `clients` | one content column, `profile_md` | it lives here rather than in embeddings because it is the only material that gets *written to*: you cannot UPDATE a vector |
 | `posts` | the finished posts | at 27 rows, "have I written about this?" is a WHERE, not a vector search |
+| `generation_batches` | one current unsaved batch per authenticated principal | holds the bounded source packet and survives refresh |
+| `generation_ideas` | exactly ten title/angle rows | each reports its own generation and retry state |
+| `generation_variants` | five complete hook variants per idea | at most one selected variant per idea |
 
 **Durable state** (D4). Every statement names its schema — `public.runs` — because
 Neon's pooled endpoint makes no promise about `search_path` surviving between
@@ -104,10 +116,12 @@ loses whatever it does not recognize, and that loss would be silent.
 ### The HTTP control plane (deployment D1)
 
 The terminal loop still works, but the FastAPI harness is the cloud-facing front
-door. It owns the run lifecycle; E2B remains only the execution plane. In
-particular the harness passes `SandboxRunConfig(client=…, options=…)`, never a
-live `session=`, so the SDK can serialize the sandbox resume payload together
-with `RunState`.
+door. It owns the run lifecycle; E2B remains only the execution plane. For an
+approval-resumable D1 call the harness passes
+`SandboxRunConfig(client=…, options=…)`, not a live session, so the SDK can
+serialize the sandbox resume payload with `RunState`. A chat turn instead owns a
+live sandbox only while its SSE stream is active, which makes immediate
+cancellation possible; it closes that session when the stream ends.
 
 | Endpoint | Contract |
 |---|---|
@@ -116,12 +130,41 @@ with `RunState`.
 | `GET /sessions/{session_id}/pending` | restores the approval screen after refresh or scale-to-zero |
 | `POST /runs/{run_id}/decisions` | requires one decision per interrupted call and resumes that exact run |
 
+Authenticated Blazor routes use `/api/*`. `GET /api/me` exposes only the trusted
+identity, profile reads return structured blocks rather than raw Markdown, and
+profile writes still become a normal interrupted `update_profile` call. Generation
+uses `/api/generation-batches`, per-batch reads/cancel, one variant-selection
+operation and an SSE event resource. Chat starts through `/api/chat/runs`, streams
+through `/api/runs/{run_id}/events`, and can be stopped explicitly. The browser
+supplies only a typed target ID; the server verifies its ownership through
+`content-data`. Text deltas are exposed immediately, while a structured draft
+patch is persisted only after the complete object validates. The browser never
+supplies the audit actor.
+
+Production identity comes from Azure Container Apps Easy Auth headers. Authorization
+starts with a deployment email allow-list and moves to stable principal IDs after
+the two Google identities have signed in once. Development auth refuses non-loopback
+binding and refuses to run when Azure environment markers are present.
+
 The process may boot in a degraded state so Azure can expose diagnostics, but it
 does not fall back to SQLite: a run is refused unless Neon can hold the approval
 gate durably. R2 is likewise not faked locally; it remains the explicit D5
 decision, and `posts` are domain rows rather than artifacts.
 
-## 4. The flow: two phases, four questions
+## 4. The flow: one method, two UI passes
+
+The terminal conversation still uses the interview below. The Blazor generator
+collects format, pillar, source and optional focus in a form, gathers the source
+packet once, then runs the same agent definition in two strict structured passes:
+
+1. `gpt-5-nano` returns exactly ten persisted title/angle rows;
+2. `gpt-5-mini` develops one idea per job into all five complete hook variants,
+   with at most five jobs running concurrently.
+
+SSE publishes the durable states. Refresh reads the same batch from Neon. A failed
+idea retries without discarding the other nine. Ten concurrent detail calls were
+rejected by the real-stack probe because the Tier-1 token window dominated; five
+is therefore the explicit default rather than an arbitrary tuning value.
 
 **Phase 1 — `propune-postari`.** Three questions, asked one at a time, none of them
 assumed: the **format** (Reel, Carousel, Stories), the **pillar**, and the **source**
@@ -222,9 +265,12 @@ so the database can be asked which rows are stale.
 
 - **Vector search over the posts.** At 26 rows, a `WHERE` on title, pillar and date
   answers the question. It becomes worth it in the hundreds.
-- **Multi-user authentication.** `runs.resolved_by` records `'viorela'` today.
-  Authentication and a real user identity are deferred to the production
-  checklist; the column keeps that decision reversible.
+- **Public registration.** Authentication exists, but access is intentionally
+  limited to two deployment-configured Google identities. Permanent content is
+  shared; unsaved batches and chat sessions are principal-owned.
+- **Uploads and dictation.** The Library route and streaming chat exist, but
+  original-file storage, extraction, embeddings for new files, chat attachments
+  and Romanian audio transcription stay behind the later media checkpoint.
 - **A tool for the profile.** It is a resource precisely so the model cannot choose
   to call it.
 - **Anything from the project mounted into the sandbox except `skills/`.** `.env`

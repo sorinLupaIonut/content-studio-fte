@@ -1,0 +1,284 @@
+@implements IAsyncDisposable
+@using System.Text.Json
+@inject StudioApiClient Api
+@inject ChatEventStream Events
+@inject StudioContextState ContextState
+
+<button class="chat-launcher" type="button" @onclick="Toggle" aria-expanded="@_open" aria-label="Vorbește cu agentul" title="Vorbește cu agentul">
+    <span aria-hidden="true">✦</span>
+    <span>Vorbește cu agentul</span>
+</button>
+
+@if (_open)
+{
+    <aside class="chat-drawer" aria-label="Chat cu agentul">
+        <header>
+            <div>
+                <span class="eyebrow">Asistentul tău</span>
+                <h2>Hai să lucrăm împreună</h2>
+            </div>
+            <button class="icon-button" type="button" @onclick="Toggle" aria-label="Închide chatul">×</button>
+        </header>
+        <div class="chat-context" title="@ContextState.Target.Label">
+            <span class="status-dot"></span>
+            <span>Context: @ContextState.Target.Label</span>
+        </div>
+
+        <div class="chat-messages" aria-live="polite">
+            @if (_messages.Count == 0)
+            {
+                <div class="chat-empty">
+                    <span class="chat-spark">✦</span>
+                    <strong>Spune-i ce vrei să schimbi.</strong>
+                    <p>Dacă ai deschis o variantă, agentul lucrează exact pe ea. Altfel răspunde în conversația generală.</p>
+                </div>
+            }
+            @foreach (var message in _messages)
+            {
+                <article class="chat-message chat-@message.Role @(message.Error ? "chat-error" : null)">
+                    <span>@(message.Role == "user" ? "Tu" : "Agent")</span>
+                    <p class="preserve-lines">
+                        @message.Text
+                        @if (message.Streaming)
+                        {
+                            <span class="stream-caret" aria-label="Răspuns în curs"></span>
+                        }
+                    </p>
+                    @if (message.Stopped)
+                    {
+                        <small>Răspuns oprit · textul parțial nu a modificat conținutul.</small>
+                    }
+                    else if (message.Patched)
+                    {
+                        <small>
+                            @(message.PatchIsDraft
+                                ? "✎ Postarea a fost rescrisă în editor. Se salvează abia după «Salvează modificările»."
+                                : "✓ Varianta din generator a fost actualizată.")
+                        </small>
+                    }
+                </article>
+            }
+        </div>
+
+        @if (_connectionNote is not null)
+        {
+            <div class="chat-connection-note" role="status">@_connectionNote</div>
+        }
+
+        <footer class="chat-composer">
+            <textarea @bind="_draft" disabled="@_busy" placeholder="Scrie-i agentului în limba română…"></textarea>
+            <div>
+                <button class="icon-button" disabled title="Atașamente — etapa media">＋</button>
+                <button class="icon-button" disabled title="Microfon — etapa media">◉</button>
+                @if (_busy)
+                {
+                    <button class="send-button stop-button" @onclick="StopAsync">Oprește</button>
+                }
+                else
+                {
+                    <button class="send-button" disabled="@string.IsNullOrWhiteSpace(_draft)" @onclick="SendAsync">Trimite</button>
+                }
+            </div>
+        </footer>
+    </aside>
+    <button class="drawer-scrim" type="button" @onclick="Toggle" aria-label="Închide chatul"></button>
+}
+
+@code {
+    private readonly List<ChatMessageView> _messages = [];
+    private string _draft = "";
+    private string? _runId;
+    private string? _connectionNote;
+    private bool _open;
+    private bool _busy;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        Events.EventReceived += OnEventAsync;
+        Events.ConnectionInterrupted += OnInterruptedAsync;
+        ContextState.Changed += OnContextChanged;
+    }
+
+    private void Toggle() => _open = !_open;
+
+    private async Task SendAsync()
+    {
+        var text = _draft.Trim();
+        if (_busy || text.Length == 0)
+        {
+            return;
+        }
+
+        var target = new ChatTargetDto
+        {
+            Kind = ContextState.Target.Kind,
+            Id = ContextState.Target.Id,
+            BatchId = ContextState.Target.BatchId,
+            IdeaId = ContextState.Target.IdeaId,
+            Label = ContextState.Target.Label
+        };
+        _draft = "";
+        _connectionNote = null;
+        _messages.Add(new ChatMessageView("user", text));
+        _messages.Add(new ChatMessageView("assistant", "") { Streaming = true });
+        _busy = true;
+        try
+        {
+            var run = await Api.StartChatAsync(new ChatStartDto
+            {
+                Message = text,
+                Target = target
+            });
+            _runId = run.RunId;
+            await Events.ConnectAsync(Api.ChatEventsUrl(run.RunId));
+        }
+        catch (Exception ex)
+        {
+            FinishAssistant(error: ex.Message);
+        }
+    }
+
+    private async Task StopAsync()
+    {
+        if (_runId is null)
+        {
+            return;
+        }
+        try
+        {
+            await Api.CancelChatAsync(_runId);
+            _connectionNote = "Se oprește răspunsul…";
+        }
+        catch (Exception ex)
+        {
+            _connectionNote = ex.Message;
+        }
+    }
+
+    private Task OnEventAsync(string eventType, string data)
+    {
+        if (_disposed)
+        {
+            return Task.CompletedTask;
+        }
+        return InvokeAsync(async () =>
+        {
+            var envelope = JsonSerializer.Deserialize<StudioStreamEventDto>(data);
+            if (envelope is null)
+            {
+                return;
+            }
+            var assistant = _messages.LastOrDefault(item => item.Role == "assistant");
+            switch (eventType)
+            {
+                case "text.delta":
+                    if (assistant is not null && envelope.Payload.TryGetProperty("delta", out var delta))
+                    {
+                        assistant.Text += delta.GetString();
+                    }
+                    break;
+                case "ui.patch":
+                    if (assistant is not null)
+                    {
+                        assistant.Patched = true;
+                        assistant.PatchIsDraft = envelope.Payload.TryGetProperty("persisted", out var persisted)
+                            && persisted.ValueKind == JsonValueKind.False;
+                    }
+                    if (envelope.Payload.TryGetProperty("target_id", out var targetId))
+                    {
+                        var id = targetId.GetString() ?? "";
+                        var kind = envelope.Payload.TryGetProperty("target_kind", out var targetKind)
+                            ? targetKind.GetString()
+                            : "generation_variant";
+                        if (kind == "saved_post" && envelope.Payload.TryGetProperty("content", out var content))
+                        {
+                            await ContextState.NotifySavedPostPatchedAsync(id, content.Clone());
+                        }
+                        else
+                        {
+                            await ContextState.NotifyGenerationPatchedAsync(id);
+                        }
+                    }
+                    break;
+                case "completed":
+                    FinishAssistant();
+                    break;
+                case "cancelled":
+                    FinishAssistant(stopped: true);
+                    break;
+                case "approval.required":
+                    FinishAssistant(error: "Agentul a pregătit o scriere care are nevoie de confirmare. Salvarea se face din pagina ei, cu butonul de salvare.");
+                    break;
+                case "error":
+                    var detail = envelope.Payload.TryGetProperty("detail", out var error)
+                        ? error.GetString()
+                        : "Răspunsul nu a putut fi terminat.";
+                    FinishAssistant(error: detail);
+                    break;
+            }
+            StateHasChanged();
+        });
+    }
+
+    private Task OnInterruptedAsync()
+    {
+        if (_disposed || !_busy)
+        {
+            return Task.CompletedTask;
+        }
+        return InvokeAsync(() =>
+        {
+            _connectionNote = "Conexiunea live se reface automat; răspunsul continuă pe server.";
+            StateHasChanged();
+        });
+    }
+
+    private void FinishAssistant(bool stopped = false, string? error = null)
+    {
+        var assistant = _messages.LastOrDefault(item => item.Role == "assistant");
+        if (assistant is not null)
+        {
+            assistant.Streaming = false;
+            assistant.Stopped = stopped;
+            if (error is not null)
+            {
+                assistant.Error = true;
+                assistant.Text = string.IsNullOrWhiteSpace(assistant.Text)
+                    ? error
+                    : $"{assistant.Text}\n\n{error}";
+            }
+        }
+        _busy = false;
+        _runId = null;
+        _connectionNote = null;
+    }
+
+    private void OnContextChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Events.EventReceived -= OnEventAsync;
+        Events.ConnectionInterrupted -= OnInterruptedAsync;
+        ContextState.Changed -= OnContextChanged;
+        await Events.DisconnectAsync();
+    }
+
+    private sealed class ChatMessageView(string role, string text)
+    {
+        public string Role { get; } = role;
+        public string Text { get; set; } = text;
+        public bool Streaming { get; set; }
+        public bool Stopped { get; set; }
+        public bool Patched { get; set; }
+        public bool PatchIsDraft { get; set; }
+        public bool Error { get; set; }
+    }
+}

@@ -4,7 +4,8 @@
     uv run python tests/checks/bootstrap.py
 
 Reads the profile from Neon through the MCP resource, but never prints its content
-and never sends it to OpenAI. It also checks that the agent sees exactly five tools.
+and never sends it to OpenAI. It checks the raw server contract and separately
+applies the same allowlist used by the agent.
 """
 
 from __future__ import annotations
@@ -16,18 +17,10 @@ from agents.mcp import MCPServerStreamableHttp
 
 from content_studio import enable_utf8_output
 from content_studio.config import MCP_TIMEOUT, MCP_URL
+from content_studio.mcp_server.protocol import INTERNAL_UI_TOOLS, MODEL_VISIBLE_TOOLS
 from content_studio.worker import read_profile
 
 enable_utf8_output()
-
-EXPECTED = {
-    "search_books",
-    "search_web",
-    "list_posts",
-    "save_post",
-    "update_profile",
-}
-
 
 async def main() -> int:
     server = MCPServerStreamableHttp(
@@ -39,10 +32,18 @@ async def main() -> int:
     try:
         await server.connect()
         tools = {t.name for t in await server.list_tools()}
+        agent_tools = tools & MODEL_VISIBLE_TOOLS
         name, profile = await read_profile(server)
 
         checks = [
-            (tools == EXPECTED, f"exactly the five tools: {sorted(tools)}"),
+            (
+                tools == MODEL_VISIBLE_TOOLS | INTERNAL_UI_TOOLS,
+                f"raw server has 7 agent + 14 internal tools: {len(tools)} total",
+            ),
+            (
+                agent_tools == MODEL_VISIBLE_TOOLS,
+                f"agent allowlist is exactly the seven tools: {sorted(agent_tools)}",
+            ),
             (not any("sql" in t.lower() for t in tools), "no SQL tool"),
             (bool(name.strip()), "the profile carries the client's name"),
             (len(profile) > 1_000, f"the profile arrived over MCP: {len(profile):,} characters"),

@@ -74,6 +74,18 @@ CLIENT_SLUG = os.getenv("CLIENT_SLUG", "viorela")
 MODEL = os.getenv("MODEL", "gpt-5-mini")
 WEB_SEARCH_MODEL = os.getenv("WEB_SEARCH_MODEL", MODEL)
 
+# D1b deliberately splits the cheap, short title pass from the long structured
+# writing pass. The existing CLI keeps using MODEL unchanged.
+GENERATION_TITLE_MODEL = os.getenv("GENERATION_TITLE_MODEL", "gpt-5-nano")
+GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-mini")
+GENERATION_CONCURRENCY = int(os.getenv("GENERATION_CONCURRENCY", "5"))
+if not 1 <= GENERATION_CONCURRENCY <= 5:
+    raise RuntimeError("GENERATION_CONCURRENCY must be between 1 and 5")
+
+# Chat is separate from bulk generation so its latency/quality can be tuned
+# without silently changing either half of the accepted hybrid topology.
+CHAT_MODEL = os.getenv("CHAT_MODEL", MODEL)
+
 #: Storing and searching must use the SAME model — architecture rule 3.
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -86,6 +98,39 @@ MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT", "90"))
 
 HARNESS_HOST = os.getenv("HARNESS_HOST", "0.0.0.0")
 HARNESS_PORT = int(os.getenv("PORT", os.getenv("HARNESS_PORT", "8000")))
+
+AUTH_MODE = os.getenv("AUTH_MODE", "azure").strip().lower()
+AUTH_ALLOWED_EMAILS = tuple(
+    value.strip().lower()
+    for value in os.getenv("AUTH_ALLOWED_EMAILS", "").split(",")
+    if value.strip()
+)
+AUTH_ALLOWED_PRINCIPAL_IDS = tuple(
+    value.strip()
+    for value in os.getenv("AUTH_ALLOWED_PRINCIPAL_IDS", "").split(",")
+    if value.strip()
+)
+AUTH_DEV_PRINCIPAL_ID = os.getenv("AUTH_DEV_PRINCIPAL_ID", "local-sorin").strip()
+AUTH_DEV_EMAIL = os.getenv("AUTH_DEV_EMAIL", "local@studio.invalid").strip().lower()
+RUNNING_IN_AZURE = bool(
+    os.getenv("CONTAINER_APP_NAME")
+    or os.getenv("CONTAINER_APP_ENV_DNS_SUFFIX")
+    or os.getenv("WEBSITE_SITE_NAME")
+)
+
+UI_STATIC_DIR = Path(
+    os.getenv(
+        "UI_STATIC_DIR",
+        PROJECT_ROOT / "ui" / "StudioViorela" / "dist" / "wwwroot",
+    )
+)
+UI_DEV_ORIGINS = tuple(
+    value.strip().rstrip("/")
+    for value in os.getenv(
+        "UI_DEV_ORIGINS", "http://127.0.0.1:5178,http://localhost:5178"
+    ).split(",")
+    if value.strip()
+)
 
 # libpq parameters asyncpg refuses as connection arguments.
 # `sslmode` is not dropped — it is translated into `ssl` below.

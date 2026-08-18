@@ -11,6 +11,29 @@ description: >-
 
 # Faza 2 — postarea întreagă
 
+## Mod UI structurat — toate cele cinci variante
+
+Dacă mesajul începe cu markerul exact `MOD UI STRUCTURAT D1B — DETALII`,
+interfața îți dă o singură idee existentă, formatul, pilonul, sursa, focusul și
+materialul-sursă. În acest mod:
+
+- nu cauți lista în conversație, nu pui întrebări și nu alegi altă idee;
+- dezvolți ideea primită în exact cinci variante complete, în ordinea
+  PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST;
+- fiecare variantă are `hook_type`, `hook`, `script`, `caption`, 3–5
+  `hashtags`, `cta`, `source` și `format_details`;
+- `format_details` conține `content_blocks`, `visual_direction` și
+  `duration_or_count`, potrivite formatului ales;
+- toate cele cinci variante folosesc același unghi, dar hook-ul și construcția
+  lor sunt realmente diferite;
+- nu arăți un mesaj conversațional, nu ceri aprobare, nu salvezi și nu chemi
+  `save_post`. Interfața va afișa și va salva ulterior numai varianta aleasă.
+
+Respecți în continuare metoda formatului din Pasul 1, regulile de conținut din
+Pasul 2 și restricțiile profilului. Contractul structurat al aplicației verifică
+cele cinci tipuri și câmpurile complete. Restul acestui skill rămâne fluxul
+normal al conversației CLI, unde dezvolți o singură variantă aleasă.
+
 ## Pasul 0 — verifică dacă lista există
 
 Înainte de orice altceva, verifici conversația: există lista celor zece

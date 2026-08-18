@@ -78,6 +78,7 @@ MARKERS = {
     CAPABILITY_BLOCKED: "  REFUSED",
     "post_chosen": "  chose",
     "post_saved": "  SAVED",
+    "post_updated": "  POST REWRITTEN",
     "profile_updated": "  PROFILE CHANGED",
     "proposals_generated": "  produced proposals",
     "guardrail_tripped": "  FAILED",

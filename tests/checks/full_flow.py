@@ -56,7 +56,7 @@ from content_studio.audit import (
     split_event,
 )
 from content_studio.config import MCP_TIMEOUT, MCP_URL, database_url
-from content_studio.mcp_server.protocol import CONVERSATION_HEADER
+from content_studio.mcp_server.protocol import CONVERSATION_HEADER, MODEL_VISIBLE_TOOLS
 from content_studio.worker import (
     GATED_TOOLS,
     build_sandbox,
@@ -239,6 +239,7 @@ async def main() -> int:
             "headers": {CONVERSATION_HEADER: session_id},
         },
         name="content-data",
+        tool_filter={"allowed_tool_names": sorted(MODEL_VISIBLE_TOOLS)},
         client_session_timeout_seconds=MCP_TIMEOUT,
         require_approval={"always": {"tool_names": list(GATED_TOOLS)}},
     )
@@ -297,7 +298,7 @@ async def main() -> int:
             print(f"worker> {answer}\n")
             print("-" * 72)
     finally:
-        await client.delete(sandbox)
+        await sandbox.aclose()
         await data_mcp.cleanup()
         await trail.close()
 

@@ -66,6 +66,8 @@ MCP_TOOLS = {
     "search_web",
     "list_posts",
     "save_post",
+    "save_posts_batch",
+    "update_post",
     "update_profile",
 }
 
@@ -80,6 +82,7 @@ CAPABILITY_INVOKED = "capability_invoked"
 CAPABILITY_BLOCKED = "capability_blocked"
 POST_CHOSEN = "post_chosen"
 POST_SAVED = "post_saved"
+POST_UPDATED = "post_updated"
 PROFILE_UPDATED = "profile_updated"
 PROPOSALS_GENERATED = "proposals_generated"
 GUARDRAIL_TRIPPED = "guardrail_tripped"
@@ -87,6 +90,15 @@ APPROVAL_REQUESTED = "approval_requested"
 APPROVAL_GRANTED = "approval_granted"
 APPROVAL_REJECTED = "approval_rejected"
 CORPUS_SEEDED = "corpus_seeded"
+GENERATION_BATCH_CREATED = "generation_batch_created"
+GENERATION_BATCH_FAILED = "generation_batch_failed"
+GENERATION_TITLES_READY = "generation_titles_ready"
+GENERATION_IDEA_STARTED = "generation_idea_started"
+GENERATION_IDEA_READY = "generation_idea_ready"
+GENERATION_IDEA_FAILED = "generation_idea_failed"
+GENERATION_VARIANT_SELECTED = "generation_variant_selected"
+GENERATION_VARIANT_PATCHED = "generation_variant_patched"
+GENERATION_CANCELLED = "generation_cancelled"
 
 #: `event` carries an optional subject after ": " — `capability_invoked: save_post`.
 #: One free-text column has to answer "what happened" and "to what"; a separator

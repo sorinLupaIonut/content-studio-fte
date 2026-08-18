@@ -15,6 +15,23 @@ description: >-
 Scopul: îi dai Viorelei zece unghiuri diferite pe tema ei, fiecare cu cinci
 hook-uri, ca să aleagă una singură pe care s-o dezvoltăm.
 
+## Mod UI structurat — numai titlurile
+
+Dacă mesajul începe cu markerul exact `MOD UI STRUCTURAT D1B — TITLURI`, interfața
+a adunat deja formatul, pilonul, sursa, focusul și materialul-sursă. În acest mod:
+
+- nu pui întrebările din Pasul 1 și nu alegi alte valori;
+- folosești numai materialul-sursă inclus în mesaj și regulile profilului;
+- întorci exact zece obiecte, ordonate de la 1 la 10, fiecare numai cu `ordinal`,
+  `title` și `angle`;
+- nu scrii hook-uri, script, caption, hashtaguri sau CTA în această execuție;
+- nu adaugi introducere, încheiere ori întrebare și nu chemi nicio unealtă de
+  scriere.
+
+Titlurile și unghiurile respectă toate verificările din Pasul 2, Pasul 3 și
+„Când te oprești”. Contractul structurat al aplicației verifică numărul și
+ordinea. Restul acestui skill rămâne fluxul normal al conversației CLI.
+
 ## Pasul 1 — cele trei răspunsuri, obligatorii
 
 Nu scrii nimic până nu ai toate trei. Le ceri **pe rând, ca întrebări separate**,

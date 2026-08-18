@@ -1,0 +1,424 @@
+@page "/saved"
+@implements IDisposable
+@using System.Text.Json
+@inject StudioApiClient Api
+@inject StudioContextState ContextState
+
+<PageTitle>Salvate · Studio Viorela</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">Colecția ta</span>
+        <h1>Postări salvate</h1>
+        <p>Aici sunt numai postările finale pe care ai ales explicit să le păstrezi.</p>
+    </div>
+    <span class="step-chip">@_posts.Count salvate</span>
+</section>
+
+@if (_error is not null)
+{
+    <div class="notice notice-error" role="alert">
+        <span>@_error</span>
+        <button class="icon-button" type="button" @onclick="() => _error = null" aria-label="Închide mesajul">×</button>
+    </div>
+}
+
+@if (_message is not null)
+{
+    <div class="notice notice-success" role="status">@_message</div>
+}
+
+@if (_loading)
+{
+    <section class="loading-card" aria-live="polite">
+        <span class="spinner"></span> Se încarcă postările salvate…
+    </section>
+}
+else if (_posts.Count == 0)
+{
+    <section class="empty-state">
+        <span class="empty-illustration">♡</span>
+        <h2>Încă nu ai postări salvate</h2>
+        <p>După ce dezvolți o idee și alegi o variantă, o poți salva și găsi aici.</p>
+        <a class="button button-primary" href="/generator">Creează prima idee</a>
+    </section>
+}
+else
+{
+    <section class="saved-list" aria-label="Postările salvate">
+        @foreach (var post in _posts)
+        {
+            <article class="saved-card @(IsOpen(post.Id) ? "open" : null)">
+                <button class="saved-card-header" type="button" @onclick="() => ToggleAsync(post)" aria-expanded="@IsOpen(post.Id)">
+                    <span class="saved-date">@post.PostedOn</span>
+                    <span class="saved-title">
+                        <strong>@post.Title</strong>
+                        <small>@post.Format · @post.Pillar · @HookLabel(post.HookType)</small>
+                    </span>
+                    <span class="chevron @(IsOpen(post.Id) ? "open" : null)">⌄</span>
+                </button>
+
+                @if (IsOpen(post.Id) && _draft is not null && _draftId == post.Id)
+                {
+                    <div class="saved-editor">
+                        @if (_dirty)
+                        {
+                            <div class="draft-banner" role="status">
+                                Ciornă nesalvată. Postarea din bibliotecă rămâne neschimbată până confirmi.
+                            </div>
+                        }
+
+                        <label class="editor-field">
+                            <span>Titlu</span>
+                            <input type="text" @bind="_draft.Title" @bind:event="oninput" @onchange="MarkDirty" />
+                        </label>
+
+                        <div class="editor-grid">
+                            <label class="editor-field">
+                                <span>Pilon</span>
+                                <select @bind="_draft.Pillar" @bind:after="MarkDirty">
+                                    <option>Poziționare</option>
+                                    <option>Educație</option>
+                                    <option>Conexiune</option>
+                                    <option>Conversie</option>
+                                    <option>Magnetism</option>
+                                </select>
+                            </label>
+                            <label class="editor-field">
+                                <span>Format</span>
+                                <select @bind="_draft.Format" @bind:after="MarkDirty">
+                                    <option>Reel</option>
+                                    <option>Carusel</option>
+                                    <option>Stories</option>
+                                </select>
+                            </label>
+                            <label class="editor-field">
+                                <span>Tip de hook</span>
+                                <select @bind="_draft.HookType" @bind:after="MarkDirty">
+                                    <option value="PROVOCARE">Provocare</option>
+                                    <option value="CIFRA">Cifră</option>
+                                    <option value="SECRET">Secret</option>
+                                    <option value="INTREBARE">Întrebare</option>
+                                    <option value="CONTRAST">Contrast</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <label class="editor-field">
+                            <span>Hook</span>
+                            <textarea rows="2" @bind="_draft.Hook" @bind:after="MarkDirty"></textarea>
+                        </label>
+                        <label class="editor-field">
+                            <span>Script / conținut</span>
+                            <textarea rows="10" @bind="_draft.Script" @bind:after="MarkDirty"></textarea>
+                        </label>
+                        <label class="editor-field">
+                            <span>Caption</span>
+                            <textarea rows="5" @bind="_draft.Caption" @bind:after="MarkDirty"></textarea>
+                        </label>
+
+                        <div class="editor-grid">
+                            <label class="editor-field">
+                                <span>Hashtaguri <small>(3–5, separate prin spațiu)</small></span>
+                                <input type="text" @bind="_hashtags" @bind:after="MarkDirty" />
+                            </label>
+                            <label class="editor-field">
+                                <span>CTA</span>
+                                <input type="text" @bind="_draft.Cta" @bind:after="MarkDirty" />
+                            </label>
+                        </div>
+
+                        <label class="editor-field">
+                            <span>Sursă</span>
+                            <input type="text" @bind="_draft.Source" @bind:after="MarkDirty" />
+                        </label>
+
+                        <fieldset class="editor-production">
+                            <legend>Producție</legend>
+                            @if (NeedsProduction)
+                            {
+                                <p class="field-note">Postarea aceasta e dinainte de blocul de producție. Completează cele trei câmpuri o singură dată ca să o poți salva mai departe.</p>
+                            }
+                            <div class="editor-grid">
+                                <label class="editor-field">
+                                    <span>Durată sau număr de cadre</span>
+                                    <input type="text" @bind="_draft.FormatDetails.DurationOrCount" @bind:after="MarkDirty" />
+                                </label>
+                                <label class="editor-field">
+                                    <span>Direcție vizuală</span>
+                                    <input type="text" @bind="_draft.FormatDetails.VisualDirection" @bind:after="MarkDirty" />
+                                </label>
+                            </div>
+                            <label class="editor-field">
+                                <span>Blocuri de conținut <small>(unul pe linie)</small></span>
+                                <textarea rows="4" @bind="_blocks" @bind:after="MarkDirty"></textarea>
+                            </label>
+                        </fieldset>
+
+                        <div class="editor-actions">
+                            <button class="button button-ghost" disabled="@(_busy || !_dirty)" @onclick="() => ResetAsync(post)">Renunță la modificări</button>
+                            <button class="button button-primary" disabled="@(_busy || !_dirty)" @onclick="() => PrepareUpdateAsync(post)">
+                                @(_busy && _updateRun is null ? "Se pregătește…" : "Salvează modificările")
+                            </button>
+                        </div>
+
+                        @if (_updateRun is not null)
+                        {
+                            <ApprovalPanel Run="_updateRun"
+                                           Busy="_busy"
+                                           Title="Înlocuiești postarea salvată?"
+                                           Message="Versiunea de acum se pierde definitiv; nu există istoric. Confirmă doar dacă textul de mai sus e cel bun."
+                                           RejectLabel="Nu acum"
+                                           Summary="UpdateSummary"
+                                           OnDecision="DecideUpdateAsync" />
+                        }
+                    </div>
+                }
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private List<SavedPostDto> _posts = [];
+    private PostContentDto? _draft;
+    private string? _draftId;
+    private string _hashtags = "";
+    private string _blocks = "";
+    private RunResponseDto? _updateRun;
+    private string? _error;
+    private string? _message;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _dirty;
+
+    /// <summary>Posts saved before the production block exists have it empty.</summary>
+    private bool NeedsProduction =>
+        _draft is not null
+        && (_blocks.Trim().Length == 0
+            || _draft.FormatDetails.VisualDirection.Trim().Length == 0
+            || _draft.FormatDetails.DurationOrCount.Trim().Length == 0);
+
+    private List<string> UpdateSummary => _draft is null
+        ? []
+        : [$"Titlu: {_draft.Title}", $"Hook: {HookLabel(_draft.HookType)}", $"{_draft.Format} · {_draft.Pillar}"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        ContextState.SavedPostPatched += OnPatchedAsync;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _posts = (await Api.GetSavedPostsAsync()).Items;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool IsOpen(string id) => _draftId == id;
+
+    private async Task ToggleAsync(SavedPostDto post)
+    {
+        if (_draftId == post.Id)
+        {
+            Close();
+            return;
+        }
+
+        _updateRun = null;
+        _message = null;
+        try
+        {
+            var fresh = (await Api.GetSavedPostAsync(post.Id)).Post ?? post;
+            Open(fresh);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private void Open(SavedPostDto post)
+    {
+        _draftId = post.Id;
+        _draft = ToContent(post);
+        _hashtags = string.Join(" ", post.Hashtags);
+        _blocks = string.Join("\n", post.FormatDetails?.ContentBlocks ?? []);
+        _dirty = false;
+        ContextState.SetSavedPost(post);
+    }
+
+    private void Close()
+    {
+        var closing = _draftId;
+        _draftId = null;
+        _draft = null;
+        _updateRun = null;
+        _dirty = false;
+        if (closing is not null)
+        {
+            ContextState.ClearSavedPost(closing);
+        }
+    }
+
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _updateRun = null;
+    }
+
+    private async Task ResetAsync(SavedPostDto post)
+    {
+        try
+        {
+            var fresh = (await Api.GetSavedPostAsync(post.Id)).Post ?? post;
+            Open(fresh);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task PrepareUpdateAsync(SavedPostDto post)
+    {
+        if (_draft is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _message = null;
+        _updateRun = null;
+        _draft.Hashtags = _hashtags
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        _draft.FormatDetails.ContentBlocks = _blocks
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        try
+        {
+            _updateRun = await Api.PreparePostUpdateAsync(post.Id, _draft);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DecideUpdateAsync(bool approved)
+    {
+        if (_updateRun is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = await Api.DecideAsync(_updateRun, approved);
+            _updateRun = null;
+            if (approved && result.Status == "completed")
+            {
+                _message = "Postarea a fost înlocuită.";
+                await LoadAsync();
+                var post = _posts.FirstOrDefault(item => item.Id == _draftId);
+                if (post is not null)
+                {
+                    Open((await Api.GetSavedPostAsync(post.Id)).Post ?? post);
+                }
+            }
+            else
+            {
+                _message = "Modificarea a fost anulată. Postarea a rămas cum era.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>A rewrite from chat lands in the draft only, never in the library.</summary>
+    private Task OnPatchedAsync(string postId, JsonElement content)
+    {
+        if (_draft is null || _draftId != postId)
+        {
+            return Task.CompletedTask;
+        }
+        return InvokeAsync(() =>
+        {
+            var patched = content.Deserialize<PostContentDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (patched is not null)
+            {
+                _draft = patched;
+                _hashtags = string.Join(" ", patched.Hashtags);
+                _blocks = string.Join("\n", patched.FormatDetails.ContentBlocks);
+                _dirty = true;
+                _updateRun = null;
+            }
+            StateHasChanged();
+        });
+    }
+
+    private static PostContentDto ToContent(SavedPostDto post) => new()
+    {
+        Title = post.Title,
+        Pillar = post.Pillar,
+        Format = post.Format,
+        Hook = post.Hook,
+        HookType = post.HookType,
+        Script = post.Script,
+        Caption = post.Caption,
+        Hashtags = [.. post.Hashtags],
+        Cta = post.Cta,
+        Source = post.Source,
+        FormatDetails = new FormatDetailsDto
+        {
+            ContentBlocks = [.. post.FormatDetails?.ContentBlocks ?? []],
+            VisualDirection = post.FormatDetails?.VisualDirection ?? "",
+            DurationOrCount = post.FormatDetails?.DurationOrCount ?? ""
+        }
+    };
+
+    private static string HookLabel(string value) => value switch
+    {
+        "PROVOCARE" => "Provocare",
+        "CIFRA" => "Cifră",
+        "SECRET" => "Secret",
+        "INTREBARE" => "Întrebare",
+        "CONTRAST" => "Contrast",
+        _ => value
+    };
+
+    public void Dispose()
+    {
+        ContextState.SavedPostPatched -= OnPatchedAsync;
+        if (_draftId is not null)
+        {
+            ContextState.ClearSavedPost(_draftId);
+        }
+    }
+}

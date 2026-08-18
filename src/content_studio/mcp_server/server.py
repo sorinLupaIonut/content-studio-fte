@@ -3,20 +3,25 @@
     uv run content-studio-server
     uv run python -m content_studio.mcp_server.server
 
-Five tools, no more:
+Seven model-visible tools:
 
-    search_books    read   — meaning search across the 17 books
-    search_web      read   — current angles, with the source links
-    list_posts      read   — what has already been written
-    save_post       write  — one post, plus its audit row
-    update_profile  write  — one profile section, plus its audit row
+    search_books      read   — meaning search across the 17 books
+    search_web        read   — current angles, with the source links
+    list_posts        read   — what has already been written
+    save_post         write  — one post, plus its audit row
+    save_posts_batch  write  — the chosen variants of one UI batch, all or none
+    update_post       write  — one studio-written post, replaced whole
+    update_profile    write  — one profile section, plus its audit row
 
-There is no `run_sql`, no DDL, and no tool takes free text that SQL is built
-from. Architecture rule 1: the worker never touches the database directly.
+Internal D1b draft operations share this server but are hidden from the agent by
+the SDK tool filter. There is no `run_sql`, no DDL, and no tool takes free text
+that SQL is built from. Architecture rule 1: the worker never touches the
+database directly.
 
-The two write tools insert their audit row in the SAME transaction as the write
+Every write tool inserts its audit row in the SAME transaction as the write
 (rule 2). Either both land or neither does — a post without a trail cannot happen
-even if the connection dies between the two statements.
+even if the connection dies between the two statements. `save_posts_batch` widens
+that promise to a whole batch: ten posts and ten trail rows commit together.
 
 The approval gate is not inside the tool body: the worker puts it on the MCP
 server registration. Writes are therefore interrupted before the call and resume
@@ -37,6 +42,7 @@ import re
 import sys
 from contextlib import asynccontextmanager
 from datetime import date
+from uuid import UUID
 
 from mcp.server.mcpserver import Context, MCPServer
 from openai import AsyncOpenAI
@@ -47,7 +53,21 @@ from content_studio import enable_utf8_output
 # The event vocabulary is shared rather than spelled out here: since D4 the
 # `event` column is free text, so a typo on this side would simply produce a row
 # `replay.py` cannot group. One import keeps both ends honest.
-from content_studio.audit import POST_SAVED, PROFILE_UPDATED, event_name
+from content_studio.audit import (
+    GENERATION_BATCH_CREATED,
+    GENERATION_BATCH_FAILED,
+    GENERATION_CANCELLED,
+    GENERATION_IDEA_FAILED,
+    GENERATION_IDEA_READY,
+    GENERATION_IDEA_STARTED,
+    GENERATION_TITLES_READY,
+    GENERATION_VARIANT_PATCHED,
+    GENERATION_VARIANT_SELECTED,
+    POST_SAVED,
+    POST_UPDATED,
+    PROFILE_UPDATED,
+    event_name,
+)
 from content_studio.config import (
     CLIENT_SLUG,
     MCP_HOST,
@@ -62,7 +82,39 @@ from content_studio.config import (
 # the script that wrote the vectors, so the two cannot drift apart without the
 # import breaking too.
 from content_studio.db.import_books import EMBEDDING_MODEL, as_vector
-from content_studio.mcp_server.protocol import CONVERSATION_HEADER, PROFILE_URI
+from content_studio.harness.generation import (
+    GenerationBatchRequest,
+    IdeaDetails,
+    IdeaTitles,
+    IdeaVariant,
+)
+from content_studio.harness.posts import SavedPostContent, SavePostsRequest
+from content_studio.mcp_server.generation_store import (
+    cancel_batch,
+    complete_idea,
+    create_batch,
+    fail_batch,
+    fail_idea,
+    list_library,
+    load_batch,
+    load_current_batch,
+    patch_variant,
+    put_titles,
+    select_variant,
+    start_idea,
+)
+from content_studio.mcp_server.posts_store import (
+    as_markdown,
+    list_saved_posts,
+    load_saved_post,
+    save_selected_variants,
+    update_saved_post,
+)
+from content_studio.mcp_server.protocol import (
+    CONVERSATION_HEADER,
+    OWNER_HEADER,
+    PROFILE_URI,
+)
 
 enable_utf8_output()
 
@@ -342,43 +394,36 @@ VALUES (
 """
 
 
-def as_markdown(fields: dict) -> str:
-    """The whole post as Markdown, for the `body_md` column.
-
-    Built here from the fields rather than asked of the model: `body_md` has to be
-    exactly what was saved in the columns, not a second version written separately.
-    """
-    return "\n".join(
-        [
-            f"# {fields['title']}",
-            "",
-            f"**Pilon:** {fields['pillar']} · **Format:** {fields['format']}",
-            f"**Hook ({fields['hook_type']}):** {fields['hook']}",
-            "",
-            "## Script",
-            fields["script"],
-            "",
-            "## Caption",
-            fields["caption"],
-            "",
-            f"**Hashtaguri:** {fields['hashtags']}",
-            f"**CTA:** {fields['cta']}",
-            f"**Sursa:** {fields['source']}",
-            "",
-        ]
-    )
+def _header(ctx: Context, name: str) -> str | None:
+    request = ctx.request_context.request
+    headers = getattr(request, "headers", None)
+    return headers.get(name) if headers else None
 
 
 def conversation_of(ctx: Context) -> str:
     """The id the worker put on the MCP connection, not one invented by the model."""
-    request = ctx.request_context.request
-    headers = getattr(request, "headers", None)
-    conversation_id = headers.get(CONVERSATION_HEADER) if headers else None
+    conversation_id = _header(ctx, CONVERSATION_HEADER)
     if not conversation_id:
         raise ValueError(
             f"Internal header {CONVERSATION_HEADER} is missing; the write was stopped."
         )
     return conversation_id
+
+
+def owner_of(ctx: Context) -> str:
+    """The signed-in identity, taken from the connection rather than the model.
+
+    Only the studio UI sets it. The CLI has no generation batches to save from,
+    so a missing header is not a failure of configuration — it is the honest
+    answer that this tool does not apply there.
+    """
+    owner = _header(ctx, OWNER_HEADER)
+    if not owner:
+        raise ValueError(
+            "Unealta e disponibilă numai din interfața Studio, unde identitatea "
+            "este verificată. Din terminal folosește `save_post`."
+        )
+    return owner
 
 
 @server.tool()
@@ -444,6 +489,101 @@ async def save_post(
         await conn.execute(AUDIT_SQL, conversation_id, event_name(POST_SAVED, title))
 
     return {"id": str(post_id), "title": title, "posted_on": date.today().isoformat()}
+
+
+@server.tool()
+async def save_posts_batch(variant_ids: list[str], ctx: Context) -> dict:
+    """Salvează definitiv postările pe care Viorela le-a ales în interfață.
+
+    O chemi o singură dată, cu exact lista de `variant_ids` primită de la
+    aplicație, în aceeași ordine. Nu inventa id-uri, nu adăuga și nu scoate
+    niciunul, și nu rescrie conținutul: textul salvat este exact varianta pe care
+    a citit-o și a ales-o ea.
+
+    Se salvează toate sau niciuna. O variantă care nu e marcată ca aleasă, nu e
+    gata, sau nu e din lotul contului ei, oprește tot lotul.
+    """
+    conversation_id = conversation_of(ctx)
+    owner_principal_id = owner_of(ctx)
+    request = SavePostsRequest.model_validate({"variant_ids": variant_ids})
+
+    async with connection() as conn:
+        saved = await save_selected_variants(
+            conn,
+            client_slug=CLIENT_SLUG,
+            session_id=conversation_id,
+            owner_principal_id=owner_principal_id,
+            variant_ids=request.variant_ids,
+        )
+        # One trail row per post, in the same transaction as all the inserts:
+        # the batch is atomic in both halves of rule 2, not just in the write.
+        for post in saved:
+            await conn.execute(
+                AUDIT_SQL, conversation_id, event_name(POST_SAVED, post["title"])
+            )
+
+    return {
+        "count": len(saved),
+        "saved": [{"id": post["id"], "title": post["title"]} for post in saved],
+    }
+
+
+@server.tool()
+async def update_post(
+    post_id: str,
+    title: str,
+    pillar: str,
+    format: str,
+    hook: str,
+    hook_type: str,
+    script: str,
+    caption: str,
+    hashtags: list[str],
+    cta: str,
+    source: str,
+    format_details: dict,
+    ctx: Context,
+) -> dict:
+    """Înlocuiește o postare salvată cu versiunea rescrisă în interfață.
+
+    Trimiți conținutul COMPLET, exact cum ți l-a dat aplicația, inclusiv câmpurile
+    neschimbate. Nu reformula nimic: ce trimiți înlocuiește tot ce era acolo.
+
+    ATENȚIE: versiunea veche NU se mai păstrează nicăieri. Se aplică doar după ce
+    Viorela confirmă la poartă.
+
+    `hook_type` e unul din PROVOCARE, CIFRA, SECRET, INTREBARE, CONTRAST.
+    `hashtags` e o listă de 3–5 etichete, fiecare începând cu #.
+    """
+    conversation_id = conversation_of(ctx)
+    content = SavedPostContent.model_validate(
+        {
+            "title": title,
+            "pillar": pillar,
+            "format": format,
+            "hook": hook,
+            "hook_type": hook_type,
+            "script": script,
+            "caption": caption,
+            "hashtags": hashtags,
+            "cta": cta,
+            "source": source,
+            "format_details": format_details,
+        }
+    )
+
+    async with connection() as conn:
+        post = await update_saved_post(
+            conn,
+            client_slug=CLIENT_SLUG,
+            post_id=UUID(post_id),
+            content=content,
+        )
+        await conn.execute(
+            AUDIT_SQL, conversation_id, event_name(POST_UPDATED, post["title"])
+        )
+
+    return {"id": post["id"], "title": post["title"]}
 
 
 WRITE_PROFILE_SQL = """
@@ -512,6 +652,228 @@ async def update_profile(section: str, new_text: str, ctx: Context) -> dict:
     }
 
 
+# ---- D1b internal UI operations ---------------------------------------------
+#
+# These functions are MCP tools so the harness still crosses the same typed data
+# boundary as the agent. `MODEL_VISIBLE_TOOLS` filters them out of every
+# `SandboxAgent`; only the harness calls them programmatically.
+
+
+@server.tool()
+async def ui_create_generation_batch(
+    owner_principal_id: str,
+    format: str,
+    pillar: str,
+    source: str,
+    ctx: Context,
+    focus: str | None = None,
+    material_ids: list[str] | None = None,
+    source_packet: dict | None = None,
+) -> dict:
+    """Creează intern lotul curent al interfeței; nu este unealtă a agentului."""
+    conversation_id = conversation_of(ctx)
+    request = GenerationBatchRequest.model_validate(
+        {
+            "format": format,
+            "pillar": pillar,
+            "source": source,
+            "focus": focus,
+            "material_ids": material_ids or [],
+        }
+    )
+    async with connection() as conn:
+        result = await create_batch(
+            conn,
+            client_slug=CLIENT_SLUG,
+            owner_principal_id=owner_principal_id,
+            session_id=conversation_id,
+            request=request,
+            source_packet=source_packet or {},
+        )
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_BATCH_CREATED, result["id"]),
+        )
+    return result
+
+
+@server.tool()
+async def ui_put_generation_titles(
+    batch_id: str, ideas: list[dict], ctx: Context
+) -> dict:
+    """Persistă intern exact cele zece titluri validate; nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    value = IdeaTitles.model_validate({"ideas": ideas})
+    async with connection() as conn:
+        result = await put_titles(conn, UUID(batch_id), value)
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_TITLES_READY, batch_id),
+        )
+    return result
+
+
+@server.tool()
+async def ui_start_generation_idea(
+    batch_id: str, ordinal: int, ctx: Context
+) -> dict:
+    """Marchează intern o idee ca în lucru; nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    async with connection() as conn:
+        result = await start_idea(conn, UUID(batch_id), ordinal)
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_IDEA_STARTED, f"{batch_id}/{ordinal}"),
+        )
+    return result
+
+
+@server.tool()
+async def ui_complete_generation_idea(
+    batch_id: str, idea: dict, ctx: Context
+) -> dict:
+    """Persistă intern cele cinci variante complete; nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    value = IdeaDetails.model_validate(idea)
+    async with connection() as conn:
+        result = await complete_idea(conn, UUID(batch_id), value)
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_IDEA_READY, f"{batch_id}/{value.idea_ordinal}"),
+        )
+    return result
+
+
+@server.tool()
+async def ui_fail_generation_idea(
+    batch_id: str,
+    ordinal: int,
+    error: str,
+    retryable: bool,
+    ctx: Context,
+) -> dict:
+    """Înregistrează intern eșecul sigur al unei idei; nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    async with connection() as conn:
+        result = await fail_idea(
+            conn, UUID(batch_id), ordinal, error, retryable=retryable
+        )
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_IDEA_FAILED, f"{batch_id}/{ordinal}"),
+        )
+    return result
+
+
+@server.tool()
+async def ui_fail_generation_batch(batch_id: str, error: str, ctx: Context) -> dict:
+    """Înregistrează intern eșecul lotului înainte de titluri; nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    safe_error = " ".join(error.split())[:180] or "generation failed"
+    async with connection() as conn:
+        result = await fail_batch(conn, UUID(batch_id))
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_BATCH_FAILED, f"{batch_id}/{safe_error}"),
+        )
+    return result
+
+
+@server.tool()
+async def ui_select_generation_variant(
+    variant_id: str, owner_principal_id: str, ctx: Context
+) -> dict:
+    """Alege intern o singură variantă pregătită; nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    async with connection() as conn:
+        result = await select_variant(conn, UUID(variant_id), owner_principal_id)
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_VARIANT_SELECTED, variant_id),
+        )
+    return result
+
+
+@server.tool()
+async def ui_patch_generation_variant(
+    variant_id: str,
+    owner_principal_id: str,
+    content: dict,
+    ctx: Context,
+) -> dict:
+    """Înlocuiește intern un draft validat complet; nu este unealtă a agentului."""
+    conversation_id = conversation_of(ctx)
+    value = IdeaVariant.model_validate(content)
+    async with connection() as conn:
+        result = await patch_variant(
+            conn, UUID(variant_id), owner_principal_id, value
+        )
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_VARIANT_PATCHED, variant_id),
+        )
+    return result
+
+
+@server.tool()
+async def ui_cancel_generation_batch(
+    batch_id: str, owner_principal_id: str, ctx: Context
+) -> dict:
+    """Oprește intern lotul curent al identității; nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    async with connection() as conn:
+        result = await cancel_batch(conn, UUID(batch_id), owner_principal_id)
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_CANCELLED, batch_id),
+        )
+    return result
+
+
+@server.tool()
+async def ui_get_generation_batch(batch_id: str) -> dict:
+    """Citește intern un lot și variantele lui; nu este pentru agent."""
+    async with connection() as conn:
+        return await load_batch(conn, UUID(batch_id))
+
+
+@server.tool()
+async def ui_get_current_generation_batch(owner_principal_id: str) -> dict:
+    """Citește intern lotul curent al identității; nu este pentru agent."""
+    async with connection() as conn:
+        return {"batch": await load_current_batch(conn, owner_principal_id)}
+
+
+@server.tool()
+async def ui_list_library() -> dict:
+    """Listează intern cărțile selectabile; nu expune corpul documentelor."""
+    async with connection() as conn:
+        return {"items": await list_library(conn)}
+
+
+@server.tool()
+async def ui_list_saved_posts(limit: int = 100) -> dict:
+    """Citește intern postările scrise în studio; nu este pentru agent."""
+    async with connection() as conn:
+        return {"items": await list_saved_posts(conn, CLIENT_SLUG, limit)}
+
+
+@server.tool()
+async def ui_get_saved_post(post_id: str) -> dict:
+    """Citește intern o singură postare salvată; nu este pentru agent."""
+    async with connection() as conn:
+        return {"post": await load_saved_post(conn, CLIENT_SLUG, UUID(post_id))}
+
+
 def main() -> int:
     global _engine
 
@@ -533,7 +895,8 @@ def main() -> int:
     # network call per tool anyway.
     _engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
 
-    print(f"content-data · five tools · http://{MCP_HOST}:{MCP_PORT}/mcp")
+    print(f"content-data · five agent tools + internal UI operations · "
+          f"http://{MCP_HOST}:{MCP_PORT}/mcp")
     print(f"Database: {describe_database(url)}")
     print("Leave it running and open the worker in another terminal.\n")
 

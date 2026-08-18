@@ -217,6 +217,7 @@ CREATE TABLE IF NOT EXISTS public.posts (
     hashtags        TEXT,
     cta             TEXT,
     source          TEXT,                 -- title + page, or 'din memorie'
+    format_details  JSONB,                -- UI production blocks/direction/duration
     status          TEXT NOT NULL DEFAULT 'imported'
                     CHECK (status IN ('imported', 'draft', 'approved', 'published')),
     body_md         TEXT NOT NULL,        -- the whole file, exactly as it arrived
@@ -229,6 +230,102 @@ CREATE INDEX IF NOT EXISTS idx_posts_pillar      ON public.posts(client_id, pill
 
 ALTER TABLE public.posts DROP CONSTRAINT IF EXISTS postari_conversation_id_fkey;
 ALTER TABLE public.posts DROP CONSTRAINT IF EXISTS posts_conversation_id_fkey;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS format_details JSONB;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 4a. GENERATION DRAFTS — the one recoverable, unsaved UI batch per identity
+--
+--     These rows are not finished posts. They let title-first generation survive
+--     refresh, a disconnected SSE client and a failed detail job. Runtime access
+--     remains behind `content-data`; the harness does not query them directly.
+--
+--     `owner_principal_id` is the opaque stable id supplied by Azure Easy Auth,
+--     not an email address. A partial unique index gives each identity one current
+--     batch while allowing replaced batches to remain briefly for diagnostics.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.generation_batches (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id           UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+    owner_principal_id  TEXT NOT NULL,
+    session_id          TEXT NOT NULL,
+    source              TEXT NOT NULL
+                        CHECK (source IN ('Cărți', 'Internet', 'Memorie', 'Combinat')),
+    pillar              TEXT NOT NULL
+                        CHECK (pillar IN ('Poziționare', 'Educație', 'Conexiune',
+                                          'Conversie', 'Magnetism')),
+    format              TEXT NOT NULL CHECK (format IN ('Reel', 'Carusel', 'Stories')),
+    focus               TEXT,
+    material_ids        UUID[] NOT NULL DEFAULT '{}',
+    source_packet       JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status              TEXT NOT NULL DEFAULT 'gathering'
+                        CHECK (status IN ('gathering', 'titles_ready', 'generating',
+                                          'ready', 'failed', 'cancelled', 'replaced')),
+    is_current          BOOLEAN NOT NULL DEFAULT true,
+    cancel_requested    BOOLEAN NOT NULL DEFAULT false,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_generation_batches_one_current_per_owner
+    ON public.generation_batches(owner_principal_id) WHERE is_current;
+CREATE INDEX IF NOT EXISTS idx_generation_batches_client_created
+    ON public.generation_batches(client_id, created_at DESC);
+
+
+CREATE TABLE IF NOT EXISTS public.generation_ideas (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_id        UUID NOT NULL REFERENCES public.generation_batches(id) ON DELETE CASCADE,
+    ordinal         INT NOT NULL CHECK (ordinal BETWEEN 1 AND 10),
+    title           TEXT NOT NULL,
+    angle           TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'waiting'
+                    CHECK (status IN ('waiting', 'generating', 'ready', 'retrying',
+                                      'failed', 'cancelled')),
+    retry_count     INT NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+    last_error      TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (batch_id, ordinal)
+);
+CREATE INDEX IF NOT EXISTS idx_generation_ideas_batch
+    ON public.generation_ideas(batch_id, ordinal);
+
+
+CREATE TABLE IF NOT EXISTS public.generation_variants (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    idea_id         UUID NOT NULL REFERENCES public.generation_ideas(id) ON DELETE CASCADE,
+    hook_type       TEXT NOT NULL
+                    CHECK (hook_type IN ('PROVOCARE', 'CIFRA', 'SECRET',
+                                         'INTREBARE', 'CONTRAST')),
+    status          TEXT NOT NULL DEFAULT 'waiting'
+                    CHECK (status IN ('waiting', 'generating', 'ready', 'failed',
+                                      'cancelled')),
+    hook            TEXT,
+    script          TEXT,
+    caption         TEXT,
+    hashtags        JSONB,
+    cta             TEXT,
+    source          TEXT,
+    format_details  JSONB,
+    is_selected     BOOLEAN NOT NULL DEFAULT false,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (idea_id, hook_type),
+    CONSTRAINT generation_variants_ready_is_complete CHECK (
+        status <> 'ready' OR (
+            hook IS NOT NULL AND script IS NOT NULL AND caption IS NOT NULL
+            AND hashtags IS NOT NULL AND cta IS NOT NULL AND source IS NOT NULL
+            AND format_details IS NOT NULL
+        )
+    ),
+    CONSTRAINT generation_variants_only_ready_is_selected CHECK (
+        NOT is_selected OR status = 'ready'
+    )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_generation_variants_one_selected_per_idea
+    ON public.generation_variants(idea_id) WHERE is_selected;
+CREATE INDEX IF NOT EXISTS idx_generation_variants_idea
+    ON public.generation_variants(idea_id);
 
 
 -- ═════════════════════════════════════════════════════════════════════════════

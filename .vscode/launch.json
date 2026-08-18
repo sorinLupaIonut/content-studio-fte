@@ -1,5 +1,5 @@
 {
-  // D1: the two long-running services used during local development.
+  // D1b: the three services used during local development.
   // Secrets stay in `.env`; this committed file never contains keys.
   "version": "0.2.0",
   "configurations": [
@@ -32,15 +32,43 @@
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
+      "env": {
+        "AUTH_MODE": "development",
+        "HARNESS_HOST": "127.0.0.1"
+      },
       "justMyCode": false
+    },
+    {
+      // Standalone Blazor WebAssembly development host. It calls FastAPI on 8000.
+      "name": "Blazor UI",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ui/StudioViorela/StudioViorela.csproj",
+        "--no-launch-profile",
+        "--urls",
+        "http://127.0.0.1:5178"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "Now listening on:\\s+(https?://\\S+)"
+      }
     }
   ],
   "compounds": [
     {
-      // Select this one to start both debug sessions concurrently with one F5.
+      // Select this one to start the entire local product with one F5.
       // The harness may boot before MCP; /health reports degraded until MCP is ready.
-      "name": "MCP + Harness",
-      "configurations": ["MCP server", "FastAPI harness"],
+      "name": "Studio complet (3 servicii)",
+      "configurations": ["MCP server", "FastAPI harness", "Blazor UI"],
       "stopAll": true
     }
   ]

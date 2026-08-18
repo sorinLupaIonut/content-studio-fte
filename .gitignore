@@ -18,3 +18,8 @@ content/books/md/*.md
 # the model's output from the last eval run; the runner and the cases stay in Git
 evals/report-latest.json
 evals/raport-latest.json
+
+# Blazor build and publish output
+ui/**/bin/
+ui/**/obj/
+ui/**/dist/

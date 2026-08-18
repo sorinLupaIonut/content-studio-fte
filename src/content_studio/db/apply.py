@@ -47,6 +47,9 @@ EXPECTED = [
     "traces",
     "artifacts",
     "audit_log",
+    "generation_batches",
+    "generation_ideas",
+    "generation_variants",
 ]
 
 TABLE_QUERY = """

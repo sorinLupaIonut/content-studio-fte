@@ -1,0 +1,222 @@
+@page "/profile"
+@inject StudioApiClient Api
+
+<PageTitle>Profil · Studio Viorela</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">Vocea din spatele conținutului</span>
+        <h1>Profilul brandului</h1>
+        <p>Agentul folosește aceste informații în fiecare idee. Editează doar ce s-a schimbat și confirmă înainte de salvare.</p>
+    </div>
+    <span class="step-chip">Sursă vie · MCP</span>
+</section>
+
+@if (_loading)
+{
+    <section class="loading-card" aria-live="polite">
+        <span class="spinner"></span> Se încarcă profilul actual…
+    </section>
+}
+else if (_error is not null)
+{
+    <section class="notice notice-error" role="alert">
+        <strong>Profilul nu a putut fi încărcat.</strong>
+        <span>@_error</span>
+        <button class="button button-ghost" @onclick="LoadAsync">Încearcă din nou</button>
+    </section>
+}
+else
+{
+    @if (_message is not null)
+    {
+        <div class="notice notice-success" role="status">@_message</div>
+    }
+
+    <div class="profile-grid">
+        @foreach (var section in _sections)
+        {
+            <article class="profile-card @(section.ReadOnly ? "read-only" : null)">
+                <button class="profile-card-header" type="button" @onclick="() => Toggle(section.Key)" aria-expanded="@IsExpanded(section.Key)">
+                    <span class="profile-icon">@GroupIcon(section.Group)</span>
+                    <span>
+                        <small>@GroupLabel(section.Group)</small>
+                        <strong>@section.Title</strong>
+                    </span>
+                    @if (section.ReadOnly)
+                    {
+                        <span class="readonly-chip">din metodă</span>
+                    }
+                    <span class="chevron @(IsExpanded(section.Key) ? "open" : null)">⌄</span>
+                </button>
+
+                @if (IsExpanded(section.Key))
+                {
+                    <div class="profile-card-body">
+                        @foreach (var block in section.Blocks)
+                        {
+                            <label class="profile-block">
+                                <span>@BlockLabel(block.Kind)</span>
+                                <textarea @bind="block.Text" disabled="@section.ReadOnly"></textarea>
+                            </label>
+                        }
+
+                        @if (!section.ReadOnly)
+                        {
+                            <div class="section-actions">
+                                <span>Salvarea cere confirmarea ta.</span>
+                                <button class="button button-primary" disabled="@_busy" @onclick="() => PrepareAsync(section)">
+                                    @(_busy && _activeKey == section.Key ? "Se pregătește…" : "Pregătește salvarea")
+                                </button>
+                            </div>
+                        }
+
+                        @if (_activeKey == section.Key && _pending is not null)
+                        {
+                            <ApprovalPanel Run="_pending" Busy="_busy" OnDecision="DecideAsync" />
+                        }
+                    </div>
+                }
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private readonly HashSet<string> _expanded = [];
+    private List<ProfileSectionDto> _sections = [];
+    private RunResponseDto? _pending;
+    private string? _activeKey;
+    private string? _error;
+    private string? _message;
+    private bool _loading = true;
+    private bool _busy;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var response = await Api.GetProfileAsync();
+            _sections = response.Sections;
+            _expanded.Clear();
+            foreach (var section in _sections.Take(2))
+            {
+                _expanded.Add(section.Key);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool IsExpanded(string key) => _expanded.Contains(key);
+
+    private void Toggle(string key)
+    {
+        if (!_expanded.Remove(key))
+        {
+            _expanded.Add(key);
+        }
+    }
+
+    private async Task PrepareAsync(ProfileSectionDto section)
+    {
+        _busy = true;
+        _message = null;
+        _error = null;
+        _activeKey = section.Key;
+        _pending = null;
+        try
+        {
+            _pending = await Api.PrepareProfileUpdateAsync(section);
+            if (_pending.Status == "completed")
+            {
+                _message = "Profilul a fost actualizat.";
+                await LoadAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DecideAsync(bool approved)
+    {
+        if (_pending is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = await Api.DecideAsync(_pending, approved);
+            _pending = null;
+            _activeKey = null;
+            _message = approved && result.Status == "completed"
+                ? "Modificarea a fost salvată."
+                : "Modificarea a fost anulată.";
+            if (approved)
+            {
+                await LoadAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string GroupIcon(string group) => group switch
+    {
+        "identity" => "V",
+        "ideal_client" => "◎",
+        "voice" => "✦",
+        "offer" => "◇",
+        "pillars" => "▦",
+        "ctas" => "↗",
+        "restrictions" => "!",
+        "results" => "✓",
+        _ => "·"
+    };
+
+    private static string GroupLabel(string group) => group switch
+    {
+        "identity" => "Identitate",
+        "ideal_client" => "Client ideal",
+        "voice" => "Voce și ton",
+        "offer" => "Ofertă",
+        "pillars" => "Piloni",
+        "ctas" => "Îndemnuri",
+        "restrictions" => "Limite",
+        "results" => "Rezultate",
+        _ => "Profil"
+    };
+
+    private static string BlockLabel(string kind) => kind switch
+    {
+        "bullet" => "Punct",
+        "ordered" => "Pas",
+        "quote" => "Formulare exactă",
+        _ => "Descriere"
+    };
+}

@@ -1,0 +1,36 @@
+@if (Run is not null)
+{
+    <section class="approval-panel" aria-live="polite">
+        <div class="approval-icon">✓</div>
+        <div class="approval-copy">
+            <span class="eyebrow">Confirmare necesară</span>
+            <h3>@Title</h3>
+            <p>@Message</p>
+            @if (Summary.Count > 0)
+            {
+                <ul class="approval-summary">
+                    @foreach (var line in Summary)
+                    {
+                        <li>@line</li>
+                    }
+                </ul>
+            }
+        </div>
+        <div class="approval-actions">
+            <button class="button button-ghost" disabled="@Busy" @onclick="() => OnDecision.InvokeAsync(false)">@RejectLabel</button>
+            <button class="button button-primary" disabled="@Busy" @onclick="() => OnDecision.InvokeAsync(true)">
+                @(Busy ? "Se aplică…" : "Confirmă")
+            </button>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public RunResponseDto? Run { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<bool> OnDecision { get; set; }
+    [Parameter] public string Title { get; set; } = "Modificarea este pregătită";
+    [Parameter] public string Message { get; set; } = "Profilul nu se schimbă până când alegi explicit „Confirmă”.";
+    [Parameter] public string RejectLabel { get; set; } = "Renunță";
+    [Parameter] public List<string> Summary { get; set; } = [];
+}

@@ -43,8 +43,9 @@ import os
 import sys
 import uuid
 from datetime import date
+from typing import Any
 
-from agents import Runner
+from agents import ModelSettings, Runner
 from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
 from agents.extensions.sandbox.e2b import E2BSandboxClient, E2BSandboxClientOptions
 from agents.mcp import MCPServerStreamableHttp
@@ -72,12 +73,16 @@ from content_studio.config import (
     database_url,
     describe_database,
 )
-from content_studio.mcp_server.protocol import CONVERSATION_HEADER, PROFILE_URI
+from content_studio.mcp_server.protocol import (
+    CONVERSATION_HEADER,
+    MODEL_VISIBLE_TOOLS,
+    PROFILE_URI,
+)
 
 enable_utf8_output()
 
 #: The tools that write under her name. Only these are gated; reads are free.
-GATED_TOOLS = ("save_post", "update_profile")
+GATED_TOOLS = ("save_post", "save_posts_batch", "update_post", "update_profile")
 
 # The rules live in the system prompt rather than in a skill, because they are
 # always in force. Progressive disclosure is for what is needed sometimes — the
@@ -225,7 +230,14 @@ async def read_profile(data_mcp: MCPServerStreamableHttp) -> tuple[str, str]:
     return name, profile_md
 
 
-def build_worker(profile_md: str, data_mcp: MCPServerStreamableHttp) -> SandboxAgent:
+def build_worker(
+    profile_md: str,
+    data_mcp: MCPServerStreamableHttp,
+    *,
+    model: str | None = None,
+    output_type: type[Any] | None = None,
+    model_settings: ModelSettings | None = None,
+) -> SandboxAgent:
     """The single agent: skills mounted from `skills/`, data through MCP.
 
     `Skills(from_=LocalDir(...))` discovers the folders by itself: every `SKILL.md`
@@ -238,12 +250,14 @@ def build_worker(profile_md: str, data_mcp: MCPServerStreamableHttp) -> SandboxA
     """
     return SandboxAgent(
         name="Content Worker",
-        model=MODEL,
+        model=model or MODEL,
         instructions=(
             f"{BASE_INSTRUCTIONS}\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
         ),
         capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS_DIR))],
         mcp_servers=[data_mcp],
+        output_type=output_type,
+        model_settings=model_settings or ModelSettings(),
     )
 
 
@@ -353,6 +367,7 @@ async def main() -> int:
         },
         name="content-data",
         cache_tools_list=True,
+        tool_filter={"allowed_tool_names": sorted(MODEL_VISIBLE_TOOLS)},
         client_session_timeout_seconds=MCP_TIMEOUT,
         # The approval gate sits on the server REGISTRATION, not inside the tool
         # (Decision 9). That way it protects every call the agent makes through
@@ -393,7 +408,8 @@ async def main() -> int:
     #
     # It is created empty, without a manifest: given a live session, the SDK
     # applies the entries its capabilities ask for, so the skills mount on the
-    # first run. And since the session is mine, I delete it too, at the end.
+    # first run. Since the session is developer-owned, its full lifecycle ends
+    # through `aclose()`; E2BSandboxClient.delete() is intentionally a no-op.
     try:
         sandbox_session = await client.create(options=sandbox_options)
     except Exception as e:  # noqa: BLE001
@@ -455,7 +471,7 @@ async def main() -> int:
             print(f"\nworker> {result.final_output}\n")
     finally:
         try:
-            await client.delete(sandbox_session)
+            await sandbox_session.aclose()
         except Exception:  # noqa: BLE001
             pass
         await data_mcp.cleanup()

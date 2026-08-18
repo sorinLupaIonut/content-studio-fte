@@ -8,7 +8,7 @@ before you touch anything; update it when you finish a step.
 Language follows the repo rule in [AGENTS.md](../AGENTS.md): this is a developer
 document, so it is English. Everything the client reads stays Romanian.
 
-Last updated: 2026-08-17 · owner of this update: Codex
+Last updated: 2026-08-18 · owner of this update: Claude Code
 
 ---
 
@@ -45,7 +45,7 @@ adapted to this project. We stop after each decision for a human go/no-go.
 |---|---|---|
 | D0 | Probe the SDK and reconcile the brief | ✅ done — SDK 0.20.0 probed and brief reconciled below |
 | D1 | Harness: FastAPI + the gate on Postgres | ✅ complete — HTTP park/approve/resume contract, 21 free tests; paid live round trip stays at the testing stage |
-| D1b | Blazor WebAssembly interface | ⬜ not started |
+| D1b | Blazor WebAssembly interface | 🟡 shell, profile, hybrid generator, streaming chat, batch save and the saved-post editor all built and free-verified; two paid acceptances remain |
 | D2 | Containerize (multi-stage: .NET SDK → Python) | ⬜ not started |
 | D3 | Deploy to Azure Container Apps | ⬜ blocked: Azure subscription unconfirmed |
 | D4 | Neon from the cloud + schema changes | 🟡 the course's five-table state model **adopted and verified functionally**; pooled/direct split enforced in code; the "from the cloud" half waits for D3 |
@@ -118,14 +118,218 @@ you start, release it when you are done.
 
 | Zone | Files | Owner |
 |---|---|---|
-| Harness | `src/content_studio/harness/**` | *unclaimed* — D1 completed by Codex |
-| Blazor UI | `ui/**` | *unclaimed* |
+| Harness | `src/content_studio/harness/**` | *unclaimed* — D1b.3 complete |
+| Blazor UI | `ui/**` | *unclaimed* — D1b.3 complete |
 | Container + infra | `Dockerfile`, `.dockerignore`, `infra/**` | *unclaimed* |
-| Schema + migrations | `src/content_studio/db/**` | *unclaimed* — D4 prep checkpointed in `327d297` |
+| Schema + migrations | `src/content_studio/db/**` | *unclaimed* — `posts.format_details` applied |
+| Content-data MCP | `src/content_studio/mcp_server/**` | *unclaimed* — D1b.3 complete |
 | Existing worker/CLI | `worker.py`, `audit.py`, `conversation.py`, `replay.py` | *unclaimed* — D4 prep checkpointed; D1 only extended the gate query in `audit.py` |
 | Azure access + infra provisioning | Azure portal, subscription, `az` CLI | **Codex** (D3) |
-| Docs | `README.md`, `AGENTS.md`, `docs/**` | *unclaimed* — they will lie until the `conversations` removal is reflected |
+| Docs | `README.md`, `AGENTS.md`, `docs/**` | *unclaimed* — tool counts corrected at D1b.3; the `conversations` removal is still unreflected |
 | This board | `plans/DEPLOYMENT.md` | shared — append, do not rewrite |
+
+### Active handoff checkpoint — 2026-08-18 (D1b.3 closed, free half)
+
+Claude Code took over Codex's five-step continuation order and finished all five.
+Every zone is released again.
+
+**Complete and verified:** D1b.1 shell/profile, self-hosted Manrope + Source
+Serif 4, D1b.2 hybrid generation, D1b.3 target-aware streaming chat, and now the
+saved-post slice: batch save, the `/saved` list and editor, and the rewrite path.
+
+**Last green evidence:** Ruff clean; **84** Python unit/HTTP tests; **6** .NET
+tests; Blazor Debug build and Release publish with zero warnings; live read-only
+MCP bootstrap with **7 model-visible + 14 internal** tools; the two internal post
+reads exercised against live Neon; browser passes at 800 × 450 and 390 × 844 with
+no horizontal overflow and no JavaScript error. The temporary services on ports
+8000/8765 were stopped. No paid model call, no business write, no commit, no push.
+
+**What is now in place:**
+
+- `mcp_server/posts_store.py` — the batch write, the rewrite and the two reads;
+- `save_posts_batch` and `update_post`, both model-visible and both in
+  `GATED_TOOLS`; the batch inserts N posts and N `post_saved` rows in **one**
+  transaction;
+- hidden `ui_list_saved_posts` / `ui_get_saved_post`;
+- `GET /api/posts`, `GET /api/posts/{id}`, `POST /api/posts/save-runs`,
+  `POST /api/posts/{id}/runs`; decisions keep going through the existing trusted
+  `POST /api/runs/{run_id}/decisions`;
+- the generator's multi-select save summary, the `/saved` editor, and a
+  `saved_post` chat target whose patch is **returned but never persisted**;
+- `posts.format_details` applied to Neon through the direct endpoint.
+
+**Three decisions taken while implementing, each a departure worth knowing:**
+
+1. **`save_posts_batch` takes `variant_ids`, not post content.** Codex's
+   `SavePostsBatch` contract survives as the server-side validation of what the
+   draft rows already hold. Making the model retype ten complete posts would cost
+   tens of thousands of output tokens per save on a model that already failed
+   strict output at that scale, and would put a rewrite between "she approved"
+   and "it was written". `update_post` still carries full content, because a
+   browser draft exists nowhere else.
+2. **Identity rides a second header, `X-Content-Owner-Principal-ID`.**
+   `save_posts_batch` is model-visible, so ownership cannot be a parameter the
+   model fills in. The CLI never sets it, which is why that one tool refuses to
+   run there and says so.
+3. **A prepared run is checked for fidelity before she ever sees it.** The gate
+   stops an unwanted write; it does not stop a write of the *wrong thing* — she
+   would be approving `save_posts_batch` either way. `HarnessService._prepared`
+   compares the prepared arguments with what the application asked for and fails
+   the run instead of offering it. Six tests cover the mismatch cases.
+
+**Still outstanding, both needing Sorin's go because they cost money:**
+
+- one real 10 × 5 hybrid batch with observed SSE/retry behaviour (D1b.2);
+- one real batch save and one real rewrite through the gate — the save panel and
+  the two prepare endpoints have never run against a live batch, because creating
+  one requires a paid generation.
+
+**Found while verifying, then resolved by Sorin's decision (2026-08-18):**
+`public.posts` held **5 rows of benchmark residue**, all with `conversation_id`
+like `d1b-benchmark-…` and titles that were fragments of the D1b prompt header
+("Reel UI Structurat D1B — Titluri", "Sursa"). They were written by the paid
+nano/mini topology probe, and they were what `/saved` showed the client. The
+D1b.0 entry below says "No post or generation draft was persisted"; that held for
+generation drafts, not for posts. **All five were deleted** — backed up to JSON
+first, then removed inside one transaction guarded on `conversation_id LIKE
+'d1b-benchmark-%' AND source_file IS NULL`, committed only because the count was
+exactly 5. `public.posts` is now 0 rows, which is what `reset_for_deployment.sql`
+intended: the library starts empty and fills only with what the client saves.
+
+The five `post_saved` rows in `audit_log` (#24–#28) were **kept**. The trail is
+append-only by rule 2, and it recorded something that genuinely happened; editing
+it to match the current table would make it a worse record, not a better one.
+
+## D1b product interview — locked so far (2026-08-17)
+
+Implementation has **not** started. These choices are the hand-off contract for
+Codex and Claude Code; do not silently reinterpret "10 ideas" as 10 finished
+posts.
+
+The complete accepted specification, architecture mapping and checkpoint plan is
+in [D1B_UI.md](D1B_UI.md). That file is awaiting Sorin's approval before code.
+
+- The first result is exactly **10 collapsed idea titles**. Each card expands
+  with an arrow, following the interaction observed in the reference recording,
+  but the visual design itself will be new.
+- Every idea owns **five complete variants**, one for each hook. A variant is not
+  only hook text: its script, caption, CTA, hashtags and other format-specific
+  fields are generated together. Total per batch: 10 ideas × 5 variants = **50
+  complete variants**.
+- Those five variants are **alternatives for one idea**, not five independent
+  posts. Viorela chooses exactly one variant for an idea. An idea title itself
+  is never saved as a post. When several **final posts** are saved together, the
+  batch contains only the chosen complete variant from each selected idea.
+- In an expanded idea card, the five hooks are presented as tabs. Switching a
+  tab previews that variant's complete content; `Alege aceasta varianta` marks
+  exactly one variant as the candidate to save.
+- The generator selection is also the chat target. The composer shows the active
+  idea and hook variant; an instruction such as `fa-l mai bland` rewrites that
+  exact variant and the card updates immediately. If no variant is active, the
+  UI must ask the user to select one rather than guessing. Rewrites replace the
+  current value, with no undo or version history.
+- Chat is a global bottom panel on Generator, Saved Posts, Profile and Library.
+  Its visible context chip targets the active variant, saved post, profile
+  section or library material; with no selection it behaves as general agent
+  chat.
+- Chat responses stream token-by-token. Installed `openai-agents 0.20.0` exposes
+  `Runner.run_streamed(...)` and `RunResultStreaming.stream_events()`. D1b must
+  therefore extend the final-response-only D1 contract with an SSE stream (not a
+  WebSocket) carrying typed events for text deltas, status/progress, approval
+  requests, structured UI patches, completion and errors. Persist the final
+  message and run even though its presentation is incremental.
+- Streaming includes `Opreste generarea`. Partial chat text remains visible and
+  marked stopped, but no structured card patch is applied unless the final patch
+  validates completely.
+- A saved post can be reopened in the same editor and targeted by the same chat.
+  Chat rewrites remain a draft until the user presses `Salveaza modificarile`;
+  that explicit action replaces the stored post. There is no saved-post version
+  history in the first release.
+- The profile is a structured section editor, not raw Markdown. Identity, ideal
+  client, voice, offer, pillars, CTAs and restrictions appear as accordions.
+  Saving is explicit and section-scoped, and still passes through the existing
+  confirmation gate before the destructive profile update is persisted.
+- Visual direction is **Studio Viorela** with the line `Continut care suna ca
+  tine`: warm editorial, calm and premium, not a copy of the reference UI and
+  not generic pink wellness styling. Tokens: warm background `#F7F3EC`, primary
+  text `#28242B`, plum primary `#654A5D`, sage accent `#91A296`, decorative gold
+  `#C4A261`, white cards. Use Source Serif 4 for editorial headings and Manrope
+  for UI/body text, self-hosted. The generator is airy card-based UI; chat is an
+  expandable panel anchored at the bottom and always exposes its active target.
+- Responsive priority is laptop/desktop for comparing and editing long scripts;
+  the complete workflow remains usable on mobile. On narrow screens the five
+  variant tabs scroll horizontally and chat opens as a bottom sheet.
+- The generator has an optional weekly focus prompt in addition to the required
+  source, pillar and format. When filled, it guides all ten ideas; when empty,
+  the agent derives relevant angles from the profile and the selected source.
+- `Carti` searches the complete indexed library by default. An optional material
+  filter can restrict retrieval to one or more selected books; the same filter
+  appears for `Combinat`. No extra selection is required for the fast path.
+- Multi-save operates on final posts only: one chosen complete variant from each
+  selected idea. The UI presents one confirmation summary and persistence is
+  atomic (`all or none`), so a validation or write failure cannot leave a
+  half-saved batch. This requires a batch write contract rather than independent
+  `save_post` calls.
+- Chat attachments are conversation-scoped by default. Each attachment offers an
+  explicit `Adauga si in biblioteca` option; only that path persists the file,
+  extracts/indexes its content and creates embeddings. Temporary attachments do
+  not silently pollute permanent retrieval.
+- Initial upload support: text PDFs, DOCX, TXT, Markdown and EPUB for documents;
+  PNG/JPG as temporary chat attachments. Image-only/scanned PDFs are rejected
+  with an explicit OCR-needed message; automatic OCR is deferred.
+- Voice MVP is Romanian dictation, not a realtime voice agent: record, stop or
+  cancel, transcribe with `gpt-4o-mini-transcribe`, place editable text in the
+  composer, and send only on an explicit user action.
+- Titles appear first; the 50 variants populate in the background. The sources
+  are Books, Internet, Memory and Combined.
+- Chat and generator share the same current state. A rewrite requested in chat
+  replaces the matching card automatically. There is deliberately **no undo and
+  no version history** in this first release.
+- Viorela can select several generated items and approve/save them together.
+  The intentionally simple lifecycle is `Generated -> Saved`.
+- Scope remains core-first: one shared client workspace with exactly two
+  allow-listed Google identities (Viorela plus Sorin for testing), profile,
+  generator, synchronized chat, approvals and saved posts before library uploads
+  and Romanian voice input. This is not public registration and does not require
+  a users table in the first release. Production authorization reads a configured
+  list of stable principal IDs; the initial email allow-list is used only to
+  bootstrap those two identities.
+- The two concrete Google addresses were supplied by Sorin in the product
+  interview. Keep them out of source code and tracked documentation; provision
+  them only as deployment configuration when authentication is implemented.
+- Both identities operate on the **same production workspace** for now: the same
+  profile, library and saved posts. There is no separate test environment. Show
+  the signed-in identity in the UI and attach it to audit events so a change made
+  during Sorin's testing is distinguishable from one made by Viorela.
+- Clarification: permanent data is shared, but work in progress is isolated per
+  identity. Each account owns its active unsaved generation batch, selected
+  variant and chat session; profile, library and saved posts remain shared. A
+  saved post becomes visible to both accounts.
+- Persist exactly one current unsaved batch per identity so refresh, browser
+  close or reconnect can restore its cards and background progress. Starting a
+  new batch while one exists requires confirmation and replaces it. This is
+  crash/reconnect recovery, not undo or historical batch browsing.
+
+### Paid GPT-5 nano topology probe
+
+Synthetic Romanian content was used, with `reasoning.effort=minimal`; no client
+profile or private source material was sent. A strict schema required exactly 10
+ideas and exactly five complete variants per idea.
+
+| Topology | Wall time | Result |
+|---|---:|---|
+| one strict monolithic response, 10 × 5 | 61.91 s | valid: 10 ideas / 50 variants |
+| titles, then 10 detail calls sequentially | 88.11 s | valid |
+| titles, then 10 detail calls concurrently | **11.59 s** | valid; titles visible at 1.90 s |
+
+Decision for the implementation plan: collect shared context once, generate the
+10 titles in one fast structured call, then run one bounded concurrent detail
+job per idea; each detail job returns all five complete hook variants. Persist
+and retry per idea so one failure does not discard the other nine. The measured
+parallel path was about 5.3× faster than the strict monolith and 7.6× faster
+than sequential generation. Real production latency will be higher when the
+full profile, retrieval and web tools participate; the topology comparison is
+the result being locked here.
 
 Working branch: **`deploy`**, cut from `main` after `main` was fast-forwarded to
 `english`. Both agents work there. Nothing is pushed yet.
@@ -344,6 +548,141 @@ zone, needs Sorin for MFA.
 
 ## Changelog
 
+- **2026-08-18 · Claude Code** — **Benchmark residue purged from
+  `public.posts`; library verified empty and the studio handed over for manual
+  testing.** Backed the five rows up to JSON, deleted them inside one transaction
+  whose WHERE clause matched only `d1b-benchmark-%` rows with `source_file IS
+  NULL`, and committed only after the rowcount came back exactly 5. `posts` went
+  5 → 0. Everything else untouched and re-counted: client Viorela, 17 library
+  documents, 4 778 embeddings, 0 generation drafts, 2 completed CLI runs, 9 audit
+  rows, 1 agent session with 6 messages. The `post_saved` audit rows were kept on
+  purpose — rule 2 makes the trail append-only.
+
+  Then re-published the Blazor UI clean (`rm -rf dist` first, so no stale
+  fingerprinted assemblies survived) and started both services locally for Sorin:
+  `content-data` on 8765 and the harness on 8000 with `AUTH_MODE=development`.
+  `/health` reports all five surfaces ready and MCP at 7 tools; `/saved` renders
+  the empty state; the three pre-model guards still answer 404/422/422 without
+  reaching the model — `runs` stayed at 2 throughout, which is the proof.
+
+- **2026-08-18 · Claude Code** — **D1b.3 closed on its free half.** Picked up
+  Codex's five-step continuation order and finished all of it: `posts_store.py`,
+  the gated `save_posts_batch` and `update_post`, the two hidden post reads, four
+  FastAPI routes, the generator's save summary, the `/saved` list and editor, and
+  a `saved_post` chat target whose rewrite stays a browser draft. Applied
+  `posts.format_details` through Neon's direct endpoint.
+
+  Three departures, each argued in the checkpoint above: the batch tool takes
+  variant ids rather than retyped content; ownership travels as a second trusted
+  header instead of a model-supplied argument; and a prepared run whose arguments
+  drifted from what the application asked for is failed rather than shown for
+  approval.
+
+  Also corrected the tool counts that README, `docs/TESTING.md` and
+  `docs/ARCHITECTURE.md` had been stating as five, and translated FastAPI's raw
+  422 field list into one Romanian sentence — the client was being shown English
+  Pydantic JSON.
+
+  Verified: Ruff clean, 84 Python tests, 6 .NET tests, Blazor Release publish with
+  zero warnings, live bootstrap at 7 + 14 tools, both internal post reads against
+  live Neon, and desktop/mobile browser passes with no overflow and no JavaScript
+  error. Temporary services stopped. No paid model call, no business write, no
+  commit, no push. Found 5 benchmark-residue rows in `public.posts` and left them
+  for Sorin to decide on.
+
+- **2026-08-18 · Codex** — **D1b.3 streaming chat and synchronized variant
+  patches implemented; saved-post approval slice remains.** Added one
+  principal-owned chat session, `POST /api/chat/runs`, reconnectable typed SSE on
+  `GET /api/runs/{run_id}/events`, and explicit cancellation. The UI always
+  shows the active target and sends only its typed ID; the server re-resolves
+  ownership and content through `content-data`.
+
+  `gpt-5-mini` streams a strict output envelope. Only the `reply` string is
+  exposed incrementally; a generation-variant patch remains hidden until the
+  complete Pydantic object validates, then one internal MCP operation replaces
+  the draft and writes its audit event in the same transaction. Cancelling keeps
+  visible partial text but cannot apply a patch. The Blazor drawer streams text,
+  has an `Oprește` action, and refreshes the generator after `ui.patch`.
+
+  Verified: Ruff clean, 60 Python tests, 3 .NET tests, zero-warning Blazor build,
+  and the live read-only bootstrap reports 5 model tools + 12 hidden UI tools,
+  the exact five-tool model allowlist, no SQL tool and the 30,748-character
+  profile through MCP. No paid model call, generation, profile/post write,
+  commit or push.
+- **2026-08-18 · Codex** — **D1b.2 implementation built; real hybrid acceptance
+  run deliberately not started.** Added title-first background orchestration,
+  bounded five-slot E2B detail generation, one automatic per-idea retry,
+  cancellation, principal ownership checks and durable reload through internal
+  `content-data` operations. Source material is gathered once. The browser sees
+  only library metadata and public batch fields; source excerpts, internal
+  session IDs and owner IDs are stripped from API responses.
+
+  Added authenticated library/current/get/cancel/select endpoints and typed SSE
+  with reconnectable durable snapshots. The Generator page now has the four
+  sources, five pillars, three formats, optional focus, optional 17-book filter,
+  replacement confirmation, ten progressive cards, five hook tabs and one
+  selected variant per idea. The VS Code Blazor host on port 5178 reaches FastAPI
+  correctly. SPA deep links return `index.html`; unknown `/api/*` paths remain
+  404 and have a dedicated regression test. No model button was pressed, so the
+  database still has no generation draft from this verification and no paid call
+  was made. D1b.2 remains open only for one Sorin-approved real 10 × 5 run and
+  observed SSE/retry acceptance. No commit/push.
+- **2026-08-18 · Codex** — **D1b.1 complete; D1b.2 claimed and in progress.**
+  Sorin accepted the hybrid generator: `gpt-5-nano` for the ten short titles,
+  `gpt-5-mini` for complete variants, maximum five detail jobs concurrently.
+  These are separate configuration values; the existing CLI model remains
+  unchanged.
+
+  Added the .NET 10 Blazor WebAssembly shell for Generator, Salvate, Profil and
+  Materiale, plus the global chat drawer. FastAPI now exposes trusted `/api/me`
+  and structured profile endpoints, reads the live profile through
+  `content-data`, and routes a section update through the existing agent approval
+  gate. Azure mode trusts only Easy Auth headers and fails closed; local bypass
+  is restricted to loopback and is refused under Azure environment markers.
+  Real addresses remain deployment configuration, never tracked source.
+
+  The published SPA is served by FastAPI with client-route fallback. VS Code now
+  has one compound, `Studio complet (3 servicii)`, for MCP + harness + Blazor.
+  Verified: Ruff clean, all 42 Python unit/HTTP tests pass, Blazor Debug build and
+  Release publish complete with zero warnings/errors, live profile renders from
+  MCP, desktop and 390 px browser passes are clean, and browser console has zero
+  warnings/errors. No paid model call and no business write were made. Temporary
+  services were used only for the browser pass. No commit/push.
+- **2026-08-18 · Codex** — **D1b.1 typography closed.** Added the approved
+  Manrope and Source Serif 4 variable fonts from the official Google Fonts
+  repository, with their OFL license files, and wired them through local
+  `@font-face` declarations. The published UI has no runtime font-CDN
+  dependency.
+- **2026-08-18 · Codex** — **D1b.0 implemented; model/cost go-no-go pending.**
+  Added strict 10-title/5-variant and typed SSE contracts, three additive draft
+  tables, nine internal `content-data` operations with same-transaction audit,
+  and a strict five-tool allowlist for the model. Applied `schema.sql` through
+  Neon's direct endpoint: the new tables are empty and the existing 17 documents,
+  4,778 embeddings and client data are intact. The live MCP reports exactly five
+  agent tools plus nine internal UI operations. Updated both skills with isolated
+  structured-UI branches while preserving their CLI flows.
+
+  The real full-profile spike rejected `gpt-5-nano` for long detail generation:
+  titles were valid in 25.58–35.01 s, but concurrency 10 produced 1/10 valid ideas
+  in 72.45 s and an isolated concurrency-5 run produced 1/10 in 110.16 s. The
+  failures were mainly the account's 200k TPM ceiling, plus invalid structured
+  JSON and incomplete skill execution. Recommendation: nano for titles,
+  `gpt-5-mini` for details, default concurrency 5 with backoff; mini is documented
+  at 500k TPM but costs 5× per token, so it is not enabled without Sorin's go.
+
+  The spike found that SDK 0.20.0's `E2BSandboxClient.delete()` is a no-op for a
+  developer-owned session. Worker, eval and check cleanup now use
+  `sandbox.aclose()`. Exactly the 20 leaked benchmark sessions were killed; the
+  28 older paused sessions were deliberately left untouched. Ruff and all 31
+  unit tests pass. MCP bootstrap passes and E2B reports zero running sandboxes.
+  Required eval 13 was run and **failed on nano**: no skill activation, two
+  rejected `update_profile` attempts, then invented content. No profile write
+  executed. Eval and full-flow now use the same five-tool allowlist as production.
+  No post or generation draft was persisted. No commit/push.
+- **2026-08-17 · Codex** — Sorin approved [D1b.0](D1B_UI.md): strict generation
+  and SSE contracts, draft persistence through `content-data`, and the real-stack
+  5-vs-10 concurrency probe. Codex claimed harness, UI, schema/migrations and MCP
+  for this checkpoint. Claude Code remains paused. No commit or push authorized.
 - **2026-08-17 · Codex** — **D1 complete.** Added the FastAPI control plane with
   `GET /health`, `POST /runs`, durable pending lookup, and a separate decisions
   endpoint that restores `RunState` and resumes the same run. The process boots

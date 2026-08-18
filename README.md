@@ -55,7 +55,7 @@ flowchart TB
 
     W -->|"skills mounted"| S["E2B sandbox<br/>propune-postari · dezvolta-postarea"]
     W -->|"5 tools, HTTP"| M["MCP server<br/>content-data"]
-    W -.->|"gate: save_post · update_profile"| G{"approve?"}
+    W -.->|"gate: the four write tools"| G{"approve?"}
     G -->|"no"| W
 
     M --> DB[("Neon Postgres<br/>+ pgvector")]
@@ -67,7 +67,7 @@ The dotted lines are the only direct database access the worker keeps: its own
 conversation state and the audit trail. The profile, the books and the posts — the
 business data — all travel through MCP.
 
-### The five tools
+### The seven tools
 
 | Tool | Kind | What it does |
 |---|---|---|
@@ -75,6 +75,8 @@ business data — all travel through MCP.
 | `search_web` | read | current angles, with the links of the pages cited |
 | `list_posts` | read | what has already been written — "have I covered this?" |
 | `save_post` | **write, gated** | one post, plus its audit row, in one transaction |
+| `save_posts_batch` | **write, gated** | the variants chosen in the UI, all of them or none |
+| `update_post` | **write, gated** | one studio-written post, replaced whole |
 | `update_profile` | **write, gated** | one profile section, plus its audit row |
 
 Every passage returned by `search_books` carries its provenance — title, author,
@@ -131,6 +133,16 @@ model or sandbox call. The interactive API contract is at
 `degraded`, but `/runs` refuses safely rather than replacing the Neon approval
 gate with temporary state.
 
+For the Blazor UI, open the repository in VS Code and choose the single compound
+debug target `Studio complet (3 servicii)`. It starts `content-data`, FastAPI and
+the .NET 10 WebAssembly development host. Local auth is loopback-only. A Release
+publish places the SPA under `ui/StudioViorela/dist/wwwroot`, which FastAPI serves
+directly for the Azure container:
+
+```bash
+dotnet publish ui/StudioViorela/StudioViorela.csproj -c Release
+```
+
 To fill the library, put Markdown files in `content/books/md/` and run
 `uv run python -m content_studio.db.import_books`. The import is per-book and
 content-addressed: unchanged books are skipped, so adding an eighteenth title only
@@ -151,11 +163,13 @@ not touch the vectors.
 src/content_studio/
   worker.py            the agent and the conversation loop
   audit.py             durable runs, replayable trail, and approval gate
-  harness/             FastAPI control plane: run, park, approve, resume
+  harness/             FastAPI control plane: runs, generator and streaming chat
   replay.py            reconstructs a past conversation, no model involved
   config.py            environment, paths, DATABASE_URL normalization
-  mcp_server/          the `content-data` server: five tools, one resource
+  mcp_server/          the `content-data` server: seven tools, one resource
   db/                  schema, migrations, seed, book import
+
+ui/StudioViorela/      .NET 10 Blazor UI: profile, generator and streaming chat
 
 skills/                mounted into the sandbox; Romanian, edited without code
   propune-postari/       phase 1: three questions, then 10 proposals × 5 hooks
@@ -204,15 +218,18 @@ skill fires when it should and stays quiet when it should not.
 | 3 | Neon + pgvector + schema, then `SQLAlchemySession` | ✅ 7 tables, memory across restarts |
 | 4 | `propune-postari` as a sandboxed skill | ✅ 10 proposals × 5 hooks |
 | 5 | Import + embedding of the 17 books | ✅ 4,778 chunks, search returns the page |
-| 6 | `content-data` MCP server, five tools | ✅ books, web, posts, guarded writes |
+| 6 | `content-data` MCP server, seven tools | ✅ books, web, posts, guarded writes |
 | 7 | `dezvolta-postarea` + saving | ✅ full cycle, and a second post from the same list |
 | 8 | Audit at every boundary + replay | ✅ trail tied to the conversation, replayable |
 | 9 | Approval gate on both write tools | ✅ refused = `blocked`, approved = written |
 | 10 | The eval set — 12 ugly cases + 3 trigger evals | ✅ real runner |
 | 11/D1 | FastAPI harness + durable HTTP approval gate | ✅ free contract tests; paid round trip deferred to the testing stage |
+| D1b.1 | secure Blazor shell + structured profile | ✅ local/Azure identity adapters, gated section save |
+| D1b.2 | title-first progressive generator | 🟡 API, durable orchestration, SSE and UI built; accepted real 10 × 5 run pending |
+| D1b.3 | synchronized streaming chat | 🟡 target-aware SSE, stop and validated draft patches built; saved-post approvals next |
 
-Next: build the Blazor interface, containerize both processes, and deploy them to
-Azure Container Apps.
+Next: accept one real hybrid 10 × 5 run, add atomic saved-post approvals and the
+saved editor, then containerize the accepted core for Azure Container Apps.
 
 ## Documentation
 

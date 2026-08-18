@@ -1,0 +1,53 @@
+@inherits LayoutComponentBase
+@inject StudioApiClient Api
+
+<div class="app-shell">
+    <header class="topbar">
+        <a class="brand" href="/generator" aria-label="Studio Viorela, pagina principală">
+            <span class="brand-mark">V</span>
+            <span>
+                <strong>Studio Viorela</strong>
+                <small>Conținut care sună ca tine</small>
+            </span>
+        </a>
+        <div class="identity" title="@(_me?.Email ?? "Sesiune locală")">
+            <span class="identity-avatar">@Initial</span>
+            <span class="identity-copy">
+                <strong>@(_me?.Email ?? "Se verifică accesul…")</strong>
+                <small>@(_me?.IsDevelopment == true ? "mod local" : "cont autorizat")</small>
+            </span>
+        </div>
+    </header>
+
+    <PrimaryNav />
+
+    <main class="page-content">
+        @if (_identityError is not null)
+        {
+            <div class="notice notice-error" role="alert">@_identityError</div>
+        }
+        @Body
+    </main>
+
+    <ChatDrawer />
+</div>
+
+@code {
+    private MeDto? _me;
+    private string? _identityError;
+    private string Initial => string.IsNullOrWhiteSpace(_me?.Email)
+        ? "V"
+        : _me.Email[..1].ToUpperInvariant();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _me = await Api.GetMeAsync();
+        }
+        catch (Exception ex)
+        {
+            _identityError = ex.Message;
+        }
+    }
+}
