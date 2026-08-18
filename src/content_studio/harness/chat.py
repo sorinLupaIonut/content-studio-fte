@@ -168,6 +168,26 @@ class ReplyJsonStream:
         return "".join(result)
 
 
+#: Appended for a verified target that has no script. The patch contract has to
+#: read back both shapes, so it cannot forbid one; this is what stops the model
+#: from growing a script onto a silent reel. `content-data` refuses such a patch
+#: anyway — saying it here means the rewrite succeeds instead of being rejected.
+SILENT_REEL_TARGET = (
+    " Ținta este un reel mut: nu are script și nu are bloc de producție. "
+    "Lasă `script` și `format_details` absente; tot ce ar fi fost spus stă în "
+    "`caption`, care rămâne lung."
+)
+
+
+def _silent(target_context: dict[str, Any] | None) -> str:
+    """The note above, when the verified target is one without a script."""
+
+    if target_context is None:
+        return ""
+    content = target_context.get("variant") or target_context
+    return SILENT_REEL_TARGET if content.get("script") is None else ""
+
+
 def chat_prompt(message: str, target_context: dict[str, Any] | None) -> str:
     """Bind the user's message to one server-verified target, never a label."""
 
@@ -183,7 +203,9 @@ def chat_prompt(message: str, target_context: dict[str, Any] | None) -> str:
             "COMPLET al aceleiași postări, inclusiv câmpurile neschimbate. "
             "`target_id` rămâne identic. Nu chema o unealtă de scriere: modificarea "
             "rămâne o ciornă în browser până când ea apasă „Salvează modificările” "
-            "și confirmă la poartă.\n"
+            "și confirmă la poartă."
+            + _silent(target_context)
+            + "\n"
             + json.dumps(target_context, ensure_ascii=False)
         )
     else:
@@ -192,7 +214,9 @@ def chat_prompt(message: str, target_context: dict[str, Any] | None) -> str:
             "Dacă utilizatoarea cere rescrierea, întoarce în `patch` conținutul "
             "COMPLET al aceleiași variante, inclusiv câmpurile neschimbate. "
             "`target_id` și `hook_type` rămân identice. Nu chema o unealtă de "
-            "scriere: acesta este încă un draft nesalvat.\n"
+            "scriere: acesta este încă un draft nesalvat."
+            + _silent(target_context)
+            + "\n"
             + json.dumps(target_context, ensure_ascii=False)
         )
     return f"""MOD CHAT UI STRUCTURAT D1B

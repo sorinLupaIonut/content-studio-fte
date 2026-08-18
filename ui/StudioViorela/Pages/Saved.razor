@@ -108,10 +108,16 @@ else
                             <span>Hook</span>
                             <textarea rows="2" @bind="_draft.Hook" @bind:after="MarkDirty"></textarea>
                         </label>
-                        <label class="editor-field">
-                            <span>Script / conținut</span>
-                            <textarea rows="10" @bind="_draft.Script" @bind:after="MarkDirty"></textarea>
-                        </label>
+                        @* Shown on what the post carries, not on its format: a silent
+                           reel never had a script, while a post saved before reels went
+                           mute still has one and must stay editable. *@
+                        @if (HasScript)
+                        {
+                            <label class="editor-field">
+                                <span>Script / conținut</span>
+                                <textarea rows="10" @bind="_draft.Script" @bind:after="MarkDirty"></textarea>
+                            </label>
+                        }
                         <label class="editor-field">
                             <span>Caption</span>
                             <textarea rows="5" @bind="_draft.Caption" @bind:after="MarkDirty"></textarea>
@@ -133,27 +139,30 @@ else
                             <input type="text" @bind="_draft.Source" @bind:after="MarkDirty" />
                         </label>
 
-                        <fieldset class="editor-production">
-                            <legend>Producție</legend>
-                            @if (NeedsProduction)
-                            {
-                                <p class="field-note">Postarea aceasta e dinainte de blocul de producție. Completează cele trei câmpuri o singură dată ca să o poți salva mai departe.</p>
-                            }
-                            <div class="editor-grid">
+                        @if (HasScript)
+                        {
+                            <fieldset class="editor-production">
+                                <legend>Producție</legend>
+                                @if (NeedsProduction)
+                                {
+                                    <p class="field-note">Postarea aceasta e dinainte de blocul de producție. Completează cele trei câmpuri o singură dată ca să o poți salva mai departe.</p>
+                                }
+                                <div class="editor-grid">
+                                    <label class="editor-field">
+                                        <span>Durată sau număr de cadre</span>
+                                        <input type="text" @bind="_production.DurationOrCount" @bind:after="MarkDirty" />
+                                    </label>
+                                    <label class="editor-field">
+                                        <span>Direcție vizuală</span>
+                                        <input type="text" @bind="_production.VisualDirection" @bind:after="MarkDirty" />
+                                    </label>
+                                </div>
                                 <label class="editor-field">
-                                    <span>Durată sau număr de cadre</span>
-                                    <input type="text" @bind="_draft.FormatDetails.DurationOrCount" @bind:after="MarkDirty" />
+                                    <span>Blocuri de conținut <small>(unul pe linie)</small></span>
+                                    <textarea rows="4" @bind="_blocks" @bind:after="MarkDirty"></textarea>
                                 </label>
-                                <label class="editor-field">
-                                    <span>Direcție vizuală</span>
-                                    <input type="text" @bind="_draft.FormatDetails.VisualDirection" @bind:after="MarkDirty" />
-                                </label>
-                            </div>
-                            <label class="editor-field">
-                                <span>Blocuri de conținut <small>(unul pe linie)</small></span>
-                                <textarea rows="4" @bind="_blocks" @bind:after="MarkDirty"></textarea>
-                            </label>
-                        </fieldset>
+                            </fieldset>
+                        }
 
                         <div class="editor-actions">
                             <button class="button button-ghost" disabled="@(_busy || !_dirty)" @onclick="() => ResetAsync(post)">Renunță la modificări</button>
@@ -185,6 +194,11 @@ else
     private string? _draftId;
     private string _hashtags = "";
     private string _blocks = "";
+
+    // The production block is edited through this working copy so the three
+    // inputs can bind to something non-null even while the draft's own
+    // `FormatDetails` is absent. `PrepareUpdateAsync` decides which one travels.
+    private FormatDetailsDto _production = new();
     private RunResponseDto? _updateRun;
     private string? _error;
     private string? _message;
@@ -192,12 +206,19 @@ else
     private bool _busy;
     private bool _dirty;
 
+    /// <summary>
+    /// A silent reel has no script, and no production block either. Everything
+    /// she would have said is in the caption, so those two fieldsets are not
+    /// hidden fields — they are fields the post does not have.
+    /// </summary>
+    private bool HasScript => !string.IsNullOrWhiteSpace(_draft?.Script);
+
     /// <summary>Posts saved before the production block exists have it empty.</summary>
     private bool NeedsProduction =>
         _draft is not null
         && (_blocks.Trim().Length == 0
-            || _draft.FormatDetails.VisualDirection.Trim().Length == 0
-            || _draft.FormatDetails.DurationOrCount.Trim().Length == 0);
+            || _production.VisualDirection.Trim().Length == 0
+            || _production.DurationOrCount.Trim().Length == 0);
 
     private List<string> UpdateSummary => _draft is null
         ? []
@@ -254,7 +275,13 @@ else
         _draftId = post.Id;
         _draft = ToContent(post);
         _hashtags = string.Join(" ", post.Hashtags);
-        _blocks = string.Join("\n", post.FormatDetails?.ContentBlocks ?? []);
+        _production = new FormatDetailsDto
+        {
+            ContentBlocks = [.. post.FormatDetails?.ContentBlocks ?? []],
+            VisualDirection = post.FormatDetails?.VisualDirection ?? "",
+            DurationOrCount = post.FormatDetails?.DurationOrCount ?? ""
+        };
+        _blocks = string.Join("\n", _production.ContentBlocks);
         _dirty = false;
         ContextState.SetSavedPost(post);
     }
@@ -305,9 +332,12 @@ else
         _draft.Hashtags = _hashtags
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
-        _draft.FormatDetails.ContentBlocks = _blocks
+        _production.ContentBlocks = _blocks
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
+        // Absent, not empty. Sending a blank production block on a silent reel
+        // would fail the contract, and an empty one would be a lie in the row.
+        _draft.FormatDetails = HasScript ? _production : null;
         try
         {
             _updateRun = await Api.PreparePostUpdateAsync(post.Id, _draft);
@@ -375,7 +405,8 @@ else
             {
                 _draft = patched;
                 _hashtags = string.Join(" ", patched.Hashtags);
-                _blocks = string.Join("\n", patched.FormatDetails.ContentBlocks);
+                _production = patched.FormatDetails ?? new FormatDetailsDto();
+                _blocks = string.Join("\n", _production.ContentBlocks);
                 _dirty = true;
                 _updateRun = null;
             }
@@ -395,12 +426,7 @@ else
         Hashtags = [.. post.Hashtags],
         Cta = post.Cta,
         Source = post.Source,
-        FormatDetails = new FormatDetailsDto
-        {
-            ContentBlocks = [.. post.FormatDetails?.ContentBlocks ?? []],
-            VisualDirection = post.FormatDetails?.VisualDirection ?? "",
-            DurationOrCount = post.FormatDetails?.DurationOrCount ?? ""
-        }
+        FormatDetails = post.FormatDetails
     };
 
     private static string HookLabel(string value) => value switch

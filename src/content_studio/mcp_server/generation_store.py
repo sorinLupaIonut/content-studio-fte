@@ -169,7 +169,7 @@ UPDATE public.generation_variants
 """
 
 FIND_PATCHABLE_VARIANT_SQL = """
-SELECT v.id, v.idea_id, v.hook_type, i.batch_id
+SELECT v.id, v.idea_id, v.hook_type, v.script, i.batch_id
   FROM public.generation_variants v
   JOIN public.generation_ideas i ON i.id = v.idea_id
   JOIN public.generation_batches b ON b.id = i.batch_id
@@ -227,6 +227,19 @@ SELECT id, title, metadata
  WHERE source = 'library'
  ORDER BY lower(title), id
 """
+
+
+def _production(variant: IdeaVariant) -> str | None:
+    """The production block as JSONB, or SQL NULL for a silent reel.
+
+    `_json(None)` would write the JSON string "null" into the column, which is
+    not the same thing as an absent block and would defeat the check that keeps
+    `script` and `format_details` together.
+    """
+
+    if variant.format_details is None:
+        return None
+    return _json(variant.format_details.model_dump())
 
 
 def _json(value: object) -> str:
@@ -341,7 +354,7 @@ async def complete_idea(conn, batch_id: UUID, value: IdeaDetails) -> dict[str, A
             _json(variant.hashtags),
             variant.cta,
             variant.source,
-            _json(variant.format_details.model_dump()),
+            _production(variant),
         )
     await conn.execute(READY_IDEA_SQL, idea_id)
     await conn.fetchval(REFRESH_BATCH_STATUS_SQL, batch_id)
@@ -399,6 +412,11 @@ async def patch_variant(
         raise ValueError("the variant is not ready or does not belong to this identity")
     if row["hook_type"] != value.hook_type:
         raise ValueError("a chat patch cannot change the variant hook type")
+    # Whether a variant is a silent reel was decided by the batch's format, not
+    # by the chat model. A rewrite may change every word; it may not grow a
+    # script onto a silent reel or strip one off a carousel.
+    if (row["script"] is None) != (value.script is None):
+        raise ValueError("a chat patch cannot add or remove the script of a variant")
     await conn.execute(
         PATCH_VARIANT_SQL,
         variant_id,
@@ -408,7 +426,7 @@ async def patch_variant(
         _json(value.hashtags),
         value.cta,
         value.source,
-        _json(value.format_details.model_dump()),
+        _production(value),
     )
     await conn.execute(TOUCH_PATCH_IDEA_SQL, row["idea_id"])
     await conn.execute(TOUCH_PATCH_BATCH_SQL, row["batch_id"])

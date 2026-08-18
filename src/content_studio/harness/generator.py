@@ -26,10 +26,10 @@ from content_studio.harness.drafts import GenerationDraftClient, tool_payload
 from content_studio.harness.generation import (
     GenerationBatchRequest,
     GenerationStartRequest,
-    IdeaDetails,
     IdeaTitle,
     IdeaTitles,
     StreamEvent,
+    detail_output_type,
     detail_prompt,
     public_batch,
     title_prompt,
@@ -476,7 +476,7 @@ class GenerationCoordinator:
     ) -> None:
         detail_agent = base_agent.clone(
             model=GENERATION_DETAIL_MODEL,
-            output_type=IdeaDetails,
+            output_type=detail_output_type(request.format),
             model_settings=ModelSettings(
                 reasoning={"effort": "minimal"},
                 verbosity="low",
@@ -543,7 +543,7 @@ class GenerationCoordinator:
                 value = await self._run_on_sandbox(
                     agent,
                     detail_prompt(request, idea, source_packet),
-                    IdeaDetails,
+                    detail_output_type(request.format),
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     client,
                     sandbox,

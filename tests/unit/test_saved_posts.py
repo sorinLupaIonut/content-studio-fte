@@ -125,6 +125,22 @@ class TestPostMarkdown(unittest.TestCase):
         self.assertEqual(details["duration_or_count"], "35–45 secunde")
         self.assertEqual(fields["hashtags"], "#burnout #limite #peoplepleasing")
 
+    def test_a_silent_reel_has_no_script_and_no_production_headings(self) -> None:
+        """`body_md` has to be exactly what the columns hold, never a promise."""
+
+        silent = {key: value for key, value in CONTENT.items()}
+        del silent["script"]
+        del silent["format_details"]
+        silent["caption"] = "Un caption lung, care duce tot ce ar fi fost spus."
+
+        _, details, body = _columns(SavedPostContent.model_validate(silent))
+
+        self.assertIsNone(details)
+        self.assertNotIn("## Script", body)
+        self.assertNotIn("## Producție", body)
+        self.assertIn("## Caption", body)
+        self.assertIn("Un caption lung", body)
+
     def test_a_post_without_production_details_is_unchanged(self) -> None:
         fields = {
             "title": "T",

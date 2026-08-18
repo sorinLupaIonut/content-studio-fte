@@ -385,6 +385,9 @@ public sealed class SavePostsRequestDto
 /// The complete replacement draft for one saved post. Only the eleven content
 /// fields: the harness contract forbids anything else, so `id` and `posted_on`
 /// deliberately stay out of the request body.
+///
+/// `Script` and `FormatDetails` are nullable because a silent reel has neither:
+/// she films without speaking and the caption carries what she would have said.
 /// </summary>
 public sealed class PostContentDto
 {
@@ -404,7 +407,7 @@ public sealed class PostContentDto
     public string HookType { get; set; } = "";
 
     [JsonPropertyName("script")]
-    public string Script { get; set; } = "";
+    public string? Script { get; set; }
 
     [JsonPropertyName("caption")]
     public string Caption { get; set; } = "";
@@ -419,5 +422,5 @@ public sealed class PostContentDto
     public string Source { get; set; } = "";
 
     [JsonPropertyName("format_details")]
-    public FormatDetailsDto FormatDetails { get; set; } = new();
+    public FormatDetailsDto? FormatDetails { get; set; }
 }

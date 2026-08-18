@@ -907,3 +907,54 @@ zone, needs Sorin for MFA.
   both are now survivable, but a batch that loses a fifth of its output is worth
   a prompt or retry-budget change. More attempts cost more money per batch, so
   that is a decision, not a fix.
+- **2026-08-18 · Claude Code** — Reels are silent. On Sorin's instruction, a Reel
+  no longer carries a script or a production block; everything the voice-over
+  would have said is written into the caption instead, and the caption grew to
+  match.
+
+  **Why this is a contract change and not a prompt tweak.** The detail phase asks
+  the model to fill one exact schema. If the schema still had `script` and
+  `format_details`, the model would still fill them — and the two fields would
+  still reach the row and the page. So the schema is now chosen by format:
+  `detail_output_type("Reel")` returns `SilentReelDetails`, whose variants have
+  no such fields at all, and `ProducedIdeaDetails` keeps them required for
+  Carusel and Stories. `IdeaVariant` stays the permissive shape underneath,
+  because it is what reads both back.
+
+  **The caption.** The silent reel's floor is 200 characters, against 3 for the
+  produced formats, and `SILENT_REEL_BRIEF` asks the model for 900–1400: the hook
+  idea entered directly, two to four short paragraphs, the engagement question at
+  the end. The floor is a guard against a degenerate answer, not the target — the
+  measured evidence is that the three posts saved before this change have
+  captions of **145, 159 and 178 characters**. All three would fail the new floor.
+
+  **What holds it in the database.** `generation_variants_ready_is_complete` used
+  to demand a script and a production block on every ready variant. A check
+  constraint cannot see the batch's format from that table, so it now enforces
+  the pair instead: `(script IS NULL) = (format_details IS NULL)`. Half a
+  production block is the one state that means nothing. Nothing already stored
+  violates it. `SavedPostContent` makes both optional and deliberately does *not*
+  couple them, because her posts imported before the production block existed
+  have a script and no `format_details`, and the editor has to open those too.
+
+  **Elsewhere.** `as_markdown` no longer prints a `## Script` or `## Producție`
+  heading it cannot fill — `body_md` has to be what the columns hold. The chat
+  patch keeps the permissive contract but `content-data` now refuses a rewrite
+  that adds or removes a script, in the same style as the existing hook-type
+  guard, and the prompt tells the model when the target is silent. `save_post`
+  in the CLI takes `script` last and optional, so both fronts tell the same
+  story. Generator and Saved render the two sections on presence rather than on
+  format, so a post written before today still opens with everything it has.
+
+  **Verified without spending anything:** `ruff` clean; 105 unit tests (96 + 9
+  new) and 7 .NET contract tests pass; both schemas survive the SDK's strict-JSON
+  conversion, with the Reel one carrying `required: [hook_type, hook, caption,
+  hashtags, cta, source]` and no script; the live constraint was replaced by
+  `db.apply` and 0 stored rows violate it; and a full silent reel was driven
+  through the real database — batch → titles → five variants → select → save into
+  `posts` — inside a transaction that was then rolled back, confirming
+  `script IS NULL`, `format_details IS NULL` and a `body_md` with neither heading.
+
+  **Not yet done:** no real generation batch has run against the new contract, so
+  the caption length and quality are unproven against the model. That costs money
+  and is Sorin's call.

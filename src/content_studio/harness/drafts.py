@@ -13,6 +13,8 @@ from content_studio.harness.generation import (
     IdeaDetails,
     IdeaTitles,
     IdeaVariant,
+    ProducedIdeaDetails,
+    SilentReelDetails,
 )
 
 
@@ -106,8 +108,15 @@ class GenerationDraftClient:
         )
 
     async def complete_idea(
-        self, batch_id: UUID, value: IdeaDetails
+        self,
+        batch_id: UUID,
+        value: IdeaDetails | ProducedIdeaDetails | SilentReelDetails,
     ) -> dict[str, Any]:
+        """Hand over whichever detail contract the batch's format produced.
+
+        A silent reel dumps without `script` and `format_details`; the storage
+        contract on the other side fills them in as absent.
+        """
         return await self._call(
             "ui_complete_generation_idea",
             {"batch_id": str(batch_id), "idea": value.model_dump(mode="json")},

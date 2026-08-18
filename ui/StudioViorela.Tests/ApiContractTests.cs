@@ -139,6 +139,33 @@ public sealed class ApiContractTests
     }
 
     [TestMethod]
+    public void SilentReelPostSendsNullScriptAndNullProduction()
+    {
+        // A silent reel has no script and no production block. The two fields
+        // still travel — as null, which the harness contract accepts — because
+        // dropping them from the document would be a different shape again.
+        var json = JsonSerializer.Serialize(new PostContentDto
+        {
+            Title = "Titlu",
+            Pillar = "Conexiune",
+            Format = "Reel",
+            Hook = "Hook",
+            HookType = "INTREBARE",
+            Caption = "Un caption lung, care duce tot ce ar fi fost spus.",
+            Hashtags = ["#unu", "#doi", "#trei"],
+            Cta = "CTA",
+            Source = "Memorie"
+        });
+
+        using var document = JsonDocument.Parse(json);
+
+        Assert.AreEqual(JsonValueKind.Null, document.RootElement.GetProperty("script").ValueKind);
+        Assert.AreEqual(
+            JsonValueKind.Null,
+            document.RootElement.GetProperty("format_details").ValueKind);
+    }
+
+    [TestMethod]
     public void SavedPostDeserializesItsProductionBlock()
     {
         var json = """

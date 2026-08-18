@@ -38,12 +38,16 @@ class SavedPostContent(StrictContract):
     format: FormatChoice
     hook: str = Field(min_length=3, max_length=500)
     hook_type: HookType
-    script: str = Field(min_length=3, max_length=12_000)
+    # Both optional, and deliberately not coupled the way the draft contract
+    # couples them. A silent reel arrives with neither. Her posts imported into
+    # the studio before the production block existed arrive with a script and no
+    # `format_details`, and the editor has to be able to open those too.
+    script: str | None = Field(default=None, min_length=3, max_length=12_000)
     caption: str = Field(min_length=3, max_length=8_000)
     hashtags: list[str] = Field(min_length=3, max_length=5)
     cta: str = Field(min_length=2, max_length=1_000)
     source: str = Field(min_length=2, max_length=2_000)
-    format_details: FormatDetails
+    format_details: FormatDetails | None = None
 
     @field_validator("hashtags")
     @classmethod

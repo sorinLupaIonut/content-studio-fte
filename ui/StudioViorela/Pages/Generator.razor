@@ -186,10 +186,17 @@ else if (_batch is not null)
                                         <span class="content-label">Hook · @HookLabel(active.HookType)</span>
                                         <p>@active.Hook</p>
                                     </section>
-                                    <section class="content-block">
-                                        <span class="content-label">Script / conținut</span>
-                                        <p class="preserve-lines">@active.Script</p>
-                                    </section>
+                                    @* A silent reel has no script and no production block.
+                                       Rendered on what the variant actually carries rather
+                                       than on its format, so the posts written before this
+                                       still open with everything they were saved with. *@
+                                    @if (!string.IsNullOrWhiteSpace(active.Script))
+                                    {
+                                        <section class="content-block">
+                                            <span class="content-label">Script / conținut</span>
+                                            <p class="preserve-lines">@active.Script</p>
+                                        </section>
+                                    }
                                     @if (active.FormatDetails is not null)
                                     {
                                         <section class="content-block format-production">

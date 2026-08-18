@@ -433,12 +433,15 @@ async def save_post(
     format: str,
     hook: str,
     hook_type: str,
-    script: str,
     caption: str,
     hashtags: str,
     cta: str,
     source: str,
     ctx: Context,
+    # Last, and optional, because a Reel does not have one: she films mute, and
+    # the caption carries what she would have said. `ctx` stays ahead of it
+    # only because a parameter with a default cannot precede one without.
+    script: str | None = None,
 ) -> dict:
     """Salvează postarea confirmată de Viorela. UNA singură, cea aleasă.
 
@@ -449,6 +452,8 @@ async def save_post(
     „din memorie 🧠 (profil + avatar), fără sursă externă".
     `hook_type` e unul din PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST.
     `hashtags` e un singur șir, cu spații între ele: „#burnout #limite".
+    `script` se completează doar la Carusel și Stories. Reel-urile ei sunt mute:
+    acolo lași `script` gol, iar tot ce s-ar fi spus stă în `caption`.
     """
     conversation_id = conversation_of(ctx)
     fields = {

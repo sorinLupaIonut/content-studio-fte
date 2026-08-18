@@ -76,6 +76,12 @@ def _json(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
 
 
+def _json_or_null(value: object | None) -> str | None:
+    """SQL NULL for an absent production block, not the JSON string "null"."""
+
+    return None if value is None else _json(value)
+
+
 def _wire(value: Any) -> Any:
     if isinstance(value, (UUID, date, datetime)):
         return value.isoformat() if hasattr(value, "isoformat") else str(value)
@@ -105,10 +111,11 @@ def as_markdown(fields: dict, format_details: dict | None = None) -> str:
         f"**Pilon:** {fields['pillar']} · **Format:** {fields['format']}",
         f"**Hook ({fields['hook_type']}):** {fields['hook']}",
         "",
-        "## Script",
-        fields["script"],
-        "",
     ]
+    # A silent reel has neither section. Printing empty headings would put two
+    # promises in `body_md` that the columns do not keep.
+    if fields["script"]:
+        document += ["## Script", fields["script"], ""]
     if format_details:
         blocks = format_details["content_blocks"]
         document += [
@@ -130,10 +137,14 @@ def as_markdown(fields: dict, format_details: dict | None = None) -> str:
     return "\n".join(document)
 
 
-def _columns(content: SavedPostContent) -> tuple[dict[str, Any], dict[str, Any], str]:
+def _columns(
+    content: SavedPostContent,
+) -> tuple[dict[str, Any], dict[str, Any] | None, str]:
     """One validated post as (column values, format details, body_md)."""
 
-    details = content.format_details.model_dump()
+    details = (
+        None if content.format_details is None else content.format_details.model_dump()
+    )
     fields = {
         "title": content.title,
         "pillar": content.pillar,
@@ -217,7 +228,7 @@ async def save_selected_variants(
             fields["hashtags"],
             fields["cta"],
             fields["source"],
-            _json(details),
+            _json_or_null(details),
             body_md,
         )
         saved.append(_row(row))
@@ -249,7 +260,7 @@ async def update_saved_post(
         fields["hashtags"],
         fields["cta"],
         fields["source"],
-        _json(details),
+        _json_or_null(details),
         body_md,
     )
     if row is None:

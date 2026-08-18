@@ -13,7 +13,12 @@ from content_studio.harness.generation import (
     IdeaTitle,
     IdeaTitles,
     IdeaVariant,
+    ProducedIdeaDetails,
+    ProducedVariant,
+    SilentReelDetails,
+    SilentReelVariant,
     StreamEvent,
+    detail_output_type,
     detail_prompt,
     encode_sse,
     public_batch,
@@ -43,6 +48,133 @@ def variant(hook_type: str) -> IdeaVariant:
             duration_or_count="9 secunde",
         ),
     )
+
+
+#: Long enough to clear the silent-reel floor, because that is the point of it.
+LONG_CAPTION = (
+    "Ai spus da din nou, deși tot corpul tău spunea altceva. Nu pentru că ești "
+    "slabă, ci pentru că ai învățat devreme că e mai sigur să fii de folos "
+    "decât să fii tu. Prima limită nu sună a scandal: sună a „am nevoie de o "
+    "zi să mă gândesc”. Atât. Data viitoare când te trezești răspunzând înainte "
+    "să respiri, oprește-te o secundă și întreabă-te ce ai fi vrut să spui de "
+    "fapt. Tu ce ai spus ultima oară doar ca să nu superi pe cineva?"
+)
+
+
+def silent_variant(hook_type: str) -> SilentReelVariant:
+    return SilentReelVariant(
+        hook_type=hook_type,
+        hook=f"Hook {hook_type}",
+        caption=LONG_CAPTION,
+        hashtags=["#limite", "#burnout", "#coaching"],
+        cta="Salvează postarea.",
+        source="din memorie",
+    )
+
+
+class TestSilentReelContract(unittest.TestCase):
+    """A Reel is filmed mute, so it has no script and no production block."""
+
+    def test_the_reel_contract_has_no_script_or_production_fields(self) -> None:
+        fields = set(SilentReelVariant.model_fields)
+        self.assertNotIn("script", fields)
+        self.assertNotIn("format_details", fields)
+
+    def test_the_reel_contract_refuses_a_script_it_was_handed(self) -> None:
+        with self.assertRaises(ValidationError):
+            SilentReelVariant(
+                hook_type="PROVOCARE",
+                hook="Hook",
+                script="Un script care nu are ce căuta aici.",
+                caption=LONG_CAPTION,
+                hashtags=["#limite", "#burnout", "#coaching"],
+                cta="Salvează postarea.",
+                source="din memorie",
+            )
+
+    def test_a_two_line_caption_is_not_enough_for_a_silent_reel(self) -> None:
+        with self.assertRaises(ValidationError):
+            SilentReelVariant(
+                hook_type="PROVOCARE",
+                hook="Hook",
+                caption="Două fraze. Atât.",
+                hashtags=["#limite", "#burnout", "#coaching"],
+                cta="Salvează postarea.",
+                source="din memorie",
+            )
+
+    def test_five_silent_variants_still_cover_the_five_hooks(self) -> None:
+        result = SilentReelDetails(
+            idea_ordinal=1,
+            title="O idee mută",
+            variants=[silent_variant(name) for name in HOOK_TYPES],
+        )
+        self.assertEqual([v.hook_type for v in result.variants], list(HOOK_TYPES))
+
+    def test_each_format_gets_exactly_one_contract(self) -> None:
+        self.assertIs(detail_output_type("Reel"), SilentReelDetails)
+        self.assertIs(detail_output_type("Carusel"), ProducedIdeaDetails)
+        self.assertIs(detail_output_type("Stories"), ProducedIdeaDetails)
+
+    def test_the_produced_contract_still_demands_both(self) -> None:
+        self.assertIn("script", ProducedVariant.model_fields)
+        with self.assertRaises(ValidationError):
+            ProducedVariant(
+                hook_type="PROVOCARE",
+                hook="Hook",
+                caption="Un caption scurt.",
+                hashtags=["#limite", "#burnout", "#coaching"],
+                cta="Salvează postarea.",
+                source="din memorie",
+            )
+
+    def test_the_stored_shape_keeps_script_and_production_together(self) -> None:
+        """Half a production block is the one state that means nothing."""
+
+        stored = IdeaVariant(
+            hook_type="PROVOCARE",
+            hook="Hook",
+            caption=LONG_CAPTION,
+            hashtags=["#limite", "#burnout", "#coaching"],
+            cta="Salvează postarea.",
+            source="din memorie",
+        )
+        self.assertIsNone(stored.script)
+        self.assertIsNone(stored.format_details)
+
+        with self.assertRaises(ValidationError):
+            IdeaVariant(
+                hook_type="PROVOCARE",
+                hook="Hook",
+                script="Un script fără bloc de producție.",
+                caption=LONG_CAPTION,
+                hashtags=["#limite", "#burnout", "#coaching"],
+                cta="Salvează postarea.",
+                source="din memorie",
+            )
+
+    def test_the_reel_prompt_says_mute_and_the_carousel_prompt_does_not(self) -> None:
+        idea = IdeaTitle(ordinal=1, title="O limită blândă", angle="Un exemplu")
+        packet = {"source": "Memorie"}
+
+        reel = detail_prompt(
+            GenerationBatchRequest(
+                format="Reel", pillar="Conexiune", source="Memorie"
+            ),
+            idea,
+            packet,
+        )
+        carousel = detail_prompt(
+            GenerationBatchRequest(
+                format="Carusel", pillar="Conexiune", source="Memorie"
+            ),
+            idea,
+            packet,
+        )
+
+        self.assertIn("MUTE", reel)
+        self.assertNotIn("MUTE", carousel)
+        self.assertIn("`script`", carousel)
 
 
 class TestGenerationContracts(unittest.TestCase):

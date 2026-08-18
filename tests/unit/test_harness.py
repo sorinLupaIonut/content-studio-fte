@@ -400,13 +400,24 @@ class TestHarnessHttp(unittest.TestCase):
 
     def test_an_incomplete_rewrite_is_refused_before_any_run(self) -> None:
         incomplete = {key: value for key, value in SAVED_POST_CONTENT.items()}
-        del incomplete["format_details"]
+        del incomplete["caption"]
 
         response = self.client.post(
             f"/api/posts/{SAVED_POST_ID}/runs", json=incomplete
         )
 
         self.assertEqual(response.status_code, 422)
+
+    def test_a_silent_reel_rewrite_needs_no_script_or_production(self) -> None:
+        """The two fields a silent reel does not have are not missing fields."""
+
+        silent = {key: value for key, value in SAVED_POST_CONTENT.items()}
+        del silent["script"]
+        del silent["format_details"]
+
+        response = self.client.post(f"/api/posts/{SAVED_POST_ID}/runs", json=silent)
+
+        self.assertEqual(response.status_code, 202)
 
     def test_generation_events_use_the_sse_wire_contract(self) -> None:
         batch_id = "22222222-2222-2222-2222-222222222222"

@@ -311,17 +311,35 @@ CREATE TABLE IF NOT EXISTS public.generation_variants (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (idea_id, hook_type),
+    -- A silent reel has no script and no production block: she films without
+    -- speaking, and the caption carries what the voice-over would have said.
+    -- This check cannot see the batch's format from here, so it enforces the
+    -- pair instead — script and format_details are both there or both absent,
+    -- which is exactly what the strict contracts produce.
     CONSTRAINT generation_variants_ready_is_complete CHECK (
         status <> 'ready' OR (
-            hook IS NOT NULL AND script IS NOT NULL AND caption IS NOT NULL
+            hook IS NOT NULL AND caption IS NOT NULL
             AND hashtags IS NOT NULL AND cta IS NOT NULL AND source IS NOT NULL
-            AND format_details IS NOT NULL
+            AND (script IS NULL) = (format_details IS NULL)
         )
     ),
     CONSTRAINT generation_variants_only_ready_is_selected CHECK (
         NOT is_selected OR status = 'ready'
     )
 );
+-- `CREATE TABLE IF NOT EXISTS` leaves an existing table's constraints alone, so
+-- the rule above is restated here for databases created before silent reels.
+ALTER TABLE public.generation_variants
+    DROP CONSTRAINT IF EXISTS generation_variants_ready_is_complete;
+ALTER TABLE public.generation_variants
+    ADD CONSTRAINT generation_variants_ready_is_complete CHECK (
+        status <> 'ready' OR (
+            hook IS NOT NULL AND caption IS NOT NULL
+            AND hashtags IS NOT NULL AND cta IS NOT NULL AND source IS NOT NULL
+            AND (script IS NULL) = (format_details IS NULL)
+        )
+    );
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_generation_variants_one_selected_per_idea
     ON public.generation_variants(idea_id) WHERE is_selected;
 CREATE INDEX IF NOT EXISTS idx_generation_variants_idea
