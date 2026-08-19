@@ -34,6 +34,21 @@ MODEL_VISIBLE_TOOLS = frozenset(
     }
 )
 
+# D1b's structured generation (titles, then five variants per idea) runs with
+# nobody watching: `Runner.run` in generator.py treats any interruption as a
+# hard failure of the whole batch, because there is no human on that path to
+# answer an approval request. A write tool has no legitimate use during
+# proposal-only generation anyway — saving is a separate, later phase the
+# client confirms explicitly — so the safe fix is to never show one to the
+# model here, rather than trust a cheap, low-effort model not to reach for it.
+GENERATION_VISIBLE_TOOLS = frozenset(
+    {
+        "search_books",
+        "search_web",
+        "list_posts",
+    }
+)
+
 INTERNAL_UI_TOOLS = frozenset(
     {
         "ui_create_generation_batch",

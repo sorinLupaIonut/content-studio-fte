@@ -72,6 +72,7 @@ from content_studio.harness.profile import (
 )
 from content_studio.mcp_server.protocol import (
     CONVERSATION_HEADER,
+    GENERATION_VISIBLE_TOOLS,
     MODEL_VISIBLE_TOOLS,
     OWNER_HEADER,
 )
@@ -149,7 +150,9 @@ class HarnessService:
         self.engine: AsyncEngine | None = None
         self.trail: Audit | None = None
         self.database_error: str | None = None
-        self.generator = GenerationCoordinator(self._data_mcp, self._internal_data_mcp)
+        self.generator = GenerationCoordinator(
+            self._generation_data_mcp, self._internal_data_mcp
+        )
         self.chat = ChatCoordinator(self._data_mcp, self._internal_data_mcp)
 
     async def start(self) -> None:
@@ -191,6 +194,27 @@ class HarnessService:
             tool_filter={"allowed_tool_names": sorted(MODEL_VISIBLE_TOOLS)},
             client_session_timeout_seconds=MCP_TIMEOUT,
             require_approval={"always": {"tool_names": list(GATED_TOOLS)}},
+        )
+
+    def _generation_data_mcp(self, session_id: str) -> MCPServerStreamableHttp:
+        """The model's connection for unattended D1b generation: reads only.
+
+        `_data_mcp` is right for chat, where a person is on the other end of an
+        approval request. Nothing is on the other end here — `Runner.run` in
+        generator.py has no approval loop, so an interruption is a hard failure
+        of the whole batch (see the note on `GENERATION_VISIBLE_TOOLS`). None of
+        these three tools are ever gated, so `require_approval` has nothing to
+        list.
+        """
+        return MCPServerStreamableHttp(
+            params={
+                "url": MCP_URL,
+                "headers": {CONVERSATION_HEADER: session_id},
+            },
+            name="content-data",
+            cache_tools_list=True,
+            tool_filter={"allowed_tool_names": sorted(GENERATION_VISIBLE_TOOLS)},
+            client_session_timeout_seconds=MCP_TIMEOUT,
         )
 
     def _internal_data_mcp(self, session_id: str) -> MCPServerStreamableHttp:
