@@ -46,7 +46,7 @@ adapted to this project. We stop after each decision for a human go/no-go.
 | D0 | Probe the SDK and reconcile the brief | ✅ done — SDK 0.20.0 probed and brief reconciled below |
 | D1 | Harness: FastAPI + the gate on Postgres | ✅ complete — HTTP park/approve/resume contract, 21 free tests; paid live round trip proven 2026-08-18: `RunState` (48,811 bytes) persisted on interruption, approved, resumed, write completed on production data |
 | D1b | Blazor WebAssembly interface | 🟡 shell, profile, hybrid generator, streaming chat, batch save and the saved-post editor all built; real 10×5 hybrid batch and real batch save both proven 2026-08-18–19 (see Changelog); a real **rewrite** through the gate (editing an already-saved post) is the one acceptance still without evidence |
-| D2 | Containerize (multi-stage: .NET SDK → Python) | ⬜ not started |
+| D2 | Containerize (multi-stage: .NET SDK → Python) | ✅ image builds and runs — `Dockerfile` (.NET SDK 10 `-c Release` → `python:3.13-slim`, 425 MB) and `.dockerignore` written by Codex; built and verified end to end 2026-08-19 as two containers on one Docker network: `/health` `ready`, UI served, Brotli/gzip negotiation proven byte-identical to the originals, no `.env` or `content/` in the image |
 | D3 | Deploy to Azure Container Apps | ⬜ blocked: Azure subscription unconfirmed |
 | D4 | Neon from the cloud + schema changes | 🟡 the course's five-table state model **adopted and verified functionally**; pooled/direct split enforced in code; the "from the cloud" half waits for D3 |
 | D5 | Cloudflare R2 — wire it or skip it on purpose | ⬜ open decision |
@@ -118,9 +118,9 @@ you start, release it when you are done.
 
 | Zone | Files | Owner |
 |---|---|---|
-| Harness | `src/content_studio/harness/**` | *unclaimed* — D1b.3 complete |
+| Harness | `src/content_studio/harness/**` | *unclaimed* — D2 compressed static assets verified in the container |
 | Blazor UI | `ui/**` | *unclaimed* — D1b.3 complete |
-| Container + infra | `Dockerfile`, `.dockerignore`, `infra/**` | *unclaimed* |
+| Container + infra | `Dockerfile`, `.dockerignore`, `infra/**` | *unclaimed* — D2 image done; `infra/**` still untouched, waits for D3 |
 | Schema + migrations | `src/content_studio/db/**` | *unclaimed* — `posts.format_details` applied |
 | Content-data MCP | `src/content_studio/mcp_server/**` | *unclaimed* — D1b.3 complete |
 | Existing worker/CLI | `worker.py`, `audit.py`, `conversation.py`, `replay.py` | *unclaimed* — D4 prep checkpointed; D1 only extended the gate query in `audit.py` |
@@ -547,6 +547,64 @@ The remaining infrastructure blocker is unchanged — D3: Azure access, Codex's
 zone, needs Sorin for MFA.
 
 ## Changelog
+
+- **2026-08-19 (evening) · Claude Code** — **D2 finished: the image builds, runs,
+  and serves the compressed UI. Picked up exactly where Codex stopped.**
+
+  Codex had written `Dockerfile`, `.dockerignore` and the Brotli/gzip negotiation
+  in `static_ui.py`, but its `docker build` was interrupted by hand at the .NET
+  restore step, so nothing had ever been proven to run. Resuming it turned up a
+  blocker that had nothing to do with the Dockerfile: the Docker engine answered
+  `500` on every API route because the `docker-desktop` WSL distribution — the VM
+  that supplies the Linux kernel — was stopped. Starting the distribution alone
+  did not help; `docker desktop restart` did. Worth remembering before suspecting
+  a build file again.
+
+  **Build.** `docker build --tag content-studio-fte:d2 .` exits 0. The .NET stage
+  restores and publishes with `-c Release` as required; the runtime stage installs
+  from the lockfile. Final image: **425 MB**. One warning, not an error, left
+  as-is deliberately: the `wasm-tools` workload is absent, so the Blazor publish
+  runs "without optimizations" — it is a size/AOT optimization, unrelated to
+  compression, and installing a workload inside the image is a decision for
+  Sorin, not a fix to slip in.
+
+  **Verified in the running container**, two of them on one Docker network, MCP
+  started with `content-studio-server` and `MCP_HOST=0.0.0.0`, harness pointed at
+  it through `MCP_URL=http://studio-mcp-test:8765/mcp`:
+
+  | check | result |
+  |---|---|
+  | `/health` | first call `degraded` — Postgres hit the 3 s timeout on Neon's cold start, the exact D3 risk already flagged; second call **`ready`** in ~1 s, all backends up, MCP reporting 7 tools |
+  | UI at `/` | HTTP 200, `Studio Viorela` |
+  | SPA fallback `/generator` | HTTP 200, serves `index.html` |
+  | unknown `/api/` route | HTTP 404 — the fallback correctly does **not** swallow API routes |
+  | `Accept-Encoding: br, gzip` | `content-encoding: br`, 21,949 B, `content-type: application/wasm`, `Vary: Accept-Encoding` |
+  | `Accept-Encoding: br;q=0, gzip` | falls back to `gzip`, 26,333 B — `q=0` honoured |
+  | `Accept-Encoding: identity` | 62,741 B, no `Content-Encoding` |
+
+  **Integrity, not just headers.** Serving precompressed bytes under the wrong
+  headers would break the app in a browser while looking healthy in `curl`, so
+  the bytes were checked: the gzip response decompresses **byte-identical** to
+  the plain asset (SHA-256 `ab20a5e8…`), the Brotli response is byte-identical to
+  the `.br` file .NET produced (`f540ccba…`) and decompresses to the same
+  original. 53 `.br` and 53 `.gz` files ship in the image. On this asset alone the
+  saving is 62,741 → 21,949 bytes.
+
+  **Image hygiene.** No `.env` anywhere in the image, and no `content/` — the
+  client's material stays local, as `.dockerignore` intends. `skills/` is present,
+  as the sandbox needs it at runtime.
+
+  **One trap worth recording.** `config.py` derives `PROJECT_ROOT` from
+  `Path(__file__).resolve().parents[2]`. That only lands on `/app` because `uv
+  sync` installs the project **editable**; a non-editable install would resolve it
+  inside `.venv`, `UI_STATIC_DIR` would point at a directory that does not exist,
+  and `mount_ui` would silently return `False` — a container that boots fine and
+  serves no interface. Verified explicitly in the image: `PROJECT_ROOT=/app`,
+  UI and skills both resolve.
+
+  `uv run ruff check .` clean; 110 unit tests OK. No paid run, no model call, no
+  write to Neon — `/health` only reads. Test containers and the test network were
+  removed afterwards.
 
 - **2026-08-18 · Claude Code** — **Checkpoint for Codex. Everything committed
   and pushed to `deploy` (`4f297c0`). Generation bug found and fixed. Design

@@ -258,3 +258,142 @@ niciun rând — nu există `Dockerfile`, `.dockerignore` sau `infra/` în acest
    în [DEPLOYMENT.md](DEPLOYMENT.md).
 6. Regulile de la §5 rămân valabile neschimbate: rulările care costă bani sunt decizia
    lui Sorin, fără commit/push fără cerere explicită, `.env` niciodată în imagine.
+
+---
+
+## 8. D2 — începută de Codex, dusă la capăt de Claude Code pe 19 august
+
+Sorin a decis să păstreze arhitectura actuală cu serverul MCP `content-data`.
+Discuția a clarificat că nu este obligatoriu pentru un singur Worker, dar devine
+infrastructură reutilizabilă dacă apare un al doilea Digital FTE. Nu redeschide
+această decizie fără motiv concret.
+
+Sorin a aprobat D2 și a ales explicit optimizarea UI: serverul Python trebuie să
+servească variantele Blazor precomprimate — **Brotli preferat**, apoi gzip, apoi
+fișierul necomprimat. Aceasta este o decizie luată, nu o întrebare rămasă.
+
+Zonele `Container + infra` și `Harness` au fost eliberate în `DEPLOYMENT.md` după
+verificare; board-ul e la zi cu dovezile reale.
+
+### Ce s-a implementat
+
+1. **`Dockerfile` nou** — o singură imagine multi-stage:
+   - `mcr.microsoft.com/dotnet/sdk:10.0` publică
+     `ui/StudioViorela` cu obligatoriu `-c Release`, într-un `/ui-publish` temporar;
+   - imaginea finală este `python:3.13-slim`, nu 3.12 (atât proiectul, cât și
+     `uv.lock` cer `>=3.13`);
+   - `uv` este fixat la `ghcr.io/astral-sh/uv:0.11.28`, versiunea instalată local;
+   - dependențele sunt instalate înaintea sursei cu
+     `uv sync --frozen --no-dev --no-install-project`, pentru cache;
+   - apoi se copiază `README.md`, `src/`, `skills/` și numai `wwwroot` rezultat din
+     stage-ul .NET; al doilea `uv sync --frozen --no-dev` instalează proiectul;
+   - `PATH` include `/app/.venv/bin`, `PYTHONUNBUFFERED=1`,
+     `PYTHONDONTWRITEBYTECODE=1`;
+   - declară `EXPOSE 8000 8765`. Comanda implicită este harness-ul:
+     `uvicorn content_studio.harness.main:app --host 0.0.0.0 --port 8000 --proxy-headers`.
+     La D3, al doilea Container App va suprascrie comanda cu
+     `content-studio-server` și va primi `MCP_HOST=0.0.0.0` plus `MCP_URL` intern
+     corect pentru harness.
+
+2. **`.dockerignore` nou** — exclude `.env`/`.env.*`, `.mcp.json`, medii și cache-uri
+   Python, rezultate .NET (`bin`, `obj`, `dist`), `content/` (inclusiv materialele
+   clientei), Git/editor state, documentație, teste și evals. Nu se copiază `.env`
+   în imagine.
+
+3. **`static_ui.py`** — `BlazorStaticFiles` a primit negociere de encoding:
+   - citește `Accept-Encoding`, inclusiv `q=0`;
+   - dacă există fișierul cerut cu `.br` și clientul acceptă `br`, îl servește;
+   - altfel încearcă `.gz` pentru `gzip`, apoi originalul;
+   - setează `Content-Encoding`, mime type-ul fișierului original și
+     `Vary: Accept-Encoding`;
+   - păstrează fallback-ul SPA spre `index.html`, inclusiv când o variantă
+     precomprimată lipsește; rutele `/api/` nu devin fallback SPA.
+
+4. **`test_static_ui.py`** — trei teste noi: preferință Brotli, fallback gzip când
+   `br;q=0`, și fallback necomprimat. Testele `HEAD` verifică antetele fără ca
+   `TestClient` să încerce să decomprime fixture-uri artificiale.
+
+### Dovezi deja verificate (toate gratuite)
+
+- `uv run ruff check .` — **All checks passed**.
+- `uv run python -m unittest discover -s tests/unit` — **110 tests OK**.
+- `dotnet test ui\StudioViorela.Tests\StudioViorela.Tests.csproj --no-restore --configuration Release`
+  — exit code **0**; a compilat UI-ul și proiectul de teste în `Release`.
+- Testele țintite `tests.unit.test_static_ui` au fost verzi înainte de suita completă.
+
+Nu s-au pornit generări, evals plătite, `tests/checks/*`, nu s-a scris în Neon și
+nu s-a făcut niciun save de business.
+
+### Build Docker: reluat și dus la capăt pe 19 august, seara
+
+Build-ul fusese **întrerupt de Sorin** la stage-ul .NET (`dotnet restore`), nu de o
+eroare a Dockerfile-ului. La reluare, blocajul real nu avea legătură cu Docker
+file-ul: motorul Docker răspundea `500` pe orice rută de API, pentru că
+distribuția WSL `docker-desktop` — VM-ul care furnizează kernel-ul Linux — era
+oprită. Pornirea distribuției singure **nu** a fost suficientă; `docker desktop
+restart` a rezolvat. De reținut înainte de a suspecta iar un fișier de build.
+
+Apoi `docker build --tag content-studio-fte:d2 .` a ieșit cu cod 0. Imaginea are
+**425 MB**. Un avertisment lăsat intenționat nerezolvat: lipsește workload-ul
+`wasm-tools`, deci publicarea Blazor rulează „without optimizations" — ține de
+mărime/AOT, nu de compresie, și instalarea unui workload în imagine e o decizie a
+lui Sorin, nu o reparație de strecurat.
+
+### Ce s-a verificat în containere, cu rezultate
+
+Două containere pe o rețea Docker comună, exact topologia prevăzută pentru D3
+(MCP cu `content-studio-server` + `MCP_HOST=0.0.0.0`, harness cu
+`MCP_URL=http://studio-mcp-test:8765/mcp`):
+
+| verificare | rezultat |
+|---|---|
+| `/health` | prima cerere `degraded` — Postgres a lovit timeout-ul de 3 s la pornirea la rece a Neon, exact riscul deja notat la §3 pentru D3; a doua cerere **`ready`** în ~1 s, MCP cu 7 unelte |
+| UI la `/` | HTTP 200, `Studio Viorela` |
+| fallback SPA `/generator` | HTTP 200, servește `index.html` |
+| rută `/api/` inexistentă | HTTP 404 — fallback-ul nu înghite rutele API |
+| `Accept-Encoding: br, gzip` | `content-encoding: br`, 21.949 B, `application/wasm`, `Vary: Accept-Encoding` |
+| `Accept-Encoding: br;q=0, gzip` | cade pe `gzip`, 26.333 B — `q=0` respectat |
+| `Accept-Encoding: identity` | 62.741 B, fără `Content-Encoding` |
+
+**Integritatea octeților, nu doar antetele:** răspunsul gzip se decomprimă
+byte-identic cu fișierul original, iar cel Brotli e identic cu `.br`-ul produs de
+.NET și se decomprimă în același original. 53 fișiere `.br` și 53 `.gz` ajung în
+imagine.
+
+**Igiena imaginii:** niciun `.env` și niciun `content/` înăuntru; `skills/` e
+prezent, cum îi trebuie sandbox-ului.
+
+**O capcană de știut:** `config.py` derivă `PROJECT_ROOT` din
+`Path(__file__).resolve().parents[2]`. Nimerește `/app` **doar** pentru că
+`uv sync` instalează proiectul editabil. O instalare non-editabilă l-ar duce în
+`.venv`, `UI_STATIC_DIR` ar arăta spre un director inexistent, iar `mount_ui` ar
+returna tăcut `False` — container care pornește perfect și nu servește nicio
+interfață. Verificat explicit în imagine: `PROJECT_ROOT=/app`, UI și skills se
+rezolvă corect.
+
+`uv run ruff check .` curat, 110 teste OK. Fără rulări plătite, fără apeluri de
+model, fără scriere în Neon. Containerele și rețeaua de probă au fost șterse
+după verificare.
+
+### Ce urmează
+
+1. **D3 — Azure Container Apps** e următoarea decizie, dar rămâne blocată de
+   accesul Azure (are nevoie de Sorin pentru MFA). `infra/**` e încă neatins.
+2. La D3, de verificat lista de IP-uri de proxy de încredere înainte de a lărgi
+   `forwarded-allow-ips`, și de rezolvat pornirea la rece a Neon: proba de
+   liveness plus `asyncio.timeout` de 3 s din `health()` nu supraviețuiesc primului
+   request după ce containerul doarme — s-a văzut și în proba de azi.
+3. Rămâne fără dovadă, din D1b: o **rescriere** reală prin poartă (editarea unei
+   postări deja salvate).
+
+### Observații de urmărit, nu modifica fără dovadă
+
+- `--proxy-headers` este păstrat ca în curs; la D3 trebuie verificată lista de IP-uri
+  de proxy de încredere pentru Azure Container Apps înainte de a lărgi implicit
+  `forwarded-allow-ips`.
+- `content/` este exclus intenționat din build context: aplicația în producție nu
+  trebuie să transporte materialele locale ale clientei. `skills/` nu este exclus,
+  deoarece SandboxAgent îl folosește la runtime.
+- În acest repo, `config.py` citește `.env` dacă acesta există, dar containerul
+  trebuie să primească secretele prin `--env-file` local / secrets și environment
+  configuration în Azure, nu prin `COPY .env`.

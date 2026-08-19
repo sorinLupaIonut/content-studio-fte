@@ -1,0 +1,38 @@
+# Secrets and local connector configuration never enter the build context.
+.env
+.env.*
+.mcp.json
+
+# Local environments and generated Python state.
+.venv/
+**/__pycache__/
+**/*.py[cod]
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Build products are recreated inside the image.
+ui/**/bin/
+ui/**/obj/
+ui/**/dist/
+
+# Client source material stays local; production truth lives in Neon.
+content/
+
+# Developer-only state and repository metadata.
+.git/
+.github/
+.claude/
+.vs/
+.vscode/
+.python-version
+AGENTS.md
+CLAUDE.md
+
+# These do not participate in the runtime image.
+docs/
+evals/
+plans/
+tests/
+ui/StudioViorela.Tests/
+LICENSE
