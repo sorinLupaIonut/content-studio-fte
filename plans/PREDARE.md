@@ -195,6 +195,7 @@ Restul planului, cu tot contextul, în [DEPLOYMENT.md](DEPLOYMENT.md).
   `docs/tutorial-ro.html` (rândul despre `ui/**/dist`).
 - `docs/tutorial.html` (engleză, din era CLI) e depășit pentru harness, generator
   și UI.
-- Branch-ul temporar Neon `schema-check-tmp` (`br-ancient-night-avt8x3uj`) poate fi
-  șters. Backup-urile `pre-deployment-2026-08-17` și
-  `pre-d4-course-schema-2026-08-17` rămân.
+- ~~Branch-ul temporar Neon `schema-check-tmp`...~~ Rezolvat pe 19 august: toate
+  cele patru branch-uri secundare (`schema-check-tmp`, `pre-deployment-2026-08-17`,
+  `pre-d4-course-schema-2026-08-17`, `pre-curatare-2026-08-19`) au fost șterse la
+  cererea lui Sorin. Rămâne doar `main`, curat.
