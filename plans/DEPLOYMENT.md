@@ -8,7 +8,7 @@ before you touch anything; update it when you finish a step.
 Language follows the repo rule in [AGENTS.md](../AGENTS.md): this is a developer
 document, so it is English. Everything the client reads stays Romanian.
 
-Last updated: 2026-08-18 · owner of this update: Claude Code
+Last updated: 2026-08-19 · owner of this update: Claude Code
 
 ---
 
@@ -44,8 +44,8 @@ adapted to this project. We stop after each decision for a human go/no-go.
 | # | Decision | Status |
 |---|---|---|
 | D0 | Probe the SDK and reconcile the brief | ✅ done — SDK 0.20.0 probed and brief reconciled below |
-| D1 | Harness: FastAPI + the gate on Postgres | ✅ complete — HTTP park/approve/resume contract, 21 free tests; paid live round trip stays at the testing stage |
-| D1b | Blazor WebAssembly interface | 🟡 shell, profile, hybrid generator, streaming chat, batch save and the saved-post editor all built and free-verified; two paid acceptances remain |
+| D1 | Harness: FastAPI + the gate on Postgres | ✅ complete — HTTP park/approve/resume contract, 21 free tests; paid live round trip proven 2026-08-18: `RunState` (48,811 bytes) persisted on interruption, approved, resumed, write completed on production data |
+| D1b | Blazor WebAssembly interface | 🟡 shell, profile, hybrid generator, streaming chat, batch save and the saved-post editor all built; real 10×5 hybrid batch and real batch save both proven 2026-08-18–19 (see Changelog); a real **rewrite** through the gate (editing an already-saved post) is the one acceptance still without evidence |
 | D2 | Containerize (multi-stage: .NET SDK → Python) | ⬜ not started |
 | D3 | Deploy to Azure Container Apps | ⬜ blocked: Azure subscription unconfirmed |
 | D4 | Neon from the cloud + schema changes | 🟡 the course's five-table state model **adopted and verified functionally**; pooled/direct split enforced in code; the "from the cloud" half waits for D3 |
@@ -1052,3 +1052,81 @@ zone, needs Sorin for MFA.
   `public.runs`), `README.md` says no .NET extension is needed, and the tutorial's
   chapter 01 explains why — the same sentence that makes Blazor build-time rather
   than runtime is what makes it undebuggable from this side. Nothing committed.
+
+- **2026-08-19 · Claude Code** — **MCP 2.0 decoding bug fixed; a second gated-write
+  bug found and fixed, this time in the D1b generation path; two real generation
+  batches run.** Session handoff notes are in
+  [plans/PREDARE.md](PREDARE.md) — this entry covers only what changed the code
+  and what money proved.
+
+  **The decoding bug.** `mcp` 2.0.0 renamed `CallToolResult` fields to snake_case;
+  `drafts.py` still read `isError`/`structuredContent` through a bare `getattr`
+  with a default, so every field silently read as absent instead of raising —
+  worst case, a real `content-data` error decoded as success. Fixed with
+  `_result_field(result, snake, camel)`, accepting either spelling. The old test
+  suite could not have caught this: it built `SimpleNamespace` fixtures under the
+  same wrong names the bug expected, so bug and test confirmed each other. Tests
+  now use the real field names plus a `RealResultTests` class built on an actual
+  `mcp_types.CallToolResult`.
+
+  **The gated-write bug — reproduced with real money.** A fresh 10-idea batch
+  failed in 15 seconds: `RuntimeError: structured generation unexpectedly
+  requested approval for: update_profile`. The title agent (`gpt-5-nano`, minimal
+  effort) reached for a write tool instead of returning the structured contract.
+  The approval gate itself worked exactly as designed — `update_profile` is in
+  `GATED_TOOLS` with `require_approval`, and nothing wrote silently — but D1b's
+  generation path has nobody on the other end to answer an approval request:
+  `Runner.run` in `generator.py` has no approval loop, so any interruption fails
+  the whole batch. The fix is narrower than the gate: the generation agent never
+  needed `update_profile`/`save_post`/`save_posts_batch`/`update_post` visible at
+  all, since saving is a separate, later, explicitly-confirmed phase. New
+  `GENERATION_VISIBLE_TOOLS` (`search_books`, `search_web`, `list_posts` only) and
+  a dedicated `_generation_data_mcp` connection in `service.py`, used by
+  `GenerationCoordinator` instead of the chat-shared `_data_mcp`. Chat keeps the
+  full set unchanged, since a person is actually there to answer.
+
+  **Verified with real money, twice, end to end.** Before the fix: a 10-idea
+  batch failed in 15s with the `update_profile` error above, zero ideas
+  persisted. After the fix: a 10-idea batch (pillar Educație, format Reel, source
+  Memorie) reached `status: ready` in 135 seconds — **10/10 ideas, 50/50
+  variants, zero failures, zero errors in the server log**. Confirmed separately
+  that `generator.py` never calls a write tool directly, so restricting model
+  visibility could not have broken a legitimate path. `ruff` clean, 107 unit
+  tests pass both before and after. Committed and pushed to `deploy`: `bfc941d`
+  (the tool-visibility fix) and two earlier same-session commits for the decoding
+  bug and the debug-configuration fixes below.
+
+  **Also fixed this session, same money-free verification standard (ruff +
+  107 tests):** the debug attach configurations carried `pathMappings` toward
+  `/app/src`, correct for the container but wrong for a local process, which
+  reports real Windows paths — breakpoints could bind to nothing. Split into
+  `Attach: harness (local)` / `Attach: MCP server (local)` (no mapping) and
+  `Attach: harness (container)` (mapping kept, for D2). Added a `tasks.json`
+  sweep step, `Oprește serviciile Studio`, that kills this workspace's leftover
+  Python/dotnet processes before starting new ones — stopping a debug session
+  detaches the editor but leaves the terminals running, so the next `F5` was
+  silently re-attaching to stale processes. The `-Xfrozen_modules=off` question
+  left open in a prior session's handoff is closed: confirmed present in the
+  real command line of both running processes via `Get-CimInstance
+  Win32_Process`; it was never the cause of the missing debug session that
+  night — the debug session had simply never been started (the extension's own
+  log was empty).
+
+  **Database reset, twice, at Sorin's request.** `TRUNCATE ... RESTART IDENTITY
+  CASCADE` on `posts`, `generation_batches/ideas/variants`, `runs`, `traces`,
+  `artifacts`, `audit_log`, `agent_sessions`, `agent_messages` — `clients`,
+  `documents`, `embeddings` untouched both times. A Neon branch,
+  `pre-curatare-2026-08-19` (`br-crimson-tree-av5gp1yn`), was created before the
+  first truncate as a safety net.
+
+  **Left for a human decision, not resolved:** the top-of-file roadmap table
+  still read D1 as "paid live round trip stays at the testing stage" and D1b as
+  "two paid acceptances remain" despite an earlier 2026-08-18 changelog entry
+  documenting both a real 10×5 hybrid batch and a real save through the gate
+  (`RunState` persisted at 48,811 bytes, `approval_granted` → `post_saved` →
+  `completed`, `posts` at 1) — the summary table was simply never updated
+  after that entry landed. Updated both rows below to match the evidence
+  already in this changelog. One acceptance still has no clear evidence either
+  way: a real **rewrite** through the gate (editing an already-saved post, not
+  just saving a new one) — every gate proof found in this file is a save, not a
+  rewrite.
