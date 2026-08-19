@@ -199,3 +199,62 @@ Restul planului, cu tot contextul, în [DEPLOYMENT.md](DEPLOYMENT.md).
   cele patru branch-uri secundare (`schema-check-tmp`, `pre-deployment-2026-08-17`,
   `pre-d4-course-schema-2026-08-17`, `pre-curatare-2026-08-19`) au fost șterse la
   cererea lui Sorin. Rămâne doar `main`, curat.
+
+---
+
+## 7. Predare către Codex — 19 august, continuare seara
+
+Sorin a rămas fără credit Claude în timpul unei sesiuni **pur explicative**, fără nicio
+modificare de cod. Zero fișiere schimbate — `git status` curat, ultimul commit tot
+`b846c5f`. Nu e nimic de verificat cu ruff/teste, pentru că nu s-a atins nimic.
+
+**Ce s-a discutat:** Sorin a cerut să înțeleagă, linie cu linie, un Dockerfile de
+*referință* dintr-un curs (`Maya's Tier-1 Support harness`, `maya_harness.main:app`) —
+**nu** aparține acestui proiect, a fost doar exemplu didactic înainte de a scrie
+Dockerfile-ul real de la D2. S-a explicat:
+
+- diferența kernel vs. SO, de ce un container nu are propriul kernel ci îl împrumută
+  de la host (și de ce Docker Desktop pe Windows ține un VM Linux prin WSL2 dedesubt);
+- familiile de imagini de bază Linux — `alpine` (musl, wheel-uri manylinux incompatibile
+  fără recompilare), `debian:*-slim` (glibc, compromisul folosit deja de proiect prin
+  `python:3.12-slim`), `debian`/`ubuntu` complet, `distroless`, `scratch`;
+- `COPY --from=<imagine>` ca truc multi-stage pentru a lua binare deja compilate
+  (`uv`/`uvx`) fără `pip`/`curl` în imagine;
+- `WORKDIR`, structura standard de directoare Linux (`/app` e convenție Docker, nu
+  standard FHS; `/opt`/`/usr/local` ar fi „corecte" clasic; `/root` vs `/home`);
+- caching-ul pe layere: de ce se copiază `pyproject.toml`+`uv.lock` și se rulează
+  `uv sync --no-install-project` **înainte** de `COPY src`, apoi un al doilea
+  `uv sync` fără acel flag — ca modificările de cod să nu invalideze cache-ul
+  dependențelor;
+- ce înseamnă „instalare" de pachete Python (de regulă doar dezarhivare de wheel,
+  compilare doar când lipsește un wheel precompilat pentru platformă — legătura cu
+  problema `musl` de la Alpine) și diferența față de instalarea proiectului propriu
+  (editable install, fără compilare, doar leagă `src/content_studio` de sistemul de
+  import);
+- `ENV PATH="/app/.venv/bin:$PATH"` — de ce `uvicorn` din `CMD` nu s-ar găsi altfel.
+
+**Unde a rămas, concret:** Sorin înțelege acum fundamentele suficient ca să treacă la
+scrierea Dockerfile-ului **real** al proiectului (Decizia D2). Nu a fost scris încă
+niciun rând — nu există `Dockerfile`, `.dockerignore` sau `infra/` în acest repo.
+
+**Ce trebuie să facă Codex, la reluare:**
+
+1. Nu relua explicațiile de mai sus decât dacă Sorin cere clarificări — le are deja.
+2. Următorul pas real e scrierea propriu-zisă a `Dockerfile`-ului pentru
+   `content-studio-fte`, cu structura deja discutată conceptual: bază
+   `python:3.12-slim`, `uv` copiat din `ghcr.io/astral-sh/uv:latest`, cache pe layere
+   (deps înainte de sursă), `ENV PATH` spre `.venv/bin`.
+3. Proiectul are **două componente de construit**, nu doar harness-ul Python — UI-ul
+   Blazor (`ui/StudioViorela`) trebuie compilat separat, cu SDK .NET, într-un stage de
+   build care nu ajunge în imaginea finală (multi-stage), iar rezultatul (`dist/wwwroot`)
+   copiat peste în stage-ul final Python. **Obligatoriu `-c Release`** la publish —
+   altfel `ApiBaseUrl` rămâne greșit copt în `dotnet.js` (vezi §4 mai sus).
+4. Decizie deschisă, de rezolvat înainte sau în timpul scrierii Dockerfile-ului:
+   `dist/wwwroot` are variante precomprimate (`.br`/`.gz`) pe care `StaticFiles` din
+   Starlette nu le servește azi. Trei căi posibile — middleware mic care preferă
+   `.br`, `GZipMiddleware`, sau acceptă necomprimat deocamdată — decizia îi aparține
+   lui Sorin, nu presupune Codex una din ele fără să întrebe.
+5. Restul contextului de deployment (D0-D1b, deja acceptate; D3/D4 neatinse încă),
+   în [DEPLOYMENT.md](DEPLOYMENT.md).
+6. Regulile de la §5 rămân valabile neschimbate: rulările care costă bani sunt decizia
+   lui Sorin, fără commit/push fără cerere explicită, `.env` niciodată în imagine.
