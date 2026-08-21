@@ -69,18 +69,24 @@ async def resolve_account(conn: Any, principal_id: str) -> Account | None:
     )
 
 
+# Driven by `clients`, not by `app_users`, because the account *is* the client
+# row: it owns the profile, the library and the allowance. Listing sign-ins
+# instead would hide any client nobody has signed in as yet - including the one
+# the studio was built for, whose budget would then be unreachable from the only
+# page that can change it.
 LIST_ACCOUNTS_SQL = """
-SELECT u.principal_id,
+SELECT c.slug          AS client_slug,
+       c.name          AS client_name,
+       c.created_at    AS client_created_at,
+       u.principal_id,
        u.email,
        u.provider,
        u.role,
        u.disabled_at,
-       u.created_at,
-       c.slug AS client_slug,
-       c.name AS client_name
-  FROM public.app_users u
-  JOIN public.clients   c ON c.id = u.client_id
- ORDER BY u.created_at
+       u.created_at
+  FROM public.clients c
+  LEFT JOIN public.app_users u ON u.client_id = c.id
+ ORDER BY c.created_at, u.created_at
 """
 
 # A new tester needs a client row before an app_users row can point at it, and
@@ -134,14 +140,17 @@ async def list_accounts(conn: Any) -> list[dict[str, Any]]:
     rows = await conn.fetch(LIST_ACCOUNTS_SQL)
     return [
         {
+            # None where nobody has signed in as this client yet. The interface
+            # says so rather than pretending the row is broken: a client with no
+            # principal is a normal state, not a half-made account.
             "principal_id": row["principal_id"],
             "email": row["email"],
             "provider": row["provider"],
-            "role": row["role"],
+            "role": row["role"] or "user",
             "client_slug": row["client_slug"],
             "client_name": row["client_name"],
             "disabled": row["disabled_at"] is not None,
-            "created_at": row["created_at"].isoformat(),
+            "created_at": (row["created_at"] or row["client_created_at"]).isoformat(),
         }
         for row in rows
     ]

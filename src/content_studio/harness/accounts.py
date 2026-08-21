@@ -149,6 +149,19 @@ class AccountDirectory:
         CURRENT_PRINCIPAL.set(principal_id)
         return slug
 
+    async def provisioned(self, principal_id: str | None) -> bool | None:
+        """True, False, or None when the answer could not be obtained.
+
+        Three states rather than two on purpose. A caller that refuses on False
+        must not also refuse when the data plane is briefly unreachable - that
+        would turn one server's bad minute into everybody being locked out of
+        their own studio.
+        """
+        try:
+            return await self.account_for(principal_id) is not None
+        except Exception:  # noqa: BLE001
+            return None
+
     # ---- how much ------------------------------------------------------------
 
     async def budget_for(self, client_slug: str | None = None) -> Budget | None:

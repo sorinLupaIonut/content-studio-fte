@@ -168,6 +168,16 @@ if (-not $AllowedEmails) {
 }
 $allowedCount = @($AllowedEmails -split ',' | Where-Object { $_.Trim() }).Count
 
+# Which of those addresses owns the original client. Being on the allowlist is
+# permission to enter the studio; without this, it is also permission to land on
+# her account, because an unprovisioned principal falls through to CLIENT_SLUG.
+$clientOwnerEmail = $dotenv['CLIENT_OWNER_EMAIL']
+if ($clientOwnerEmail) {
+    Write-Host "Owner        : 1 address, not printed"
+} else {
+    Write-Warning "No CLIENT_OWNER_EMAIL in $EnvFile. Anyone allowed but not provisioned will land on the default client."
+}
+
 # Easy Auth keeps the Google client secret as a container app secret, added by
 # enable-auth.ps1. Bicep declares the secrets list, and a declared list is the
 # whole truth to ARM - so deploying without this value here deletes the secret,
@@ -268,6 +278,7 @@ $parameters = @{
         acrName           = @{ value = $AcrName }
         image             = @{ value = $image }
         allowedEmails     = @{ value = $AllowedEmails }
+        clientOwnerEmail  = @{ value = $clientOwnerEmail }
         model             = @{ value = $Model }
         databaseUrl       = @{ value = $dotenv['DATABASE_URL'] }
         databaseUrlDirect = @{ value = $dotenv['DATABASE_URL_DIRECT'] }

@@ -73,6 +73,9 @@ class FakeAccounts:
         FakeAccounts.bound.append(principal_id)
         return CLIENT_SLUG
 
+    async def provisioned(self, principal_id):
+        return False
+
     async def account_for(self, principal_id):
         return None
 

@@ -178,3 +178,40 @@ def _fake_connection():
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OwnerFallbackTests(unittest.IsolatedAsyncioTestCase):
+    """Only the client the studio predates accounts for may fall through."""
+
+    class _Directory:
+        """The two answers that matter, plus the one that means 'I cannot tell'."""
+
+        def __init__(self, outcome):
+            self.outcome = outcome
+
+        async def account_for(self, principal_id):
+            if self.outcome == "outage":
+                raise RuntimeError("data plane unreachable")
+            return object() if self.outcome == "provisioned" else None
+
+    async def test_provisioned_is_true(self):
+        from content_studio.harness.accounts import AccountDirectory
+
+        directory = AccountDirectory.__new__(AccountDirectory)
+        directory.account_for = self._Directory("provisioned").account_for
+        self.assertIs(await directory.provisioned("p"), True)
+
+    async def test_unprovisioned_is_false(self):
+        from content_studio.harness.accounts import AccountDirectory
+
+        directory = AccountDirectory.__new__(AccountDirectory)
+        directory.account_for = self._Directory("missing").account_for
+        self.assertIs(await directory.provisioned("p"), False)
+
+    async def test_an_outage_is_neither(self):
+        """False locks somebody out; None must not, or one bad minute does."""
+        from content_studio.harness.accounts import AccountDirectory
+
+        directory = AccountDirectory.__new__(AccountDirectory)
+        directory.account_for = self._Directory("outage").account_for
+        self.assertIsNone(await directory.provisioned("p"))

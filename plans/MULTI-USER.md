@@ -281,9 +281,17 @@ Steps 1–4 are the work. Step 5 is configuration, and deliberately last.
 
 ## Still open
 
-- **Nobody but Sorin is provisioned.** Viorela deliberately has no `app_users`
-  row: she falls through to `CLIENT_SLUG` and keeps the original profile, which
-  is the correct behaviour and needs no action until she should own it formally.
+- **Nobody but Sorin is provisioned.** Viorela still has no `app_users` row —
+  her principal id only exists once Google issues it at sign-in, and nobody has
+  it to type in. Since 2026-08-21 that fall-through is *hers alone*, named by
+  `CLIENT_OWNER_EMAIL`; anybody else allowlisted but unprovisioned is refused
+  with `account_not_provisioned` rather than being handed her studio.
+
+  Two things this leaves open. Her budget was, until it was noticed, the column
+  default of $1 — not a decision, just what `ADD COLUMN ... DEFAULT` wrote; it
+  is $25 now and one field on the admin page changes it. And she has no
+  `app_users` row, so suspending her is not possible from the interface —
+  correct, since there is no principal to suspend, but worth knowing.
 - ~~**Disabling an account** has a column and no button.~~ Done on
   2026-08-21: a Suspend/Restore button on the admin page, a timestamp rather
   than a delete, the directory cache invalidated on the spot so a revocation

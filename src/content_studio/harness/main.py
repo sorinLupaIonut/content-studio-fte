@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from content_studio.config import (
+    CLIENT_OWNER_EMAIL,
+    CLIENT_SLUG,
     HARNESS_HOST,
     HARNESS_PORT,
     UI_DEV_ORIGINS,
@@ -104,7 +106,28 @@ def create_app(
         # the request's context here and read again inside `_data_mcp`. Cached
         # for a minute, so this is a round trip once per principal per minute,
         # not once per request.
-        await request.app.state.harness.accounts.bind(identity.principal_id)
+        slug = await request.app.state.harness.accounts.bind(identity.principal_id)
+
+        # Falling through to `CLIENT_SLUG` is right for exactly one person: the
+        # client the studio predates accounts for. For anyone else it would hand
+        # a stranger her profile, her library and her allowance - the one
+        # failure this whole tenancy layer exists to prevent. Being on the
+        # allowlist buys entry to the studio, not entry to somebody's account.
+        # Not in development: there the identity is synthetic, there is one
+        # person at one laptop, and nobody's account can be reached by mistake.
+        if (
+            CLIENT_OWNER_EMAIL
+            and resolver.settings.mode != "development"
+            and slug == CLIENT_SLUG
+            and identity.email.lower() != CLIENT_OWNER_EMAIL
+        ):
+            known = await request.app.state.harness.accounts.provisioned(
+                identity.principal_id
+            )
+            if known is False:
+                raise CodedError(
+                    403, "account not provisioned", "account_not_provisioned"
+                )
         return identity
 
     identity_dependency = Depends(authenticated)

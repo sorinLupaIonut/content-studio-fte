@@ -110,6 +110,16 @@ AUTH_ALLOWED_PRINCIPAL_IDS = tuple(
     for value in os.getenv("AUTH_ALLOWED_PRINCIPAL_IDS", "").split(",")
     if value.strip()
 )
+# The one signed-in person who may reach `CLIENT_SLUG` without a row in
+# `app_users` - the client this studio was built for, who predates accounts.
+#
+# Empty keeps the older behaviour, where *anyone* on the allowlist without an
+# account falls through to `CLIENT_SLUG`. That fallback is what let the
+# single-tenant studio keep working, and it is also the trap: allow a tester,
+# forget to provision them, and they land on her profile, her library and her
+# allowance. Naming the owner turns "whoever gets here" into "her".
+CLIENT_OWNER_EMAIL = os.getenv("CLIENT_OWNER_EMAIL", "").strip().lower()
+
 AUTH_DEV_PRINCIPAL_ID = os.getenv("AUTH_DEV_PRINCIPAL_ID", "local-sorin").strip()
 AUTH_DEV_EMAIL = os.getenv("AUTH_DEV_EMAIL", "local@studio.invalid").strip().lower()
 # Empty is a supported state, not a misconfiguration: the harness runs and logs

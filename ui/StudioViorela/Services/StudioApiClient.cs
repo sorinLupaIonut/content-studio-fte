@@ -211,6 +211,8 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
                         return Tr[Copy.PostNotFound];
                     case "no_current_batch":
                         return Tr[Copy.NoCurrentBatch];
+                    case "account_not_provisioned":
+                        return Tr[Copy.AccountNotProvisioned];
                 }
             }
 

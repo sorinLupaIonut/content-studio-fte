@@ -102,7 +102,14 @@ else
                     <tr class="@(account.Disabled ? "is-suspended" : "")">
                         <td>
                             <strong>@account.ClientName</strong>
-                            <small>@account.Email</small>
+                            @if (string.IsNullOrEmpty(account.Email))
+                            {
+                                <small class="muted-copy">@T[Copy.AdminNoSignIn]</small>
+                            }
+                            else
+                            {
+                                <small>@account.Email</small>
+                            }
                             @if (account.Disabled)
                             {
                                 <small class="tag-suspended">@T[Copy.AdminSuspended]</small>
@@ -151,14 +158,19 @@ else
                                     @T[Copy.AdminSetBudget]
                                 </button>
                                 @* Suspending is reversible and keeps the usage
-                                   rows; it is a timestamp, not a delete. *@
-                                <button class="button button-small"
-                                        disabled="@_busy"
-                                        @onclick="() => ToggleDisabledAsync(account)">
-                                    @(account.Disabled
-                                        ? T[Copy.AdminRestore]
-                                        : T[Copy.AdminSuspend])
-                                </button>
+                                   rows; it is a timestamp, not a delete. It acts
+                                   on a principal, so a client nobody has signed
+                                   in as has nothing to suspend. *@
+                                @if (!string.IsNullOrEmpty(account.PrincipalId))
+                                {
+                                    <button class="button button-small"
+                                            disabled="@_busy"
+                                            @onclick="() => ToggleDisabledAsync(account)">
+                                        @(account.Disabled
+                                            ? T[Copy.AdminRestore]
+                                            : T[Copy.AdminSuspend])
+                                    </button>
+                                }
                             }
                         </td>
                     </tr>
@@ -237,7 +249,7 @@ else
         _busy = true;
         try
         {
-            await Api.SetDisabledAsync(account.PrincipalId, !account.Disabled);
+            await Api.SetDisabledAsync(account.PrincipalId!, !account.Disabled);
             _notice = Copy.AdminSuspendSaved;
             _error = null;
             await LoadAsync();

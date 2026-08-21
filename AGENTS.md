@@ -63,6 +63,20 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
 - **The first admin is made from the terminal**, `db/provision.py`, and only
   there. An admin page that can mint admins is one stolen session from being
   somebody else's admin page.
+- **Only the owner may fall through.** An authenticated principal with no
+  `app_users` row used to land on `CLIENT_SLUG` — which is how the client kept
+  working before accounts existed, and also how a tester who was allowlisted but
+  never provisioned would land on *her* profile, library and allowance.
+  `CLIENT_OWNER_EMAIL` names the one address that may; everyone else is told
+  their account is not set up yet. Empty keeps the old behaviour, and
+  development mode is exempt.
+- **`provisioned()` has three answers, not two.** True, False, and None when the
+  data plane could not be asked. Refusing on None would turn one bad minute into
+  everybody locked out of their own studio.
+- **The admin page lists clients, not sign-ins.** The account *is* the `clients`
+  row; listing `app_users` would hide any client nobody has signed in as — such
+  as the original one, whose budget would then be unreachable from the only page
+  that can change it.
 - **The library is scoped too, since 2026-08-21.** `documents.client_id` is NOT
   NULL and both readers — `ui_list_library` and `search_books` — join through
   `clients` on the slug from the connection. The books are licensed material;

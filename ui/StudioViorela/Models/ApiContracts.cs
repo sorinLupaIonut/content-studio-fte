@@ -56,11 +56,13 @@ public sealed class SetDisabledDto
 
 public sealed class AdminAccountDto
 {
+    // Null until somebody signs in as this client. A client with no principal
+    // is a normal state - the account exists, the door has not been used.
     [JsonPropertyName("principal_id")]
-    public string PrincipalId { get; set; } = "";
+    public string? PrincipalId { get; set; }
 
     [JsonPropertyName("email")]
-    public string Email { get; set; } = "";
+    public string? Email { get; set; }
 
     [JsonPropertyName("provider")]
     public string Provider { get; set; } = "";

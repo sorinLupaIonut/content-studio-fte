@@ -17,6 +17,9 @@ param location string = resourceGroup().location
 @description('Prefix every resource name starts with.')
 param namePrefix string = 'studio'
 
+@description('The one signed-in address allowed to reach the default client without an account row. Empty keeps the old fall-through for everyone.')
+param clientOwnerEmail string = ''
+
 @description('Name of the existing Azure Container Registry that holds the image.')
 param acrName string
 
@@ -291,6 +294,10 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AUTH_ALLOWED_EMAILS'
               value: allowedEmails
+            }
+            {
+              name: 'CLIENT_OWNER_EMAIL'
+              value: clientOwnerEmail
             }
             {
               name: 'HARNESS_HOST'

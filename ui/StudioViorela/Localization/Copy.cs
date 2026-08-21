@@ -346,8 +346,8 @@ public static class Copy
     public static readonly Phrase UsageRemaining =
         new("{0}% folosit", "{0}% used");
     public static readonly Phrase BudgetExhausted = new(
-        "Ai atins limita contului de test. Cere-i lui Sorin să o ridice ca să continui.",
-        "You have reached this test account's limit. Ask Sorin to raise it to carry on.");
+        "Ai atins limita contului. Cere-i lui Sorin să o ridice ca să continui.",
+        "You have reached this account's limit. Ask Sorin to raise it to carry on.");
 
     // Not the same sentence as the budget: this one passes on its own, and
     // saying "limit" for both would teach the reader that the two are one thing.
@@ -365,6 +365,10 @@ public static class Copy
     public static readonly Phrase LibraryEmptyForMixed = new(
         "Biblioteca ta e goală, deci „Combinat” va folosi doar memoria și internetul.",
         "Your library is empty, so “Mixed” will use only memory and the internet.");
+
+    public static readonly Phrase AccountNotProvisioned = new(
+        "Contul tău nu are încă un spațiu de lucru. Cere-i lui Sorin să ți-l creeze.",
+        "Your account does not have a workspace yet. Ask Sorin to create one.");
 
     public static readonly Phrase ProfileSectionUnknown = new(
         "Secțiunea de profil nu există sau nu poate fi editată.",
@@ -385,6 +389,10 @@ public static class Copy
     public static readonly Phrase AdminAccountMissing = new(
         "Contul nu există.",
         "That account does not exist.");
+
+    public static readonly Phrase AdminNoSignIn = new(
+        "nimeni nu s-a autentificat încă",
+        "nobody has signed in yet");
 
     public static readonly Phrase AdminSuspend = new("Suspendă", "Suspend");
     public static readonly Phrase AdminRestore = new("Reactivează", "Restore");
