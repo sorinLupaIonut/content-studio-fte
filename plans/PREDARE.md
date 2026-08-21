@@ -3,19 +3,20 @@
 Sorin revine duminică. Versiunea ilustrată, cu diagrama capcanei de tenancy, e în
 artifactul „Predare pentru duminică”; asta e varianta care rămâne cu codul.
 
-Ramura de lucru: **`deploy`**. **13 commit-uri înaintea lui `origin/deploy`, niciunul împins.**
+Ramura de lucru: **`deploy`**. **Totul e împins** — `origin/deploy` e la `7cc0794`.
 
-## Cele trei lucruri care au nevoie de mâna lui
+## Cele două lucruri care au nevoie de mâna lui
 
-1. **`git push origin deploy`.** Nu am împins — regula proiectului cere cererea
-   lui explicită. Consecința: cele 13 commit-uri de vineri nu au copie nicăieri
-   altundeva.
-2. **Bugetul Viorelei e $25 pentru că l-am pus eu**, ca să nu rămână pe $1, care
+1. **Bugetul Viorelei e $25 pentru că l-am pus eu**, ca să nu rămână pe $1, care
    era valoarea implicită a coloanei și nu decizia nimănui. Un câmp pe pagina de
    administrare îl schimbă.
-3. **Ecranul de consimțământ Google.** Dacă a rămas în modul *Testing*, sesiunile
+2. **Ecranul de consimțământ Google.** Dacă a rămas în modul *Testing*, sesiunile
    expiră la 7 zile și Viorela e scoasă afară săptămânal, fără explicație. De
    verificat în Google Cloud Console. Nu am umblat acolo.
+
+Împins pe 21 august, la cererea lui: `043ba79..7cc0794`. Verificat înainte că
+`.env` nu e urmărit și că din `content/books/` pleacă doar README-ul — restul
+sunt excluse în `.gitignore`, iar repo-ul e public.
 
 ## Ce a găsit testarea în browser
 
