@@ -318,7 +318,12 @@ $outputs = $deployment.properties.outputs
 $harnessUrl = $outputs.harnessUrl.value
 Write-Host "`n-- health check --" -ForegroundColor Cyan
 $healthy = $false
-foreach ($attempt in 1..10) {
+$body = $null
+# Answering at all is not the same as being ready. The two apps roll
+# independently, so the first 200 often arrives while studio-mcp is still coming
+# up - which used to print a `down mcp` that meant nothing but looked alarming.
+# Keep asking until it says ready, then stop.
+foreach ($attempt in 1..12) {
     try {
         $probe = Invoke-WebRequest -Uri "$harnessUrl/health" -UseBasicParsing -TimeoutSec 20
         if ($probe.StatusCode -eq 200) {
@@ -327,17 +332,25 @@ foreach ($attempt in 1..10) {
             # body: a cold Neon compute is not a failed deploy, and a missing
             # key is.
             $body = $probe.Content | ConvertFrom-Json
-            Write-Host ("status: {0}" -f $body.status)
-            foreach ($name in $body.backends.PSObject.Properties.Name) {
-                $backend = $body.backends.$name
-                $mark = if ($backend.active) { 'ok  ' } else { 'down' }
-                Write-Host ("  {0} {1}" -f $mark, $name)
-            }
-            break
+            if ($body.status -eq 'ready') { break }
+            Write-Host ("  not ready yet ({0}/12) ..." -f $attempt)
         }
     } catch {
-        Write-Host ("  attempt {0}/10 ..." -f $attempt)
-        Start-Sleep -Seconds 6
+        Write-Host ("  no answer yet ({0}/12) ..." -f $attempt)
+    }
+    Start-Sleep -Seconds 8
+}
+if ($body) {
+    Write-Host ("status: {0}" -f $body.status)
+    foreach ($name in $body.backends.PSObject.Properties.Name) {
+        $backend = $body.backends.$name
+        $mark = if ($backend.active) { 'ok  ' } else { 'down' }
+        Write-Host ("  {0} {1}" -f $mark, $name)
+    }
+    if ($body.status -ne 'ready') {
+        # Still not a failed deploy: the container answers, so a person can look.
+        # `artifacts` is inactive on purpose and never counts against readiness.
+        Write-Warning "The harness answers but reports 'degraded'. See docs/RUNBOOK.md."
     }
 }
 if (-not $healthy) {

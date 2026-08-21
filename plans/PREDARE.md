@@ -1,3 +1,61 @@
+# Predare — 21 august 2026, seara
+
+Sorin revine duminică. Versiunea ilustrată, cu diagrama capcanei de tenancy, e în
+artifactul „Predare pentru duminică”; asta e varianta care rămâne cu codul.
+
+Ramura de lucru: **`deploy`**. **38 de commit-uri locale, niciunul împins.**
+
+## Cele trei lucruri care au nevoie de mâna lui
+
+1. **`git push origin deploy`.** Nu am împins — regula proiectului cere cererea
+   lui explicită. Consecința: munca de vineri nu are copie nicăieri altundeva.
+2. **Bugetul Viorelei e $25 pentru că l-am pus eu**, ca să nu rămână pe $1, care
+   era valoarea implicită a coloanei și nu decizia nimănui. Un câmp pe pagina de
+   administrare îl schimbă.
+3. **Ecranul de consimțământ Google.** Dacă a rămas în modul *Testing*, sesiunile
+   expiră la 7 zile și Viorela e scoasă afară săptămânal, fără explicație. De
+   verificat în Google Cloud Console. Nu am umblat acolo.
+
+## Ce a găsit testarea în browser
+
+Șase defecte reale, niciunul vizibil din cod sau din teste — în toate cazurile
+nicio funcție nu era greșită: lipsea o condiție dintr-o interogare, sau o poartă
+dintr-un buton.
+
+| Defect | De ce conta | Stare |
+|---|---|---|
+| Biblioteca nu era izolată pe cont | orice cont de test putea cita din cele 17 cărți licențiate | reparat |
+| Un tester neprovizionat ateriza pe contul clientei | profilul, cărțile și bugetul ei, predate din greșeală | reparat |
+| Viorela plafonată la $1 | valoarea implicită a coloanei; i-ar fi blocat lucrul | $25, de confirmat |
+| Contul ei nu apărea în administrare | bugetul ei era de neatins din singura pagină care îl schimbă | reparat |
+| Server → propoziții românești pe pagina engleză | comutatorul de limbă pica exact când ceva eșua | reparat |
+| Raft gol + sursa „Cărți” pornea o rulare plătită | cheltuială care nu putea reuși | reparat |
+
+## Ce s-a construit
+
+Deciziile 7 și 9 din cursul de deployment, plus partea gratuită din 8. Detaliile
+și motivele stau în `plans/DEPLOYMENT.md` (changelog, 21 august) și în
+`docs/manual.html`. Alertele Azure sunt vii: cost $25/lună, `studio-server-errors`,
+`studio-replica-restarts`.
+
+Refuzate pe față, cu motivul scris: Cloudflare R2, Phoenix, graderul nocturn,
+testul de disponibilitate Application Insights.
+
+## Ce a rămas deschis, și de ce
+
+- **O rulare reală din cloud** — costă bani, deci e decizia lui.
+- **Contul `sorin` are raftul gol** — corect, e ce va vedea un tester. SQL de
+  copiere în `docs/RUNBOOK.md` §7.
+- **Viorela n-are rând în `app_users`** — principalul ei apare abia când Google
+  i-l dă la autentificare; nimeni nu-l are de tastat.
+- **429 nedovedit pe producție** — cheia de limitare cade pe IP, același cu al
+  lui; l-aș fi blocat un minut. Dovedit cu test de integrare prin aplicația reală.
+- **`evals/cases.json` doar în română** — amânat de el explicit.
+- **Conectorii claude.ai `Canva` și `reading-room`** — cer autorizare din
+  setările lui.
+
+---
+
 # Predare — sesiunea din 18 august 2026, seara
 
 Notă scrisă la trecerea de la o sesiune Claude Code pornită din folderul cursului
