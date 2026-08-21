@@ -203,7 +203,9 @@ SELECT d.title                                                  AS title,
        1 - (e.embedding <=> $1::vector)                         AS score
   FROM public.embeddings e
   JOIN public.documents  d ON d.id = e.document_id
+  JOIN public.clients    c ON c.id = d.client_id
  WHERE d.source = 'library'
+   AND c.slug = $4
    AND ($2::text[] IS NULL OR d.title = ANY($2::text[]))
  ORDER BY e.embedding <=> $1::vector
  LIMIT $3
@@ -212,11 +214,12 @@ SELECT d.title                                                  AS title,
 
 @server.tool()
 async def search_books(
+    ctx: Context,
     description: str,
     titles: list[str] | None = None,
     limit: int = 6,
 ) -> list[dict]:
-    """Caută după înțeles în cele 17 cărți din biblioteca Viorelei.
+    """Caută după înțeles în cărțile din biblioteca clientului.
 
     Folosește-o DOAR când ea a ales sursa „Cărți" sau „Combinat". Descrie ce
     cauți în cuvintele ei („vinovăția de a spune nu"), nu cu cuvinte-cheie, și
@@ -236,13 +239,17 @@ async def search_books(
     nimic nu e relevant semantic, spune asta și nu întinde un pasaj slab.
     """
     limit = max(1, min(limit, 20))
+    # The client rides the connection, like every other tool here. The books are
+    # licensed material belonging to whoever imported them, and an unscoped
+    # search would let one account's agent quote from another's shelf.
+    client_slug = await client_of(ctx)
     response = await AsyncOpenAI().embeddings.create(
         model=EMBEDDING_MODEL, input=[description]
     )
     vector = as_vector(response.data[0].embedding)
 
     async with connection() as conn:
-        rows = await conn.fetch(SEARCH_SQL, vector, titles, limit)
+        rows = await conn.fetch(SEARCH_SQL, vector, titles, limit, client_slug)
 
     return [
         {
@@ -915,10 +922,11 @@ async def ui_get_current_generation_batch(owner_principal_id: str) -> dict:
 
 
 @server.tool()
-async def ui_list_library() -> dict:
+async def ui_list_library(ctx: Context) -> dict:
     """Listează intern cărțile selectabile; nu expune corpul documentelor."""
+    client_slug = await client_of(ctx)
     async with connection() as conn:
-        return {"items": await list_library(conn)}
+        return {"items": await list_library(conn, client_slug)}
 
 
 @server.tool()

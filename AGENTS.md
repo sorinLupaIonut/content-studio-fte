@@ -63,6 +63,12 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
 - **The first admin is made from the terminal**, `db/provision.py`, and only
   there. An admin page that can mint admins is one stolen session from being
   somebody else's admin page.
+- **The library is scoped too, since 2026-08-21.** `documents.client_id` is NOT
+  NULL and both readers — `ui_list_library` and `search_books` — join through
+  `clients` on the slug from the connection. The books are licensed material;
+  before this, any account's agent could quote from any other's shelf. A new
+  account starts with an empty library on purpose: copying somebody's licensed
+  books onto a tester's shelf should take a decision, not a checkbox.
 
 ## Observability, limits and the runbook
 
@@ -144,6 +150,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, three surfaces |
 | Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
+| Who owns which books | `documents.client_id` | scoped in the SQL, not in the caller |
 
 ## Conventions
 

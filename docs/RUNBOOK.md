@@ -132,7 +132,38 @@ subscription its serverless builder. Pushing to the registry still works:
 powershell -File infra/deploy.ps1 -LocalBuild
 ```
 
-## 7. Rotating a secret
+## 7. A new account has no books
+
+That is correct, not a fault. `documents.client_id` scopes the library, so an
+account created through the admin page sees an empty shelf and the "Cărți"
+source returns nothing for it.
+
+To give one account a copy of another's library — a decision, because these are
+licensed books — the rows copy without re-embedding, so it costs storage and
+nothing else:
+
+```sql
+WITH copied AS (
+  INSERT INTO public.documents (source, title, body, metadata, client_id)
+  SELECT d.source, d.title, d.body, d.metadata,
+         (SELECT id FROM public.clients WHERE slug = 'TARGET_SLUG')
+    FROM public.documents d
+    JOIN public.clients c ON c.id = d.client_id
+   WHERE c.slug = 'SOURCE_SLUG'
+  RETURNING id, title
+)
+INSERT INTO public.embeddings (document_id, chunk_text, chunk_index, embedding, model, metadata)
+SELECT copied.id, e.chunk_text, e.chunk_index, e.embedding, e.model, e.metadata
+  FROM copied
+  JOIN public.documents d ON d.title = copied.title
+  JOIN public.clients   c ON c.id = d.client_id AND c.slug = 'SOURCE_SLUG'
+  JOIN public.embeddings e ON e.document_id = d.id;
+```
+
+Roughly 29 MB of vectors per full copy of a seventeen-book library, and the HNSW
+index grows with it. Copy the titles that are needed, not the shelf.
+
+## 8. Rotating a secret
 
 Add beside, deploy, verify, then revoke — never the other way around, so that a
 failure at any step leaves a working system.

@@ -221,11 +221,16 @@ UPDATE public.generation_batches
 RETURNING id
 """
 
+# Joined through `clients` on the slug rather than taking a client id, because
+# every other store function in this module takes the slug and resolving it in
+# two places is how the two drift.
 LIST_LIBRARY_SQL = """
-SELECT id, title, metadata
-  FROM public.documents
- WHERE source = 'library'
- ORDER BY lower(title), id
+SELECT d.id, d.title, d.metadata
+  FROM public.documents d
+  JOIN public.clients   c ON c.id = d.client_id
+ WHERE d.source = 'library'
+   AND c.slug = $1
+ ORDER BY lower(d.title), d.id
 """
 
 
@@ -474,8 +479,8 @@ async def load_current_batch(conn, owner_principal_id: str) -> dict[str, Any] | 
     return None if batch is None else await load_batch(conn, batch["id"])
 
 
-async def list_library(conn) -> list[dict[str, Any]]:
-    rows = await conn.fetch(LIST_LIBRARY_SQL)
+async def list_library(conn, client_slug: str) -> list[dict[str, Any]]:
+    rows = await conn.fetch(LIST_LIBRARY_SQL, client_slug)
     items = []
     for row in rows:
         value = _row(row)

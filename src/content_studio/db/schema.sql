@@ -607,3 +607,37 @@ CREATE TABLE IF NOT EXISTS public.usage_events (
 -- The gate sums by client before every run, so this index is on the hot path.
 CREATE INDEX IF NOT EXISTS idx_usage_events_client
     ON public.usage_events (client_id, created_at DESC);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 11. THE LIBRARY BELONGS TO SOMEBODY — 2026-08-21
+--     The posts, the profile and the budget were scoped to a client when the
+--     studio became multi-tenant; `documents` was not, because it predates all
+--     of it. That gap is not cosmetic: the books are the client's licensed
+--     material, and an unscoped `search_books` lets any account's agent quote
+--     from them.
+--
+--     Backfilled to whoever the studio ran as before there were accounts. NOT
+--     NULL after the backfill, so the omission cannot repeat: a document with
+--     no owner is now impossible to insert rather than merely discouraged.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.documents
+    ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE;
+
+UPDATE public.documents
+   SET client_id = (SELECT id FROM public.clients WHERE slug = 'viorela')
+ WHERE client_id IS NULL
+   AND EXISTS (SELECT 1 FROM public.clients WHERE slug = 'viorela');
+
+DO $$
+BEGIN
+    -- Only once every row has an owner. On a database where the backfill found
+    -- no 'viorela' row there is nothing to tighten, and failing here would stop
+    -- the whole migration over a table that is empty anyway.
+    IF NOT EXISTS (SELECT 1 FROM public.documents WHERE client_id IS NULL) THEN
+        ALTER TABLE public.documents ALTER COLUMN client_id SET NOT NULL;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_documents_client
+    ON public.documents (client_id, source);

@@ -40,6 +40,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
 from content_studio.config import (
+    CLIENT_SLUG,
     CONTENT_DIR,
     EMBEDDING_MODEL,
     MissingConfig,
@@ -67,9 +68,15 @@ FIND_SQL = (
     "WHERE source='library' AND title=$1"
 )
 DELETE_SQL = "DELETE FROM public.documents WHERE source='library' AND title=$1"
+# The owner comes from `CLIENT_SLUG`, resolved here rather than passed in: this
+# script is run from a terminal by whoever owns the books, and a books importer
+# that takes an owner as an argument is a books importer that can put somebody
+# else's licensed material on your shelf by typo.
 DOCUMENT_SQL = """
-INSERT INTO public.documents (source, title, body, metadata)
-VALUES ('library', $1, $2, $3::jsonb) RETURNING id
+INSERT INTO public.documents (source, title, body, metadata, client_id)
+VALUES ('library', $1, $2, $3::jsonb,
+        (SELECT id FROM public.clients WHERE slug = $4))
+RETURNING id
 """
 CHUNK_SQL = """
 INSERT INTO public.embeddings (document_id, chunk_text, chunk_index, embedding, model, metadata)
@@ -192,8 +199,13 @@ async def import_book(conn, client: AsyncOpenAI, path: Path, rewrite: bool) -> t
         "owner": "viorela",
     }
     doc_id = await conn.fetchval(
-        DOCUMENT_SQL, title, body, json.dumps(metadata, ensure_ascii=False)
+        DOCUMENT_SQL, title, body, json.dumps(metadata, ensure_ascii=False), CLIENT_SLUG
     )
+    if doc_id is None:
+        raise SystemExit(
+            f"There is no client {CLIENT_SLUG!r} in `clients`, so the books have "
+            "nowhere to belong. Create the client first."
+        )
 
     for start in range(0, len(chunks), BATCH):
         batch = chunks[start : start + BATCH]
