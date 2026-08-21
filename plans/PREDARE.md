@@ -3,12 +3,13 @@
 Sorin revine duminică. Versiunea ilustrată, cu diagrama capcanei de tenancy, e în
 artifactul „Predare pentru duminică”; asta e varianta care rămâne cu codul.
 
-Ramura de lucru: **`deploy`**. **38 de commit-uri locale, niciunul împins.**
+Ramura de lucru: **`deploy`**. **13 commit-uri înaintea lui `origin/deploy`, niciunul împins.**
 
 ## Cele trei lucruri care au nevoie de mâna lui
 
 1. **`git push origin deploy`.** Nu am împins — regula proiectului cere cererea
-   lui explicită. Consecința: munca de vineri nu are copie nicăieri altundeva.
+   lui explicită. Consecința: cele 13 commit-uri de vineri nu au copie nicăieri
+   altundeva.
 2. **Bugetul Viorelei e $25 pentru că l-am pus eu**, ca să nu rămână pe $1, care
    era valoarea implicită a coloanei și nu decizia nimănui. Un câmp pe pagina de
    administrare îl schimbă.
