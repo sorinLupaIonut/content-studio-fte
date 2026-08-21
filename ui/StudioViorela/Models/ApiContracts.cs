@@ -16,6 +16,113 @@ public sealed class MeDto
 
     [JsonPropertyName("is_development")]
     public bool IsDevelopment { get; set; }
+
+    [JsonPropertyName("is_admin")]
+    public bool IsAdmin { get; set; }
+
+    [JsonPropertyName("client_slug")]
+    public string? ClientSlug { get; set; }
+
+    [JsonPropertyName("client_name")]
+    public string? ClientName { get; set; }
+}
+
+/// <summary>
+/// What the studio is allowed to know about its own spending: a percentage, and
+/// whether it has run out. Never a cost, a token count or a limit in dollars -
+/// the server does not send those to a tester, so there is nothing here to leak.
+/// </summary>
+public sealed class UsageDto
+{
+    [JsonPropertyName("percent_used")]
+    public int PercentUsed { get; set; }
+
+    [JsonPropertyName("exhausted")]
+    public bool Exhausted { get; set; }
+}
+
+public sealed class AdminAccountsDto
+{
+    [JsonPropertyName("items")]
+    public List<AdminAccountDto> Items { get; set; } = new();
+}
+
+/// <summary>One provisioned account, with the real figures. Admin views only.</summary>
+public sealed class AdminAccountDto
+{
+    [JsonPropertyName("principal_id")]
+    public string PrincipalId { get; set; } = "";
+
+    [JsonPropertyName("email")]
+    public string Email { get; set; } = "";
+
+    [JsonPropertyName("provider")]
+    public string Provider { get; set; } = "";
+
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = "user";
+
+    [JsonPropertyName("client_slug")]
+    public string ClientSlug { get; set; } = "";
+
+    [JsonPropertyName("client_name")]
+    public string ClientName { get; set; } = "";
+
+    [JsonPropertyName("disabled")]
+    public bool Disabled { get; set; }
+
+    [JsonPropertyName("budget_micros")]
+    public long BudgetMicros { get; set; }
+
+    [JsonPropertyName("spent_micros")]
+    public long SpentMicros { get; set; }
+
+    [JsonPropertyName("events")]
+    public long Events { get; set; }
+
+    [JsonPropertyName("last_used_at")]
+    public string? LastUsedAt { get; set; }
+
+    /// <summary>Whole percent, capped, mirroring `pricing.percent_used` on the server.</summary>
+    public int PercentUsed => BudgetMicros <= 0 ? 100 : (int)Math.Min(100, SpentMicros * 100 / BudgetMicros);
+
+    /// <summary>Dollars, for display only. Never used in arithmetic that decides anything.</summary>
+    public string BudgetDisplay => $"${BudgetMicros / 1_000_000d:0.00}";
+
+    public string SpentDisplay => $"${SpentMicros / 1_000_000d:0.00}";
+}
+
+public sealed class CreateAccountDto
+{
+    [JsonPropertyName("principal_id")]
+    public string PrincipalId { get; set; } = "";
+
+    [JsonPropertyName("email")]
+    public string Email { get; set; } = "";
+
+    [JsonPropertyName("client_slug")]
+    public string ClientSlug { get; set; } = "";
+
+    [JsonPropertyName("client_name")]
+    public string ClientName { get; set; } = "";
+
+    [JsonPropertyName("provider")]
+    public string Provider { get; set; } = "google";
+
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = "user";
+
+    [JsonPropertyName("profile_from")]
+    public string? ProfileFrom { get; set; }
+
+    [JsonPropertyName("budget_micros")]
+    public long BudgetMicros { get; set; } = 1_000_000;
+}
+
+public sealed class SetBudgetDto
+{
+    [JsonPropertyName("budget_micros")]
+    public long BudgetMicros { get; set; }
 }
 
 public sealed class ProfileSectionsDto

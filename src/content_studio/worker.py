@@ -77,7 +77,7 @@ from content_studio.language import DEFAULT_LANGUAGE, Language, instruction_suff
 from content_studio.mcp_server.protocol import (
     CONVERSATION_HEADER,
     MODEL_VISIBLE_TOOLS,
-    PROFILE_URI,
+    profile_uri,
 )
 
 enable_utf8_output()
@@ -211,23 +211,32 @@ async def open_session(engine, new: bool) -> str:
     return session_id or new_session_id()
 
 
-async def read_profile(data_mcp: MCPServerStreamableHttp) -> tuple[str, str]:
-    """Return (name, profile_md) from the MCP resource, not via SQL from the worker."""
-    response = await data_mcp.read_resource(PROFILE_URI)
+async def read_profile(
+    data_mcp: MCPServerStreamableHttp,
+    client_slug: str = CLIENT_SLUG,
+) -> tuple[str, str]:
+    """Return (name, profile_md) from the MCP resource, not via SQL from the worker.
+
+    The client is a parameter with the configured default, so the CLI and every
+    existing caller read Viorela exactly as before, while the harness can ask for
+    the profile of whoever is signed in.
+    """
+    uri = profile_uri(client_slug)
+    response = await data_mcp.read_resource(uri)
     texts = [
         content.text
         for content in getattr(response, "contents", [])
         if isinstance(getattr(content, "text", None), str)
     ]
     if not texts:
-        raise RuntimeError(f"MCP resource {PROFILE_URI!r} returned no text.")
+        raise RuntimeError(f"MCP resource {uri!r} returned no text.")
     try:
         payload = json.loads("".join(texts))
         name, profile_md = payload["name"], payload["profile_md"]
     except (json.JSONDecodeError, KeyError, TypeError) as e:
-        raise RuntimeError(f"MCP resource {PROFILE_URI!r} has an unexpected shape.") from e
+        raise RuntimeError(f"MCP resource {uri!r} has an unexpected shape.") from e
     if not isinstance(name, str) or not isinstance(profile_md, str) or not profile_md.strip():
-        raise RuntimeError(f"MCP resource {PROFILE_URI!r} holds no valid profile.")
+        raise RuntimeError(f"MCP resource {uri!r} holds no valid profile.")
     return name, profile_md
 
 

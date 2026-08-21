@@ -65,9 +65,30 @@ else
                 </span>
             </a>
 
-            <PrimaryNav />
+            <PrimaryNav IsAdmin="@(_me?.IsAdmin == true)" />
 
             <div class="rail-foot">
+                @* A percentage and nothing else. The endpoint behind it does not
+                   send a cost, so there is nothing here for devtools to reveal. *@
+                @if (_usage is not null)
+                {
+                    <div class="usage" title="@T[Copy.UsageLabel]">
+                        <div class="usage-head">
+                            <span>@T[Copy.UsageLabel]</span>
+                            <strong>@string.Format(T[Copy.UsageRemaining], _usage.PercentUsed)</strong>
+                        </div>
+                        <div class="usage-track"
+                             role="progressbar"
+                             aria-valuenow="@_usage.PercentUsed"
+                             aria-valuemin="0"
+                             aria-valuemax="100"
+                             aria-label="@T[Copy.UsageLabel]">
+                            <div class="usage-fill @(_usage.Exhausted ? "is-full" : "")"
+                                 style="width: @(_usage.PercentUsed)%"></div>
+                        </div>
+                    </div>
+                }
+
                 @LanguagePicker("rail-language")
 
                 <div class="identity" title="@(_me?.Email ?? T[Copy.LocalSession])">
@@ -109,6 +130,7 @@ else
 
     private Gate _gate = Gate.Checking;
     private MeDto? _me;
+    private UsageDto? _usage;
     private string? _identityError;
 
     private Translator T => Language.Translator;
@@ -138,6 +160,16 @@ else
         {
             _me = await Api.GetMeAsync();
             _gate = Gate.Open;
+            // Read after the gate is open and never allowed to close it: a
+            // meter that cannot be read is a missing strip, not a locked studio.
+            try
+            {
+                _usage = await Api.GetUsageAsync();
+            }
+            catch (StudioApiException)
+            {
+                _usage = null;
+            }
         }
         catch (StudioApiException ex) when (ex.StatusCode == 401)
         {

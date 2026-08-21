@@ -41,6 +41,28 @@ Six rules a new session must respect without asking again.
    judged in the evals.
 6. **Nothing is saved without the client's confirmation.** The approval gate sits on
    the MCP server registration, so it protects the write whoever calls the tool.
+7. **The client is resolved from the connection, never from a tool argument.**
+   `save_post` is model-visible, and a client the model can name is a client the
+   model can get wrong. `client_of(ctx)` reads a header, falls back to the
+   principal in `app_users`, then to `CLIENT_SLUG` — see §Multi-user below.
+
+## Multi-user, budgets and the admin page
+
+Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
+
+- **One account = one `clients` row.** It owns the profile, the lifetime budget
+  and the usage. `app_users` maps principals to it, and it is a *link* table:
+  several principals may point at one client, because a principal id belongs to
+  the identity provider, not to the person.
+- **The budget is a lifetime allowance, in integer micro-dollars, and Sorin
+  edits it.** No reset period, no cron; that is a decision, not an omission.
+- **A stop-gate, not a ceiling.** Cost is known only after a call returns, so the
+  gate refuses to *start* — before a run, and again between ideas in a batch.
+- **The user is shown a percentage and nothing else.** The split is server-side,
+  in `/api/me/usage`; hiding a figure in the interface would not hide it.
+- **The first admin is made from the terminal**, `db/provision.py`, and only
+  there. An admin page that can mint admins is one stolen session from being
+  somebody else's admin page.
 
 ## Language policy
 
@@ -97,6 +119,8 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Tool contract | `mcp_server/server.py` | |
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
 | Output-language override | `language.py` | the skills stay Romanian |
+| Model prices | `pricing.py` | one table; a copy drifts silently |
+| Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
 
 ## Conventions
 

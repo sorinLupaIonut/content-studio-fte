@@ -21,6 +21,7 @@ from content_studio.config import (
     GENERATION_CONCURRENCY,
     GENERATION_DETAIL_MODEL,
     GENERATION_TITLE_MODEL,
+    MODEL,
 )
 from content_studio.harness.drafts import GenerationDraftClient, tool_payload
 from content_studio.harness.generation import (
@@ -159,9 +160,12 @@ class GenerationCoordinator:
         self,
         data_mcp_factory: Callable[[str], MCPServerStreamableHttp],
         internal_mcp_factory: Callable[[str], MCPServerStreamableHttp],
+        accounts: Any | None = None,
     ) -> None:
         self._data_mcp_factory = data_mcp_factory
         self._internal_mcp_factory = internal_mcp_factory
+        # Optional so a test can build a coordinator without a meter behind it.
+        self._accounts = accounts
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
         self._principal_tasks: dict[str, UUID] = {}
 
@@ -515,6 +519,12 @@ class GenerationCoordinator:
                     idea = queue.get_nowait()
                 except asyncio.QueueEmpty:
                     return
+                # Checked per idea, not only per batch: without this, an account
+                # at 95% would spend a whole batch of ten detail calls. Stopping
+                # here leaves the ideas already written, and the batch reports
+                # the rest as failed rather than pretending they succeeded.
+                if self._accounts is not None:
+                    await self._accounts.require_budget()
                 await self._generate_one_detail(
                     batch_id,
                     request,
@@ -582,19 +592,18 @@ class GenerationCoordinator:
         sandbox = await client.create(options=options)
         return agent.clone(), client, sandbox
 
-    @staticmethod
-    async def _run_isolated(agent, prompt: str, output_type, label: str):
+    async def _run_isolated(self, agent, prompt: str, output_type, label: str):
         client, options = build_sandbox()
         sandbox = await client.create(options=options)
         try:
-            return await GenerationCoordinator._run_on_sandbox(
+            return await self._run_on_sandbox(
                 agent, prompt, output_type, label, client, sandbox
             )
         finally:
             await sandbox.aclose()
 
-    @staticmethod
     async def _run_on_sandbox(
+        self,
         agent,
         prompt: str,
         output_type,
@@ -614,6 +623,14 @@ class GenerationCoordinator:
             ),
             timeout=RUN_TIMEOUT_SECONDS,
         )
+        # Metered before the interruption check below, because a run that ends
+        # in an unexpected approval request still burned the tokens.
+        if self._accounts is not None:
+            model = getattr(agent, "model", None)
+            await self._accounts.record_run(
+                label, model if isinstance(model, str) else MODEL, result
+            )
+
         if result.interruptions:
             # Naming the tools matters: this path is reached only when the model
             # reached for a gated write while producing a structured draft, and

@@ -94,27 +94,52 @@ time.
 
 ## The four pieces
 
-### 1. `app_users` — the missing link
+### 1. `app_users` — the missing link  ✅ *server half built 2026-08-21*
 
 ```sql
 CREATE TABLE IF NOT EXISTS public.app_users (
-    principal_id   TEXT PRIMARY KEY,          -- from Easy Auth, never from the model
-    email          TEXT NOT NULL,
-    client_id      UUID NOT NULL REFERENCES public.clients(id) ON DELETE RESTRICT,
-    role           TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-    budget_micros  BIGINT NOT NULL DEFAULT 1000000,   -- 1_000_000 = $1.00
-    disabled_at    TIMESTAMPTZ,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    principal_id  TEXT PRIMARY KEY,          -- from Easy Auth, never from the model
+    email         TEXT NOT NULL,
+    provider      TEXT NOT NULL DEFAULT 'google',
+    client_id     UUID NOT NULL REFERENCES public.clients(id) ON DELETE RESTRICT,
+    role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+    disabled_at   TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
-Money is stored as integer micro-dollars. Never as a float: `0.1 + 0.2` is a bug
-waiting for a billing dispute.
+**It is a link table, and the budget deliberately does not live here.** A
+principal id belongs to the identity provider, not to the person: the same human
+signing in through Google and through Entra External ID arrives as two different
+ids, and the application cannot tell they are the same person. If the principal
+were the key of the profile, that person would quietly acquire two profiles and
+two budgets, with no clean way to merge them once each had been spent against.
+
+So several rows may point at one `client_id`, and **the client row is the
+account** — it owns the profile, the budget and the usage. One row per door, one
+account behind them. This was not in the first draft of this plan; it came out of
+working through what External ID actually changes.
 
 `CLIENT_SLUG` stops being the answer and becomes the *seed default* only. Every
-request resolves its client from the authenticated principal. `PROFILE_URI` can
-no longer be a module constant computed at import — it becomes a function of the
-client.
+request resolves its client from the authenticated principal. `PROFILE_URI` is no
+longer a module constant computed at import — it is `profile_uri(slug)`, and the
+MCP resource is registered as a template, `content-data://client/{slug}/profile`.
+
+**How a request finds its client**, in the order the server consults the three
+sources — `client_of(ctx)` in `mcp_server/server.py`:
+
+1. `X-Content-Client-Slug` on the connection, when the caller already knows.
+2. The principal on the connection, looked up in `app_users`.
+3. `CLIENT_SLUG`.
+
+Never a tool argument, in any of the three. `save_post` is model-visible, and a
+client the model can name is a client the model can get wrong — the same reason
+`CONVERSATION_HEADER` and `OWNER_HEADER` already ride the connection.
+
+Step 3 is what makes this safe to land in one piece: the CLI sets neither header
+and an unprovisioned principal has no row, so both land on the configured
+default. Until `app_users` has rows in it, **the behaviour is byte-for-byte what
+it was**, which is why this went in without a deployment.
 
 ### 2. The budget — what is honest about it
 
@@ -130,7 +155,8 @@ discovered later by someone who expected `$1.00` to mean `$1.00`.
 ```sql
 CREATE TABLE IF NOT EXISTS public.usage_events (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    principal_id   TEXT NOT NULL,
+    client_id      UUID NOT NULL REFERENCES public.clients(id),  -- what is billed
+    principal_id   TEXT NOT NULL,                                -- which door, for forensics
     run_id         UUID,
     model          TEXT NOT NULL,
     input_tokens   BIGINT NOT NULL,
@@ -138,9 +164,18 @@ CREATE TABLE IF NOT EXISTS public.usage_events (
     cost_micros    BIGINT NOT NULL,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS usage_events_principal_idx
-    ON public.usage_events (principal_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS usage_events_client_idx
+    ON public.usage_events (client_id, created_at DESC);
 ```
+
+Both columns, and they are not redundant. The budget is drawn against
+`client_id`, so a person with two logins spends one allowance. `principal_id`
+stays because "which login ran this" is the question you want answered when
+something looks wrong, and it cannot be reconstructed later.
+
+Money is stored as integer micro-dollars. Never as a float: `0.1 + 0.2` is a bug
+waiting for a billing dispute. `budget_micros` goes on `public.clients` when
+step 2 lands, not on `app_users`.
 
 Where the numbers come from: the Agents SDK returns token usage on the run
 result. A price table per model lives in code, in one place, versioned — prices
@@ -196,6 +231,26 @@ edit changing everybody's output, which is the whole thing he wants to avoid.
 1. `app_users` + resolve the client from the principal. Nothing user-visible;
    everything else depends on it. **Riskiest step** — it touches `PROFILE_URI`,
    the MCP tools and the seed.
+
+   **Server half done, 2026-08-21.** The table, `mcp_server/accounts.py`,
+   `client_of(ctx)` with the three-source fallback, the profile resource as a
+   template, `ui_resolve_account`, and every one of the ten hard-coded
+   `CLIENT_SLUG` uses in the MCP tools replaced. `read_profile` takes a client.
+   12 tests in `tests/unit/test_accounts.py`; 143 in total, `ruff` clean.
+
+   **Harness half still open**, and it has one real decision in it. The harness
+   must resolve the principal once per request and put the answer on
+   `X-Content-Client-Slug`. It cannot simply widen `OWNER_HEADER` to every
+   connection to let the server resolve it, because the *absence* of that header
+   is what currently keeps `save_posts_batch` unreachable from the CLI and from
+   the generation path — widening it would quietly hand a write tool to
+   connections that were deliberately denied it. So the harness resolves through
+   `ui_resolve_account`, and the open question is caching: a lookup per request
+   is a round-trip per request, and accounts change rarely. A short TTL cache is
+   the obvious answer; it needs to be a deliberate one.
+
+   Nothing is seeded yet, on purpose. With `app_users` empty, every request falls
+   through to `CLIENT_SLUG` and the studio behaves exactly as it did before.
 2. Usage metering, recording only. No enforcement yet, so real numbers can be
    watched for a day before anything is refused.
 3. The gate, plus the percentage endpoint and the strip in the rail.
@@ -207,13 +262,27 @@ Steps 1–4 are the work. Step 5 is configuration, and deliberately last.
 
 ---
 
-## Open questions for Sorin
+## Answered, 2026-08-21
 
-- **What happens at the limit?** Refuse new runs with a clear message, or refuse
-  and email him? Refusing is assumed here.
-- **Does a budget reset?** Monthly, or is `$1` a lifetime allowance per tester?
-  A lifetime allowance is assumed here because it is the simpler thing and it is
-  what "give a tester one dollar" sounds like.
-- **`search_web` and embeddings:** metered, or declared free?
-- **Who may create users?** Assumed: only `role = 'admin'`, and the first admin
-  is seeded by hand, never through the interface.
+- **At the limit:** the run is refused, `402` with a code the interface turns
+  into a sentence in the reader's language. No email.
+- **Reset:** none. **The allowance is for life**, and Sorin raises it by hand
+  from the admin page. His decision, verbatim: *"bugetul e pe viata, il modific
+  eu"*. A monthly window would need a `period_start` on `clients` and a windowed
+  `SUM`; neither is hard to add later, and neither is built.
+- **Who creates users:** `role = 'admin'` only, checked in a FastAPI dependency
+  so that forgetting it on a new route is visible at the top of the function.
+  The first admin is made by `db/provision.py`, never through the interface.
+- **`search_web` and embeddings:** **metered where they are model calls, free
+  where they are not.** `search_web` runs through a model and is metered with
+  everything else. Embeddings are not: `text-embedding-3-small` is $0.02 per
+  million tokens, so a tester's whole allowance could not be spent on them, and
+  the rate is in `pricing.py` for the day that stops being true.
+
+## Still open
+
+- **Nobody but Sorin is provisioned.** Viorela deliberately has no `app_users`
+  row: she falls through to `CLIENT_SLUG` and keeps the original profile, which
+  is the correct behaviour and needs no action until she should own it formally.
+- **Disabling an account** has a column (`disabled_at`) and no button.
+- **`evals/cases.json`** still asserts Romanian only.

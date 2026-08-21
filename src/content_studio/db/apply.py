@@ -50,6 +50,8 @@ EXPECTED = [
     "generation_batches",
     "generation_ideas",
     "generation_variants",
+    "app_users",
+    "usage_events",
 ]
 
 TABLE_QUERY = """

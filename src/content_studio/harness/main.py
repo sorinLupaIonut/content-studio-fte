@@ -17,6 +17,7 @@ from content_studio.config import (
     UI_STATIC_DIR,
 )
 from content_studio.debug import attach_if_requested
+from content_studio.harness.accounts import BudgetExhausted
 from content_studio.harness.auth import Identity, IdentityError, IdentityResolver
 from content_studio.harness.chat import ChatRunAccepted, ChatRunRequest
 from content_studio.harness.generation import (
@@ -25,6 +26,7 @@ from content_studio.harness.generation import (
     encode_sse,
 )
 from content_studio.harness.models import (
+    CreateAccountRequest,
     DecisionsRequest,
     HealthResponse,
     MeResponse,
@@ -33,6 +35,7 @@ from content_studio.harness.models import (
     ProfileUpdateRequest,
     RunRequest,
     RunResponse,
+    SetBudgetRequest,
     TrustedDecisionsRequest,
 )
 from content_studio.harness.posts import PostUpdateRequest, SavePostsRequest
@@ -68,10 +71,33 @@ def create_app(
             allow_headers=["Content-Type", "Idempotency-Key"],
         )
 
-    def authenticated(request: Request) -> Identity:
-        return request.app.state.identity.resolve(request.headers)
+    async def authenticated(request: Request) -> Identity:
+        identity = request.app.state.identity.resolve(request.headers)
+        # One place, every route: the client this request may touch is pinned to
+        # the request's context here and read again inside `_data_mcp`. Cached
+        # for a minute, so this is a round trip once per principal per minute,
+        # not once per request.
+        await request.app.state.harness.accounts.bind(identity.principal_id)
+        return identity
 
     identity_dependency = Depends(authenticated)
+
+    async def administrator(request: Request) -> Identity:
+        """Same as `authenticated`, plus a role check.
+
+        A dependency rather than a line inside each handler, so that forgetting
+        it on a new admin route is a visible omission at the top of the function
+        instead of a silent leak of everybody's spending.
+        """
+        identity = await authenticated(request)
+        account = await request.app.state.harness.accounts.account_for(
+            identity.principal_id
+        )
+        if account is None or not account.is_admin:
+            raise IdentityError(403, "Această pagină este numai pentru administrator.")
+        return identity
+
+    admin_dependency = Depends(administrator)
 
     @app.exception_handler(HarnessError)
     async def harness_error(_request: Request, exc: HarnessError) -> JSONResponse:
@@ -80,6 +106,16 @@ def create_app(
     @app.exception_handler(IdentityError)
     async def identity_error(_request: Request, exc: IdentityError) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.exception_handler(BudgetExhausted)
+    async def budget_exhausted(_request: Request, exc: BudgetExhausted) -> JSONResponse:
+        # 402 Payment Required, which is exactly what this is. The body carries a
+        # code rather than a sentence: the interface is bilingual and picks the
+        # wording, and the wording must not leak what anything cost.
+        return JSONResponse(
+            status_code=402,
+            content={"detail": "budget exhausted", "code": "budget_exhausted"},
+        )
 
     @app.get("/health", response_model=HealthResponse)
     async def health(request: Request) -> HealthResponse:
@@ -124,14 +160,73 @@ def create_app(
 
     @app.get("/api/me", response_model=MeResponse)
     async def me(
+        request: Request,
         identity: Identity = identity_dependency,
     ) -> MeResponse:
+        account = await request.app.state.harness.accounts.account_for(
+            identity.principal_id
+        )
         return MeResponse(
             principal_id=identity.principal_id,
             email=identity.email,
             provider=identity.provider,
             is_development=identity.is_development,
+            is_admin=account.is_admin if account is not None else False,
+            client_slug=account.client_slug if account is not None else None,
+            client_name=account.client_name if account is not None else None,
         )
+
+    @app.get("/api/me/usage")
+    async def my_usage(
+        request: Request,
+        _identity: Identity = identity_dependency,
+    ) -> dict:
+        """How much of the allowance is gone, as a percentage. Nothing else.
+
+        No cost, no token counts, no model name, no limit in dollars. Hiding the
+        figure in the interface would not hide it - anyone can read a JSON
+        response - so the split is here, on the server.
+        """
+        budget = await request.app.state.harness.accounts.budget_for()
+        if budget is None:
+            return {"percent_used": 0, "exhausted": False}
+        return {"percent_used": budget.percent, "exhausted": budget.exhausted}
+
+    @app.get("/api/admin/accounts")
+    async def admin_accounts(
+        request: Request,
+        _identity: Identity = admin_dependency,
+    ) -> dict:
+        accounts = request.app.state.harness.accounts
+        usage = {row["client_slug"]: row for row in await accounts.all_usage()}
+        items = []
+        for account in await accounts.all_accounts():
+            row = usage.get(account["client_slug"], {})
+            items.append({**account, **row})
+        return {"items": items}
+
+    @app.post("/api/admin/accounts", status_code=201)
+    async def admin_create_account(
+        body: CreateAccountRequest,
+        request: Request,
+        _identity: Identity = admin_dependency,
+    ) -> dict:
+        account = await request.app.state.harness.accounts.create_account(
+            **body.model_dump()
+        )
+        return {"account": account}
+
+    @app.put("/api/admin/accounts/{client_slug}/budget")
+    async def admin_set_budget(
+        client_slug: str,
+        body: SetBudgetRequest,
+        request: Request,
+        _identity: Identity = admin_dependency,
+    ) -> dict:
+        value = await request.app.state.harness.accounts.set_budget(
+            client_slug, body.budget_micros
+        )
+        return {"budget_micros": value}
 
     @app.get("/api/profile/sections", response_model=ProfileSectionsResponse)
     async def profile_sections(

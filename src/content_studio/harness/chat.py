@@ -294,9 +294,12 @@ class ChatCoordinator:
         self,
         data_mcp_factory: Callable[[str], MCPServerStreamableHttp],
         internal_mcp_factory: Callable[[str], MCPServerStreamableHttp],
+        accounts: Any | None = None,
     ) -> None:
         self._data_mcp_factory = data_mcp_factory
         self._internal_mcp_factory = internal_mcp_factory
+        # Optional so a test can build a coordinator without a meter behind it.
+        self._accounts = accounts
         self._runs: dict[str, _LiveChatRun] = {}
         self._active: dict[str, str] = {}
 
@@ -484,6 +487,10 @@ class ChatCoordinator:
                 await state.publish("ui.patch", patch_payload)
 
             await trail.turn(state.run_id, result)
+            # After the answer is complete and before it is announced: the meter
+            # never stands between the user and a reply they already paid for.
+            if self._accounts is not None:
+                await self._accounts.record_run("chat", CHAT_MODEL, result)
             await trail.close_run(state.run_id, output.reply)
             await state.publish(
                 "completed", {"output": output.reply, "patch": patch_payload}

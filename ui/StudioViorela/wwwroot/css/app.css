@@ -1868,6 +1868,58 @@ select:disabled {
     line-height: 1;
 }
 
+/* The allowance, as a bar. A number alone ("62%") makes a reader do the
+   arithmetic; a bar is read at a glance, which is the whole point of showing a
+   proportion instead of a sum. */
+.usage {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--rail);
+}
+
+.usage-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: .7rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.usage-head strong {
+    font-size: .74rem;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.usage-track {
+    height: 5px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.usage-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--plum-deep);
+    transition: width .3s ease;
+}
+
+/* Full is a state, not a warning to be dismissed: it stays red until Sorin
+   raises the limit. */
+.usage-fill.is-full {
+    background: var(--danger);
+}
+
 /* A segmented pair rather than a dropdown: two options are faster to read
    than to open, and the one not in use doubles as the affordance. */
 .language-picker {
@@ -1913,4 +1965,158 @@ select:disabled {
 
 .access-language button {
     flex: 0 0 auto;
+}
+
+/* ── The admin page ─────────────────────────────────────────────────────────
+   The only screen in the studio that shows money. Everything else shows a
+   percentage; see pricing.py for why that split lives on the server rather
+   than in a template. */
+
+.notice-ok {
+    border-color: var(--plum-deep);
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+.panel {
+    padding: 20px 22px;
+    margin-bottom: 22px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.panel h2 {
+    margin: 0 0 16px;
+    font-size: 1.05rem;
+}
+
+.admin-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px 18px;
+}
+
+.admin-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: .76rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.admin-form label small {
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: .78rem;
+    color: var(--muted);
+}
+
+.admin-form input[type="text"],
+.admin-form input[type="email"],
+.admin-form input[type="number"],
+.admin-form input:not([type]) {
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface-2);
+    color: var(--ink);
+    font: inherit;
+    font-size: .9rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.admin-check {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 9px;
+}
+
+.admin-check span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.admin-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+/* Wide content scrolls inside its own box; the page body never scrolls
+   sideways. */
+.table-scroll {
+    overflow-x: auto;
+    margin-bottom: 24px;
+}
+
+.admin-table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+    font-size: .9rem;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 11px 14px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--line);
+}
+
+.admin-table th {
+    font-size: .7rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.admin-table td strong {
+    display: block;
+}
+
+.admin-table td small {
+    color: var(--muted);
+    font-size: .78rem;
+}
+
+/* Figures line up so two rows can be compared without reading them. */
+.admin-table .num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.usage-track-inline {
+    width: 92px;
+    margin-bottom: 4px;
+}
+
+.budget-input {
+    width: 92px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--ink);
+    font: inherit;
+    font-size: .86rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.row-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.button-small {
+    padding: 6px 11px;
+    font-size: .78rem;
+    border-radius: 9px;
 }

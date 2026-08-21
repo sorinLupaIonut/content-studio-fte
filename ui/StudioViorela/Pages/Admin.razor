@@ -1,0 +1,250 @@
+@page "/admin"
+@inject StudioApiClient Api
+
+@* The only page that sees money. Everything a tester is shown is a percentage;
+   here the real figures are fine, because the server refuses this data to anyone
+   whose row is not role='admin' - the hidden nav entry is a convenience, not the
+   guard. *@
+
+<PageTitle>@T[Copy.AdminTitle]</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">@T[Copy.AdminNav]</span>
+        <h1>@T[Copy.AdminTitle]</h1>
+        <p>@T[Copy.AdminIntro]</p>
+    </div>
+    <button class="button button-primary" @onclick="() => _creating = !_creating">
+        @T[Copy.AdminNewAccount]
+    </button>
+</section>
+
+@if (_notice is not null)
+{
+    <div class="notice notice-ok" role="status">@_notice</div>
+}
+@if (_error is not null)
+{
+    <div class="notice notice-error" role="alert">@_error</div>
+}
+
+@if (_creating)
+{
+    <section class="panel">
+        <h2>@T[Copy.AdminNewAccount]</h2>
+        <div class="admin-form">
+            <label>
+                <span>@T[Copy.AdminPrincipalId]</span>
+                <input @bind="_draft.PrincipalId" />
+                <small>@T[Copy.AdminPrincipalHelp]</small>
+            </label>
+            <label>
+                <span>@T[Copy.AdminEmail]</span>
+                <input @bind="_draft.Email" type="email" />
+            </label>
+            <label>
+                <span>@T[Copy.AdminSlug]</span>
+                <input @bind="_draft.ClientSlug" />
+            </label>
+            <label>
+                <span>@T[Copy.AdminName]</span>
+                <input @bind="_draft.ClientName" />
+            </label>
+            <label>
+                <span>@T[Copy.AdminBudgetDollars]</span>
+                <input @bind="_budgetDollars" type="number" min="0" step="0.5" />
+            </label>
+            <label class="admin-check">
+                <input type="checkbox" @bind="_copyProfile" />
+                <span>
+                    @T[Copy.AdminCopyProfile]
+                    <small>@T[Copy.AdminCopyProfileHelp]</small>
+                </span>
+            </label>
+        </div>
+        <div class="admin-actions">
+            <button class="button" @onclick="() => _creating = false">@T[Copy.AdminCancel]</button>
+            <button class="button button-primary" disabled="@_busy" @onclick="CreateAsync">
+                @T[Copy.AdminCreate]
+            </button>
+        </div>
+    </section>
+}
+
+@if (_accounts.Count == 0)
+{
+    <section class="empty-state">
+        <span class="empty-illustration">⚙</span>
+        <p>@T[Copy.AdminEmpty]</p>
+    </section>
+}
+else
+{
+    <section class="table-scroll">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>@T[Copy.AdminColAccount]</th>
+                    <th>@T[Copy.AdminColRole]</th>
+                    <th>@T[Copy.AdminColUsed]</th>
+                    <th>@T[Copy.AdminColBudget]</th>
+                    <th>@T[Copy.AdminColCalls]</th>
+                    <th>@T[Copy.AdminColLastUsed]</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var account in _accounts)
+                {
+                    <tr>
+                        <td>
+                            <strong>@account.ClientName</strong>
+                            <small>@account.Email</small>
+                        </td>
+                        <td>@account.Role</td>
+                        <td class="num">
+                            <div class="usage-track usage-track-inline">
+                                <div class="usage-fill @(account.PercentUsed >= 100 ? "is-full" : "")"
+                                     style="width: @(account.PercentUsed)%"></div>
+                            </div>
+                            <span>@account.PercentUsed% · @account.SpentDisplay</span>
+                        </td>
+                        <td class="num">
+                            @if (_editing == account.ClientSlug)
+                            {
+                                <input class="budget-input"
+                                       type="number"
+                                       min="0"
+                                       step="0.5"
+                                       @bind="_editDollars" />
+                            }
+                            else
+                            {
+                                @account.BudgetDisplay
+                            }
+                        </td>
+                        <td class="num">@account.Events</td>
+                        <td>@Moment(account.LastUsedAt)</td>
+                        <td class="row-actions">
+                            @if (_editing == account.ClientSlug)
+                            {
+                                <button class="button button-small" @onclick="() => _editing = null">
+                                    @T[Copy.AdminCancel]
+                                </button>
+                                <button class="button button-small button-primary"
+                                        disabled="@_busy"
+                                        @onclick="() => SaveBudgetAsync(account.ClientSlug)">
+                                    @T[Copy.AdminSave]
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="button button-small"
+                                        @onclick="() => StartEdit(account)">
+                                    @T[Copy.AdminSetBudget]
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}
+
+@code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+
+    private List<AdminAccountDto> _accounts = new();
+    private CreateAccountDto _draft = new();
+    private string? _editing;
+    private string? _notice;
+    private string? _error;
+    private bool _creating;
+    private bool _busy;
+
+    // Dollars in the form, micro-dollars on the wire. The conversion happens
+    // once, here, at the edge - see pricing.py for why nothing downstream is
+    // allowed to hold money as a float.
+    private decimal _budgetDollars = 1m;
+    private decimal _editDollars = 1m;
+    private bool _copyProfile = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _accounts = (await Api.GetAdminAccountsAsync()).Items;
+            _error = null;
+        }
+        catch (StudioApiException ex) when (ex.StatusCode == 403)
+        {
+            _error = T[Copy.AdminForbidden];
+        }
+        catch (StudioApiException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private void StartEdit(AdminAccountDto account)
+    {
+        _editing = account.ClientSlug;
+        _editDollars = account.BudgetMicros / 1_000_000m;
+    }
+
+    private async Task SaveBudgetAsync(string clientSlug)
+    {
+        _busy = true;
+        try
+        {
+            await Api.SetBudgetAsync(clientSlug, ToMicros(_editDollars));
+            _editing = null;
+            _notice = T[Copy.AdminBudgetSaved];
+            await LoadAsync();
+        }
+        catch (StudioApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        _busy = true;
+        try
+        {
+            _draft.BudgetMicros = ToMicros(_budgetDollars);
+            _draft.ProfileFrom = _copyProfile ? "viorela" : null;
+            await Api.CreateAccountAsync(_draft);
+            _draft = new CreateAccountDto();
+            _creating = false;
+            _notice = T[Copy.AdminCreated];
+            await LoadAsync();
+        }
+        catch (StudioApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private string Moment(string? iso) =>
+        string.IsNullOrEmpty(iso)
+            ? T[Copy.AdminNever]
+            : DateTimeOffset.TryParse(iso, out var moment)
+                ? moment.LocalDateTime.ToString("dd.MM.yyyy HH:mm")
+                : iso;
+
+    private static long ToMicros(decimal dollars) =>
+        (long)decimal.Round(dollars * 1_000_000m, 0, MidpointRounding.AwayFromZero);
+}

@@ -18,9 +18,18 @@
         <NavLink href="/library">
             <span class="ico" aria-hidden="true">▤</span> @T[Copy.NavLibrary]
         </NavLink>
+        @* Hidden from everybody else, but hiding is not a permission: every
+           /api/admin route checks the role again on the server. *@
+        @if (IsAdmin)
+        {
+            <NavLink href="/admin">
+                <span class="ico" aria-hidden="true">⚙</span> @T[Copy.AdminNav]
+            </NavLink>
+        }
     </div>
 </nav>
 
 @code {
     [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+    [Parameter] public bool IsAdmin { get; set; }
 }

@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from content_studio.config import MissingConfig
+from content_studio.config import CLIENT_SLUG, MissingConfig
 from content_studio.harness.auth import AuthSettings, IdentityResolver
 from content_studio.harness.chat import ChatRunAccepted
 from content_studio.harness.generation import StreamEvent
@@ -59,10 +59,34 @@ SAVED_POST_CONTENT = {
 }
 
 
+class FakeAccounts:
+    """Just the surface `main.py` touches, with nobody provisioned.
+
+    That is the honest default for these tests: with `app_users` empty, every
+    request binds to the configured client and no route behaves differently from
+    the way it did before accounts existed.
+    """
+
+    bound: list[str | None] = []
+
+    async def bind(self, principal_id):
+        FakeAccounts.bound.append(principal_id)
+        return CLIENT_SLUG
+
+    async def account_for(self, principal_id):
+        return None
+
+    async def budget_for(self, client_slug=None):
+        return None
+
+
 class FakeService:
     last_generation_principal = None
     last_chat_principal = None
     last_save_principal = None
+
+    def __init__(self) -> None:
+        self.accounts = FakeAccounts()
 
     async def start(self) -> None:
         return None

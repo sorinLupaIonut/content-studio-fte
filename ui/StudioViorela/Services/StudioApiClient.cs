@@ -17,6 +17,23 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
 
     public Task<MeDto> GetMeAsync() => GetAsync<MeDto>("api/me");
 
+    public Task<UsageDto> GetUsageAsync() => GetAsync<UsageDto>("api/me/usage");
+
+    public Task<AdminAccountsDto> GetAdminAccountsAsync() =>
+        GetAsync<AdminAccountsDto>("api/admin/accounts");
+
+    public Task<JsonElement> CreateAccountAsync(CreateAccountDto body) =>
+        PostAsync<CreateAccountDto, JsonElement>("api/admin/accounts", body);
+
+    public async Task SetBudgetAsync(string clientSlug, long budgetMicros)
+    {
+        using var response = await http.PutAsJsonAsync(
+            $"api/admin/accounts/{Uri.EscapeDataString(clientSlug)}/budget",
+            new SetBudgetDto { BudgetMicros = budgetMicros },
+            Json);
+        await EnsureSuccessAsync(response);
+    }
+
     public Task<ProfileSectionsDto> GetProfileAsync() =>
         GetAsync<ProfileSectionsDto>("api/profile/sections");
 
@@ -153,6 +170,16 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
         try
         {
             using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+            // The server sends a code rather than a sentence when a run is
+            // refused for money, so that the wording is chosen here, in the
+            // reader's language - and so that it never names a sum.
+            if (document.RootElement.TryGetProperty("code", out var code)
+                && code.GetString() == "budget_exhausted")
+            {
+                return Tr[Copy.BudgetExhausted];
+            }
+
             if (document.RootElement.TryGetProperty("detail", out var detail))
             {
                 if (detail.ValueKind == JsonValueKind.String)

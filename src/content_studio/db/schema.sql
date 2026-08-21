@@ -518,3 +518,92 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_run ON public.audit_log(run_id);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 9. APP_USERS — which client row does this signed-in person own?
+--
+--    Everything else was already multi-tenant: `clients` is one row per client
+--    with its own `profile_md`, and `posts` and `generation_batches` carry
+--    `client_id`. The only thing missing was the link from an authenticated
+--    principal to a client. Until now that link was a single global environment
+--    variable, `CLIENT_SLUG`, which answers the question with the same answer for
+--    everybody.
+--
+--    A LINK TABLE, NOT A PROFILE TABLE. `principal_id` is the key, and several
+--    rows may point at the same `client_id` on purpose. A principal id belongs to
+--    the identity provider, not to the person: the same human signing in through
+--    Google and through an OIDC provider arrives as two different ids. If the
+--    principal were the profile's key, that person would silently acquire two
+--    profiles and, later, two budgets — with no clean way to merge them after
+--    each has been used. One row per door, one client behind them.
+--
+--    `role` is deliberately tiny and closed. It gates the admin views; it is not
+--    a permission system.
+--
+--    ON DELETE RESTRICT because deleting a client out from under a live login
+--    should fail loudly rather than orphan a session.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.app_users (
+    principal_id  TEXT PRIMARY KEY,          -- from Easy Auth, never from the model
+    email         TEXT NOT NULL,
+    provider      TEXT NOT NULL DEFAULT 'google',
+    client_id     UUID NOT NULL REFERENCES public.clients(id) ON DELETE RESTRICT,
+    role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+    disabled_at   TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- The admin page lists people by client. Resolution goes the other way, by
+-- principal, which is already the primary key and needs no index of its own.
+CREATE INDEX IF NOT EXISTS idx_app_users_client ON public.app_users(client_id);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 10. THE BUDGET — a lifetime allowance per account, and what it has been spent on
+--
+--    WHERE THE ALLOWANCE LIVES: on `clients`, not on `app_users`. The client row
+--    is the account - it owns the profile, so it owns the money too. Several
+--    principals may point at one client (see §9), and they must share one
+--    allowance rather than each getting their own.
+--
+--    LIFETIME, NOT MONTHLY. Sorin's decision, 2026-08-21: `$1` means one dollar
+--    for the life of the test account, and he raises it by hand when he wants to.
+--    That is why there is no period column and no reset job - both would be
+--    machinery for a policy nobody asked for. A monthly allowance would need a
+--    `period_start` here and a windowed SUM below; neither is hard to add later.
+--
+--    INTEGER MICRO-DOLLARS, NEVER A FLOAT. 1_000_000 = $1.00. Money in binary
+--    floating point is a bug waiting for an argument about a rounding error.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.clients
+    ADD COLUMN IF NOT EXISTS budget_micros BIGINT NOT NULL DEFAULT 1000000;
+
+
+-- One row per model call that reported usage. Append-only: nothing updates or
+-- deletes here, so the sum is the truth and a disputed number can be traced back
+-- to the calls that produced it.
+--
+--    TWO OWNERS, AND THEY ARE NOT REDUNDANT. `client_id` is what is billed, so a
+--    person with two logins spends one allowance. `principal_id` records which
+--    door the call came through, which is the question worth answering when a
+--    number looks wrong - and it cannot be reconstructed afterwards.
+--
+--    `cost_micros` is stored, not derived at read time. Prices change; a row must
+--    keep what it actually cost on the day, or last month's total silently
+--    rewrites itself the next time the price table is edited.
+CREATE TABLE IF NOT EXISTS public.usage_events (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id      UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+    principal_id   TEXT NOT NULL,
+    kind           TEXT NOT NULL,          -- chat | generation_title | generation_detail | web_search
+    model          TEXT NOT NULL,
+    input_tokens   BIGINT NOT NULL DEFAULT 0,
+    output_tokens  BIGINT NOT NULL DEFAULT 0,
+    cost_micros    BIGINT NOT NULL DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- The gate sums by client before every run, so this index is on the hot path.
+CREATE INDEX IF NOT EXISTS idx_usage_events_client
+    ON public.usage_events (client_id, created_at DESC);

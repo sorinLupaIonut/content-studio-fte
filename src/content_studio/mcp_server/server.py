@@ -90,6 +90,11 @@ from content_studio.harness.generation import (
     IdeaVariant,
 )
 from content_studio.harness.posts import SavedPostContent, SavePostsRequest
+from content_studio.mcp_server.accounts import (
+    create_account,
+    list_accounts,
+    resolve_account,
+)
 from content_studio.mcp_server.generation_store import (
     cancel_batch,
     complete_idea,
@@ -112,9 +117,16 @@ from content_studio.mcp_server.posts_store import (
     update_saved_post,
 )
 from content_studio.mcp_server.protocol import (
+    CLIENT_HEADER,
     CONVERSATION_HEADER,
     OWNER_HEADER,
-    PROFILE_URI,
+    profile_uri,
+)
+from content_studio.mcp_server.usage_store import (
+    all_usage,
+    load_budget,
+    record_usage,
+    set_budget,
 )
 
 enable_utf8_output()
@@ -149,21 +161,24 @@ async def connection():
 PROFILE_SQL = "SELECT id, name, profile_md FROM public.clients WHERE slug = $1"
 
 
+# A template, not one fixed URI: the slug is part of the address. Reading the
+# old concrete URI still matches it and still yields Viorela, so the CLI and the
+# existing tests are unaffected.
 @server.resource(
-    PROFILE_URI,
-    name="profil-viorela",
-    title="Profilul complet al Viorelei",
+    profile_uri("{slug}"),
+    name="profil-client",
+    title="Profilul complet al clientei",
     description="Bootstrap intern pentru system prompt; nu este unealtă a agentului.",
     mime_type="application/json",
 )
-async def client_profile() -> str:
+async def client_profile(slug: str) -> str:
     """The live profile, read over MCP before the agent is built."""
     async with connection() as conn:
-        row = await conn.fetchrow(PROFILE_SQL, CLIENT_SLUG)
+        row = await conn.fetchrow(PROFILE_SQL, slug)
     if row is None:
-        raise ValueError(f"There is no client {CLIENT_SLUG!r} in the `clients` table.")
+        raise ValueError(f"There is no client {slug!r} in the `clients` table.")
     return json.dumps(
-        {"slug": CLIENT_SLUG, "name": row["name"], "profile_md": row["profile_md"]},
+        {"slug": slug, "name": row["name"], "profile_md": row["profile_md"]},
         ensure_ascii=False,
     )
 
@@ -344,6 +359,7 @@ SELECT p.posted_on, p.title, p.pillar, p.format, p.hook, p.hook_type,
 
 @server.tool()
 async def list_posts(
+    ctx: Context,
     pillar: str | None = None,
     format: str | None = None,
     since: str | None = None,
@@ -358,9 +374,10 @@ async def list_posts(
     limit = max(1, min(limit, 100))
     from_date = date.fromisoformat(since) if since else None
 
+    client_slug = await client_of(ctx)
     async with connection() as conn:
         rows = await conn.fetch(
-            LIST_POSTS_SQL, CLIENT_SLUG, pillar, format, from_date, limit
+            LIST_POSTS_SQL, client_slug, pillar, format, from_date, limit
         )
 
     return [{**dict(r), "posted_on": r["posted_on"].isoformat()} for r in rows]
@@ -427,6 +444,38 @@ def owner_of(ctx: Context) -> str:
     return owner
 
 
+async def client_of(ctx: Context) -> str:
+    """Whose data this connection may see. Three sources, most trusted first.
+
+    1. `CLIENT_HEADER`, when the caller already knows. The harness resolves the
+       account once per request and puts the answer here, so the common path
+       costs no query at all.
+    2. The principal on the connection, looked up in `app_users`. This is the
+       path for a connection that carries an identity but was not told the
+       client.
+    3. `CLIENT_SLUG`. The CLI sets neither header, and an unprovisioned
+       principal has no account - both land on the configured default, which is
+       exactly the behaviour that existed before this function did.
+
+    Never a tool argument, in any of the three. `save_post` is model-visible, and
+    a client the model can name is a client the model can get wrong.
+    """
+    slug = _header(ctx, CLIENT_HEADER)
+    if slug:
+        return slug
+
+    principal_id = _header(ctx, OWNER_HEADER)
+    if principal_id:
+        # Its own short transaction, before the caller opens the one that does
+        # the work. Only reached when the header above is absent.
+        async with connection() as conn:
+            account = await resolve_account(conn, principal_id)
+        if account is not None:
+            return account.client_slug
+
+    return CLIENT_SLUG
+
+
 @server.tool()
 async def save_post(
     title: str,
@@ -470,10 +519,11 @@ async def save_post(
         "source": source,
     }
 
+    client_slug = await client_of(ctx)
     async with connection() as conn:
-        client_id = await conn.fetchval(CLIENT_ID_SQL, CLIENT_SLUG)
+        client_id = await conn.fetchval(CLIENT_ID_SQL, client_slug)
         if client_id is None:
-            raise ValueError(f"There is no client {CLIENT_SLUG!r} in the `clients` table.")
+            raise ValueError(f"There is no client {client_slug!r} in the `clients` table.")
 
         post_id = await conn.fetchval(
             INSERT_POST_SQL,
@@ -513,10 +563,11 @@ async def save_posts_batch(variant_ids: list[str], ctx: Context) -> dict:
     owner_principal_id = owner_of(ctx)
     request = SavePostsRequest.model_validate({"variant_ids": variant_ids})
 
+    client_slug = await client_of(ctx)
     async with connection() as conn:
         saved = await save_selected_variants(
             conn,
-            client_slug=CLIENT_SLUG,
+            client_slug=client_slug,
             session_id=conversation_id,
             owner_principal_id=owner_principal_id,
             variant_ids=request.variant_ids,
@@ -578,10 +629,11 @@ async def update_post(
         }
     )
 
+    client_slug = await client_of(ctx)
     async with connection() as conn:
         post = await update_saved_post(
             conn,
-            client_slug=CLIENT_SLUG,
+            client_slug=client_slug,
             post_id=UUID(post_id),
             content=content,
         )
@@ -640,10 +692,11 @@ async def update_profile(section: str, new_text: str, ctx: Context) -> dict:
     # restores from — but anything she changed through the agent since the last
     # seed is not there either. Worth a column of its own if this bites.
     conversation_id = conversation_of(ctx)
+    client_slug = await client_of(ctx)
     async with connection() as conn:
-        row = await conn.fetchrow(PROFILE_SQL, CLIENT_SLUG)
+        row = await conn.fetchrow(PROFILE_SQL, client_slug)
         if row is None:
-            raise ValueError(f"There is no client {CLIENT_SLUG!r} in the `clients` table.")
+            raise ValueError(f"There is no client {client_slug!r} in the `clients` table.")
 
         new_profile = replace_section(row["profile_md"], section, new_text)
         await conn.execute(WRITE_PROFILE_SQL, row["id"], new_profile)
@@ -687,10 +740,11 @@ async def ui_create_generation_batch(
             "material_ids": material_ids or [],
         }
     )
+    client_slug = await client_of(ctx)
     async with connection() as conn:
         result = await create_batch(
             conn,
-            client_slug=CLIENT_SLUG,
+            client_slug=client_slug,
             owner_principal_id=owner_principal_id,
             session_id=conversation_id,
             request=request,
@@ -867,17 +921,120 @@ async def ui_list_library() -> dict:
 
 
 @server.tool()
-async def ui_list_saved_posts(limit: int = 100) -> dict:
+async def ui_list_saved_posts(ctx: Context, limit: int = 100) -> dict:
     """Citește intern postările scrise în studio; nu este pentru agent."""
+    client_slug = await client_of(ctx)
     async with connection() as conn:
-        return {"items": await list_saved_posts(conn, CLIENT_SLUG, limit)}
+        return {"items": await list_saved_posts(conn, client_slug, limit)}
 
 
 @server.tool()
-async def ui_get_saved_post(post_id: str) -> dict:
+async def ui_get_saved_post(post_id: str, ctx: Context) -> dict:
     """Citește intern o singură postare salvată; nu este pentru agent."""
+    client_slug = await client_of(ctx)
     async with connection() as conn:
-        return {"post": await load_saved_post(conn, CLIENT_SLUG, UUID(post_id))}
+        return {"post": await load_saved_post(conn, client_slug, UUID(post_id))}
+
+
+@server.tool()
+async def ui_resolve_account(principal_id: str) -> dict:
+    """Rezolvă intern contul unei identități; nu este pentru agent.
+
+    Takes the principal as an argument rather than off the connection because
+    the admin page will need to ask about somebody other than the caller. It is
+    safe: the tool is internal, and `MODEL_VISIBLE_TOOLS` never lets the model
+    see it.
+    """
+    async with connection() as conn:
+        account = await resolve_account(conn, principal_id)
+    return {"account": account.as_dict() if account is not None else None}
+
+
+@server.tool()
+async def ui_record_usage(
+    client_slug: str,
+    principal_id: str,
+    kind: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_micros: int,
+) -> dict:
+    """Înregistrează intern consumul unui apel; nu este pentru agent."""
+    async with connection() as conn:
+        row_id = await record_usage(
+            conn,
+            client_slug=client_slug,
+            principal_id=principal_id,
+            kind=kind,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_micros=cost_micros,
+        )
+    return {"id": row_id}
+
+
+@server.tool()
+async def ui_get_budget(client_slug: str) -> dict:
+    """Citește intern limita și consumul unui cont; nu este pentru agent."""
+    async with connection() as conn:
+        budget = await load_budget(conn, client_slug)
+    return {"budget": budget.as_dict() if budget is not None else None}
+
+
+@server.tool()
+async def ui_set_budget(client_slug: str, budget_micros: int) -> dict:
+    """Schimbă intern limita unui cont; nu este pentru agent."""
+    async with connection() as conn:
+        value = await set_budget(conn, client_slug, budget_micros)
+    return {"budget_micros": value}
+
+
+@server.tool()
+async def ui_list_usage() -> dict:
+    """Listează intern consumul tuturor conturilor; nu este pentru agent."""
+    async with connection() as conn:
+        return {"items": await all_usage(conn)}
+
+
+@server.tool()
+async def ui_list_accounts() -> dict:
+    """Listează intern conturile provizionate; nu este pentru agent."""
+    async with connection() as conn:
+        return {"items": await list_accounts(conn)}
+
+
+@server.tool()
+async def ui_create_account(
+    principal_id: str,
+    email: str,
+    client_slug: str,
+    client_name: str,
+    provider: str = "google",
+    role: str = "user",
+    profile_from: str | None = None,
+    budget_micros: int = 1_000_000,
+) -> dict:
+    """Creează intern un cont nou, cu clientul lui; nu este pentru agent.
+
+    `profile_from` copies another client's profile as a starting point. A copy,
+    never a reference: two testers sharing one profile row would mean one
+    tester's edit changing the other's output.
+    """
+    async with connection() as conn:
+        account = await create_account(
+            conn,
+            principal_id=principal_id,
+            email=email,
+            client_slug=client_slug,
+            client_name=client_name,
+            provider=provider,
+            role=role,
+            profile_from=profile_from,
+            budget_micros=budget_micros,
+        )
+    return {"account": account.as_dict()}
 
 
 def main() -> int:

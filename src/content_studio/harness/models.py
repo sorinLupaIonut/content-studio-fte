@@ -80,6 +80,13 @@ class MeResponse(BaseModel):
     email: str
     provider: str
     is_development: bool
+    # Which account the interface is looking at, and whether to show the admin
+    # entry at all. `is_admin` is a hint for the navigation only - every admin
+    # route checks the role again on the server, because a hidden link is not a
+    # permission.
+    is_admin: bool = False
+    client_slug: str | None = None
+    client_name: str | None = None
 
 
 ProfileGroup = Literal[
@@ -123,3 +130,24 @@ class ProfileSectionsResponse(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     blocks: list[ProfileBlock] = Field(min_length=1, max_length=250)
+
+
+class CreateAccountRequest(BaseModel):
+    """Provision one tester. Admin-only; see the `administrator` dependency."""
+
+    principal_id: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=3, max_length=320)
+    client_slug: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9][a-z0-9-]*$")
+    client_name: str = Field(min_length=1, max_length=120)
+    provider: str = Field(default="google", max_length=40)
+    role: Literal["user", "admin"] = "user"
+    # The one-button start Sorin asked for: a copy of somebody's profile, never a
+    # reference to it. `None` means an empty profile written from scratch.
+    profile_from: str | None = Field(default=None, max_length=64)
+    budget_micros: int = Field(default=1_000_000, ge=0, le=1_000_000_000)
+
+
+class SetBudgetRequest(BaseModel):
+    """A lifetime allowance, in integer micro-dollars. 1_000_000 = $1.00."""
+
+    budget_micros: int = Field(ge=0, le=1_000_000_000)

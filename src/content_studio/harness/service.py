@@ -35,6 +35,10 @@ from content_studio.config import (
     has_e2b_key,
     has_openai_key,
 )
+from content_studio.harness.accounts import (
+    CURRENT_CLIENT,
+    AccountDirectory,
+)
 from content_studio.harness.chat import (
     ActiveChatError,
     ChatAccessError,
@@ -72,6 +76,7 @@ from content_studio.harness.profile import (
 )
 from content_studio.language import DEFAULT_LANGUAGE, Language
 from content_studio.mcp_server.protocol import (
+    CLIENT_HEADER,
     CONVERSATION_HEADER,
     GENERATION_VISIBLE_TOOLS,
     MODEL_VISIBLE_TOOLS,
@@ -144,6 +149,16 @@ def validate_session_id(session_id: str) -> str:
     return session_id
 
 
+def _client_header() -> dict[str, str]:
+    """The current request's client, when one has been bound.
+
+    Empty when nothing bound it - the CLI, a health probe, every existing test -
+    and an absent header is what makes the MCP server fall back to `CLIENT_SLUG`.
+    """
+    slug = CURRENT_CLIENT.get()
+    return {CLIENT_HEADER: slug} if slug else {}
+
+
 class HarnessService:
     """Long-lived database handles plus one isolated MCP/sandbox run per request."""
 
@@ -151,10 +166,14 @@ class HarnessService:
         self.engine: AsyncEngine | None = None
         self.trail: Audit | None = None
         self.database_error: str | None = None
+        # Built before the coordinators because both take it.
+        self.accounts = AccountDirectory(self._internal_data_mcp)
         self.generator = GenerationCoordinator(
-            self._generation_data_mcp, self._internal_data_mcp
+            self._generation_data_mcp, self._internal_data_mcp, self.accounts
         )
-        self.chat = ChatCoordinator(self._data_mcp, self._internal_data_mcp)
+        self.chat = ChatCoordinator(
+            self._data_mcp, self._internal_data_mcp, self.accounts
+        )
 
     async def start(self) -> None:
         """Configure durable state without making import or boot depend on it."""
@@ -182,7 +201,7 @@ class HarnessService:
         # `save_posts_batch` is model-visible, and identity the model can type is
         # identity the model can get wrong. Connections without it — the CLI, the
         # generator, plain chat — simply cannot reach that tool's data.
-        headers = {CONVERSATION_HEADER: session_id}
+        headers = {CONVERSATION_HEADER: session_id, **_client_header()}
         if principal_id:
             headers[OWNER_HEADER] = principal_id
         return MCPServerStreamableHttp(
@@ -210,7 +229,7 @@ class HarnessService:
         return MCPServerStreamableHttp(
             params={
                 "url": MCP_URL,
-                "headers": {CONVERSATION_HEADER: session_id},
+                "headers": {CONVERSATION_HEADER: session_id, **_client_header()},
             },
             name="content-data",
             cache_tools_list=True,
@@ -223,7 +242,7 @@ class HarnessService:
         return MCPServerStreamableHttp(
             params={
                 "url": MCP_URL,
-                "headers": {CONVERSATION_HEADER: session_id},
+                "headers": {CONVERSATION_HEADER: session_id, **_client_header()},
             },
             name="content-data-internal",
             cache_tools_list=True,
@@ -324,6 +343,7 @@ class HarnessService:
         session_id: str | None = None,
         language: Language = DEFAULT_LANGUAGE,
     ) -> RunResponse:
+        await self.accounts.require_budget()
         return await self._run_message(message, session_id, language=language)
 
     async def _run_message(
@@ -615,6 +635,10 @@ class HarnessService:
         self, principal_id: str, request: GenerationStartRequest
     ) -> dict[str, Any]:
         self._require_ready()
+        # Before the batch, not during: one batch is a title call plus ten detail
+        # calls, and an account already at its limit should be told so now rather
+        # than eleven calls later. The generator checks again between ideas.
+        await self.accounts.require_budget()
         try:
             return await self.generator.start(principal_id, request)
         except ActiveBatchError as exc:
@@ -691,6 +715,7 @@ class HarnessService:
         self, principal_id: str, request: ChatRunRequest
     ) -> ChatRunAccepted:
         engine, trail = self._require_ready()
+        await self.accounts.require_budget()
         try:
             target_context = None
             if request.target.kind == "generation_variant":
