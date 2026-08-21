@@ -149,7 +149,12 @@ Invoke-Az -Arguments @(
     '--resource-group', $ResourceGroup,
     '--name', $appName,
     '--enabled', 'true',
-    '--action', 'RedirectToLoginPage',
+    # AllowAnonymous, not RedirectToLoginPage: the application has its own
+    # sign-in page. The static shell is public either way; every /api/* route
+    # demands the injected identity headers and answers 401 without them, so
+    # the data stays behind the platform's door. The UI turns that 401 into
+    # the sign-in screen and sends the browser to /.auth/login/google itself.
+    '--action', 'AllowAnonymous',
     '--redirect-provider', 'google',
     # No --token-store. Enabling it demands a blob storage account with a SAS
     # URL, because Container Apps has nowhere else to keep the tokens, and the
@@ -166,7 +171,8 @@ Remove-Variable clientSecret
 
 Write-Host "`n== sign-in is on ==" -ForegroundColor Green
 Write-Host "https://$fqdn"
-Write-Host "`nAn unauthenticated visitor is now sent to the Google login page."
+Write-Host "`nAn unauthenticated visitor gets the application's own sign-in page;"
+Write-Host "the data routes keep answering 401 until Google confirms an identity."
 Write-Host "Any Google account gets past that door. AUTH_ALLOWED_EMAILS is the one"
 Write-Host "that decides who is Viorela - confirm it holds both addresses:"
 Write-Host ("  az containerapp show -g {0} -n {1} --query ""properties.template.containers[0].env[?name=='AUTH_ALLOWED_EMAILS']""" -f $ResourceGroup, $appName)

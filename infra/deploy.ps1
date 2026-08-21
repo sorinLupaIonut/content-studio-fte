@@ -155,6 +155,19 @@ if (-not $AllowedEmails) {
     Write-Warning "No AUTH_ALLOWED_EMAILS in $EnvFile and no -AllowedEmails; falling back to the signed-in account. Viorela will not get in."
 }
 $allowedCount = @($AllowedEmails -split ',' | Where-Object { $_.Trim() }).Count
+
+# Easy Auth keeps the Google client secret as a container app secret, added by
+# enable-auth.ps1. Bicep declares the secrets list, and a declared list is the
+# whole truth to ARM - so deploying without this value here deletes the secret,
+# the auth sidecar then fails to start, and the whole replica is marked
+# unhealthy. Sign-in does not merely stop working; the application stops
+# answering. Passing it through keeps the two scripts from undoing each other.
+$googleClientSecret = $dotenv['GOOGLE_CLIENT_SECRET']
+if ($googleClientSecret) {
+    Write-Host "Sign-in      : Google client secret carried through, not printed"
+} else {
+    Write-Host "Sign-in      : no GOOGLE_CLIENT_SECRET in .env; Easy Auth not configured yet"
+}
 Write-Host ("Allowlist    : {0} address(es), not printed" -f $allowedCount)
 
 # --- 3. Resource group ----------------------------------------------------
@@ -229,6 +242,7 @@ $parameters = @{
         databaseUrlDirect = @{ value = $dotenv['DATABASE_URL_DIRECT'] }
         openaiApiKey      = @{ value = $dotenv['OPENAI_API_KEY'] }
         e2bApiKey         = @{ value = $dotenv['E2B_API_KEY'] }
+        googleClientSecret = @{ value = $googleClientSecret }
     }
 }
 

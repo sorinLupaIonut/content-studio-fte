@@ -550,6 +550,48 @@ changelog entry below and [infra/README.md](../infra/README.md).
 
 ## Changelog
 
+- **2026-08-21 · Claude Code** — **Sign-in and sign-out now live inside the
+  application, and three bugs found on the way there are fixed.** The client sees
+  the studio's own card - brand mark, "Conținut care sună ca tine", one button -
+  instead of being thrown at a bare Google screen, gets a distinct "this account
+  has no access" screen with a way out instead of a raw 403, and can leave from
+  the rail. Easy Auth moved from `RedirectToLoginPage` to **AllowAnonymous**:
+  the static shell was public either way, and every `/api/*` route still refuses
+  without the injected identity headers, so the data never moved.
+
+  **Bicep was deleting the Easy Auth secret on every deploy.** `az containerapp
+  auth google update` adds `google-provider-authentication-secret` out of band;
+  a declared `secrets:` list is the whole truth to ARM, so the next `deploy.ps1`
+  removed it. This does not merely break sign-in: the auth sidecar shares the
+  replica with the application, so it failed to start, the replica was marked
+  `ReplicaUnhealthy`, the revision went `ActivationFailed`, and with
+  `minReplicas: 0` and traffic pointing at a revision with no live replica,
+  every request hung instead of erroring. The value now travels through an
+  optional `@secure()` parameter, verified by a full deploy that left the secret
+  in place. `studio-mcp`, same image and no Easy Auth, stayed healthy throughout
+  - that contrast is what located the fault.
+
+  **A missing asset answered 200 with index.html.** The SPA fallback applied to
+  every non-`/api/` path, so a client asking for a deleted assembly received the
+  page and failed far from the cause. `/_framework/` and `/_content/` now 404.
+
+  **Unfingerprinted files were cacheable forever.** `dotnet publish` fingerprints
+  most assets, but `index.html`, `css/app.css` and the loader chain keep stable
+  names - and the loader holds the fingerprint list. Cached, they pin a browser
+  to an old build permanently; this is why a correct image kept serving an old
+  UI through the whole session. Anything without a ten-character fingerprint is
+  now revalidated. The length is the discriminator: `blazor.webassembly.js`
+  carries eleven and must never be pinned.
+
+  Two lessons about Container Apps worth keeping. During a `Single`-mode
+  rollout, two revisions serve simultaneously for a while, so a `curl` check and
+  a browser can legitimately disagree - wait until exactly one revision has live
+  replicas before believing any verification. And an `ActivationFailed` revision
+  does not recover on its own once the underlying cause is fixed; it needs a new
+  revision.
+
+  113 unit tests pass; the static-serving rules are covered by three new ones.
+
 - **2026-08-21 · Claude Code** — **D3 is done: the application is live on Azure
   Container Apps with Google sign-in, and the whole chain was verified in one
   browser session.** Six resources in `studio-viorela` (eastus): registry

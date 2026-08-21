@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import mimetypes
+import re
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -52,6 +53,24 @@ def _mark_encoded(response: Response, path: str, encoding: str) -> Response:
     return response
 
 
+# Publishing fingerprints most assets - `StudioViorela.pgjknfelkv.wasm` - and
+# those may be cached forever, because a new build means a new name. The rest
+# keep stable names across deployments: index.html, app.css, and the loader
+# chain that holds the fingerprints. Cached, those pin a browser to an old
+# build indefinitely - it keeps asking for assemblies that no longer exist and
+# never learns anything shipped. Anything unfingerprinted is revalidated.
+# The fingerprint is exactly ten base-36 characters, inserted before the
+# extension. Ten is what separates it from an ordinary compound name:
+# `blazor.webassembly.js` carries eleven and must never be treated as
+# fingerprinted, since it is the file that lists all the others.
+_FINGERPRINTED = re.compile(r"\.[a-z0-9]{10}\.[^.]+$")
+
+
+def _is_fingerprinted(path: str) -> bool:
+    """Whether the name changes with the content, making the file immutable."""
+    return _FINGERPRINTED.search(path.rsplit("/", 1)[-1]) is not None
+
+
 class BlazorStaticFiles(StaticFiles):
     """Serve precompressed assets and the SPA entry point for client routes."""
 
@@ -74,16 +93,47 @@ class BlazorStaticFiles(StaticFiles):
                 return _mark_encoded(response, path, encoding)
         return await super().get_response(path, scope)
 
+    async def _entry_point(self, scope) -> Response:
+        """Serve index.html, always revalidated.
+
+        The published client is fingerprinted, so every asset but this one may
+        be cached forever. index.html carries the list of those fingerprints:
+        cached, it keeps asking for the assemblies of a deployment that is gone,
+        and the client stays on an old build long after a release.
+        """
+        response = await self._asset_response("index.html", scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    def _is_spa_route(self, scope) -> bool:
+        """Only client routes fall back to index.html; assets must 404.
+
+        A missing asset answered with HTML is a 200 that lies. A stale client
+        asking for a deleted assembly would receive the page instead of a clean
+        cache miss, and fail somewhere far from the cause.
+        """
+        request_path = str(scope.get("path", ""))
+        return not any(
+            request_path.startswith(prefix)
+            for prefix in ("/api/", "/_framework/", "/_content/")
+        )
+
     async def get_response(self, path: str, scope):
-        is_api = str(scope.get("path", "")).startswith("/api/")
+        fallback = self._is_spa_route(scope)
         try:
             response = await self._asset_response(path, scope)
         except HTTPException as exc:
-            if exc.status_code != 404 or is_api:
+            if exc.status_code != 404 or not fallback:
                 raise
-            return await self._asset_response("index.html", scope)
-        if response.status_code == 404 and not is_api:
-            return await self._asset_response("index.html", scope)
+            return await self._entry_point(scope)
+        if response.status_code == 404 and fallback:
+            return await self._entry_point(scope)
+        # Starlette normalises with the platform separator, so this comparison
+        # has to be made on forward slashes or it silently never matches on
+        # Windows. The mount root arrives as "." rather than an empty string.
+        relative = path.replace("\\", "/")
+        if not _is_fingerprinted(relative):
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
 

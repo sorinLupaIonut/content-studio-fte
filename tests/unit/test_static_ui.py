@@ -32,6 +32,63 @@ class TestStaticUi(unittest.TestCase):
             self.assertIn("Studio Viorela", deep_link.text)
             self.assertEqual(unknown_api.status_code, 404)
 
+    def test_a_missing_framework_asset_is_a_404_not_the_page(self) -> None:
+        """A stale client must learn the assembly is gone, not receive HTML."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "index.html").write_text("index", encoding="utf-8")
+            app = FastAPI()
+            self.assertTrue(mount_ui(app, root))
+
+            with TestClient(app) as client:
+                stale_assembly = client.get("/_framework/Studio.oldhash.wasm")
+
+            self.assertEqual(stale_assembly.status_code, 404)
+
+    def test_the_entry_point_is_always_revalidated(self) -> None:
+        """index.html names the fingerprints; a cached copy pins an old build."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "index.html").write_text("index", encoding="utf-8")
+            app = FastAPI()
+            self.assertTrue(mount_ui(app, root))
+
+            with TestClient(app) as client:
+                root_response = client.get("/")
+                deep_link = client.get("/profile")
+
+            self.assertEqual(root_response.headers["cache-control"], "no-cache")
+            self.assertEqual(deep_link.headers["cache-control"], "no-cache")
+
+    def test_unfingerprinted_files_revalidate_but_fingerprinted_ones_do_not(self) -> None:
+        """The stable-named loader holds the fingerprints; it must not be pinned."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "index.html").write_text("index", encoding="utf-8")
+            framework = root / "_framework"
+            framework.mkdir()
+            (framework / "blazor.webassembly.js").write_text("boot", encoding="utf-8")
+            (framework / "App.abcdefghij.wasm").write_bytes(b"assembly")
+            styles = root / "css"
+            styles.mkdir()
+            (styles / "app.css").write_text("body{}", encoding="utf-8")
+            app = FastAPI()
+            self.assertTrue(mount_ui(app, root))
+
+            with TestClient(app) as client:
+                loader = client.get("/_framework/blazor.webassembly.js")
+                assembly = client.get("/_framework/App.abcdefghij.wasm")
+                stylesheet = client.get("/css/app.css")
+
+            self.assertEqual(loader.status_code, 200)
+            self.assertEqual(loader.headers["cache-control"], "no-cache")
+            # app.css keeps its name across deployments too, and it is what
+            # makes a stale client look merely ugly rather than broken.
+            self.assertEqual(stylesheet.status_code, 200)
+            self.assertEqual(stylesheet.headers["cache-control"], "no-cache")
+            self.assertEqual(assembly.status_code, 200)
+            self.assertNotIn("no-cache", assembly.headers.get("cache-control", ""))
+
     def test_prefers_brotli_and_preserves_the_original_content_type(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

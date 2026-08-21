@@ -1,41 +1,96 @@
 @inherits LayoutComponentBase
 @inject StudioApiClient Api
 
-<div class="app-shell">
-    <div class="rail">
-        <a class="brand" href="/generator" aria-label="Studio Viorela, pagina principală">
-            <span class="brand-mark" aria-hidden="true">V</span>
-            <span>
-                <strong>Studio Viorela</strong>
-                <small>Conținut care sună ca tine</small>
-            </span>
-        </a>
+@* The gate renders nothing but the access screens until identity is known.
+   Easy Auth runs with AllowAnonymous, so the static shell loads for anyone;
+   it is /api/me that decides which of the three screens this is. The sign-in
+   and sign-out links are full page navigations to the platform's /.auth
+   endpoints - they never go through the API client. *@
 
-        <PrimaryNav />
-
-        <div class="rail-foot">
-            <div class="identity" title="@(_me?.Email ?? "Sesiune locală")">
-                <span class="identity-avatar" aria-hidden="true">@Initial</span>
-                <span class="identity-copy">
-                    <strong>@(_me?.Email ?? "Se verifică accesul…")</strong>
-                    <small>@(_me?.IsDevelopment == true ? "mod local" : "cont autorizat")</small>
-                </span>
-            </div>
+@if (_gate == Gate.Checking)
+{
+    <div class="access-screen" aria-busy="true">
+        <div class="access-card">
+            <span class="brand-mark access-mark" aria-hidden="true">V</span>
+            <p class="access-quiet">Se verifică accesul…</p>
         </div>
     </div>
+}
+else if (_gate == Gate.SignedOut)
+{
+    <div class="access-screen">
+        <div class="access-card">
+            <span class="brand-mark access-mark" aria-hidden="true">V</span>
+            <h1>Studio Viorela</h1>
+            <p class="access-lede">Conținut care sună ca tine.</p>
+            <a class="button button-primary access-cta" href="/.auth/login/google?post_login_redirect_uri=/">
+                Intră cu Google
+            </a>
+            <p class="access-quiet">Doar conturile invitate au acces.</p>
+        </div>
+    </div>
+}
+else if (_gate == Gate.Denied)
+{
+    <div class="access-screen">
+        <div class="access-card">
+            <span class="brand-mark access-mark" aria-hidden="true">V</span>
+            <h1>Acest cont nu are acces</h1>
+            <p class="access-lede">
+                Ai intrat cu un cont Google care nu e pe lista studioului.
+            </p>
+            <a class="button button-primary access-cta" href="/.auth/logout?post_logout_redirect_uri=/">
+                Ieși și încearcă alt cont
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="app-shell">
+        <div class="rail">
+            <a class="brand" href="/generator" aria-label="Studio Viorela, pagina principală">
+                <span class="brand-mark" aria-hidden="true">V</span>
+                <span>
+                    <strong>Studio Viorela</strong>
+                    <small>Conținut care sună ca tine</small>
+                </span>
+            </a>
 
-    <main class="page-content">
-        @if (_identityError is not null)
-        {
-            <div class="notice notice-error" role="alert">@_identityError</div>
-        }
-        @Body
-    </main>
+            <PrimaryNav />
 
-    <ChatDrawer />
-</div>
+            <div class="rail-foot">
+                <div class="identity" title="@(_me?.Email ?? "Sesiune locală")">
+                    <span class="identity-avatar" aria-hidden="true">@Initial</span>
+                    <span class="identity-copy">
+                        <strong>@(_me?.Email ?? "Se verifică accesul…")</strong>
+                        <small>@(_me?.IsDevelopment == true ? "mod local" : "cont autorizat")</small>
+                    </span>
+                </div>
+                @if (_me?.IsDevelopment != true)
+                {
+                    <a class="signout" href="/.auth/logout?post_logout_redirect_uri=/"
+                       title="Ieși din cont" aria-label="Ieși din cont">⎋</a>
+                }
+            </div>
+        </div>
+
+        <main class="page-content">
+            @if (_identityError is not null)
+            {
+                <div class="notice notice-error" role="alert">@_identityError</div>
+            }
+            @Body
+        </main>
+
+        <ChatDrawer />
+    </div>
+}
 
 @code {
+    private enum Gate { Checking, SignedOut, Denied, Open }
+
+    private Gate _gate = Gate.Checking;
     private MeDto? _me;
     private string? _identityError;
     private string Initial => string.IsNullOrWhiteSpace(_me?.Email)
@@ -47,10 +102,22 @@
         try
         {
             _me = await Api.GetMeAsync();
+            _gate = Gate.Open;
+        }
+        catch (StudioApiException ex) when (ex.StatusCode == 401)
+        {
+            _gate = Gate.SignedOut;
+        }
+        catch (StudioApiException ex) when (ex.StatusCode == 403)
+        {
+            _gate = Gate.Denied;
         }
         catch (Exception ex)
         {
+            // Not an identity verdict - the API may be waking up. Let the app
+            // render and surface the error where the old layout showed it.
             _identityError = ex.Message;
+            _gate = Gate.Open;
         }
     }
 }

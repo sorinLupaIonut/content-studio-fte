@@ -43,6 +43,10 @@ param openaiApiKey string
 @secure()
 param e2bApiKey string
 
+@description('Google OAuth client secret for Easy Auth. Empty leaves sign-in untouched.')
+@secure()
+param googleClientSecret string = ''
+
 var harnessAppName = '${namePrefix}-harness'
 var mcpAppName = '${namePrefix}-mcp'
 var fullImage = '${acr.properties.loginServer}/${image}'
@@ -216,7 +220,13 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       registries: registryBlock
-      secrets: [
+      // A declared secrets list is the whole truth to ARM: anything added out of
+      // band is deleted on the next deployment. `az containerapp auth google
+      // update` adds google-provider-authentication-secret that way, so leaving
+      // it out here silently removed it and the Easy Auth sidecar then failed to
+      // start - which fails the replica, not just sign-in. Carrying it through
+      // the template keeps deploy.ps1 and enable-auth.ps1 from undoing each other.
+      secrets: concat([
         {
           name: 'database-url'
           value: databaseUrl
@@ -233,7 +243,12 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'e2b-api-key'
           value: e2bApiKey
         }
-      ]
+      ], empty(googleClientSecret) ? [] : [
+        {
+          name: 'google-provider-authentication-secret'
+          value: googleClientSecret
+        }
+      ])
     }
     template: {
       containers: [

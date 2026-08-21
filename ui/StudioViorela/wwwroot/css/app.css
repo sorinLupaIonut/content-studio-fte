@@ -1754,3 +1754,83 @@ select:disabled {
     0%, 45% { opacity: 1; }
     46%, 100% { opacity: 0; }
 }
+
+/* --- Access gate: sign-in, no-access and checking screens ----------------- */
+/* One screen, three messages. It reuses the app's own voice - same card
+   language as .surface, same brand mark - so the door looks like the house. */
+
+.access-screen {
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    padding: 24px;
+}
+
+.access-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: min(380px, 100%);
+    padding: 44px 36px 38px;
+    text-align: center;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.access-mark {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 10px;
+    border-radius: 15px;
+    font-size: 1.7rem;
+}
+
+.access-card h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+}
+
+.access-lede {
+    margin: 0 0 18px;
+    color: var(--muted);
+    font-size: .92rem;
+}
+
+.access-cta {
+    width: 100%;
+    text-decoration: none;
+}
+
+.access-quiet {
+    margin: 14px 0 0;
+    color: var(--faint);
+    font-size: .78rem;
+}
+
+/* The sign-out control sits beside the identity chip and stays quiet until
+   hovered - leaving is always available, never loud. */
+.signout {
+    display: grid;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    margin-left: auto;
+    border-radius: 9px;
+    color: var(--faint);
+    font-size: 1rem;
+    text-decoration: none;
+    transition: color .15s ease, background .15s ease;
+}
+
+.signout:hover,
+.signout:focus-visible {
+    color: var(--ink);
+    background: var(--surface-2);
+}
