@@ -142,3 +142,32 @@ class RateLimitMiddlewareTests(unittest.TestCase):
         with self._app(per_minute=2) as client:
             for _ in range(20):
                 self.assertNotEqual(client.get("/health").status_code, 429)
+
+
+class ObservabilityDegradesTests(unittest.TestCase):
+    """No key is a supported state, not a misconfiguration."""
+
+    def test_without_a_connection_string_it_reports_off_and_does_not_raise(self):
+        from unittest.mock import patch as mock_patch
+
+        import content_studio.observability as obs
+
+        # configure_logging mutates the root logger, which would follow the rest
+        # of the suite around; the behaviour under test is the return value.
+        with mock_patch.object(obs, "APPLICATIONINSIGHTS_CONNECTION_STRING", ""), \
+             mock_patch.object(obs, "configure_logging"):
+            status = obs.configure(app=None)
+
+        self.assertFalse(status["ok"])
+        self.assertIn("APPLICATIONINSIGHTS_CONNECTION_STRING", status["detail"])
+
+    def test_bind_run_works_with_no_span_in_context(self):
+        """The CLI has no OpenTelemetry context and must not care."""
+        from content_studio.observability import RUN_ID, bind_run
+
+        token = RUN_ID.set("-")
+        try:
+            bind_run("cli-run")
+            self.assertEqual(RUN_ID.get(), "cli-run")
+        finally:
+            RUN_ID.reset(token)
