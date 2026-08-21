@@ -33,12 +33,17 @@ project ever moves to Europe, this choice moves with it.
 
 ## Order
 
+PowerShell 7 is not installed on this machine and nothing here needs it: every
+script declares `#Requires -Version 5.1` and uses no 7-only syntax, so Windows
+PowerShell runs them. `-ExecutionPolicy Bypass` is unnecessary — the current
+user's policy is `RemoteSigned` and these files are local.
+
 ```powershell
 az login --use-device-code
-pwsh infra/deploy.ps1
-pwsh infra/enable-auth.ps1   # first pass: prints the redirect URI
+powershell -File infra/deploy.ps1
+powershell -File infra/enable-auth.ps1   # first pass: prints the redirect URI
 #   register it in Google Cloud Console, put the two values in .env
-pwsh infra/enable-auth.ps1   # second pass: turns sign-in on
+powershell -File infra/enable-auth.ps1   # second pass: turns sign-in on
 ```
 
 `deploy.ps1` is safe to re-run; every step creates or updates. `enable-auth.ps1`
@@ -53,7 +58,7 @@ the registry.
 Tearing everything down:
 
 ```powershell
-pwsh infra/teardown.ps1
+powershell -File infra/teardown.ps1
 ```
 
 ## The two doors
@@ -92,7 +97,7 @@ One edit, one command:
 
 ```powershell
 # 1. append the address to AUTH_ALLOWED_EMAILS in .env
-pwsh infra/deploy.ps1 -SkipBuild
+powershell -File infra/deploy.ps1 -SkipBuild
 ```
 
 `-SkipBuild` reads back the tag of the image already running, so nothing is

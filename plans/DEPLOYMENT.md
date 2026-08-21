@@ -47,7 +47,7 @@ adapted to this project. We stop after each decision for a human go/no-go.
 | D1 | Harness: FastAPI + the gate on Postgres | ✅ complete — HTTP park/approve/resume contract, 21 free tests; paid live round trip proven 2026-08-18: `RunState` (48,811 bytes) persisted on interruption, approved, resumed, write completed on production data |
 | D1b | Blazor WebAssembly interface | 🟡 shell, profile, hybrid generator, streaming chat, batch save and the saved-post editor all built; real 10×5 hybrid batch and real batch save both proven 2026-08-18–19 (see Changelog); a real **rewrite** through the gate (editing an already-saved post) is the one acceptance still without evidence |
 | D2 | Containerize (multi-stage: .NET SDK → Python) | ✅ image builds and runs — `Dockerfile` (.NET SDK 10 `-c Release` → `python:3.13-slim`, 425 MB) and `.dockerignore` written by Codex; built and verified end to end 2026-08-19 as two containers on one Docker network: `/health` `ready`, UI served, Brotli/gzip negotiation proven byte-identical to the originals, no `.env` or `content/` in the image |
-| D3 | Deploy to Azure Container Apps | 🟡 unblocked and prepared — `az` CLI installed, signed in, the three required providers registered; `infra/` (Bicep + three PowerShell scripts) written, Bicep compiles and every script parses. **Nothing provisioned yet**; that spends money and waits for Sorin |
+| D3 | Deploy to Azure Container Apps | ✅ done — live at `studio-harness.greenhill-fd5afa41.eastus.azurecontainerapps.io` with Google sign-in on; image built locally and pushed because ACR Tasks is barred on Free Trial; see the 2026-08-21 changelog entry |
 | D4 | Neon from the cloud + schema changes | 🟡 the course's five-table state model **adopted and verified functionally**; pooled/direct split enforced in code; the "from the cloud" half waits for D3 |
 | D5 | Cloudflare R2 — wire it or skip it on purpose | ⬜ open decision |
 | D6 | Sandbox execution from the cloud | ⬜ not started |
@@ -550,6 +550,64 @@ changelog entry below and [infra/README.md](../infra/README.md).
 
 ## Changelog
 
+- **2026-08-21 · Claude Code** — **D3 is done: the application is live on Azure
+  Container Apps with Google sign-in, and the whole chain was verified in one
+  browser session.** Six resources in `studio-viorela` (eastus): registry
+  `studio980fad85`, user-assigned identity `studio-pull`, Log Analytics,
+  the managed environment, `studio-harness` (external, 8000) and `studio-mcp`
+  (internal, 8765).
+
+  **Three things the plan did not predict, all of them now fixed in `infra/`:**
+
+  **ACR Tasks is forbidden on a Free Trial subscription.** `az acr build` uploaded
+  the context and the server refused: `TasksOperationsNotAllowed`. The registry is
+  fine; it just may not *build*. The way through is a local `docker build`, `az acr
+  login` (Entra token, so the registry keeps `--admin-enabled false`), `docker
+  push`, then `deploy.ps1 -SkipBuild -Tag <tag>`. The alternative — moving to
+  pay-as-you-go — was rejected on purpose: it would drop `spendingLimit: On`, which
+  is what makes services stop rather than bill.
+
+  **`--token-store true` cannot work here.** Container Apps supports only a blob
+  storage token store and demands a SAS URL, so the command fails outright. The
+  flag is removed, not worked around: `auth.py` reads identity from the
+  `x-ms-client-principal-*` headers on every request and never calls a Google API
+  for the user, so a token store would be a second copy of a credential with no
+  reader.
+
+  **PowerShell 7 is not installed on this machine.** Every script declares
+  `#Requires -Version 5.1` and uses no 7-only syntax, so the documented commands
+  now say `powershell -File`. Related trap, hit once: invoking a script with
+  `2>&1` from outside makes Windows PowerShell wrap each native stderr line in an
+  ErrorRecord, and `$ErrorActionPreference = 'Stop'` turns the first `az` WARNING
+  into a fatal error. Do not redirect stderr when driving these scripts.
+
+  `Microsoft.ManagedIdentity` was not registered on the subscription and would have
+  failed the deployment halfway; registering a provider is free and creates
+  nothing.
+
+  **Google side.** A dedicated project `studio-viorela` holds the consent screen,
+  because the consent screen is per-project and its name is what the client reads
+  on the login page. External audience, publishing status **Testing**, both
+  addresses added as test users. Two consequences worth knowing: in Testing,
+  Google expires the authorisation after **7 days**, so the client re-authenticates
+  weekly; and the Google screen says "Sign in to azurecontainerapps.io", not
+  "Studio Viorela" — the app name only appears on the consent card, and changing
+  the first line needs a verified custom domain.
+
+  **What was actually observed, not assumed:** `/health` returned `ready` with
+  Postgres answering and **MCP connected with 7 tools**, which proves the internal
+  ingress works; before sign-in was configured every `/api/*` route answered 401
+  while `/` still served the static shell (the "401 to everything" in the earlier
+  note was too strong — the UI files are public, the data is not); after
+  `enable-auth.ps1`, an unauthenticated browser was redirected to Google, and once
+  signed in `/api/me` returned the real principal. Easy Auth needed a revision
+  restart before it took effect.
+
+  The client's stable Google `principal_id` is known now for the developer account
+  only. `AUTH_ALLOWED_PRINCIPAL_IDS` still waits for the client's first sign-in,
+  and both entries must move together — `auth.py` prefers the id list and ignores
+  the email list entirely once it is set.
+
 - **2026-08-21 · Claude Code** — **The Azure identity migration is finished and
   verified end to end, break-glass account included.** Nothing was provisioned and
   nothing was spent; this is the account layer the deployment will sit on.
@@ -609,7 +667,7 @@ changelog entry below and [infra/README.md](../infra/README.md).
   deployed a tag that was never built and failed minutes later on an image pull.
   It now reads the tag back from the running app and refuses early, with a
   message naming the cause, when nothing is deployed. Granting or revoking a
-  tester is therefore: edit one line, run `pwsh infra/deploy.ps1 -SkipBuild`,
+  tester is therefore: edit one line, run `powershell -File infra/deploy.ps1 -SkipBuild`,
   wait about a minute. The check runs per request, so revocation is immediate —
   there is no session to expire.
 

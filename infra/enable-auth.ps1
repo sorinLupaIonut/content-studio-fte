@@ -24,7 +24,7 @@
     are in .env.
 
 .EXAMPLE
-    pwsh infra/enable-auth.ps1 -ResourceGroup studio-viorela
+    powershell -File infra/enable-auth.ps1 -ResourceGroup studio-viorela
 #>
 [CmdletBinding()]
 param(
@@ -151,7 +151,13 @@ Invoke-Az -Arguments @(
     '--enabled', 'true',
     '--action', 'RedirectToLoginPage',
     '--redirect-provider', 'google',
-    '--token-store', 'true',
+    # No --token-store. Enabling it demands a blob storage account with a SAS
+    # URL, because Container Apps has nowhere else to keep the tokens, and the
+    # command fails outright without one. Nothing here needs a stored token:
+    # auth.py reads identity from the x-ms-client-principal-* headers the
+    # platform injects on every request and never calls a Google API on the
+    # user's behalf. A token store would be a second copy of a credential kept
+    # for no reader.
     '--require-https', 'true',
     '--output', 'none'
 ) | Out-Null

@@ -16,14 +16,14 @@
     process list, or the deployment record (the Bicep parameters are @secure()).
 
 .EXAMPLE
-    pwsh infra/deploy.ps1
+    powershell -File infra/deploy.ps1
 
     The allowlist comes from AUTH_ALLOWED_EMAILS in .env. -AllowedEmails overrides
     it, but putting real addresses on a command line writes them to the shell
     history and the process list, so prefer .env.
 
 .EXAMPLE
-    pwsh infra/deploy.ps1 -SkipBuild
+    powershell -File infra/deploy.ps1 -SkipBuild
 
     Push a changed allowlist without rebuilding: edit AUTH_ALLOWED_EMAILS in .env,
     run this, and a new revision starts on the image already in the registry. This
@@ -261,4 +261,4 @@ Write-Host ("Allowlist: {0} address(es) from {1}" -f $allowedCount, $EnvFile)
 
 Write-Host "`nThe harness answers 401 to everything until sign-in is configured." -ForegroundColor Yellow
 Write-Host "That is the safe state, not a fault. Next:" -ForegroundColor Yellow
-Write-Host ("  pwsh infra/enable-auth.ps1 -ResourceGroup {0} -NamePrefix {1}" -f $ResourceGroup, $NamePrefix)
+Write-Host ("  powershell -File infra/enable-auth.ps1 -ResourceGroup {0} -NamePrefix {1}" -f $ResourceGroup, $NamePrefix)
