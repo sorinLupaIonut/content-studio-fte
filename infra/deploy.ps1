@@ -299,6 +299,43 @@ try {
 
 $outputs = $deployment.properties.outputs
 
+# --- 7. Does the thing we just shipped actually answer ---------------------
+# Container Apps reports the deployment as succeeded once ARM is satisfied,
+# which is before the new revision has served anything. Without this check a
+# container that crashes on startup is discovered by whoever opens the page
+# next; with it, the deploy that broke it says so.
+$harnessUrl = $outputs.harnessUrl.value
+Write-Host "`n-- health check --" -ForegroundColor Cyan
+$healthy = $false
+foreach ($attempt in 1..10) {
+    try {
+        $probe = Invoke-WebRequest -Uri "$harnessUrl/health" -UseBasicParsing -TimeoutSec 20
+        if ($probe.StatusCode -eq 200) {
+            $healthy = $true
+            # /health answers 200 even while it reports `degraded`, so read the
+            # body: a cold Neon compute is not a failed deploy, and a missing
+            # key is.
+            $body = $probe.Content | ConvertFrom-Json
+            Write-Host ("status: {0}" -f $body.status)
+            foreach ($name in $body.backends.PSObject.Properties.Name) {
+                $backend = $body.backends.$name
+                $mark = if ($backend.active) { 'ok  ' } else { 'down' }
+                Write-Host ("  {0} {1}" -f $mark, $name)
+            }
+            break
+        }
+    } catch {
+        Write-Host ("  attempt {0}/10 ..." -f $attempt)
+        Start-Sleep -Seconds 6
+    }
+}
+if (-not $healthy) {
+    Write-Warning "The new revision did not answer /health. Roll back with:"
+    Write-Warning ("  az containerapp revision list -n {0}-harness -g {1} -o table" -f $NamePrefix, $ResourceGroup)
+    Write-Warning ("  az containerapp ingress traffic set -n {0}-harness -g {1} --revision-weight <previous>=100" -f $NamePrefix, $ResourceGroup)
+    throw "Deployed, but the harness is not answering. See docs/RUNBOOK.md."
+}
+
 Write-Host "`n== deployed ==" -ForegroundColor Green
 Write-Host ("Harness  : {0}" -f $outputs.harnessUrl.value)
 Write-Host ("MCP      : {0}  (internal only)" -f $outputs.mcpUrl.value)

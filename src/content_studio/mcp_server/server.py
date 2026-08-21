@@ -94,6 +94,7 @@ from content_studio.mcp_server.accounts import (
     create_account,
     list_accounts,
     resolve_account,
+    set_disabled,
 )
 from content_studio.mcp_server.generation_store import (
     cancel_batch,
@@ -989,6 +990,13 @@ async def ui_set_budget(client_slug: str, budget_micros: int) -> dict:
     async with connection() as conn:
         value = await set_budget(conn, client_slug, budget_micros)
     return {"budget_micros": value}
+
+
+@server.tool()
+async def ui_set_account_disabled(principal_id: str, disabled: bool) -> dict:
+    """Suspendă sau reactivează intern un cont; nu este pentru agent."""
+    async with connection() as conn:
+        return {"account": await set_disabled(conn, principal_id, disabled)}
 
 
 @server.tool()

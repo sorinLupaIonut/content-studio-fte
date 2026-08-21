@@ -108,6 +108,28 @@ RETURNING principal_id
 """
 
 
+# Revoking access is a timestamp, not a DELETE. The usage rows reference the
+# client, the audit trail references the runs, and a deleted principal would take
+# the meaning out of both. `resolve_account` already treats a stamped row as
+# nobody, so setting this is the whole revocation.
+SET_DISABLED_SQL = """
+UPDATE public.app_users
+   SET disabled_at = CASE WHEN $2 THEN NOW() ELSE NULL END
+ WHERE principal_id = $1
+RETURNING principal_id, disabled_at
+"""
+
+
+async def set_disabled(conn: Any, principal_id: str, disabled: bool) -> dict[str, Any] | None:
+    row = await conn.fetchrow(SET_DISABLED_SQL, principal_id, disabled)
+    if row is None:
+        return None
+    return {
+        "principal_id": row["principal_id"],
+        "disabled": row["disabled_at"] is not None,
+    }
+
+
 async def list_accounts(conn: Any) -> list[dict[str, Any]]:
     rows = await conn.fetch(LIST_ACCOUNTS_SQL)
     return [

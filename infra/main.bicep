@@ -89,6 +89,21 @@ resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
+// Workspace-based Application Insights, attached to the workspace that already
+// exists for the Container Apps environment. One place to look, not two: the
+// container's stdout and the application's traces land in the same store, and a
+// `run_id` joins them.
+resource insights 'Microsoft.Insights/components@2020-02-02' = {
+  name: '${namePrefix}-insights'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logs.id
+    IngestionMode: 'LogAnalytics'
+  }
+}
+
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${namePrefix}-env'
   location: location
@@ -243,6 +258,13 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'e2b-api-key'
           value: e2bApiKey
         }
+        {
+          // Not an API key, but it does authorise ingestion into this
+          // resource. Kept as a secret so it is redacted in the portal and in
+          // `az containerapp show`, like everything else that grants anything.
+          name: 'appinsights-connection-string'
+          value: insights.properties.ConnectionString
+        }
       ], empty(googleClientSecret) ? [] : [
         {
           name: 'google-provider-authentication-secret'
@@ -298,6 +320,10 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'E2B_API_KEY'
               secretRef: 'e2b-api-key'
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              secretRef: 'appinsights-connection-string'
+            }
           ]
           probes: [
             {
@@ -343,3 +369,4 @@ output harnessAppName string = harnessAppName
 output mcpAppName string = mcpAppName
 output mcpUrl string = mcpUrl
 output environmentName string = environment.name
+output insightsName string = insights.name

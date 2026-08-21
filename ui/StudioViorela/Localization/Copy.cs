@@ -349,6 +349,19 @@ public static class Copy
         "Ai atins limita contului de test. Cere-i lui Sorin să o ridice ca să continui.",
         "You have reached this test account's limit. Ask Sorin to raise it to carry on.");
 
+    // Not the same sentence as the budget: this one passes on its own, and
+    // saying "limit" for both would teach the reader that the two are one thing.
+    public static readonly Phrase RateLimited = new(
+        "Prea multe cereri într-un minut. Așteaptă puțin și încearcă din nou.",
+        "Too many requests in one minute. Wait a moment and try again.");
+
+    public static readonly Phrase AdminSuspend = new("Suspendă", "Suspend");
+    public static readonly Phrase AdminRestore = new("Reactivează", "Restore");
+    public static readonly Phrase AdminSuspended = new("suspendat", "suspended");
+    public static readonly Phrase AdminSuspendSaved = new(
+        "Accesul contului a fost schimbat.",
+        "The account's access has been changed.");
+
     public static readonly Phrase AdminNav = new("Administrare", "Admin");
     public static readonly Phrase AdminTitle = new("Conturi de test", "Test accounts");
     public static readonly Phrase AdminIntro = new(

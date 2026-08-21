@@ -112,6 +112,17 @@ AUTH_ALLOWED_PRINCIPAL_IDS = tuple(
 )
 AUTH_DEV_PRINCIPAL_ID = os.getenv("AUTH_DEV_PRINCIPAL_ID", "local-sorin").strip()
 AUTH_DEV_EMAIL = os.getenv("AUTH_DEV_EMAIL", "local@studio.invalid").strip().lower()
+# Empty is a supported state, not a misconfiguration: the harness runs and logs
+# to stdout, and `/health` says so plainly.
+APPLICATIONINSIGHTS_CONNECTION_STRING = os.getenv(
+    "APPLICATIONINSIGHTS_CONNECTION_STRING", ""
+).strip()
+
+# Per principal, per minute. A ceiling on accidents - a page stuck in a retry
+# loop, a held-down button - not a security boundary; the budget gate is what
+# bounds deliberate spending. 0 turns it off.
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+
 RUNNING_IN_AZURE = bool(
     os.getenv("CONTAINER_APP_NAME")
     or os.getenv("CONTAINER_APP_ENV_DNS_SUFFIX")

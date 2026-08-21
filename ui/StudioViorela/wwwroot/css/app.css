@@ -2120,3 +2120,20 @@ select:disabled {
     font-size: .78rem;
     border-radius: 9px;
 }
+
+/* A suspended account stays in the table - its usage and its history are still
+   the truth about what happened. It reads as inactive, not as absent. */
+.admin-table tr.is-suspended {
+    opacity: 0.55;
+}
+
+.admin-table .tag-suspended {
+    display: inline-block;
+    margin-top: 0.2rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: var(--surface-sunken, rgba(127, 127, 127, 0.18));
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}

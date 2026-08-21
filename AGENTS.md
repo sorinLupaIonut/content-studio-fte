@@ -64,6 +64,27 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
   there. An admin page that can mint admins is one stolen session from being
   somebody else's admin page.
 
+## Observability, limits and the runbook
+
+Decision 7 of the deployment course, wired on 2026-08-21 and adapted to what
+this project already had.
+
+- **One `run_id`, three surfaces.** The id is born in `Audit.open_run`, bound
+  once with `bind_run`, and from there it reaches every log line, the
+  OpenTelemetry span, and the rows in Neon. Nothing passes it as a parameter.
+- **The fourth surface, Phoenix, is deliberately absent.** `public.traces` plus
+  `replay.py` already give a durable, replayable record of a run; Phoenix would
+  add an account, a key and a bill for a second copy of it.
+- **Sampling is 100%.** The course samples a tenth of successes because it
+  assumes production traffic. Three accounts is not production traffic, and
+  dropping nine runs in ten would discard the only evidence of a weekly fault.
+- **Telemetry never gates a request.** `/health` reports `observability` but
+  never requires it. Monitoring that can cause an outage is worse than none.
+- **The rate limit and the budget gate are different mechanisms.** The limit
+  bounds accidents per minute, in memory, per replica; the budget bounds
+  deliberate spending, in the database, per account. Neither can do the other's
+  job, and merging them would need a price known before the request is served.
+
 ## Language policy
 
 This is not a style preference; it is how the project stays usable by the person it
@@ -120,6 +141,8 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
 | Output-language override | `language.py` | the skills stay Romanian |
 | Model prices | `pricing.py` | one table; a copy drifts silently |
+| What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
+| Telemetry wiring | `observability.py` | one `run_id`, three surfaces |
 | Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
 
 ## Conventions

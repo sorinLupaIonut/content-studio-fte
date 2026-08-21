@@ -48,6 +48,12 @@ public sealed class AdminAccountsDto
 }
 
 /// <summary>One provisioned account, with the real figures. Admin views only.</summary>
+public sealed class SetDisabledDto
+{
+    [JsonPropertyName("disabled")]
+    public bool Disabled { get; set; }
+}
+
 public sealed class AdminAccountDto
 {
     [JsonPropertyName("principal_id")]

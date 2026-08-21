@@ -1,0 +1,144 @@
+"""The rate limiter, and the paths it is allowed to touch."""
+
+import unittest
+
+from content_studio.harness.limits import RateLimiter, is_limited, key_for
+from content_studio.observability import RUN_ID, RunIdFilter
+
+
+class RateLimiterTests(unittest.TestCase):
+    def test_allows_up_to_the_limit(self):
+        limiter = RateLimiter(per_minute=3)
+        for i in range(3):
+            self.assertIsNone(limiter.retry_after("a", now=100.0 + i))
+
+    def test_refuses_past_the_limit(self):
+        limiter = RateLimiter(per_minute=2)
+        limiter.retry_after("a", now=100.0)
+        limiter.retry_after("a", now=101.0)
+        self.assertIsNotNone(limiter.retry_after("a", now=102.0))
+
+    def test_retry_after_is_when_the_oldest_hit_expires(self):
+        limiter = RateLimiter(per_minute=1)
+        limiter.retry_after("a", now=100.0)
+        # The one hit leaves the window at 160; asked at 130, that is 30 away.
+        self.assertEqual(limiter.retry_after("a", now=130.0), 30)
+
+    def test_retry_after_is_never_zero(self):
+        """A client that obeys a 0 would come back inside the same window."""
+        limiter = RateLimiter(per_minute=1)
+        limiter.retry_after("a", now=100.0)
+        self.assertGreaterEqual(limiter.retry_after("a", now=159.9), 1)
+
+    def test_the_window_slides(self):
+        limiter = RateLimiter(per_minute=2)
+        limiter.retry_after("a", now=100.0)
+        limiter.retry_after("a", now=101.0)
+        self.assertIsNotNone(limiter.retry_after("a", now=150.0))
+        # 100.0 has now left the window, so one slot is free again.
+        self.assertIsNone(limiter.retry_after("a", now=161.0))
+
+    def test_keys_do_not_share_an_allowance(self):
+        limiter = RateLimiter(per_minute=1)
+        limiter.retry_after("a", now=100.0)
+        self.assertIsNone(limiter.retry_after("b", now=100.0))
+
+    def test_zero_turns_it_off(self):
+        limiter = RateLimiter(per_minute=0)
+        self.assertFalse(limiter.enabled)
+        for i in range(50):
+            self.assertIsNone(limiter.retry_after("a", now=100.0 + i))
+
+
+class LimitedPathTests(unittest.TestCase):
+    def test_the_api_is_limited(self):
+        self.assertTrue(is_limited("/api/library"))
+        self.assertTrue(is_limited("/runs"))
+        self.assertTrue(is_limited("/sessions/abc/pending"))
+
+    def test_the_blazor_application_is_not(self):
+        """A first load is several hundred files; counted, it would trip."""
+        for path in (
+            "/",
+            "/_framework/blazor.webassembly.js",
+            "/_framework/System.Text.Json.wasm",
+            "/css/app.css",
+            "/health",
+        ):
+            self.assertFalse(is_limited(path), path)
+
+    def test_event_streams_are_exempt(self):
+        """One long connection, not many requests."""
+        self.assertFalse(is_limited("/api/runs/abc/events"))
+        self.assertFalse(is_limited("/api/generation-batches/abc/events"))
+
+
+class KeyTests(unittest.TestCase):
+    def test_the_principal_wins(self):
+        key = key_for({"x-ms-client-principal-id": "1234"}, "10.0.0.1")
+        self.assertEqual(key, "principal:1234")
+
+    def test_falls_back_to_the_peer(self):
+        self.assertEqual(key_for({}, "10.0.0.1"), "peer:10.0.0.1")
+
+    def test_an_unknown_peer_still_has_a_key(self):
+        self.assertEqual(key_for({}, None), "peer:unknown")
+
+
+class RunIdFilterTests(unittest.TestCase):
+    def _record(self):
+        import logging
+
+        return logging.LogRecord("t", logging.INFO, "f", 1, "m", None, None)
+
+    def test_puts_the_current_run_on_the_record(self):
+        token = RUN_ID.set("run-42")
+        try:
+            record = self._record()
+            RunIdFilter().filter(record)
+            self.assertEqual(record.run_id, "run-42")
+        finally:
+            RUN_ID.reset(token)
+
+    def test_outside_a_run_the_field_still_exists(self):
+        """The format string names it, so a missing field would raise on log."""
+        record = self._record()
+        RunIdFilter().filter(record)
+        self.assertEqual(record.run_id, "-")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class RateLimitMiddlewareTests(unittest.TestCase):
+    """The limiter as the running app actually applies it."""
+
+    def _app(self, per_minute: int):
+        from unittest.mock import patch as mock_patch
+
+        from fastapi.testclient import TestClient
+
+        from content_studio.harness.main import create_app
+        from tests.unit.test_harness import TEST_AUTH, FakeService
+
+        with mock_patch(
+            "content_studio.harness.limits.RATE_LIMIT_PER_MINUTE", per_minute
+        ):
+            return TestClient(create_app(FakeService, identity_resolver=TEST_AUTH))
+
+    def test_a_flood_gets_429_with_retry_after(self):
+        with self._app(per_minute=3) as client:
+            for _ in range(3):
+                self.assertNotEqual(client.get("/api/library").status_code, 429)
+            refused = client.get("/api/library")
+
+        self.assertEqual(refused.status_code, 429)
+        self.assertEqual(refused.json()["code"], "rate_limited")
+        self.assertGreaterEqual(int(refused.headers["Retry-After"]), 1)
+
+    def test_the_application_shell_is_never_limited(self):
+        """A first load is hundreds of files; the page must still appear."""
+        with self._app(per_minute=2) as client:
+            for _ in range(20):
+                self.assertNotEqual(client.get("/health").status_code, 429)

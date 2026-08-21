@@ -94,7 +94,9 @@ class FakeService:
     async def close(self) -> None:
         return None
 
-    async def health(self) -> HealthResponse:
+    async def health(
+        self, observability: dict[str, object] | None = None
+    ) -> HealthResponse:
         return HealthResponse(
             status="degraded",
             backends={

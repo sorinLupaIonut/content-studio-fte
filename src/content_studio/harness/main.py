@@ -25,6 +25,7 @@ from content_studio.harness.generation import (
     VariantSelectionRequest,
     encode_sse,
 )
+from content_studio.harness.limits import RateLimiter, is_limited, key_for
 from content_studio.harness.models import (
     CreateAccountRequest,
     DecisionsRequest,
@@ -36,11 +37,13 @@ from content_studio.harness.models import (
     RunRequest,
     RunResponse,
     SetBudgetRequest,
+    SetDisabledRequest,
     TrustedDecisionsRequest,
 )
 from content_studio.harness.posts import PostUpdateRequest, SavePostsRequest
 from content_studio.harness.service import HarnessError, HarnessService
 from content_studio.harness.static_ui import mount_ui
+from content_studio.observability import configure as configure_observability
 
 
 def create_app(
@@ -62,6 +65,29 @@ def create_app(
             await service.close()
 
     app = FastAPI(title="Content Studio Harness", version="0.1.0", lifespan=lifespan)
+
+    # Before any middleware, so the server span wraps the whole request rather
+    # than the part of it that survived the rate limiter.
+    app.state.observability = configure_observability(app)
+
+    limiter = RateLimiter()
+
+    @app.middleware("http")
+    async def rate_limit(request: Request, call_next):
+        if is_limited(request.url.path):
+            peer = request.client.host if request.client else None
+            wait = limiter.retry_after(key_for(request.headers, peer))
+            if wait is not None:
+                # A code, not a sentence: the interface is bilingual and owns
+                # the wording. `Retry-After` is what a well-behaved client obeys
+                # without anyone reading anything.
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "rate limited", "code": "rate_limited"},
+                    headers={"Retry-After": str(wait)},
+                )
+        return await call_next(request)
+
     if resolver.settings.mode == "development":
         app.add_middleware(
             CORSMiddleware,
@@ -119,7 +145,9 @@ def create_app(
 
     @app.get("/health", response_model=HealthResponse)
     async def health(request: Request) -> HealthResponse:
-        return await request.app.state.harness.health()
+        return await request.app.state.harness.health(
+            observability=request.app.state.observability
+        )
 
     @app.post("/runs", response_model=RunResponse)
     async def create_run(
@@ -214,6 +242,25 @@ def create_app(
         account = await request.app.state.harness.accounts.create_account(
             **body.model_dump()
         )
+        return {"account": account}
+
+    @app.put("/api/admin/accounts/{principal_id}/disabled")
+    async def admin_set_disabled(
+        principal_id: str,
+        body: SetDisabledRequest,
+        request: Request,
+        identity: Identity = admin_dependency,
+    ) -> dict:
+        # The one account an administrator must not be able to suspend is their
+        # own: there is no second admin to undo it, and the only way back would
+        # be `db/provision.py` from a terminal. Cheap rail, expensive omission.
+        if body.disabled and principal_id == identity.principal_id:
+            raise IdentityError(400, "Nu îți poți suspenda propriul cont.")
+        account = await request.app.state.harness.accounts.set_disabled(
+            principal_id, body.disabled
+        )
+        if account is None:
+            raise IdentityError(404, "Contul nu există.")
         return {"account": account}
 
     @app.put("/api/admin/accounts/{client_slug}/budget")

@@ -96,10 +96,14 @@ else
             <tbody>
                 @foreach (var account in _accounts)
                 {
-                    <tr>
+                    <tr class="@(account.Disabled ? "is-suspended" : "")">
                         <td>
                             <strong>@account.ClientName</strong>
                             <small>@account.Email</small>
+                            @if (account.Disabled)
+                            {
+                                <small class="tag-suspended">@T[Copy.AdminSuspended]</small>
+                            }
                         </td>
                         <td>@account.Role</td>
                         <td class="num">
@@ -142,6 +146,15 @@ else
                                 <button class="button button-small"
                                         @onclick="() => StartEdit(account)">
                                     @T[Copy.AdminSetBudget]
+                                </button>
+                                @* Suspending is reversible and keeps the usage
+                                   rows; it is a timestamp, not a delete. *@
+                                <button class="button button-small"
+                                        disabled="@_busy"
+                                        @onclick="() => ToggleDisabledAsync(account)">
+                                    @(account.Disabled
+                                        ? T[Copy.AdminRestore]
+                                        : T[Copy.AdminSuspend])
                                 </button>
                             }
                         </td>
@@ -203,6 +216,26 @@ else
             await Api.SetBudgetAsync(clientSlug, ToMicros(_editDollars));
             _editing = null;
             _notice = T[Copy.AdminBudgetSaved];
+            await LoadAsync();
+        }
+        catch (StudioApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ToggleDisabledAsync(AdminAccountDto account)
+    {
+        _busy = true;
+        try
+        {
+            await Api.SetDisabledAsync(account.PrincipalId, !account.Disabled);
+            _notice = T[Copy.AdminSuspendSaved];
+            _error = null;
             await LoadAsync();
         }
         catch (StudioApiException ex)

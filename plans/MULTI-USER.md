@@ -284,5 +284,9 @@ Steps 1–4 are the work. Step 5 is configuration, and deliberately last.
 - **Nobody but Sorin is provisioned.** Viorela deliberately has no `app_users`
   row: she falls through to `CLIENT_SLUG` and keeps the original profile, which
   is the correct behaviour and needs no action until she should own it formally.
-- **Disabling an account** has a column (`disabled_at`) and no button.
+- ~~**Disabling an account** has a column and no button.~~ Done on
+  2026-08-21: a Suspend/Restore button on the admin page, a timestamp rather
+  than a delete, the directory cache invalidated on the spot so a revocation
+  does not wait out its minute, and an administrator cannot suspend their own
+  account - there would be no second admin to undo it.
 - **`evals/cases.json`** still asserts Romanian only.

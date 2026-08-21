@@ -59,6 +59,8 @@ import uuid
 
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from content_studio.observability import bind_run
+
 #: The tools that cross the MCP boundary. The rest (`exec_command` and everything
 #: sandbox-related) are system tools, not business capabilities.
 MCP_TOOLS = {
@@ -272,6 +274,9 @@ class Audit:
             print(f"[audit] could not open the run: {type(e).__name__}: {e}", file=sys.stderr)
             return None
 
+        # From here on, every log line and every span in this task carries the
+        # id, without a single call site passing it along.
+        bind_run(run_id)
         await self.event(run_id, MESSAGE_RECEIVED)
         return run_id
 

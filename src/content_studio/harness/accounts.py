@@ -238,6 +238,16 @@ class AccountDirectory:
         )
         return (payload or {}).get("budget_micros")
 
+    async def set_disabled(self, principal_id: str, disabled: bool) -> dict[str, Any] | None:
+        payload = await self._call(
+            "ui_set_account_disabled",
+            {"principal_id": principal_id, "disabled": disabled},
+        )
+        # Without this the suspended person keeps working for up to the cache's
+        # minute - which is exactly the minute somebody would be revoked in.
+        self.forget(principal_id)
+        return (payload or {}).get("account")
+
     async def create_account(self, **fields: Any) -> dict[str, Any]:
         payload = await self._call("ui_create_account", fields)
         self.forget()

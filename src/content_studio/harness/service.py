@@ -267,7 +267,9 @@ class HarnessService:
             )
         return self.engine, self.trail
 
-    async def health(self) -> HealthResponse:
+    async def health(
+        self, observability: dict[str, object] | None = None
+    ) -> HealthResponse:
         openai_ok = has_openai_key()
         e2b_ok = has_e2b_key()
         skills_ok = SKILLS_DIR.is_dir()
@@ -329,6 +331,18 @@ class HarnessService:
                 detail=(
                     "Amânat explicit până la D5; postările rămân date de domeniu, "
                     "nu artifacts."
+                ),
+            ),
+            # Reported, never required: a studio that cannot be watched still
+            # works, and refusing to serve because a telemetry endpoint is down
+            # would be the monitoring causing the outage.
+            "observability": BackendHealth(
+                configured=bool(observability and observability.get("ok")),
+                active=bool(observability and observability.get("ok")),
+                detail=str(
+                    (observability or {}).get(
+                        "detail", "Telemetria nu a fost inițializată."
+                    )
                 ),
             ),
         }

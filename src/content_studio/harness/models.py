@@ -151,3 +151,9 @@ class SetBudgetRequest(BaseModel):
     """A lifetime allowance, in integer micro-dollars. 1_000_000 = $1.00."""
 
     budget_micros: int = Field(ge=0, le=1_000_000_000)
+
+
+class SetDisabledRequest(BaseModel):
+    """Suspend or restore one principal. Not a delete - see `SET_DISABLED_SQL`."""
+
+    disabled: bool
