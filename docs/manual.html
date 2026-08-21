@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manualul Studioului Viorela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+    --ground:      #F6F8F6;
+    --surface:     #FFFFFF;
+    --sunken:      #ECEFEC;
+    --ink:         #141A17;
+    --ink-muted:   #55605A;
+    --ink-faint:   #7C877F;
+    --rule:        #DBE1DC;
+    --accent:      #0F6B57;
+    --accent-soft: #E2F0EB;
+    --money:       #A9761C;
+    --money-soft:  #F6EEDC;
+    --danger:      #A6402C;
+    --shadow:      0 1px 2px rgba(20, 26, 23, .05), 0 8px 24px -16px rgba(20, 26, 23, .28);
+
+    --display: "Newsreader", Georgia, "Times New Roman", serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+    --measure: 34rem;
+    --wide: 58rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --ground:      #0D1210;
+        --surface:     #151B18;
+        --sunken:      #1D2521;
+        --ink:         #E7EDE9;
+        --ink-muted:   #A0AEA6;
+        --ink-faint:   #77857D;
+        --rule:        #2A332E;
+        --accent:      #56C4A6;
+        --accent-soft: #16302A;
+        --money:       #DFB264;
+        --money-soft:  #2C2617;
+        --danger:      #E28A74;
+        --shadow:      0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+    }
+}
+
+:root[data-theme="dark"] {
+    --ground:      #0D1210;
+    --surface:     #151B18;
+    --sunken:      #1D2521;
+    --ink:         #E7EDE9;
+    --ink-muted:   #A0AEA6;
+    --ink-faint:   #77857D;
+    --rule:        #2A332E;
+    --accent:      #56C4A6;
+    --accent-soft: #16302A;
+    --money:       #DFB264;
+    --money-soft:  #2C2617;
+    --danger:      #E28A74;
+    --shadow:      0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 0 1.5rem 6rem;
+}
+
+/* ---- masthead ---------------------------------------------------------- */
+
+.masthead {
+    padding: 5rem 0 3rem;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.kicker {
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(2.4rem, 6vw, 3.9rem);
+    line-height: 1.05;
+    letter-spacing: -.015em;
+    margin: 0;
+    text-wrap: balance;
+}
+
+.standfirst {
+    font-family: var(--display);
+    font-size: clamp(1.1rem, 2.2vw, 1.3rem);
+    line-height: 1.5;
+    color: var(--ink-muted);
+    max-width: var(--measure);
+    margin: 0;
+}
+
+.meta {
+    font-family: var(--mono);
+    font-size: .76rem;
+    color: var(--ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+}
+
+/* ---- chapters ---------------------------------------------------------- */
+
+section {
+    padding-top: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(1.55rem, 3.4vw, 2.1rem);
+    line-height: 1.15;
+    letter-spacing: -.01em;
+    margin: 0;
+    text-wrap: balance;
+    display: flex;
+    align-items: baseline;
+    gap: .85rem;
+}
+
+/* The chapters do build on one another, so the number carries order, not
+   decoration. */
+h2 .n {
+    font-family: var(--mono);
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: .08em;
+    flex: none;
+}
+
+h3 {
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: .01em;
+    margin: 1rem 0 -.4rem;
+}
+
+p, ul, ol { margin: 0; max-width: var(--measure); }
+ul, ol { padding-left: 1.15rem; display: flex; flex-direction: column; gap: .5rem; }
+li::marker { color: var(--ink-faint); }
+
+a { color: var(--accent); text-underline-offset: .18em; }
+
+strong { font-weight: 600; }
+
+code {
+    font-family: var(--mono);
+    font-size: .86em;
+    background: var(--sunken);
+    padding: .1em .35em;
+    border-radius: 4px;
+}
+
+pre {
+    font-family: var(--mono);
+    font-size: .82rem;
+    line-height: 1.6;
+    background: var(--sunken);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: .95rem 1.1rem;
+    overflow-x: auto;
+    margin: 0;
+    max-width: var(--wide);
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- the one flourish: a pull note ------------------------------------- */
+
+.note {
+    border-left: 2px solid var(--accent);
+    background: var(--accent-soft);
+    padding: .95rem 1.15rem;
+    border-radius: 0 8px 8px 0;
+    max-width: var(--measure);
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+.note p { max-width: none; }
+.note .label {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.note.money { border-left-color: var(--money); background: var(--money-soft); }
+.note.money .label { color: var(--money); }
+
+/* ---- tables ------------------------------------------------------------ */
+
+.table-scroll { overflow-x: auto; max-width: var(--wide); }
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 34rem;
+    font-size: .88rem;
+}
+
+th, td {
+    text-align: left;
+    padding: .62rem .8rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+}
+
+th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: .72rem;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+}
+
+td.num { font-variant-numeric: tabular-nums; }
+
+.pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .12rem .45rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.pill.done { background: var(--accent-soft); color: var(--accent); }
+.pill.part { background: var(--money-soft); color: var(--money); }
+.pill.skip { background: var(--sunken); color: var(--ink-faint); }
+
+/* ---- figures ----------------------------------------------------------- */
+
+figure {
+    margin: 1rem 0 .5rem;
+    max-width: var(--wide);
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+}
+
+.figure-frame {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1.4rem 1.2rem;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+}
+
+svg.diagram {
+    display: block;
+    width: 100%;
+    min-width: 30rem;
+    height: auto;
+    color: var(--ink);
+}
+
+figcaption {
+    font-size: .84rem;
+    line-height: 1.5;
+    color: var(--ink-muted);
+    max-width: var(--measure);
+}
+
+/* SVG paints through classes, never through `fill="var(--x)"` - a custom
+   property in a presentation attribute does not resolve. */
+.d-box   { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+.d-box-a { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.d-box-m { fill: var(--money-soft); stroke: var(--money); stroke-width: 1.5; }
+.d-line  { stroke: var(--ink-muted); stroke-width: 1.4; fill: none; }
+.d-line-a{ stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-line-d{ stroke: var(--ink-faint); stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+.d-head  { fill: var(--ink-muted); }
+.d-head-a{ fill: var(--accent); }
+.d-t     { fill: var(--ink); font-family: "IBM Plex Sans", sans-serif; font-size: 13px; }
+.d-t-b   { fill: var(--ink); font-family: "IBM Plex Sans", sans-serif; font-size: 13px; font-weight: 600; }
+.d-t-s   { fill: var(--ink-muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+.d-t-a   { fill: var(--accent); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+.d-t-m   { fill: var(--money); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+
+/* ---- command card ------------------------------------------------------ */
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: .9rem;
+    max-width: var(--wide);
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+}
+.card h3 { margin: 0; }
+.card p { font-size: .86rem; color: var(--ink-muted); max-width: none; }
+.card pre { font-size: .76rem; padding: .6rem .75rem; }
+
+footer {
+    margin-top: 4.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: .76rem;
+    color: var(--ink-faint);
+    max-width: var(--wide);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="masthead">
+    <span class="kicker">Content Studio FTE · manual de proprietar</span>
+    <h1>Manualul Studioului Viorela</h1>
+    <p class="standfirst">Ce ai construit, de ce fiecare bucată e făcută așa, și ce se întâmplă
+    exact între clicul din browser și rândul scris în Neon.</p>
+    <div class="meta">
+        <span>21 august 2026</span>
+        <span>Azure Container Apps · Neon · E2B</span>
+        <span>173 de teste</span>
+    </div>
+</header>
+
+<section id="ce-este">
+    <h2><span class="n">01</span> Ce este, în trei propoziții</h2>
+    <p>Un singur agent, care scrie postări în vocea Viorelei, urmând o metodă
+    scrisă în fișiere de tip <code>SKILL.md</code> — text, nu cod, ca să poată fi
+    schimbată fără programator.</p>
+    <p>Agentul nu atinge niciodată baza de date direct: tot ce citește și tot ce
+    scrie trece printr-un server MCP propriu, care are exact uneltele de care are
+    nevoie și niciuna în plus. Nu există „rulează SQL".</p>
+    <p>Și nimic nu se salvează fără confirmarea ei. Poarta stă pe server, nu în
+    interfață, deci protejează scrierea indiferent cine cheamă unealta.</p>
+</section>
+
+<section id="harta">
+    <h2><span class="n">02</span> Harta: ce vorbește cu ce</h2>
+    <p>Cinci piese. Fiecare are un motiv să fie separată de celelalte, și motivul
+    contează mai mult decât numele.</p>
+
+    <figure>
+        <div class="figure-frame">
+            <svg class="diagram" viewBox="0 0 900 430" role="img"
+                 aria-label="Browserul trece prin Easy Auth către harness; harness-ul cheamă serverul MCP care este singurul care atinge Neon, și pornește separat un sandbox E2B în care sunt montate skill-urile.">
+                <defs>
+                    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" class="d-head"/>
+                    </marker>
+                    <marker id="ara" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" class="d-head-a"/>
+                    </marker>
+                </defs>
+
+                <!-- browser -->
+                <rect class="d-box" x="20" y="150" width="130" height="70" rx="8"/>
+                <text class="d-t-b" x="85" y="180" text-anchor="middle">Browser</text>
+                <text class="d-t-s" x="85" y="198" text-anchor="middle">Blazor WASM</text>
+
+                <!-- easy auth -->
+                <rect class="d-box" x="200" y="150" width="130" height="70" rx="8"/>
+                <text class="d-t-b" x="265" y="175" text-anchor="middle">Easy Auth</text>
+                <text class="d-t-s" x="265" y="192" text-anchor="middle">sidecar Azure</text>
+                <text class="d-t-s" x="265" y="207" text-anchor="middle">Google sign-in</text>
+
+                <!-- harness -->
+                <rect class="d-box-a" x="385" y="140" width="150" height="90" rx="8"/>
+                <text class="d-t-b" x="460" y="172" text-anchor="middle">Harness</text>
+                <text class="d-t-s" x="460" y="190" text-anchor="middle">FastAPI</text>
+                <text class="d-t-a" x="460" y="207" text-anchor="middle">agentul rulează aici</text>
+
+                <!-- mcp -->
+                <rect class="d-box" x="600" y="60" width="150" height="80" rx="8"/>
+                <text class="d-t-b" x="675" y="88" text-anchor="middle">Server MCP</text>
+                <text class="d-t-s" x="675" y="106" text-anchor="middle">content-data</text>
+                <text class="d-t-s" x="675" y="121" text-anchor="middle">29 de unelte</text>
+
+                <!-- neon -->
+                <rect class="d-box" x="600" y="185" width="150" height="80" rx="8"/>
+                <text class="d-t-b" x="675" y="213" text-anchor="middle">Neon Postgres</text>
+                <text class="d-t-s" x="675" y="231" text-anchor="middle">postări · profil</text>
+                <text class="d-t-s" x="675" y="246" text-anchor="middle">audit · pgvector</text>
+
+                <!-- sandbox -->
+                <rect class="d-box" x="600" y="315" width="150" height="80" rx="8"/>
+                <text class="d-t-b" x="675" y="343" text-anchor="middle">Sandbox E2B</text>
+                <text class="d-t-s" x="675" y="361" text-anchor="middle">skills/ montate</text>
+                <text class="d-t-s" x="675" y="376" text-anchor="middle">fără chei</text>
+
+                <!-- arrows -->
+                <line class="d-line" x1="150" y1="185" x2="192" y2="185" marker-end="url(#ar)"/>
+                <line class="d-line" x1="330" y1="185" x2="377" y2="185" marker-end="url(#ar)"/>
+                <text class="d-t-s" x="353" y="176" text-anchor="middle">cine ești</text>
+
+                <path class="d-line-a" d="M 535 165 C 570 165, 570 100, 592 100" marker-end="url(#ara)"/>
+                <text class="d-t-a" x="556" y="128" text-anchor="middle">unelte</text>
+
+                <line class="d-line" x1="675" y1="140" x2="675" y2="177" marker-end="url(#ar)"/>
+                <text class="d-t-s" x="690" y="164" text-anchor="start">singurul</text>
+
+                <path class="d-line" d="M 535 205 C 570 205, 570 355, 592 355" marker-end="url(#ar)"/>
+                <text class="d-t-s" x="556" y="300" text-anchor="middle">metoda</text>
+
+                <!-- audit direct line -->
+                <path class="d-line-d" d="M 460 230 C 460 290, 500 290, 560 260 C 590 246, 596 240, 599 236"
+                      marker-end="url(#ar)"/>
+                <text class="d-t-s" x="470" y="286" text-anchor="start">auditul, conexiune directă</text>
+
+                <text class="d-t-s" x="20" y="415">linie punctată = ocolește granița MCP, deliberat</text>
+            </svg>
+        </div>
+        <figcaption>Serverul MCP e singurul care atinge datele de business. Excepția
+        e auditul, cu conexiunea lui directă — pentru că rândul de audit trebuie să
+        se comită în <em>aceeași</em> tranzacție cu scrierea pe care o descrie.</figcaption>
+    </figure>
+
+    <h3>De ce sandbox-ul nu are chei</h3>
+    <p>În sandbox rulează cod generat. Dacă ar avea cheia de OpenAI sau șirul de
+    conexiune la Neon, orice greșeală a modelului ar deveni o greșeală cu
+    consecințe. Așa, tot ce poate face acolo e să citească metoda montată și să
+    ceară harness-ului o unealtă.</p>
+</section>
+
+<section id="decizii">
+    <h2><span class="n">03</span> Cele zece decizii, și unde stă fiecare</h2>
+    <p>Cursul de deployment le numerotează. Iată-le raportat la ce ai tu.</p>
+
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>Decizie</th>
+                    <th>Stare</th>
+                    <th>Unde trăiește la tine</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>0 · sondează SDK-ul</td><td><span class="pill done">gata</span></td>
+                    <td>Nota din capul lui <code>AGENTS.md</code>; <code>openai-agents</code> 0.20.0</td></tr>
+                <tr><td>1 · harness</td><td><span class="pill done">gata</span></td>
+                    <td><code>src/content_studio/harness/</code></td></tr>
+                <tr><td>2 · container</td><td><span class="pill done">gata</span></td>
+                    <td><code>Dockerfile</code>, UI precomprimat</td></tr>
+                <tr><td>3 · Azure Container Apps</td><td><span class="pill done">gata</span></td>
+                    <td><code>infra/main.bicep</code> + Google sign-in</td></tr>
+                <tr><td>4 · Neon Postgres</td><td><span class="pill done">gata</span></td>
+                    <td><code>db/schema.sql</code>; pooled pentru app, direct pentru migrări</td></tr>
+                <tr><td>5 · Cloudflare R2</td><td><span class="pill skip">nu se aplică</span></td>
+                    <td>Postările sunt date de domeniu, nu fișiere. <code>/health</code> o spune explicit.</td></tr>
+                <tr><td>6 · sandbox</td><td><span class="pill done">gata</span></td>
+                    <td>E2B, skill-uri montate ca foldere</td></tr>
+                <tr><td>7 · observabilitate</td><td><span class="pill done">gata azi</span></td>
+                    <td><code>observability.py</code> + Application Insights</td></tr>
+                <tr><td>8 · evals</td><td><span class="pill part">parțial, voit</span></td>
+                    <td>CI verifică ce e gratis; rulările care costă rămân decizia ta</td></tr>
+                <tr><td>9 · checklist producție</td><td><span class="pill done">gata azi</span></td>
+                    <td><code>docs/RUNBOOK.md</code>, limită de rată, alertă de cost</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section id="cine-esti">
+    <h2><span class="n">04</span> Cine ești tu, pentru sistem</h2>
+    <p>Asta e bucata care arată simplă și nu e. Google îți dă un
+    <em>principal id</em> — un număr lung. Problema: acel număr aparține
+    furnizorului de identitate, nu ție. Același om, intrat prin Google și mâine
+    prin Entra External ID, sosește cu două numere diferite.</p>
+
+    <figure>
+        <div class="figure-frame">
+            <svg class="diagram" viewBox="0 0 900 320" role="img"
+                 aria-label="Două principal id-uri, unul de la Google și unul de la Entra External ID, arată amândouă către același rând din app_users care arată către un singur rând din clients; rândul de client deține profilul, bugetul și consumul.">
+                <defs>
+                    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" class="d-head"/>
+                    </marker>
+                </defs>
+
+                <rect class="d-box" x="20" y="45" width="185" height="62" rx="8"/>
+                <text class="d-t" x="112" y="70" text-anchor="middle">principal Google</text>
+                <text class="d-t-s" x="112" y="88" text-anchor="middle">1030765…194559</text>
+
+                <rect class="d-box" x="20" y="175" width="185" height="62" rx="8"/>
+                <text class="d-t" x="112" y="200" text-anchor="middle">principal External ID</text>
+                <text class="d-t-s" x="112" y="218" text-anchor="middle">alt număr, același om</text>
+
+                <rect class="d-box" x="310" y="105" width="180" height="80" rx="8"/>
+                <text class="d-t-b" x="400" y="133" text-anchor="middle">app_users</text>
+                <text class="d-t-s" x="400" y="151" text-anchor="middle">tabelă de legături</text>
+                <text class="d-t-s" x="400" y="166" text-anchor="middle">rol · suspendare</text>
+
+                <rect class="d-box-a" x="595" y="80" width="200" height="130" rx="8"/>
+                <text class="d-t-b" x="695" y="110" text-anchor="middle">clients</text>
+                <text class="d-t-a" x="695" y="130" text-anchor="middle">contul propriu-zis</text>
+                <text class="d-t" x="695" y="155" text-anchor="middle">profilul</text>
+                <text class="d-t" x="695" y="175" text-anchor="middle">bugetul pe viață</text>
+                <text class="d-t" x="695" y="195" text-anchor="middle">consumul</text>
+
+                <path class="d-line" d="M 205 76 C 255 76, 265 130, 302 132" marker-end="url(#ar2)"/>
+                <path class="d-line" d="M 205 206 C 255 206, 265 160, 302 158" marker-end="url(#ar2)"/>
+                <line class="d-line" x1="490" y1="145" x2="587" y2="145" marker-end="url(#ar2)"/>
+                <text class="d-t-s" x="538" y="136" text-anchor="middle">client_id</text>
+
+                <text class="d-t-s" x="20" y="285">Mai multe uși pot duce la același cont. Un cont nu se</text>
+                <text class="d-t-s" x="20" y="302">poate rupe în două pentru că ai schimbat furnizorul.</text>
+            </svg>
+        </div>
+        <figcaption>Dacă principalul ar fi fost cheia profilului, schimbarea
+        furnizorului de identitate ar fi produs două profiluri și două bugete
+        pentru aceeași persoană — fără nicio cale curată de a le lipi după ce
+        s-a cheltuit pe fiecare.</figcaption>
+    </figure>
+
+    <div class="note">
+        <span class="label">Regula care ține totul</span>
+        <p>Clientul se rezolvă din <strong>conexiune</strong>, niciodată dintr-un
+        argument al uneltei. <code>save_post</code> e vizibil pentru model, iar un
+        client pe care modelul îl poate numi e un client pe care modelul îl poate
+        greși.</p>
+    </div>
+
+    <p>Viorela nu are rând în <code>app_users</code>, și e corect așa: cade pe
+    <code>CLIENT_SLUG</code> și rămâne pe profilul original. Contul tău,
+    <code>sorin</code>, a pornit cu o <em>copie</em> a profilului ei — ce editezi
+    tu nu atinge ce scrie agentul ei.</p>
+</section>
+
+<section id="bani">
+    <h2><span class="n">05</span> Banii: o oprire, nu un plafon</h2>
+    <p>Fiecare cont are o alocație pe viață, în micro-dolari întregi, pe care o
+    modifici tu din pagina de administrare. Fără resetare lunară, fără cron —
+    asta e o decizie, nu o scăpare.</p>
+
+    <figure>
+        <div class="figure-frame">
+            <svg class="diagram" viewBox="0 0 900 260" role="img"
+                 aria-label="O linie a timpului: poarta verifică bugetul înainte de apel, apelul rulează, iar costul devine cunoscut abia după ce apelul se întoarce; de aceea depășirea posibilă e de un singur apel.">
+                <defs>
+                    <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" class="d-head"/>
+                    </marker>
+                </defs>
+
+                <line class="d-line" x1="40" y1="150" x2="850" y2="150" marker-end="url(#ar3)"/>
+
+                <circle class="d-box-m" cx="150" cy="150" r="11"/>
+                <text class="d-t-b" x="150" y="118" text-anchor="middle">poarta</text>
+                <text class="d-t-m" x="150" y="100" text-anchor="middle">ai voie să începi?</text>
+                <text class="d-t-s" x="150" y="190" text-anchor="middle">știe cât s-a cheltuit</text>
+                <text class="d-t-s" x="150" y="206" text-anchor="middle">până acum</text>
+
+                <rect class="d-box" x="330" y="130" width="190" height="40" rx="8"/>
+                <text class="d-t" x="425" y="155" text-anchor="middle">apelul către model</text>
+                <text class="d-t-s" x="425" y="112" text-anchor="middle">mărginit de max_tokens</text>
+
+                <circle class="d-box-m" cx="650" cy="150" r="11"/>
+                <text class="d-t-b" x="650" y="118" text-anchor="middle">costul</text>
+                <text class="d-t-m" x="650" y="100" text-anchor="middle">abia acum e cunoscut</text>
+                <text class="d-t-s" x="650" y="190" text-anchor="middle">se scrie în usage_events</text>
+
+                <path class="d-line-d" d="M 150 218 C 150 245, 650 245, 650 218"/>
+                <text class="d-t-m" x="400" y="240" text-anchor="middle">depășirea posibilă = exact un apel</text>
+            </svg>
+        </div>
+        <figcaption>Costul unui apel se știe abia când apelul se întoarce. Deci
+        promisiunea onestă e „nu pornește nimic nou", nu „niciodată un cent peste".
+        Poarta verifică și <em>între idei</em> într-un lot — altfel un cont ajuns la
+        95% ar cheltui zece apeluri de detaliu într-o singură pornire.</figcaption>
+    </figure>
+
+    <div class="note money">
+        <span class="label">Ce vede utilizatorul</span>
+        <p>Un procent, și nimic altceva. Împărțirea se face pe server, în
+        <code>/api/me/usage</code> — endpoint-ul nu trimite deloc costul, deci nu e
+        nimic de citit în devtools. A ascunde o cifră în interfață nu ar fi
+        ascuns-o.</p>
+    </div>
+
+    <p>Prețurile stau într-un singur tabel, <code>pricing.py</code>. Un model care
+    nu e trecut acolo se taxează la <strong>cel mai scump rând</strong>, deliberat:
+    dacă schimbi <code>MODEL</code> și uiți să-l adaugi, bugetul supraevaluează și
+    observi — nu subevaluează și cineva rulează pe gratis.</p>
+</section>
+
+<section id="observabilitate">
+    <h2><span class="n">06</span> Când ceva se strică: un singur <code>run_id</code></h2>
+    <p>Asta e Decizia 7, construită azi. Ideea nu e „adaugă un dashboard". E că
+    trebuie să poți porni de la orice simptom și să ajungi la cauză urmărind un
+    singur număr.</p>
+
+    <figure>
+        <div class="figure-frame">
+            <svg class="diagram" viewBox="0 0 900 340" role="img"
+                 aria-label="Un run_id în centru, legat de trei suprafețe: liniile de log, span-ul OpenTelemetry din Application Insights, și rândurile din Neon pe care replay.py le reconstruiește. Phoenix este arătat separat, nelegat, ca absent deliberat.">
+                <defs>
+                    <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" class="d-head-a"/>
+                    </marker>
+                </defs>
+
+                <rect class="d-box-a" x="345" y="130" width="185" height="72" rx="10"/>
+                <text class="d-t-b" x="437" y="160" text-anchor="middle">run_id</text>
+                <text class="d-t-a" x="437" y="180" text-anchor="middle">se naște în open_run</text>
+
+                <rect class="d-box" x="40" y="30" width="200" height="70" rx="8"/>
+                <text class="d-t-b" x="140" y="58" text-anchor="middle">Fiecare linie de log</text>
+                <text class="d-t-s" x="140" y="78" text-anchor="middle">[run=…] în stdout</text>
+
+                <rect class="d-box" x="650" y="30" width="210" height="70" rx="8"/>
+                <text class="d-t-b" x="755" y="52" text-anchor="middle">Application Insights</text>
+                <text class="d-t-s" x="755" y="70" text-anchor="middle">span OpenTelemetry</text>
+                <text class="d-t-s" x="755" y="85" text-anchor="middle">studio.run_id</text>
+
+                <rect class="d-box" x="345" y="255" width="185" height="70" rx="8"/>
+                <text class="d-t-b" x="437" y="283" text-anchor="middle">Neon</text>
+                <text class="d-t-s" x="437" y="303" text-anchor="middle">runs · audit_log · traces</text>
+
+                <path class="d-line-a" d="M 345 152 C 290 145, 250 110, 240 95" marker-end="url(#ar4)"/>
+                <path class="d-line-a" d="M 530 152 C 590 145, 630 110, 646 95" marker-end="url(#ar4)"/>
+                <path class="d-line-a" d="M 437 202 L 437 247" marker-end="url(#ar4)"/>
+
+                <rect class="d-box" x="650" y="255" width="210" height="70" rx="8" opacity="0.45"/>
+                <text class="d-t" x="755" y="283" text-anchor="middle" opacity="0.55">Phoenix</text>
+                <text class="d-t-s" x="755" y="303" text-anchor="middle" opacity="0.55">nelegat, deliberat</text>
+            </svg>
+        </div>
+        <figcaption>Trei suprafețe, nu patru. A patra din curs, Phoenix, ar fi un
+        cont în plus, o cheie în plus și o factură în plus pentru o a doua copie a
+        ceva ce <code>public.traces</code> plus <code>replay.py</code> păstrează deja
+        durabil și reluabil.</figcaption>
+    </figure>
+
+    <h3>Două alegeri pe care le-am făcut altfel decât cursul</h3>
+    <p><strong>Eșantionarea e 100%.</strong> Cursul păstrează o zecime din rulările
+    reușite, pentru că presupune trafic de producție. Trei conturi nu e trafic de
+    producție, iar a arunca nouă rulări din zece ar arunca exact singura dovadă a
+    unei defecțiuni care se întâmplă o dată pe săptămână.</p>
+    <p><strong>Telemetria nu blochează niciodată o cerere.</strong>
+    <code>/health</code> raportează <code>observability</code>, dar nu o cere. O
+    monitorizare care poate provoca o pană e mai rea decât lipsa ei.</p>
+
+    <pre><code>uv run python -m content_studio.replay &lt;run_id&gt;</code></pre>
+    <p>Comanda de mai sus nu are nevoie de Azure. E înregistrarea din Neon,
+    reconstruită tură cu tură.</p>
+</section>
+
+<section id="limita">
+    <h2><span class="n">07</span> Limita de rată — și de ce nu e același lucru cu bugetul</h2>
+    <p>Sunt două mecanisme care par unul singur. Nu sunt.</p>
+
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr><th></th><th>Limita de rată</th><th>Poarta de buget</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Mărginește</td><td>accidentele într-un minut</td><td>cheltuiala deliberată</td></tr>
+                <tr><td>Trăiește în</td><td>memoria replicii</td><td>baza de date</td></tr>
+                <tr><td>Pe</td><td>principal</td><td>cont</td></tr>
+                <tr><td>Răspunde</td><td class="num">429 + <code>Retry-After</code></td><td class="num">402</td></tr>
+                <tr><td>Se resetează</td><td>după un minut, singură</td><td>niciodată; o ridici tu</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p>Limita atinge doar API-ul. Nu atinge fișierele aplicației — o primă
+    încărcare de Blazor cere câteva sute de fișiere, și numărate, ar fi declanșat
+    limita înainte ca pagina să apară. Nici fluxurile lungi de evenimente:
+    acelea sunt o conexiune, nu multe cereri.</p>
+
+    <p>Contorul e per replică. Cu o singură replică asta e toată povestea; scalat
+    la trei, limita efectivă e de trei ori numărul — schimbul corect aici, pentru
+    că un contor comun ar însemna un Redis, iar un Redis pentru trei oameni e
+    încă un lucru de ținut în viață degeaba.</p>
+</section>
+
+<section id="absent">
+    <h2><span class="n">08</span> Ce lipsește deliberat</h2>
+    <p>Un sistem se înțelege și prin ce nu are. Trei lucruri din curs nu sunt
+    aici, fiecare cu motivul lui.</p>
+
+    <h3>Cloudflare R2</h3>
+    <p>Decizia 5 adaugă stocare de fișiere. Postările tale sunt text în Postgres,
+    date de domeniu, nu artefacte descărcabile. <code>/health</code> raportează
+    <code>artifacts</code> ca inactiv, cu motivul scris în cod — nu e o piesă
+    uitată, e o piesă refuzată.</p>
+
+    <h3>Phoenix, DeepEval, Ragas, job de noapte</h3>
+    <p>Decizia 8 leagă patru cadre de evaluare și un grader nocturn. Fiecare
+    dintre ele <em>rulează agentul</em>, iar a rula agentul costă bani — ceea ce în
+    proiectul ăsta e decizia ta, luată per rulare, nu a unui cron.</p>
+    <p>CI-ul verifică ce se poate verifica gratis: lint, cele 173 de teste, și că
+    <code>evals/cases.json</code> e încă bine format. O schimbare care strică
+    <em>infrastructura</em> de evals e prinsă înainte de merge; o schimbare care face
+    agentul <em>mai prost</em> se prinde rulând evals, intenționat, cu cineva care
+    se uită.</p>
+
+    <h3>Al doilea administrator</h3>
+    <p>Primul admin se face doar din terminal, cu <code>db/provision.py</code>. O
+    pagină de administrare care poate fabrica administratori e la o sesiune furată
+    distanță de a fi pagina de administrare a altcuiva. Din același motiv, un
+    administrator nu își poate suspenda propriul cont — n-ar mai exista nimeni
+    care să anuleze.</p>
+</section>
+
+<section id="comenzi">
+    <h2><span class="n">09</span> Comenzile pe care le vei tasta</h2>
+
+    <div class="cards">
+        <div class="card">
+            <h3>Înainte de orice commit</h3>
+            <p>Ruff e podeaua, testele sunt plasa.</p>
+            <pre><code>uv run ruff check .
+uv run python -m unittest discover -s tests/unit</code></pre>
+        </div>
+        <div class="card">
+            <h3>Publică o versiune nouă</h3>
+            <p><code>-LocalBuild</code> pentru că Azure a refuzat abonamentului
+            build-ul în cloud.</p>
+            <pre><code>powershell -File infra/deploy.ps1 -LocalBuild</code></pre>
+        </div>
+        <div class="card">
+            <h3>Adaugă sau scoate un tester</h3>
+            <p>Editezi <code>AUTH_ALLOWED_EMAILS</code> în <code>.env</code>.
+            Fără reconstruire.</p>
+            <pre><code>powershell -File infra/deploy.ps1 -SkipBuild</code></pre>
+        </div>
+        <div class="card">
+            <h3>Fă un cont nou</h3>
+            <p>Sau din pagina de administrare, dacă e un utilizator obișnuit.</p>
+            <pre><code>uv run python -m content_studio.db.provision --list</code></pre>
+        </div>
+        <div class="card">
+            <h3>Alerta de cost pe Azure</h3>
+            <p>O singură dată. Avertizează; nu oprește nimic.</p>
+            <pre><code>powershell -File infra/cost-alert.ps1 `
+  -Email tu@exemplu.com -MonthlyBudget 25</code></pre>
+        </div>
+        <div class="card">
+            <h3>Când ceva se strică</h3>
+            <p>Fiecare scenariu are un răspuns scris dinainte.</p>
+            <pre><code>docs/RUNBOOK.md</code></pre>
+        </div>
+    </div>
+</section>
+
+<section id="limba">
+    <h2><span class="n">10</span> Limba: două straturi, nu două aplicații</h2>
+    <p>Interfața e bilingvă. Metoda nu este, și asta e intenționat.</p>
+    <ul>
+        <li><strong>Textul interfeței</strong> stă în <code>Copy.cs</code>, cu
+        ambele limbi pe aceeași linie. Două fișiere ar diverge în tăcere.</li>
+        <li><strong>Metoda rămâne în română</strong> — <code>BASE_INSTRUCTIONS</code>,
+        fiecare <code>SKILL.md</code>, fiecare <code>references/</code>. Ce
+        schimbă limba răspunsului e un singur bloc adăugat, în
+        <code>language.py</code>, niciodată o a doua copie a metodei.</li>
+        <li><strong>Valorile de domeniu nu se traduc.</strong>
+        <code>Pilon</code>, <code>Sursă</code>, <code>Format</code> sunt contractul
+        API; li se schimbă doar eticheta.</li>
+        <li><strong>Titlurile de secțiune din profil rămân române în ambele
+        limbi</strong>, pentru că sunt conținutul ei, extras din profilul însuși.</li>
+    </ul>
+</section>
+
+<footer>
+    Content Studio FTE · 21 august 2026 · deciziile 0–9 ale cursului de deployment,
+    raportate la acest proiect. Adevărul despre fiecare bucată stă în fișierul care
+    o deține — vezi tabelul din AGENTS.md.
+</footer>
+
+</div>
+
+</body>
+</html>

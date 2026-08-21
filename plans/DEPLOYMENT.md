@@ -49,11 +49,11 @@ adapted to this project. We stop after each decision for a human go/no-go.
 | D2 | Containerize (multi-stage: .NET SDK → Python) | ✅ image builds and runs — `Dockerfile` (.NET SDK 10 `-c Release` → `python:3.13-slim`, 425 MB) and `.dockerignore` written by Codex; built and verified end to end 2026-08-19 as two containers on one Docker network: `/health` `ready`, UI served, Brotli/gzip negotiation proven byte-identical to the originals, no `.env` or `content/` in the image |
 | D3 | Deploy to Azure Container Apps | ✅ done — live at `studio-harness.greenhill-fd5afa41.eastus.azurecontainerapps.io` with Google sign-in on; image built locally and pushed because ACR Tasks is barred on Free Trial; see the 2026-08-21 changelog entry |
 | D4 | Neon from the cloud + schema changes | 🟡 the course's five-table state model **adopted and verified functionally**; pooled/direct split enforced in code; the "from the cloud" half waits for D3 |
-| D5 | Cloudflare R2 — wire it or skip it on purpose | ⬜ open decision |
-| D6 | Sandbox execution from the cloud | ⬜ not started |
-| D7 | Observability | ⬜ not started |
-| D8 | Evals as a deploy gate | ⬜ not started |
-| D9 | Production checklist | ⬜ not started |
+| D5 | Cloudflare R2 — wire it or skip it on purpose | ✅ **skipped on purpose** 2026-08-21 — the posts are domain data in Postgres, not downloadable artifacts. `/health` reports `artifacts` inactive with the reason in the body, so the refusal is visible in the running system, not only in a plan |
+| D6 | Sandbox execution from the cloud | 🟡 the key is deployed and the live `/health` reports `e2b` active; a real sandboxed run *from the cloud* is still without evidence, because starting one costs money and that is Sorin's call |
+| D7 | Observability | ✅ done 2026-08-21 — three surfaces joined by one `run_id`; Application Insights provisioned in Bicep, wired in `observability.py`, and confirmed live (`observability: ok` in the deploy's own health gate). Phoenix skipped on purpose |
+| D8 | Evals as a deploy gate | 🟡 **partial on purpose** — CI gates everything that is free (ruff, 173 unit tests, `cases.json` well-formedness). DeepEval, Ragas, Phoenix evaluators and a nightly grader all *run the agent*, and paid runs are Sorin's decision per run, not a cron's. The promotion ritual is written down in `docs/RUNBOOK.md` so it can start without a design session |
+| D9 | Production checklist | ✅ done 2026-08-21 — `docs/RUNBOOK.md` (seven scenarios, each with a named response), per-principal rate limiting (429 + `Retry-After`), a post-deploy health gate in `deploy.ps1`, a resource-group cost alert in `infra/cost-alert.bicep`, and a secret-rotation table. Blue/green is ACA revisions plus the rollback command in the runbook |
 
 ## D0 findings — read these before writing harness code
 
@@ -549,6 +549,55 @@ is real. What remains for D3 is not access but a spending decision — see the
 changelog entry below and [infra/README.md](../infra/README.md).
 
 ## Changelog
+
+- **2026-08-21 · Claude Code** — **D7 and D9 built, D5 refused on the record, and
+  the last hole in the admin page closed.** Asked for by Sorin at speed, with the
+  instruction to look at the remaining Decisions myself and apply them *relative
+  to this project* rather than verbatim.
+
+  **The probe caught the trap before the deploy did.** `azure-monitor-opentelemetry`
+  instruments FastAPI itself, by patching the constructor. Our app is built before
+  `configure()` runs, so the distro's patch would have done nothing here — and
+  would have double-counted every server span on an app built later. It is
+  disabled in `instrumentation_options` and `FastAPIInstrumentor.instrument_app`
+  is called explicitly on the app in hand, where `/health` can also be excluded.
+  Decision 0's habit — probe the installed package, the live shapes win — paid for
+  itself again.
+
+  **Two places where the course was deliberately not followed.** It samples
+  roughly a tenth of successful runs; this studio keeps everything, because three
+  accounts is not production traffic and dropping nine runs in ten would discard
+  the only evidence of a fault that happens once a week. And the fourth surface,
+  Phoenix, is not wired: `public.traces` plus `replay.py` already hold a durable,
+  replayable record, so Phoenix would buy a second copy of it for an account, a
+  key and a bill.
+
+  **A test found a real defect.** `RateLimiter.__init__` took
+  `RATE_LIMIT_PER_MINUTE` as a signature default, which freezes at import — the
+  environment variable would never have taken effect in any process that
+  configures itself after importing. Read at construction now.
+
+  **The rate limit is an allowlist, not a denylist**, and that is not fussiness:
+  a first load of the Blazor application is several hundred files, so a denylist
+  would have tripped the limit before the page finished appearing. There is a
+  test for exactly that.
+
+  **Suspending an account** is a timestamp, never a delete — the usage rows point
+  at the client and the audit trail points at the runs, and a deleted principal
+  would take the meaning out of both. The directory cache is invalidated on the
+  spot, because otherwise a revocation would wait out its own minute. And an
+  administrator cannot suspend their own account: there is no second admin to
+  undo it, and the only way back would be `db/provision.py` from a terminal.
+
+  **`-LocalBuild` is now in `deploy.ps1`.** ACR Tasks is refused to this
+  subscription (`TasksOperationsNotAllowed`) while pushing to the same registry
+  still works, so the fallback that was being done by hand is a switch now, with
+  `--platform linux/amd64` set explicitly so the day this runs from an arm64
+  machine is not a mystery.
+
+  Live and verified: revision `studio-harness--0000009` on tag `20260821-obs`,
+  `/health` `ready`, `observability: ok`. `docs/manual.html` is the owner's
+  manual for all of it.
 
 - **2026-08-21 · Claude Code** — **The studio is bilingual: the interface, the
   chat and the generated content all follow one switch, and the sign-out control
