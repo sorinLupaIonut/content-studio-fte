@@ -190,11 +190,24 @@ Restul planului, cu tot contextul, în [DEPLOYMENT.md](DEPLOYMENT.md).
 ## 6. De rezolvat, rămase din sesiunile anterioare
 
 - Rotația parolei `neondb_owner` de la Neon (a ajuns într-o transcriere), plus
-  actualizarea lui `DATABASE_URL` și `DATABASE_URL_DIRECT` în `.env`.
-- Artifactul „Codul Studio Viorela" e cu un rând în urmă față de
-  `docs/tutorial-ro.html` (rândul despre `ui/**/dist`).
+  actualizarea lui `DATABASE_URL` și `DATABASE_URL_DIRECT` în `.env`. **Rămâne
+  deschisă.** Nu se poate face din MCP-ul Neon — nu există unealtă de resetare a
+  parolei unui rol; se face din consola Neon, iar `.env` se actualizează după.
+  Momentul e bun cât timp nimic nu e provizionat în Azure: nu are ce să strice.
+- ~~Artifactul „Codul Studio Viorela" e cu un rând în urmă...~~ **Greșit.**
+  Verificat pe 20 august prin descărcarea artefactului publicat și diff cu
+  `docs/tutorial-ro.html`: conținutul e **identic**, rândul despre `ui/**/dist`
+  este acolo. Singurele diferențe sunt învelișul injectat de platformă și un
+  `<title>` diferit — artefactul se numește „Codul Studio Viorela", fișierul are
+  „Codul, pe înțelesul celui care îl trimite în producție". Nu e nimic de
+  republicat.
 - `docs/tutorial.html` (engleză, din era CLI) e depășit pentru harness, generator
-  și UI.
+  și UI. E singura restanță mare rămasă — un document de 55 KB, deci o sesiune
+  dedicată, nu o corectură.
+- `docs/tutorial-ro.html` spune „105 teste gratuite"; acum sunt **110**. Documentul
+  e datat explicit („starea codului la 18 august 2026"), deci cifra nu e o
+  greșeală, ci un instantaneu. De actualizat odată cu următoarea revizie, nu
+  izolat — o singură cifră schimbată într-un text datat lasă restul nedovedit.
 - ~~Branch-ul temporar Neon `schema-check-tmp`...~~ Rezolvat pe 19 august: toate
   cele patru branch-uri secundare (`schema-check-tmp`, `pre-deployment-2026-08-17`,
   `pre-d4-course-schema-2026-08-17`, `pre-curatare-2026-08-19`) au fost șterse la

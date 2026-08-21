@@ -47,7 +47,7 @@ adapted to this project. We stop after each decision for a human go/no-go.
 | D1 | Harness: FastAPI + the gate on Postgres | ✅ complete — HTTP park/approve/resume contract, 21 free tests; paid live round trip proven 2026-08-18: `RunState` (48,811 bytes) persisted on interruption, approved, resumed, write completed on production data |
 | D1b | Blazor WebAssembly interface | 🟡 shell, profile, hybrid generator, streaming chat, batch save and the saved-post editor all built; real 10×5 hybrid batch and real batch save both proven 2026-08-18–19 (see Changelog); a real **rewrite** through the gate (editing an already-saved post) is the one acceptance still without evidence |
 | D2 | Containerize (multi-stage: .NET SDK → Python) | ✅ image builds and runs — `Dockerfile` (.NET SDK 10 `-c Release` → `python:3.13-slim`, 425 MB) and `.dockerignore` written by Codex; built and verified end to end 2026-08-19 as two containers on one Docker network: `/health` `ready`, UI served, Brotli/gzip negotiation proven byte-identical to the originals, no `.env` or `content/` in the image |
-| D3 | Deploy to Azure Container Apps | ⬜ blocked: Azure subscription unconfirmed |
+| D3 | Deploy to Azure Container Apps | 🟡 unblocked and prepared — `az` CLI installed, signed in, the three required providers registered; `infra/` (Bicep + three PowerShell scripts) written, Bicep compiles and every script parses. **Nothing provisioned yet**; that spends money and waits for Sorin |
 | D4 | Neon from the cloud + schema changes | 🟡 the course's five-table state model **adopted and verified functionally**; pooled/direct split enforced in code; the "from the cloud" half waits for D3 |
 | D5 | Cloudflare R2 — wire it or skip it on purpose | ⬜ open decision |
 | D6 | Sandbox execution from the cloud | ⬜ not started |
@@ -120,11 +120,11 @@ you start, release it when you are done.
 |---|---|---|
 | Harness | `src/content_studio/harness/**` | *unclaimed* — D2 compressed static assets verified in the container |
 | Blazor UI | `ui/**` | *unclaimed* — D1b.3 complete |
-| Container + infra | `Dockerfile`, `.dockerignore`, `infra/**` | *unclaimed* — D2 image done; `infra/**` still untouched, waits for D3 |
+| Container + infra | `Dockerfile`, `.dockerignore`, `infra/**` | **Claude Code** — D2 image done and committed; `infra/**` written for D3, nothing provisioned |
 | Schema + migrations | `src/content_studio/db/**` | *unclaimed* — `posts.format_details` applied |
 | Content-data MCP | `src/content_studio/mcp_server/**` | *unclaimed* — D1b.3 complete |
 | Existing worker/CLI | `worker.py`, `audit.py`, `conversation.py`, `replay.py` | *unclaimed* — D4 prep checkpointed; D1 only extended the gate query in `audit.py` |
-| Azure access + infra provisioning | Azure portal, subscription, `az` CLI | **Codex** (D3) |
+| Azure access + infra provisioning | Azure portal, subscription, `az` CLI | **Claude Code** — taken over from Codex on 2026-08-19 at Sorin's call; CLI installed, signed in, providers registered |
 | Docs | `README.md`, `AGENTS.md`, `docs/**` | *unclaimed* — tool counts corrected at D1b.3; the `conversations` removal is still unreflected |
 | This board | `plans/DEPLOYMENT.md` | shared — append, do not rewrite |
 
@@ -543,10 +543,162 @@ documenting for two decisions without it existing.
    shape **plus** the gate — everything the companion writes is still written in
    the same columns. Verified across a process boundary; see below.
 
-The remaining infrastructure blocker is unchanged — D3: Azure access, Codex's
-zone, needs Sorin for MFA.
+~~The remaining infrastructure blocker is D3: Azure access, needs Sorin for MFA.~~
+Resolved 2026-08-19: signed in through the device-code flow, and the subscription
+is real. What remains for D3 is not access but a spending decision — see the
+changelog entry below and [infra/README.md](../infra/README.md).
 
 ## Changelog
+
+- **2026-08-21 · Claude Code** — **The allowlist is provisioned, and adding a
+  tester is now one command.** The two Google addresses were written into `.env`
+  as `AUTH_ALLOWED_EMAILS` — deployment configuration, per the decision that keeps
+  them out of source and out of tracked documentation. They are not in this file
+  and not in the repository; `git grep` confirms it.
+
+  Sorin asked for a simple place to grant access to further testers later. `.env`
+  is that place, but re-running `deploy.ps1 -SkipBuild` to apply it was broken:
+  `-Tag` defaults to the current timestamp, so `-SkipBuild` alone would have
+  deployed a tag that was never built and failed minutes later on an image pull.
+  It now reads the tag back from the running app and refuses early, with a
+  message naming the cause, when nothing is deployed. Granting or revoking a
+  tester is therefore: edit one line, run `pwsh infra/deploy.ps1 -SkipBuild`,
+  wait about a minute. The check runs per request, so revocation is immediate —
+  there is no session to expire.
+
+  **A trap documented rather than left to be discovered:** setting
+  `AUTH_ALLOWED_PRINCIPAL_IDS` makes `auth.py` ignore the email list entirely
+  (`if ... elif ...`, not a union). Adding a tester to the email list after that
+  migration would silently do nothing. Recorded in `infra/README.md` and
+  `.env.example`, next to the migration advice that creates the risk.
+
+  **`.gitignore` hardened.** A `.env` backup taken during this session was
+  untracked but *not* ignored — the pattern `.env` does not match `.env.backup`.
+  A file of live keys was one `git add -A` away from a commit. Now `.env.*` is
+  ignored with `!.env.example` re-included.
+
+  Verified without spending: the allowlist parses to the expected two-tuple
+  through `config.py`, and `IdentityResolver` was driven with simulated Easy Auth
+  headers — both addresses admitted, mixed case admitted (the header is
+  lowercased), an outside address refused with 403. Scripts parse, ASCII-only,
+  `ruff` clean, 110 tests. Still nothing provisioned in Azure.
+
+- **2026-08-20 · Claude Code** — **`infra/` now implements the sign-in the plan
+  actually locked: Google, not Entra. Azure ownership moved onto an identity Sorin
+  fully controls.**
+
+  **The contradiction.** `enable-auth.ps1` created a single-tenant Entra
+  application (`--sign-in-audience AzureADMyOrg`) and pointed Easy Auth at
+  `azureactivedirectory`. The locked scope is *"exactly two allow-listed **Google**
+  identities"*, and `auth.py` already defaults its provider to `google`. The
+  infrastructure and the code disagreed, and the infrastructure was wrong.
+
+  Rewritten for the Google provider. Azure cannot mint Google credentials, so the
+  script now runs in **two passes**: the first prints the exact redirect URI
+  (`https://<fqdn>/.auth/login/google/callback`) to register in Google Cloud
+  Console and changes nothing; the second reads `GOOGLE_CLIENT_ID` /
+  `GOOGLE_CLIENT_SECRET` from `.env` and turns sign-in on. Both are documented in
+  `.env.example`.
+
+  **A consequence worth stating plainly:** behind Entra single-tenant the first
+  door was already narrow — only this tenant. Behind Google, *any* Google account
+  passes it. `AUTH_ALLOWED_EMAILS` is no longer a second opinion; it is the only
+  thing standing between the workspace and every Google user alive. That is the
+  trade the locked decision accepted, and the README now says so.
+
+  **The allowlist left the command line.** `deploy.ps1 -AllowedEmails "..."` wrote
+  the client's address into the shell history and the process list, and the plan
+  says those addresses are deployment configuration, never source. It now reads
+  `AUTH_ALLOWED_EMAILS` from `.env` beside the four secrets; the parameter remains
+  as an override. Neither script prints the addresses — only the count. Two real
+  addresses that had reached `infra/deploy.ps1` and `infra/README.md` as examples
+  were removed.
+
+  **Two smaller defects found while verifying against the live CLI rather than
+  from memory.** `az containerapp auth update` takes `--token-store`, not
+  `--enable-token-store` as written. And `teardown.ps1` still deleted an Entra app
+  registration that nothing creates any more — dead code that reads like cleanup
+  while doing nothing; the switch is gone, replaced by a note that the Google
+  client lives in Google Cloud Console and cannot be deleted from Azure. Also
+  confirmed by reading `main.bicep`: the liveness probe hits port 8000 directly, so
+  it never traverses Easy Auth and needs no `--excluded-paths`.
+
+  **Verified without spending anything:** all three scripts parse; all three are
+  ASCII-only at the byte level (the PowerShell 5.1 ANSI trap recorded on 08-19);
+  `ruff` clean; 110 unit tests pass. Still never executed — expect to correct
+  something on the first real run.
+
+  **Azure ownership.** Separately, and outside this repository: the Global
+  Administrator, subscription Owner and Billing account owner roles all moved from
+  `sorin.lupa@ciel.ro` — a personal Microsoft account on an employer-controlled
+  mailbox — to Sorin's own Google-addressed Microsoft account, plus a native
+  break-glass account in the tenant. The ciel.ro identity now holds nothing. The
+  deployment no longer depends on an address someone else's IT department can
+  receive a password reset for.
+
+- **2026-08-19 (night) · Claude Code** — **D3 prepared. Azure access is real,
+  `infra/` is written, nothing is provisioned.** D2 was committed first, as
+  `ee7e18b` on `deploy`, so the container work and the infrastructure work stay
+  separable.
+
+  **Azure access.** The official `az` install through `winget` needs elevation and
+  the UAC prompt was declined (exit 1602), so the CLI went in through `uv tool`
+  instead — and that route has three traps worth recording, because each one
+  produced an error that named something else. Default resolution lands on
+  **azure-cli 2.0.67**, a 2019 release that dies in `time.clock()`, removed from
+  Python in 3.8, and would not know `containerapp` at all. `setuptools` 84 no
+  longer ships `pkg_resources`, which the CLI imports at startup. And on Python
+  3.13 argparse rejects a duplicate subparser the CLI registers, failing with
+  `conflicting subparser: check-name`. What works: **`azure-cli==2.89.1` pinned,
+  on Python 3.12, with `setuptools<81`, with `--prerelease=allow`** — Microsoft
+  depends on `azure-batch==15.0.0b1`. Their own `az.bat` calls whatever `python`
+  is first on PATH, which in this repository is the project venv, so the launcher
+  in `~/.local/bin` was rewritten to call the tool's own interpreter. None of this
+  touches the project or its `.venv`.
+
+  **Signed in** through the device-code flow (the first attempt died mid-poll on a
+  `RemoteDisconnected`; both identity endpoints were then confirmed reachable and
+  the retry worked). Subscription `Azure subscription 1`, Enabled, tenant
+  `Default Directory`, no resource groups — a clean subscription. **None of the
+  three required resource providers was registered**; `Microsoft.App`,
+  `Microsoft.ContainerRegistry` and `Microsoft.OperationalInsights` are now
+  `Registered`. That creates nothing and costs nothing, but `az containerapp`
+  would have failed without it, saying something else.
+
+  **Region: `eastus`, Sorin's call on the recommendation.** Neon is in
+  `us-east-1`. The traffic that matters is app → MCP → Postgres, several round
+  trips per request; putting compute in Europe pays ~90 ms on each of them, while
+  the client pays ~130 ms once, invisible next to a generation measured in
+  seconds.
+
+  **`infra/`** — `main.bicep` plus `deploy.ps1`, `enable-auth.ps1`, `teardown.ps1`
+  and a README. One image, two apps, harness external and MCP internal, per locked
+  decisions 5 and 6. Both apps pull with a user-assigned managed identity holding
+  AcrPull, so no registry password is stored; the four secrets are read from `.env`
+  into a temp parameters file deleted in a `finally`, and the Bicep parameters are
+  `@secure()` so they stay out of the deployment record. The harness is capped at
+  **one replica** deliberately — a chat stream keeps its queue in the process that
+  started the run — while the MCP server is `stateless_http` and scales to three.
+  Both sleep at zero.
+
+  **Verified without spending anything:** `az bicep build` compiles the template
+  clean; all three scripts parse; and the `.env` reader was run against the real
+  file — four secrets found, `DATABASE_URL` pooled and `DATABASE_URL_DIRECT` not,
+  which is the split `config.py` demands. Values were never printed, only lengths.
+
+  **One trap found while verifying.** PowerShell 5.1 reads a `.ps1` as ANSI, so an
+  em dash written as UTF-8 arrives as `â€"` — and that third byte is a curly
+  quote, which the parser treats as a string delimiter. Two syntax errors that
+  pointed at innocent lines far away. The scripts are ASCII-only now, which is
+  immune to the encoding rather than dependent on it.
+
+  **Not done, and deliberately:** nothing is provisioned. `enable-auth.ps1` is
+  written from the documented CLI contract and has never been executed — expect to
+  correct a flag on the first run. *(Two were in fact wrong, and it was built
+  against the wrong identity provider entirely — corrected 2026-08-20, above.)*
+  The Free Trial is USD 200 over 30 days, after which first-party services stop
+  unless the subscription moves to pay-as-you-go; that billing decision is still
+  open.
 
 - **2026-08-19 (evening) · Claude Code** — **D2 finished: the image builds, runs,
   and serves the compressed UI. Picked up exactly where Codex stopped.**

@@ -1,5 +1,10 @@
 # secrets
 .env
+# ...and every sibling of it: backups, per-environment copies, whatever a
+# future hurry produces. A plain `.env` line does not match `.env.backup`,
+# and an untracked file full of live keys is one `git add -A` from public.
+.env.*
+!.env.example
 
 # python
 .venv/
