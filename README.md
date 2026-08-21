@@ -180,7 +180,7 @@ skills/                mounted into the sandbox; Romanian, edited without code
 tests/unit/            free, no network — these run in CI
 tests/checks/          checks against the real services, from cheapest to fullest
 evals/                 15 cases: the ugly ones, plus three trigger evals
-docs/                  architecture, testing, and a long illustrated tutorial
+docs/                  architecture, testing, the runbook, and the owner's manual
 ```
 
 ## Testing
@@ -238,8 +238,10 @@ saved editor, then containerize the accepted core for Azure Container Apps.
 - [AGENTS.md](AGENTS.md) — the contract, for humans and for coding agents
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — why it is built this way
 - [docs/TESTING.md](docs/TESTING.md) — how to verify it, rung by rung
-- [docs/tutorial.html](docs/tutorial.html) — a long illustrated walkthrough of the
-  whole system, diagrams included (open it in a browser)
+- [docs/RUNBOOK.md](docs/RUNBOOK.md) — what to do when it breaks, written
+  before it breaks
+- [docs/manual.html](docs/manual.html) — the owner's manual: the whole system in
+  one place, diagrams included (open it in a browser)
 
 Built following [Building a Digital FTE](https://agentfactory.panaversity.org/docs/digital-fte-crash-course),
 Part 4.

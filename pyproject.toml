@@ -39,7 +39,7 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/sorinLupaIonut/content-studio-fte"
-Documentation = "https://github.com/sorinLupaIonut/content-studio-fte/blob/main/docs/tutorial.html"
+Documentation = "https://github.com/sorinLupaIonut/content-studio-fte/blob/main/docs/manual.html"
 
 [project.scripts]
 content-studio = "content_studio.worker:cli"

@@ -201,13 +201,12 @@ Restul planului, cu tot contextul, în [DEPLOYMENT.md](DEPLOYMENT.md).
   `<title>` diferit — artefactul se numește „Codul Studio Viorela", fișierul are
   „Codul, pe înțelesul celui care îl trimite în producție". Nu e nimic de
   republicat.
-- `docs/tutorial.html` (engleză, din era CLI) e depășit pentru harness, generator
-  și UI. E singura restanță mare rămasă — un document de 55 KB, deci o sesiune
-  dedicată, nu o corectură.
-- `docs/tutorial-ro.html` spune „105 teste gratuite"; acum sunt **110**. Documentul
-  e datat explicit („starea codului la 18 august 2026"), deci cifra nu e o
-  greșeală, ci un instantaneu. De actualizat odată cu următoarea revizie, nu
-  izolat — o singură cifră schimbată într-un text datat lasă restul nedovedit.
+- ~~`docs/tutorial.html` și `docs/tutorial-ro.html` sunt depășite pentru harness,
+  generator și UI.~~ **Închis pe 21 august**, prin ștergere, la cererea lui Sorin.
+  Amândouă descriau era CLI și niciunul nu cunoștea multi-user-ul, bugetele sau
+  observabilitatea. Locul lor îl ia `docs/manual.html`, scris pe starea de azi.
+  Un tutorial depășit e mai rău decât niciunul: cine îl citește nu află că e
+  vechi, află lucruri neadevărate.
 - ~~Branch-ul temporar Neon `schema-check-tmp`...~~ Rezolvat pe 19 august: toate
   cele patru branch-uri secundare (`schema-check-tmp`, `pre-deployment-2026-08-17`,
   `pre-d4-course-schema-2026-08-17`, `pre-curatare-2026-08-19`) au fost șterse la
