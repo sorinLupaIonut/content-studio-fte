@@ -355,6 +355,17 @@ public static class Copy
         "Prea multe cereri într-un minut. Așteaptă puțin și încearcă din nou.",
         "Too many requests in one minute. Wait a moment and try again.");
 
+    // An empty shelf is a legitimate state - a new account starts with one -
+    // so this explains rather than apologises, and names the way out.
+    public static readonly Phrase LibraryEmptyForBooks = new(
+        "Nu ai încă materiale în bibliotecă, deci sursa „Cărți” nu are unde căuta. "
+        + "Alege „Memorie” sau „Internet”, sau adaugă întâi materiale.",
+        "You have no materials in your library yet, so the “Books” source has "
+        + "nowhere to look. Choose “Memory” or “Internet”, or add materials first.");
+    public static readonly Phrase LibraryEmptyForMixed = new(
+        "Biblioteca ta e goală, deci „Combinat” va folosi doar memoria și internetul.",
+        "Your library is empty, so “Mixed” will use only memory and the internet.");
+
     public static readonly Phrase ProfileSectionUnknown = new(
         "Secțiunea de profil nu există sau nu poate fi editată.",
         "That profile section does not exist, or cannot be edited.");

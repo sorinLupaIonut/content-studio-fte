@@ -2137,3 +2137,15 @@ select:disabled {
     letter-spacing: 0.03em;
     text-transform: uppercase;
 }
+
+/* An empty shelf is a legitimate state, not an error: it explains and names the
+   way out, so it reads as guidance rather than as something gone wrong. Gold,
+   which the palette already carries for attention, rather than the danger red:
+   nothing here has failed. */
+.notice-warn {
+    color: var(--ink);
+    background: var(--gold-soft);
+    border-left: 3px solid var(--gold);
+    align-items: flex-start;
+    line-height: 1.5;
+}

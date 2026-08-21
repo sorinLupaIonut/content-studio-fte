@@ -65,6 +65,15 @@
             {
                 <span class="muted-copy">@T[Copy.LibraryLoading]</span>
             }
+            else if (_library.Count == 0)
+            {
+                @* A run started from here would cost money and could not
+                   succeed: `search_books` is scoped to the account, and this
+                   account has no books for it to find. *@
+                <p class="notice notice-warn" role="status">
+                    @T[_source == "Cărți" ? Copy.LibraryEmptyForBooks : Copy.LibraryEmptyForMixed]
+                </p>
+            }
             else
             {
                 <div class="book-options">
@@ -88,7 +97,11 @@
         <textarea @bind="_focus" disabled="@_busy" placeholder="@T[Copy.FocusPlaceholder]"></textarea>
     </label>
     <p class="field-note">@T[Copy.SourceCollectedOnce]</p>
-    <button class="button button-primary generate-button" disabled="@_busy" @onclick="() => StartAsync(false)">
+    @* "Combinat" still has memory and the internet to work with, so only the
+       books-only source is blocked. *@
+    <button class="button button-primary generate-button"
+            disabled="@(_busy || BooksOnlyWithEmptyShelf)"
+            @onclick="() => StartAsync(false)">
         @(_busy ? T[Copy.PreparingBatch] : T[Copy.GenerateTen])
     </button>
 </section>
@@ -311,6 +324,9 @@ else if (_batch is not null)
     private string? _saveMessage;
 
     private bool UsesBooks => _source is "Cărți" or "Combinat";
+
+    private bool BooksOnlyWithEmptyShelf =>
+        _source == "Cărți" && !_libraryLoading && _library.Count == 0;
 
     /// <summary>One chosen, ready variant per idea — the only things savable.</summary>
     private List<SaveCandidate> SaveCandidates =>
