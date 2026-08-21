@@ -355,6 +355,26 @@ public static class Copy
         "Prea multe cereri într-un minut. Așteaptă puțin și încearcă din nou.",
         "Too many requests in one minute. Wait a moment and try again.");
 
+    public static readonly Phrase ProfileSectionUnknown = new(
+        "Secțiunea de profil nu există sau nu poate fi editată.",
+        "That profile section does not exist, or cannot be edited.");
+    public static readonly Phrase ProfileSectionEmpty = new(
+        "Secțiunea nu poate rămâne goală.",
+        "The section cannot be left empty.");
+    public static readonly Phrase PostNotFound = new(
+        "Postarea salvată nu mai există.",
+        "That saved post no longer exists.");
+    public static readonly Phrase NoCurrentBatch = new(
+        "Nu există un lot curent din care să salvezi.",
+        "There is no current batch to save from.");
+
+    public static readonly Phrase AdminCannotSuspendSelf = new(
+        "Nu îți poți suspenda propriul cont.",
+        "You cannot suspend your own account.");
+    public static readonly Phrase AdminAccountMissing = new(
+        "Contul nu există.",
+        "That account does not exist.");
+
     public static readonly Phrase AdminSuspend = new("Suspendă", "Suspend");
     public static readonly Phrase AdminRestore = new("Reactivează", "Restore");
     public static readonly Phrase AdminSuspended = new("suspendat", "suspended");

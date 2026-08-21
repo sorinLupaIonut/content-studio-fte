@@ -174,6 +174,14 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
         }
     }
 
+    /// <summary>
+    /// Romanian diacritics are the cheap, reliable tell. A Romanian sentence
+    /// without one of these reads as neutral enough to pass, which is the right
+    /// failure direction: the net catches what would look obviously wrong.
+    /// </summary>
+    private static bool IsRomanian(string text) =>
+        text.IndexOfAny(new[] { 'ă', 'â', 'î', 'ș', 'ț', 'Ă', 'Â', 'Î', 'Ș', 'Ț' }) >= 0;
+
     private async Task<string> ReadErrorAsync(HttpResponseMessage response)
     {
         try
@@ -191,6 +199,18 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
                         return Tr[Copy.BudgetExhausted];
                     case "rate_limited":
                         return Tr[Copy.RateLimited];
+                    case "cannot_suspend_self":
+                        return Tr[Copy.AdminCannotSuspendSelf];
+                    case "account_not_found":
+                        return Tr[Copy.AdminAccountMissing];
+                    case "profile_section_unknown":
+                        return Tr[Copy.ProfileSectionUnknown];
+                    case "profile_section_empty":
+                        return Tr[Copy.ProfileSectionEmpty];
+                    case "post_not_found":
+                        return Tr[Copy.PostNotFound];
+                    case "no_current_batch":
+                        return Tr[Copy.NoCurrentBatch];
                 }
             }
 
@@ -198,7 +218,22 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
             {
                 if (detail.ValueKind == JsonValueKind.String)
                 {
-                    return detail.GetString() ?? Tr[Copy.RequestFailed];
+                    // The safety net, and the reason it is here rather than in
+                    // each call site: most of the harness's refusals are written
+                    // in Romanian, because Romanian is the language the studio is
+                    // run in. Passed through verbatim, one of them would appear
+                    // mid-sentence on an English page - which is precisely what
+                    // the language switch exists to prevent. A refusal worth
+                    // wording exactly gets a `code` above; everything else says
+                    // so generically rather than saying it in the wrong language.
+                    var sentence = detail.GetString();
+                    if (string.IsNullOrWhiteSpace(sentence))
+                    {
+                        return Tr[Copy.RequestFailed];
+                    }
+                    return Tr.IsEnglish && IsRomanian(sentence)
+                        ? Tr[Copy.RequestFailed]
+                        : sentence;
                 }
                 if (detail.ValueKind == JsonValueKind.Array)
                 {

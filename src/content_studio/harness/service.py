@@ -47,6 +47,7 @@ from content_studio.harness.chat import (
     ChatRunRequest,
 )
 from content_studio.harness.drafts import SavedPostClient
+from content_studio.harness.errors import CodedError
 from content_studio.harness.generation import GenerationStartRequest
 from content_studio.harness.generator import (
     ActiveBatchError,
@@ -447,10 +448,12 @@ class HarnessService:
 
         section = find_editable_section(profile_md, section_key)
         if section is None or section.read_only:
-            raise HarnessError(404, "Secțiunea de profil nu există sau este read-only.")
+            raise CodedError(
+                404, "profile section unknown or read-only", "profile_section_unknown"
+            )
         new_text = serialize_blocks(blocks)
         if not new_text:
-            raise HarnessError(422, "Secțiunea nu poate fi goală.")
+            raise CodedError(422, "section must not be empty", "profile_section_empty")
 
         session_id = self._identity_session(
             "profile", f"{principal_id}-{uuid.uuid4().hex[:8]}"
@@ -496,7 +499,7 @@ class HarnessService:
             await internal.connect()
             post = await SavedPostClient(internal).get(post_id)
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(404, "Postarea salvată nu există.") from exc
+            raise CodedError(404, "saved post not found", "post_not_found") from exc
         finally:
             await internal.cleanup()
         return public_post(post)
@@ -539,7 +542,7 @@ class HarnessService:
         # rather than arrive as a failed tool call.
         batch = await self.generator.current(principal_id, public=False)
         if batch is None:
-            raise HarnessError(404, "Nu există un lot curent din care să salvezi.")
+            raise CodedError(404, "no current batch to save from", "no_current_batch")
         chosen = {
             str(variant["id"])
             for idea in batch.get("ideas", [])

@@ -21,7 +21,10 @@
 
 @if (_notice is not null)
 {
-    <div class="notice notice-ok" role="status">@_notice</div>
+    @* The Phrase, resolved at render. Storing the resolved string would freeze
+       the message in whichever language was current when it was raised, and it
+       would still be sitting there in the old one after a switch. *@
+    <div class="notice notice-ok" role="status">@T[_notice]</div>
 }
 @if (_error is not null)
 {
@@ -171,7 +174,7 @@ else
     private List<AdminAccountDto> _accounts = new();
     private CreateAccountDto _draft = new();
     private string? _editing;
-    private string? _notice;
+    private Phrase? _notice;
     private string? _error;
     private bool _creating;
     private bool _busy;
@@ -215,7 +218,8 @@ else
         {
             await Api.SetBudgetAsync(clientSlug, ToMicros(_editDollars));
             _editing = null;
-            _notice = T[Copy.AdminBudgetSaved];
+            _notice = Copy.AdminBudgetSaved;
+            _error = null;
             await LoadAsync();
         }
         catch (StudioApiException ex)
@@ -234,7 +238,7 @@ else
         try
         {
             await Api.SetDisabledAsync(account.PrincipalId, !account.Disabled);
-            _notice = T[Copy.AdminSuspendSaved];
+            _notice = Copy.AdminSuspendSaved;
             _error = null;
             await LoadAsync();
         }
@@ -258,7 +262,8 @@ else
             await Api.CreateAccountAsync(_draft);
             _draft = new CreateAccountDto();
             _creating = false;
-            _notice = T[Copy.AdminCreated];
+            _notice = Copy.AdminCreated;
+            _error = null;
             await LoadAsync();
         }
         catch (StudioApiException ex)

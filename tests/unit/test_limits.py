@@ -171,3 +171,37 @@ class ObservabilityDegradesTests(unittest.TestCase):
             self.assertEqual(RUN_ID.get(), "cli-run")
         finally:
             RUN_ID.reset(token)
+
+
+class CodedRefusalTests(unittest.TestCase):
+    """Refusals a bilingual page has to word itself carry a code."""
+
+    def test_the_app_turns_a_coded_error_into_detail_plus_code(self):
+        """The handler, not a probe route: the UI mount owns every unmatched path."""
+        import asyncio
+        import json
+
+        from content_studio.harness.errors import CodedError
+        from content_studio.harness.main import create_app
+        from tests.unit.test_harness import TEST_AUTH, FakeService
+
+        app = create_app(FakeService, identity_resolver=TEST_AUTH)
+        handler = app.exception_handlers[CodedError]
+        response = asyncio.run(
+            handler(None, CodedError(418, "kettle", "i_am_a_teapot"))
+        )
+
+        self.assertEqual(response.status_code, 418)
+        self.assertEqual(
+            json.loads(response.body),
+            {"detail": "kettle", "code": "i_am_a_teapot"},
+        )
+
+    def test_the_english_detail_carries_no_romanian(self):
+        """The client's safety net keys on diacritics; the server must not need it."""
+        from content_studio.harness.errors import CodedError
+
+        error = CodedError(404, "saved post not found", "post_not_found")
+        self.assertFalse(
+            any(c in "ăâîșțĂÂÎȘȚ" for c in error.detail), error.detail
+        )

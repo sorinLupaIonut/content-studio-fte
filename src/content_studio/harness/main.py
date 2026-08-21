@@ -20,6 +20,7 @@ from content_studio.debug import attach_if_requested
 from content_studio.harness.accounts import BudgetExhausted
 from content_studio.harness.auth import Identity, IdentityError, IdentityResolver
 from content_studio.harness.chat import ChatRunAccepted, ChatRunRequest
+from content_studio.harness.errors import CodedError
 from content_studio.harness.generation import (
     GenerationStartRequest,
     VariantSelectionRequest,
@@ -132,6 +133,13 @@ def create_app(
     @app.exception_handler(IdentityError)
     async def identity_error(_request: Request, exc: IdentityError) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.exception_handler(CodedError)
+    async def coded_error(_request: Request, exc: CodedError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail, "code": exc.code},
+        )
 
     @app.exception_handler(BudgetExhausted)
     async def budget_exhausted(_request: Request, exc: BudgetExhausted) -> JSONResponse:
@@ -254,13 +262,17 @@ def create_app(
         # The one account an administrator must not be able to suspend is their
         # own: there is no second admin to undo it, and the only way back would
         # be `db/provision.py` from a terminal. Cheap rail, expensive omission.
+        # Codes, not sentences. The interface is bilingual and owns the
+        # wording; a Romanian sentence from the server is a Romanian sentence on
+        # an English page, which is exactly what the language switch exists to
+        # prevent.
         if body.disabled and principal_id == identity.principal_id:
-            raise IdentityError(400, "Nu îți poți suspenda propriul cont.")
+            raise CodedError(400, "cannot suspend self", "cannot_suspend_self")
         account = await request.app.state.harness.accounts.set_disabled(
             principal_id, body.disabled
         )
         if account is None:
-            raise IdentityError(404, "Contul nu există.")
+            raise CodedError(404, "account not found", "account_not_found")
         return {"account": account}
 
     @app.put("/api/admin/accounts/{client_slug}/budget")
