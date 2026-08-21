@@ -23,6 +23,13 @@
     history and the process list, so prefer .env.
 
 .EXAMPLE
+    powershell -File infra/deploy.ps1 -LocalBuild
+
+    Same result, built on this machine. Use it when `az acr build` returns
+    TasksOperationsNotAllowed: the serverless builder is refused to the
+    subscription, while pushing to the same registry still works.
+
+.EXAMPLE
     powershell -File infra/deploy.ps1 -SkipBuild
 
     Push a changed allowlist without rebuilding: edit AUTH_ALLOWED_EMAILS in .env,
@@ -50,7 +57,12 @@ param(
     [string]$Model         = 'gpt-5-mini',
 
     # Deploy an image that is already in the registry instead of building again.
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+
+    # Build here with Docker and push, instead of building in Azure. Needed when
+    # the subscription is refused ACR Tasks (TasksOperationsNotAllowed), which is
+    # an Azure-side restriction on the registry, not a fault in this repository.
+    [switch]$LocalBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -204,9 +216,28 @@ if (-not $existing -or @($existing).Count -eq 0) {
     Write-Host "$AcrName already exists"
 }
 
-# --- 5. Build the image in Azure, not on this laptop ----------------------
+# --- 5. Build the image ---------------------------------------------------
 if ($SkipBuild) {
     Write-Host "`n-- build skipped, using $image --" -ForegroundColor Yellow
+} elseif ($LocalBuild) {
+    Write-Host "`n-- docker build (ACR Tasks refused; building here) --" -ForegroundColor Cyan
+    $reference = "$AcrName.azurecr.io/$image"
+    Push-Location $repoRoot
+    try {
+        # Container Apps run linux/amd64. Docker would pick the host platform,
+        # which is the same thing today and silently the wrong thing the day
+        # this is run from an arm64 machine.
+        & docker build --platform linux/amd64 --file Dockerfile --tag $reference .
+        if ($LASTEXITCODE -ne 0) { throw "docker build failed with exit code $LASTEXITCODE" }
+    } finally {
+        Pop-Location
+    }
+    # Admin user is off, so this is a token from the signed-in principal. It
+    # needs AcrPush on the registry; an owner already has it.
+    Invoke-Az -Arguments @('acr', 'login', '--name', $AcrName, '--output', 'none') | Out-Null
+    & docker push $reference
+    if ($LASTEXITCODE -ne 0) { throw "docker push failed with exit code $LASTEXITCODE" }
+    Write-Host "built here and pushed: $reference"
 } else {
     Write-Host "`n-- az acr build (this takes a few minutes) --" -ForegroundColor Cyan
     Push-Location $repoRoot
