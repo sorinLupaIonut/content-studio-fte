@@ -582,6 +582,24 @@ footer {
     <code>CLIENT_SLUG</code> și rămâne pe profilul original. Contul tău,
     <code>sorin</code>, a pornit cu o <em>copie</em> a profilului ei — ce editezi
     tu nu atinge ce scrie agentul ei.</p>
+
+    <h3>Și biblioteca, din 21 august</h3>
+    <p>Postările, profilul și bugetul au fost legate de cont când studioul a
+    devenit multi-tenant. <code>documents</code> nu a fost — tabela e mai veche
+    decât toate. Golul nu era cosmetic: <code>search_books</code> căuta în tot,
+    deci agentul oricărui cont putea cita din cărțile oricui.</p>
+    <p>Acum <code>documents.client_id</code> e <code>NOT NULL</code>, iar ambii
+    cititori se leagă prin <code>clients</code> pe slug-ul din conexiune. Regula
+    stă în SQL, nu în apelant — o rută nouă nu o poate uita. Și
+    <code>NOT NULL</code> e partea care ține: un document fără stăpân e acum
+    <em>imposibil de inserat</em>, nu doar descurajat.</p>
+    <div class="note">
+        <span class="label">Ce înseamnă pentru un cont nou</span>
+        <p>Raft gol, intenționat. Sursa „Cărți" e blocată cu o explicație, în loc
+        să pornească o rulare care costă bani și nu are unde căuta. A copia
+        cărțile licențiate ale cuiva pe raftul altcuiva merită o decizie, nu o
+        bifă; SQL-ul e în runbook.</p>
+    </div>
 </section>
 
 <section id="bani">
