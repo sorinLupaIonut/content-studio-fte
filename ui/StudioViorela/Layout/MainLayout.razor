@@ -1,18 +1,26 @@
 @inherits LayoutComponentBase
 @inject StudioApiClient Api
+@inject LanguageState Language
+@implements IDisposable
 
 @* The gate renders nothing but the access screens until identity is known.
    Easy Auth runs with AllowAnonymous, so the static shell loads for anyone;
    it is /api/me that decides which of the three screens this is. The sign-in
    and sign-out links are full page navigations to the platform's /.auth
-   endpoints - they never go through the API client. *@
+   endpoints - they never go through the API client.
+
+   The Translator is cascaded rather than injected page by page: changing it
+   re-renders every descendant on its own, so no page has to subscribe to the
+   language switch to stay in step. *@
+
+<CascadingValue Value="Language.Translator" Name="T">
 
 @if (_gate == Gate.Checking)
 {
     <div class="access-screen" aria-busy="true">
         <div class="access-card">
             <span class="brand-mark access-mark" aria-hidden="true">V</span>
-            <p class="access-quiet">Se verifică accesul…</p>
+            <p class="access-quiet">@T[Copy.CheckingAccess]</p>
         </div>
     </div>
 }
@@ -21,12 +29,13 @@ else if (_gate == Gate.SignedOut)
     <div class="access-screen">
         <div class="access-card">
             <span class="brand-mark access-mark" aria-hidden="true">V</span>
-            <h1>Studio Viorela</h1>
-            <p class="access-lede">Conținut care sună ca tine.</p>
+            <h1>@T[Copy.BrandName]</h1>
+            <p class="access-lede">@T[Copy.SignInLede]</p>
             <a class="button button-primary access-cta" href="/.auth/login/google?post_login_redirect_uri=/">
-                Intră cu Google
+                @T[Copy.SignInWithGoogle]
             </a>
-            <p class="access-quiet">Doar conturile invitate au acces.</p>
+            <p class="access-quiet">@T[Copy.InvitedOnly]</p>
+            @LanguagePicker("access-language")
         </div>
     </div>
 }
@@ -35,13 +44,12 @@ else if (_gate == Gate.Denied)
     <div class="access-screen">
         <div class="access-card">
             <span class="brand-mark access-mark" aria-hidden="true">V</span>
-            <h1>Acest cont nu are acces</h1>
-            <p class="access-lede">
-                Ai intrat cu un cont Google care nu e pe lista studioului.
-            </p>
+            <h1>@T[Copy.DeniedTitle]</h1>
+            <p class="access-lede">@T[Copy.DeniedLede]</p>
             <a class="button button-primary access-cta" href="/.auth/logout?post_logout_redirect_uri=/">
-                Ieși și încearcă alt cont
+                @T[Copy.DeniedCta]
             </a>
+            @LanguagePicker("access-language")
         </div>
     </div>
 }
@@ -49,28 +57,35 @@ else
 {
     <div class="app-shell">
         <div class="rail">
-            <a class="brand" href="/generator" aria-label="Studio Viorela, pagina principală">
+            <a class="brand" href="/generator" aria-label="@T[Copy.HomeAria]">
                 <span class="brand-mark" aria-hidden="true">V</span>
                 <span>
-                    <strong>Studio Viorela</strong>
-                    <small>Conținut care sună ca tine</small>
+                    <strong>@T[Copy.BrandName]</strong>
+                    <small>@T[Copy.BrandTagline]</small>
                 </span>
             </a>
 
             <PrimaryNav />
 
             <div class="rail-foot">
-                <div class="identity" title="@(_me?.Email ?? "Sesiune locală")">
+                @LanguagePicker("rail-language")
+
+                <div class="identity" title="@(_me?.Email ?? T[Copy.LocalSession])">
                     <span class="identity-avatar" aria-hidden="true">@Initial</span>
                     <span class="identity-copy">
-                        <strong>@(_me?.Email ?? "Se verifică accesul…")</strong>
-                        <small>@(_me?.IsDevelopment == true ? "mod local" : "cont autorizat")</small>
+                        <strong>@(_me?.Email ?? T[Copy.CheckingAccess])</strong>
+                        <small>@(_me?.IsDevelopment == true ? T[Copy.LocalMode] : T[Copy.AuthorizedAccount])</small>
                     </span>
                 </div>
+
+                @* Spelled out, not a glyph. A way out of the application has to be
+                   readable at a glance by someone who has never seen it before. *@
                 @if (_me?.IsDevelopment != true)
                 {
-                    <a class="signout" href="/.auth/logout?post_logout_redirect_uri=/"
-                       title="Ieși din cont" aria-label="Ieși din cont">⎋</a>
+                    <a class="signout-button" href="/.auth/logout?post_logout_redirect_uri=/">
+                        <span class="signout-icon" aria-hidden="true">⎋</span>
+                        <span>@T[Copy.SignOut]</span>
+                    </a>
                 }
             </div>
         </div>
@@ -87,18 +102,38 @@ else
     </div>
 }
 
+</CascadingValue>
+
 @code {
     private enum Gate { Checking, SignedOut, Denied, Open }
 
     private Gate _gate = Gate.Checking;
     private MeDto? _me;
     private string? _identityError;
+
+    private Translator T => Language.Translator;
+
     private string Initial => string.IsNullOrWhiteSpace(_me?.Email)
         ? "V"
         : _me.Email[..1].ToUpperInvariant();
 
+    private RenderFragment LanguagePicker(string cssClass) =>
+        @<div class="language-picker @cssClass" role="group" aria-label="@T[Copy.LanguageAria]">
+            <button type="button"
+                    class="@(Language.Code == "ro" ? "active" : null)"
+                    aria-pressed="@(Language.Code == "ro")"
+                    @onclick='() => SwitchAsync("ro")'>@Copy.RomanianName</button>
+            <button type="button"
+                    class="@(Language.Code == "en" ? "active" : null)"
+                    aria-pressed="@(Language.Code == "en")"
+                    @onclick='() => SwitchAsync("en")'>@Copy.EnglishName</button>
+        </div>;
+
     protected override async Task OnInitializedAsync()
     {
+        Language.Changed += OnLanguageChanged;
+        await Language.InitializeAsync();
+
         try
         {
             _me = await Api.GetMeAsync();
@@ -120,4 +155,10 @@ else
             _gate = Gate.Open;
         }
     }
+
+    private Task SwitchAsync(string code) => Language.SetAsync(code);
+
+    private void OnLanguageChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Language.Changed -= OnLanguageChanged;
 }

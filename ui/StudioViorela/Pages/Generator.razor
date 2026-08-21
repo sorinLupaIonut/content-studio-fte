@@ -5,52 +5,54 @@
 @inject GenerationEventStream Events
 @inject StudioContextState ContextState
 
-<PageTitle>Generator · Studio Viorela</PageTitle>
+<PageTitle>@T[Copy.GeneratorTab]</PageTitle>
 
 <section class="page-heading generator-heading">
     <div>
-        <span class="eyebrow">Planifică simplu</span>
-        <h1>Ce vrei să creezi astăzi?</h1>
-        <p>Primești întâi 10 idei clare. Fiecare idee se dezvoltă apoi în fundal cu 5 hook-uri și conținutul complet.</p>
+        <span class="eyebrow">@T[Copy.GeneratorEyebrow]</span>
+        <h1>@T[Copy.GeneratorHeading]</h1>
+        <p>@T[Copy.GeneratorLede]</p>
     </div>
-    <span class="step-chip">nano titluri · mini detalii · 5 în paralel</span>
+    <span class="step-chip">@T[Copy.GeneratorStepChip]</span>
 </section>
 
 @if (_error is not null)
 {
     <div class="notice notice-error" role="alert">
         <span>@_error</span>
-        <button class="icon-button" type="button" @onclick="() => _error = null" aria-label="Închide mesajul">×</button>
+        <button class="icon-button" type="button" @onclick="() => _error = null" aria-label="@T[Copy.DismissMessage]">×</button>
     </div>
 }
 
 <section class="generator-card">
+    @* The option *values* are the API contract and stay Romanian in both
+       languages; only what the eye reads is translated. *@
     <div class="field-grid">
         <label>
-            <span>Sursa ideilor</span>
+            <span>@T[Copy.FieldSource]</span>
             <select @bind="_source" disabled="@_busy">
-                <option>Memorie</option>
-                <option>Cărți</option>
-                <option>Internet</option>
-                <option>Combinat</option>
+                @foreach (var value in Values.Sources)
+                {
+                    <option value="@value">@Values.SourceLabel(T, value)</option>
+                }
             </select>
         </label>
         <label>
-            <span>Pilon</span>
+            <span>@T[Copy.FieldPillar]</span>
             <select @bind="_pillar" disabled="@_busy">
-                <option>Poziționare</option>
-                <option>Educație</option>
-                <option>Conexiune</option>
-                <option>Conversie</option>
-                <option>Magnetism</option>
+                @foreach (var value in Values.Pillars)
+                {
+                    <option value="@value">@Values.PillarLabel(T, value)</option>
+                }
             </select>
         </label>
         <label>
-            <span>Format</span>
+            <span>@T[Copy.FieldFormat]</span>
             <select @bind="_format" disabled="@_busy">
-                <option>Reel</option>
-                <option>Carusel</option>
-                <option>Stories</option>
+                @foreach (var value in Values.Formats)
+                {
+                    <option value="@value">@Values.FormatLabel(T, value)</option>
+                }
             </select>
         </label>
     </div>
@@ -58,10 +60,10 @@
     @if (UsesBooks)
     {
         <fieldset class="book-picker">
-            <legend>Cărți preferate <small>(opțional — fără selecție caută în toate)</small></legend>
+            <legend>@T[Copy.BooksLegend] <small>@T[Copy.BooksHint]</small></legend>
             @if (_libraryLoading)
             {
-                <span class="muted-copy">Se încarcă biblioteca…</span>
+                <span class="muted-copy">@T[Copy.LibraryLoading]</span>
             }
             else
             {
@@ -72,7 +74,7 @@
                             <input type="checkbox" checked="@_selectedBooks.Contains(item.Id)" @onchange="eventArgs => ToggleBook(item.Id, eventArgs)" />
                             <span>
                                 <strong>@item.Title</strong>
-                                <small>@item.Author@(item.IsSummary ? " · rezumat" : "")</small>
+                                <small>@item.Author@(item.IsSummary ? T[Copy.SummarySuffix] : "")</small>
                             </span>
                         </label>
                     }
@@ -82,48 +84,48 @@
     }
 
     <label class="focus-field">
-        <span>Ce focus ai pentru săptămâna aceasta? <small>(opțional)</small></span>
-        <textarea @bind="_focus" disabled="@_busy" placeholder="De exemplu: cum recunoști că ai intrat din nou în people pleasing"></textarea>
+        <span>@T[Copy.FocusLabel] <small>@T[Copy.Optional]</small></span>
+        <textarea @bind="_focus" disabled="@_busy" placeholder="@T[Copy.FocusPlaceholder]"></textarea>
     </label>
-    <p class="field-note">Sursa se colectează o singură dată și este folosită identic pentru toate cele 10 idei.</p>
+    <p class="field-note">@T[Copy.SourceCollectedOnce]</p>
     <button class="button button-primary generate-button" disabled="@_busy" @onclick="() => StartAsync(false)">
-        @(_busy ? "Se pregătește lotul…" : "Generează 10 idei")
+        @(_busy ? T[Copy.PreparingBatch] : T[Copy.GenerateTen])
     </button>
 </section>
 
 @if (_confirmReplace)
 {
-    <section class="replace-panel" role="alertdialog" aria-label="Înlocuiește lotul curent">
+    <section class="replace-panel" role="alertdialog" aria-label="@T[Copy.ReplaceAria]">
         <div>
-            <span class="eyebrow">Ai deja un lot curent</span>
-            <h3>Vrei să-l înlocuiești?</h3>
-            <p>Lotul existent nu va mai fi curent. Postările deja salvate nu sunt afectate.</p>
+            <span class="eyebrow">@T[Copy.ReplaceEyebrow]</span>
+            <h3>@T[Copy.ReplaceHeading]</h3>
+            <p>@T[Copy.ReplaceBody]</p>
         </div>
         <div>
-            <button class="button button-ghost" @onclick="() => _confirmReplace = false">Păstrează-l</button>
-            <button class="button button-primary" @onclick="() => StartAsync(true)">Înlocuiește și generează</button>
+            <button class="button button-ghost" @onclick="() => _confirmReplace = false">@T[Copy.ReplaceKeep]</button>
+            <button class="button button-primary" @onclick="() => StartAsync(true)">@T[Copy.ReplaceConfirm]</button>
         </div>
     </section>
 }
 
 @if (_loadingBatch)
 {
-    <section class="loading-card"><span class="spinner"></span> Se recuperează lotul curent…</section>
+    <section class="loading-card"><span class="spinner"></span> @T[Copy.LoadingBatch]</section>
 }
 else if (_batch is not null)
 {
-    <section class="ideas-list" aria-label="Ideile generate">
+    <section class="ideas-list" aria-label="@T[Copy.IdeasAria]">
         <header>
             <div>
-                <span class="eyebrow">Lotul tău curent</span>
-                <h2>Ideile tale</h2>
+                <span class="eyebrow">@T[Copy.CurrentBatch]</span>
+                <h2>@T[Copy.YourIdeas]</h2>
                 <p>@BatchStatus(_batch)</p>
             </div>
             <div class="batch-actions">
-                <span class="count-chip">@_batch.Ideas.Count / 10 titluri</span>
+                <span class="count-chip">@_batch.Ideas.Count / 10 @T.Pick("titluri", "titles")</span>
                 @if (!IsTerminal(_batch.Status))
                 {
-                    <button class="button button-ghost" disabled="@_busy" @onclick="CancelAsync">Oprește</button>
+                    <button class="button button-ghost" disabled="@_busy" @onclick="CancelAsync">@T[Copy.Stop]</button>
                 }
             </div>
         </header>
@@ -135,8 +137,8 @@ else if (_batch is not null)
                 <article class="idea-card idea-waiting">
                     <span class="idea-number">@index</span>
                     <div class="idea-title-copy">
-                        <strong>Se pregătește titlul…</strong>
-                        <small>nano lucrează la prima listă</small>
+                        <strong>@T[Copy.PreparingTitle]</strong>
+                        <small>@T[Copy.NanoWorking]</small>
                     </div>
                     <span class="mini-spinner"></span>
                 </article>
@@ -151,7 +153,7 @@ else if (_batch is not null)
                         <span class="idea-number">@idea.Ordinal</span>
                         <span class="idea-title-copy">
                             <strong>@idea.Title</strong>
-                            <small>@_batch.Format · @_batch.Pillar · @IdeaStatus(idea)</small>
+                            <small>@Values.FormatLabel(T, _batch.Format) · @Values.PillarLabel(T, _batch.Pillar) · @IdeaStatus(idea)</small>
                         </span>
                         <span class="idea-state">@IdeaStateIcon(idea.Status)</span>
                         <span class="chevron @(IsExpanded(idea.Id) ? "open" : null)">⌄</span>
@@ -166,14 +168,14 @@ else if (_batch is not null)
                     {
                         var active = ActiveVariant(idea);
                         <div class="idea-details">
-                            <div class="variant-tabs" role="tablist" aria-label="Tipuri de hook">
+                            <div class="variant-tabs" role="tablist" aria-label="@T[Copy.HookTypesAria]">
                                 @foreach (var variant in idea.Variants)
                                 {
                                     <button type="button" role="tab" class="@VariantTabClass(idea, variant)" aria-selected="@(active?.Id == variant.Id)" @onclick="() => ActivateVariant(idea, variant)">
                                         @HookLabel(variant.HookType)
                                         @if (variant.IsSelected)
                                         {
-                                            <span title="Variantă aleasă">✓</span>
+                                            <span title="@T[Copy.ChosenVariantTitle]">✓</span>
                                         }
                                     </button>
                                 }
@@ -193,14 +195,14 @@ else if (_batch is not null)
                                     @if (!string.IsNullOrWhiteSpace(active.Script))
                                     {
                                         <section class="content-block">
-                                            <span class="content-label">Script / conținut</span>
+                                            <span class="content-label">@T[Copy.LabelScript]</span>
                                             <p class="preserve-lines">@active.Script</p>
                                         </section>
                                     }
                                     @if (active.FormatDetails is not null)
                                     {
                                         <section class="content-block format-production">
-                                            <span class="content-label">Producție · @active.FormatDetails.DurationOrCount</span>
+                                            <span class="content-label">@T[Copy.LabelProduction] · @active.FormatDetails.DurationOrCount</span>
                                             <p>@active.FormatDetails.VisualDirection</p>
                                             <ol>
                                                 @foreach (var block in active.FormatDetails.ContentBlocks)
@@ -211,16 +213,16 @@ else if (_batch is not null)
                                         </section>
                                     }
                                     <section class="content-block">
-                                        <span class="content-label">Caption</span>
+                                        <span class="content-label">@T[Copy.LabelCaption]</span>
                                         <p class="preserve-lines">@active.Caption</p>
                                     </section>
                                     <div class="variant-meta">
-                                        <p><strong>CTA:</strong> @active.Cta</p>
-                                        <p><strong>Hashtaguri:</strong> @string.Join(" ", active.Hashtags ?? [])</p>
-                                        <p><strong>Sursă:</strong> @active.Source</p>
+                                        <p><strong>@T[Copy.LabelCta]:</strong> @active.Cta</p>
+                                        <p><strong>@T[Copy.LabelHashtags]:</strong> @string.Join(" ", active.Hashtags ?? [])</p>
+                                        <p><strong>@T[Copy.LabelSource]:</strong> @active.Source</p>
                                     </div>
                                     <button class="button @(active.IsSelected ? "button-selected" : "button-primary")" disabled="@(_busy || active.IsSelected)" @onclick="() => SelectVariantAsync(active)">
-                                        @(active.IsSelected ? "✓ Varianta aleasă" : "Alege această variantă")
+                                        @(active.IsSelected ? T[Copy.ChosenVariant] : T[Copy.ChooseVariant])
                                     </button>
                                 </div>
                             }
@@ -234,14 +236,14 @@ else if (_batch is not null)
 
 @if (_batch is not null && SaveCandidates.Count > 0)
 {
-    <section class="save-panel" aria-label="Postările pregătite pentru salvare">
+    <section class="save-panel" aria-label="@T[Copy.SaveAria]">
         <header>
             <div>
-                <span class="eyebrow">Gata de salvat</span>
-                <h2>Postările finale</h2>
-                <p>Bifează ce vrei să păstrezi. Se salvează toate odată sau niciuna, după confirmarea ta.</p>
+                <span class="eyebrow">@T[Copy.ReadyToSave]</span>
+                <h2>@T[Copy.FinalPosts]</h2>
+                <p>@T[Copy.SaveLede]</p>
             </div>
-            <span class="count-chip">@_toSave.Count / @SaveCandidates.Count bifate</span>
+            <span class="count-chip">@_toSave.Count / @SaveCandidates.Count @T.Pick("bifate", "ticked")</span>
         </header>
 
         <ul class="save-list">
@@ -252,7 +254,7 @@ else if (_batch is not null)
                         <input type="checkbox" checked="@_toSave.Contains(candidate.Variant.Id)" @onchange="eventArgs => ToggleSave(candidate.Variant.Id, eventArgs)" />
                         <span>
                             <strong>@candidate.Idea.Title</strong>
-                            <small>@HookLabel(candidate.Variant.HookType) · @_batch.Format · @_batch.Pillar</small>
+                            <small>@HookLabel(candidate.Variant.HookType) · @Values.FormatLabel(T, _batch.Format) · @Values.PillarLabel(T, _batch.Pillar)</small>
                         </span>
                     </label>
                 </li>
@@ -260,9 +262,11 @@ else if (_batch is not null)
         </ul>
 
         <div class="save-actions">
-            <span>Nimic nu se scrie fără confirmarea ta.</span>
+            <span>@T[Copy.NothingWithoutYou]</span>
             <button class="button button-primary" disabled="@(_busy || _toSave.Count == 0)" @onclick="PrepareSaveAsync">
-                @(_busy && _saveRun is null ? "Se pregătește…" : $"Pregătește salvarea ({_toSave.Count})")
+                @(_busy && _saveRun is null
+                    ? T[Copy.Preparing]
+                    : $"{T[Copy.PrepareSaveShort]} ({_toSave.Count})")
             </button>
         </div>
 
@@ -270,9 +274,9 @@ else if (_batch is not null)
         {
             <ApprovalPanel Run="_saveRun"
                            Busy="_busy"
-                           Title="Salvezi postările alese?"
-                           Message="Ajung în „Salvate” numai după ce apeși Confirmă. Se salvează toate odată sau niciuna."
-                           RejectLabel="Nu acum"
+                           Title="@T[Copy.SaveApprovalTitle]"
+                           Message="@T[Copy.SaveApprovalMessage]"
+                           RejectLabel="@T[Copy.NotNow]"
                            Summary="SaveSummary"
                            OnDecision="DecideSaveAsync" />
         }
@@ -285,6 +289,8 @@ else if (_batch is not null)
 }
 
 @code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+
     private readonly HashSet<string> _selectedBooks = [];
     private readonly HashSet<string> _expandedIdeas = [];
     private readonly Dictionary<string, string> _activeHooks = [];
@@ -464,7 +470,7 @@ else if (_batch is not null)
         }
         return InvokeAsync(() =>
         {
-            _error = "Conexiunea live se reface automat. Lotul rămâne salvat.";
+            _error = T[Copy.LiveReconnected];
             StateHasChanged();
         });
     }
@@ -572,13 +578,20 @@ else if (_batch is not null)
             _saveRun = null;
             if (approved && result.Status == "completed")
             {
-                _saveMessage = $"Am salvat {RomanianText.Posts(_toSave.Count)}. "
-            + (_toSave.Count == 1 ? "O găsești în „Salvate”." : "Le găsești în „Salvate”.");
+                _saveMessage = T.Pick(
+                    $"Am salvat {Values.Posts(T, _toSave.Count)}. "
+                        + (_toSave.Count == 1
+                            ? "O găsești în „Salvate”."
+                            : "Le găsești în „Salvate”."),
+                    $"Saved {Values.Posts(T, _toSave.Count)}. "
+                        + (_toSave.Count == 1
+                            ? "You will find it under “Saved”."
+                            : "You will find them under “Saved”."));
                 _toSave.Clear();
             }
             else
             {
-                _saveMessage = "Salvarea a fost anulată. Nimic nu s-a scris.";
+                _saveMessage = T[Copy.SaveCancelled];
             }
         }
         catch (Exception ex)
@@ -656,15 +669,7 @@ else if (_batch is not null)
     private static bool IsTerminal(string status) =>
         status is "ready" or "failed" or "cancelled" or "replaced";
 
-    private static string HookLabel(string value) => value switch
-    {
-        "PROVOCARE" => "Provocare",
-        "CIFRA" => "Cifră",
-        "SECRET" => "Secret",
-        "INTREBARE" => "Întrebare",
-        "CONTRAST" => "Contrast",
-        _ => value
-    };
+    private string HookLabel(string value) => Values.HookLabel(T, value);
 
     private static string IdeaStateIcon(string status) => status switch
     {
@@ -674,28 +679,11 @@ else if (_batch is not null)
         _ => "·"
     };
 
-    private static string IdeaStatus(GenerationIdeaDto idea) => idea.Status switch
-    {
-        "waiting" => "așteaptă detaliile",
-        "generating" => "se dezvoltă acum",
-        "retrying" => $"se reîncearcă · încercarea {idea.RetryCount + 1}",
-        "ready" => "5 variante gata",
-        "failed" => "nefinalizată",
-        "cancelled" => "oprită",
-        _ => idea.Status
-    };
+    private string IdeaStatus(GenerationIdeaDto idea) =>
+        Values.IdeaStatus(T, idea.Status, idea.RetryCount);
 
-    private static string BatchStatus(GenerationBatchDto batch) => batch.Status switch
-    {
-        "gathering" => "Se generează cele 10 titluri. Poți lăsa pagina deschisă.",
-        "titles_ready" => "Titlurile sunt gata; pornesc detaliile.",
-        "generating" => $"{batch.Ideas.Count(idea => idea.Status == "ready")}/10 idei dezvoltate complet.",
-        "ready" => "Toate cele 10 idei au câte 5 variante complete.",
-        "failed" => "Lotul s-a oprit; ideile gata au rămas disponibile.",
-        "cancelled" => "Lotul a fost oprit.",
-        "replaced" => "Lotul a fost înlocuit.",
-        _ => batch.Status
-    };
+    private string BatchStatus(GenerationBatchDto batch) => Values.BatchStatus(
+        T, batch.Status, batch.Ideas.Count(idea => idea.Status == "ready"));
 
     private sealed record SaveCandidate(
         GenerationIdeaDto Idea, GenerationVariantDto Variant);

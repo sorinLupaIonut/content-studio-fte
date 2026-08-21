@@ -1,12 +1,19 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using StudioViorela.Localization;
 using StudioViorela.Models;
 
 namespace StudioViorela.Services;
 
-public sealed class StudioApiClient(HttpClient http)
+// The language is stamped here rather than at each call site: a page that
+// forgets it would quietly get Romanian back while showing English, and
+// nothing would fail loudly enough to notice.
+public sealed class StudioApiClient(HttpClient http, LanguageState language)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    // Named Tr, not T: the generic parameter of ReadAsync<T> already owns T.
+    private Translator Tr => language.Translator;
 
     public Task<MeDto> GetMeAsync() => GetAsync<MeDto>("api/me");
 
@@ -29,7 +36,8 @@ public sealed class StudioApiClient(HttpClient http)
                     CallId = request.CallId,
                     Approved = approved,
                     Reason = approved ? "Confirmat din interfața Studio." : "Anulat din interfața Studio."
-                }).ToList()
+                }).ToList(),
+                Language = language.Code
             });
 
     public Task<SavedPostsResponseDto> GetSavedPostsAsync() =>
@@ -59,9 +67,12 @@ public sealed class StudioApiClient(HttpClient http)
             $"api/generation-batches/{Uri.EscapeDataString(batchId)}");
 
     public Task<GenerationBatchEnvelopeDto> StartGenerationAsync(
-        GenerationStartDto request) =>
-        PostAsync<GenerationStartDto, GenerationBatchEnvelopeDto>(
+        GenerationStartDto request)
+    {
+        request.Language = language.Code;
+        return PostAsync<GenerationStartDto, GenerationBatchEnvelopeDto>(
             "api/generation-batches", request);
+    }
 
     public async Task CancelGenerationAsync(string batchId)
     {
@@ -85,8 +96,11 @@ public sealed class StudioApiClient(HttpClient http)
             $"api/generation-batches/{Uri.EscapeDataString(batchId)}/events")
         .ToString();
 
-    public Task<ChatAcceptedDto> StartChatAsync(ChatStartDto request) =>
-        PostAsync<ChatStartDto, ChatAcceptedDto>("api/chat/runs", request);
+    public Task<ChatAcceptedDto> StartChatAsync(ChatStartDto request)
+    {
+        request.Language = language.Code;
+        return PostAsync<ChatStartDto, ChatAcceptedDto>("api/chat/runs", request);
+    }
 
     public async Task CancelChatAsync(string runId)
     {
@@ -113,7 +127,7 @@ public sealed class StudioApiClient(HttpClient http)
         return await ReadAsync<TResponse>(response);
     }
 
-    private static async Task<T> ReadAsync<T>(HttpResponseMessage response)
+    private async Task<T> ReadAsync<T>(HttpResponseMessage response)
     {
         if (!response.IsSuccessStatusCode)
         {
@@ -122,10 +136,10 @@ public sealed class StudioApiClient(HttpClient http)
         }
 
         return await response.Content.ReadFromJsonAsync<T>(Json)
-            ?? throw new InvalidOperationException("Serverul a răspuns fără conținut.");
+            ?? throw new InvalidOperationException(Tr[Copy.EmptyResponse]);
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response)
+    private async Task EnsureSuccessAsync(HttpResponseMessage response)
     {
         if (!response.IsSuccessStatusCode)
         {
@@ -134,7 +148,7 @@ public sealed class StudioApiClient(HttpClient http)
         }
     }
 
-    private static async Task<string> ReadErrorAsync(HttpResponseMessage response)
+    private async Task<string> ReadErrorAsync(HttpResponseMessage response)
     {
         try
         {
@@ -143,7 +157,7 @@ public sealed class StudioApiClient(HttpClient http)
             {
                 if (detail.ValueKind == JsonValueKind.String)
                 {
-                    return detail.GetString() ?? "Cererea nu a reușit.";
+                    return detail.GetString() ?? Tr[Copy.RequestFailed];
                 }
                 if (detail.ValueKind == JsonValueKind.Array)
                 {
@@ -157,7 +171,7 @@ public sealed class StudioApiClient(HttpClient http)
             // Fall through to the status-based message.
         }
 
-        return $"Cererea nu a reușit ({(int)response.StatusCode}).";
+        return $"{Tr[Copy.RequestFailed]} ({(int)response.StatusCode})";
     }
 
     /// <summary>
@@ -165,7 +179,7 @@ public sealed class StudioApiClient(HttpClient http)
     /// Viorela reads this screen, so the fields are named in her own words and the
     /// technical shape stays out of the interface.
     /// </summary>
-    private static string ValidationMessage(JsonElement detail)
+    private string ValidationMessage(JsonElement detail)
     {
         var fields = new List<string>();
         foreach (var problem in detail.EnumerateArray())
@@ -186,27 +200,29 @@ public sealed class StudioApiClient(HttpClient http)
         }
 
         return fields.Count == 0
-            ? "Datele trimise nu sunt complete."
-            : $"Mai e de completat: {string.Join(", ", fields)}.";
+            ? Tr[Copy.IncompleteData]
+            : $"{Tr[Copy.StillMissing]}: {string.Join(", ", fields)}.";
     }
 
-    private static string? FieldLabel(string? name) => name switch
+    private string? FieldLabel(string? name) => name switch
     {
-        "title" => "titlul",
-        "pillar" => "pilonul",
-        "format" => "formatul",
-        "hook" => "hook-ul",
-        "hook_type" => "tipul de hook",
-        "script" => "scriptul",
-        "caption" => "captionul",
-        "hashtags" => "hashtagurile (3–5, fiecare cu #)",
-        "cta" => "CTA-ul",
-        "source" => "sursa",
-        "content_blocks" => "blocurile de conținut",
-        "visual_direction" => "direcția vizuală",
-        "duration_or_count" => "durata sau numărul de cadre",
-        "format_details" => "blocul de producție",
-        "variant_ids" => "variantele alese",
+        "title" => Tr.Pick("titlul", "the title"),
+        "pillar" => Tr.Pick("pilonul", "the pillar"),
+        "format" => Tr.Pick("formatul", "the format"),
+        "hook" => Tr.Pick("hook-ul", "the hook"),
+        "hook_type" => Tr.Pick("tipul de hook", "the hook type"),
+        "script" => Tr.Pick("scriptul", "the script"),
+        "caption" => Tr.Pick("captionul", "the caption"),
+        "hashtags" => Tr.Pick(
+            "hashtagurile (3–5, fiecare cu #)", "the hashtags (3–5, each with #)"),
+        "cta" => Tr.Pick("CTA-ul", "the CTA"),
+        "source" => Tr.Pick("sursa", "the source"),
+        "content_blocks" => Tr.Pick("blocurile de conținut", "the content blocks"),
+        "visual_direction" => Tr.Pick("direcția vizuală", "the visual direction"),
+        "duration_or_count" => Tr.Pick(
+            "durata sau numărul de cadre", "the duration or number of frames"),
+        "format_details" => Tr.Pick("blocul de producție", "the production block"),
+        "variant_ids" => Tr.Pick("variantele alese", "the chosen variants"),
         _ => name
     };
 }

@@ -13,6 +13,7 @@ var apiBase = string.IsNullOrWhiteSpace(configuredApi)
     : configuredApi;
 
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(apiBase) });
+builder.Services.AddScoped<LanguageState>();
 builder.Services.AddScoped<StudioApiClient>();
 builder.Services.AddScoped<GenerationEventStream>();
 builder.Services.AddScoped<ChatEventStream>();

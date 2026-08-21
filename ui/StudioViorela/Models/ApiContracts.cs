@@ -94,6 +94,10 @@ public sealed class DecisionsDto
 
     [JsonPropertyName("decisions")]
     public List<DecisionDto> Decisions { get; set; } = [];
+
+    /// <summary>Interface language, which the agent answers and writes in.</summary>
+    [JsonPropertyName("language")]
+    public string Language { get; set; } = "ro";
 }
 
 public sealed class DecisionDto
@@ -253,6 +257,10 @@ public sealed class GenerationStartDto
 
     [JsonPropertyName("replace_current")]
     public bool ReplaceCurrent { get; set; }
+
+    /// <summary>Interface language, which the agent answers and writes in.</summary>
+    [JsonPropertyName("language")]
+    public string Language { get; set; } = "ro";
 }
 
 public sealed class VariantSelectionDto
@@ -276,8 +284,10 @@ public sealed class ChatTargetDto
     [JsonIgnore]
     public string? IdeaId { get; set; }
 
+    // Filled in by StudioContextState, which knows the language; this is the
+    // value a target carries before anybody sets one.
     [JsonIgnore]
-    public string Label { get; set; } = "Conversație generală";
+    public string Label { get; set; } = "";
 
     public static ChatTargetDto General() => new();
 }
@@ -289,6 +299,10 @@ public sealed class ChatStartDto
 
     [JsonPropertyName("target")]
     public ChatTargetDto Target { get; set; } = ChatTargetDto.General();
+
+    /// <summary>Interface language, which the agent answers and writes in.</summary>
+    [JsonPropertyName("language")]
+    public string Language { get; set; } = "ro";
 }
 
 public sealed class ChatAcceptedDto

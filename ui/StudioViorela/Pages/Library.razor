@@ -1,18 +1,22 @@
 @page "/library"
 
-<PageTitle>Materiale · Studio Viorela</PageTitle>
+<PageTitle>@T[Copy.LibraryTab]</PageTitle>
 
 <section class="page-heading">
     <div>
-        <span class="eyebrow">Sursa de inspirație</span>
-        <h1>Materialele tale</h1>
-        <p>Cărțile, notițele și documentele încărcate vor alimenta ideile fără să schimbe vocea brandului.</p>
+        <span class="eyebrow">@T[Copy.LibraryEyebrow]</span>
+        <h1>@T[Copy.LibraryHeading]</h1>
+        <p>@T[Copy.LibraryLede]</p>
     </div>
-    <button class="button button-primary" disabled>＋ Adaugă material</button>
+    <button class="button button-primary" disabled>@T[Copy.LibraryAdd]</button>
 </section>
 
 <section class="empty-state">
     <span class="empty-illustration">▤</span>
-    <h2>Biblioteca se conectează în etapa media</h2>
-    <p>Atunci vom adăuga încărcare, procesare și embeddings automate, cu stare vizibilă pentru fiecare fișier.</p>
+    <h2>@T[Copy.LibraryComingHeading]</h2>
+    <p>@T[Copy.LibraryComingBody]</p>
 </section>
+
+@code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+}

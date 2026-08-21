@@ -70,6 +70,7 @@ from content_studio.harness.profile import (
     parse_profile,
     serialize_blocks,
 )
+from content_studio.language import DEFAULT_LANGUAGE, Language
 from content_studio.mcp_server.protocol import (
     CONVERSATION_HEADER,
     GENERATION_VISIBLE_TOOLS,
@@ -317,14 +318,20 @@ class HarnessService:
             status="ready" if all(required) else "degraded", backends=backends
         )
 
-    async def run(self, message: str, session_id: str | None = None) -> RunResponse:
-        return await self._run_message(message, session_id)
+    async def run(
+        self,
+        message: str,
+        session_id: str | None = None,
+        language: Language = DEFAULT_LANGUAGE,
+    ) -> RunResponse:
+        return await self._run_message(message, session_id, language=language)
 
     async def _run_message(
         self,
         message: str,
         session_id: str | None = None,
         principal_id: str | None = None,
+        language: Language = DEFAULT_LANGUAGE,
     ) -> RunResponse:
         engine, trail = self._require_ready()
         session_id = validate_session_id(session_id or new_session_id())
@@ -347,7 +354,7 @@ class HarnessService:
         try:
             await data_mcp.connect()
             _, profile_md = await read_profile(data_mcp)
-            worker = build_worker(profile_md, data_mcp)
+            worker = build_worker(profile_md, data_mcp, language=language)
             session = SQLAlchemySession(
                 session_id, engine=engine, create_tables=True, ensure_ascii=False
             )
@@ -746,6 +753,7 @@ class HarnessService:
         session_id: str,
         decisions: list[ApprovalDecision],
         resolved_by: str,
+        language: Language = DEFAULT_LANGUAGE,
     ) -> RunResponse:
         engine, trail = self._require_ready()
         session_id = validate_session_id(session_id)
@@ -765,7 +773,10 @@ class HarnessService:
         try:
             await data_mcp.connect()
             _, profile_md = await read_profile(data_mcp)
-            worker = build_worker(profile_md, data_mcp)
+            # The run resumes with the language the browser is showing now,
+            # which is the same one it was started in unless she switched
+            # mid-run - in which case following the screen is the right call.
+            worker = build_worker(profile_md, data_mcp, language=language)
             state = await RunState.from_string(worker, str(pending["state"]))
 
             runtime_requests = {

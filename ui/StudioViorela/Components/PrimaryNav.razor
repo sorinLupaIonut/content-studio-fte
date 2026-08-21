@@ -1,22 +1,26 @@
 @* Two groups, because the split carries meaning: the first pair is what she
    does, the second is what feeds it. See plans/design/README.md, decision 1. *@
-<nav class="primary-nav" aria-label="Navigare principală">
+<nav class="primary-nav" aria-label="@T[Copy.NavAria]">
     <div class="rail-group" role="group" aria-labelledby="rail-group-work">
-        <span class="rail-label" id="rail-group-work">Lucrezi</span>
+        <span class="rail-label" id="rail-group-work">@T[Copy.NavGroupWork]</span>
         <NavLink href="/generator" Match="NavLinkMatch.All">
-            <span class="ico" aria-hidden="true">✦</span> Generator
+            <span class="ico" aria-hidden="true">✦</span> @T[Copy.NavGenerator]
         </NavLink>
         <NavLink href="/saved">
-            <span class="ico" aria-hidden="true">♡</span> Salvate
+            <span class="ico" aria-hidden="true">♡</span> @T[Copy.NavSaved]
         </NavLink>
     </div>
     <div class="rail-group" role="group" aria-labelledby="rail-group-you">
-        <span class="rail-label" id="rail-group-you">Ce te reprezintă</span>
+        <span class="rail-label" id="rail-group-you">@T[Copy.NavGroupYou]</span>
         <NavLink href="/profile">
-            <span class="ico" aria-hidden="true">◎</span> Profil
+            <span class="ico" aria-hidden="true">◎</span> @T[Copy.NavProfile]
         </NavLink>
         <NavLink href="/library">
-            <span class="ico" aria-hidden="true">▤</span> Materiale
+            <span class="ico" aria-hidden="true">▤</span> @T[Copy.NavLibrary]
         </NavLink>
     </div>
 </nav>
+
+@code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+}

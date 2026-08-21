@@ -4,24 +4,24 @@
 @inject ChatEventStream Events
 @inject StudioContextState ContextState
 
-<button class="chat-launcher" type="button" @onclick="Toggle" aria-expanded="@_open" aria-label="Vorbește cu agentul" title="Vorbește cu agentul">
+<button class="chat-launcher" type="button" @onclick="Toggle" aria-expanded="@_open" aria-label="@T[Copy.ChatLauncher]" title="@T[Copy.ChatLauncher]">
     <span aria-hidden="true">✦</span>
-    <span>Vorbește cu agentul</span>
+    <span>@T[Copy.ChatLauncher]</span>
 </button>
 
 @if (_open)
 {
-    <aside class="chat-drawer" aria-label="Chat cu agentul">
+    <aside class="chat-drawer" aria-label="@T[Copy.ChatAria]">
         <header>
             <div>
-                <span class="eyebrow">Asistentul tău</span>
-                <h2>Hai să lucrăm împreună</h2>
+                <span class="eyebrow">@T[Copy.ChatEyebrow]</span>
+                <h2>@T[Copy.ChatHeading]</h2>
             </div>
-            <button class="icon-button" type="button" @onclick="Toggle" aria-label="Închide chatul">×</button>
+            <button class="icon-button" type="button" @onclick="Toggle" aria-label="@T[Copy.ChatClose]">×</button>
         </header>
         <div class="chat-context" title="@ContextState.Target.Label">
             <span class="status-dot"></span>
-            <span>Context: @ContextState.Target.Label</span>
+            <span>@T[Copy.ChatContext]: @ContextState.Target.Label</span>
         </div>
 
         <div class="chat-messages" aria-live="polite">
@@ -29,31 +29,31 @@
             {
                 <div class="chat-empty">
                     <span class="chat-spark">✦</span>
-                    <strong>Spune-i ce vrei să schimbi.</strong>
-                    <p>Dacă ai deschis o variantă, agentul lucrează exact pe ea. Altfel răspunde în conversația generală.</p>
+                    <strong>@T[Copy.ChatEmptyTitle]</strong>
+                    <p>@T[Copy.ChatEmptyBody]</p>
                 </div>
             }
             @foreach (var message in _messages)
             {
                 <article class="chat-message chat-@message.Role @(message.Error ? "chat-error" : null)">
-                    <span>@(message.Role == "user" ? "Tu" : "Agent")</span>
+                    <span>@(message.Role == "user" ? T[Copy.ChatYou] : T[Copy.ChatAgent])</span>
                     <p class="preserve-lines">
                         @message.Text
                         @if (message.Streaming)
                         {
-                            <span class="stream-caret" aria-label="Răspuns în curs"></span>
+                            <span class="stream-caret" aria-label="@T[Copy.ChatStreaming]"></span>
                         }
                     </p>
                     @if (message.Stopped)
                     {
-                        <small>Răspuns oprit · textul parțial nu a modificat conținutul.</small>
+                        <small>@T[Copy.ChatStopped]</small>
                     }
                     else if (message.Patched)
                     {
                         <small>
                             @(message.PatchIsDraft
-                                ? "✎ Postarea a fost rescrisă în editor. Se salvează abia după «Salvează modificările»."
-                                : "✓ Varianta din generator a fost actualizată.")
+                                ? T[Copy.ChatPostRewritten]
+                                : T[Copy.ChatVariantUpdated])
                         </small>
                     }
                 </article>
@@ -66,25 +66,27 @@
         }
 
         <footer class="chat-composer">
-            <textarea @bind="_draft" disabled="@_busy" placeholder="Scrie-i agentului în limba română…"></textarea>
+            <textarea @bind="_draft" disabled="@_busy" placeholder="@T[Copy.ChatPlaceholder]"></textarea>
             <div>
-                <button class="icon-button" disabled title="Atașamente — etapa media">＋</button>
-                <button class="icon-button" disabled title="Microfon — etapa media">◉</button>
+                <button class="icon-button" disabled title="@T[Copy.ChatAttachments]">＋</button>
+                <button class="icon-button" disabled title="@T[Copy.ChatMicrophone]">◉</button>
                 @if (_busy)
                 {
-                    <button class="send-button stop-button" @onclick="StopAsync">Oprește</button>
+                    <button class="send-button stop-button" @onclick="StopAsync">@T[Copy.Stop]</button>
                 }
                 else
                 {
-                    <button class="send-button" disabled="@string.IsNullOrWhiteSpace(_draft)" @onclick="SendAsync">Trimite</button>
+                    <button class="send-button" disabled="@string.IsNullOrWhiteSpace(_draft)" @onclick="SendAsync">@T[Copy.ChatSend]</button>
                 }
             </div>
         </footer>
     </aside>
-    <button class="drawer-scrim" type="button" @onclick="Toggle" aria-label="Închide chatul"></button>
+    <button class="drawer-scrim" type="button" @onclick="Toggle" aria-label="@T[Copy.ChatClose]"></button>
 }
 
 @code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+
     private readonly List<ChatMessageView> _messages = [];
     private string _draft = "";
     private string? _runId;
@@ -148,7 +150,7 @@
         try
         {
             await Api.CancelChatAsync(_runId);
-            _connectionNote = "Se oprește răspunsul…";
+            _connectionNote = T[Copy.ChatStopping];
         }
         catch (Exception ex)
         {
@@ -208,12 +210,12 @@
                     FinishAssistant(stopped: true);
                     break;
                 case "approval.required":
-                    FinishAssistant(error: "Agentul a pregătit o scriere care are nevoie de confirmare. Salvarea se face din pagina ei, cu butonul de salvare.");
+                    FinishAssistant(error: T[Copy.ChatNeedsApproval]);
                     break;
                 case "error":
                     var detail = envelope.Payload.TryGetProperty("detail", out var error)
                         ? error.GetString()
-                        : "Răspunsul nu a putut fi terminat.";
+                        : T[Copy.ChatUnfinished];
                     FinishAssistant(error: detail);
                     break;
             }
@@ -229,7 +231,7 @@
         }
         return InvokeAsync(() =>
         {
-            _connectionNote = "Conexiunea live se reface automat; răspunsul continuă pe server.";
+            _connectionNote = T[Copy.ChatReconnecting];
             StateHasChanged();
         });
     }

@@ -34,6 +34,7 @@ from content_studio.harness.generation import (
     public_batch,
     title_prompt,
 )
+from content_studio.language import DEFAULT_LANGUAGE, Language
 from content_studio.worker import build_sandbox, build_worker, read_profile
 
 RUN_TIMEOUT_SECONDS = 600
@@ -179,7 +180,7 @@ class GenerationCoordinator:
         start_request: GenerationStartRequest,
     ) -> dict[str, Any]:
         request = GenerationBatchRequest.model_validate(
-            start_request.model_dump(exclude={"replace_current"})
+            start_request.model_dump(exclude={"replace_current", "language"})
         )
         current = await self.current(principal_id, public=False)
         if current is not None and not start_request.replace_current:
@@ -213,6 +214,7 @@ class GenerationCoordinator:
                 request,
                 profile_md,
                 source_packet,
+                start_request.language,
             ),
             name=f"generation-{batch_id}",
         )
@@ -421,13 +423,16 @@ class GenerationCoordinator:
         request: GenerationBatchRequest,
         profile_md: str,
         source_packet: dict[str, Any],
+        language: Language = DEFAULT_LANGUAGE,
     ) -> None:
         data_mcp = self._data_mcp_factory(session_id)
         internal = self._internal_mcp_factory(session_id)
         try:
             await asyncio.gather(data_mcp.connect(), internal.connect())
             drafts = GenerationDraftClient(internal)
-            base_agent = build_worker(profile_md, data_mcp)
+            # The title and detail agents are clones of this one, so the
+            # language set here reaches both phases.
+            base_agent = build_worker(profile_md, data_mcp, language=language)
             title_agent = base_agent.clone(
                 model=GENERATION_TITLE_MODEL,
                 output_type=IdeaTitles,
@@ -439,7 +444,7 @@ class GenerationCoordinator:
             )
             titles = await self._run_isolated(
                 title_agent,
-                title_prompt(request, source_packet),
+                title_prompt(request, source_packet, language),
                 IdeaTitles,
                 f"{batch_id}-titles",
             )
@@ -451,6 +456,7 @@ class GenerationCoordinator:
                 titles,
                 base_agent,
                 drafts,
+                language,
             )
         except asyncio.CancelledError:
             raise
@@ -473,6 +479,7 @@ class GenerationCoordinator:
         titles: IdeaTitles,
         base_agent,
         drafts: GenerationDraftClient,
+        language: Language = DEFAULT_LANGUAGE,
     ) -> None:
         detail_agent = base_agent.clone(
             model=GENERATION_DETAIL_MODEL,
@@ -517,6 +524,7 @@ class GenerationCoordinator:
                     client,
                     sandbox,
                     drafts,
+                    language,
                 )
 
         try:
@@ -536,13 +544,14 @@ class GenerationCoordinator:
         client,
         sandbox,
         drafts: GenerationDraftClient,
+        language: Language = DEFAULT_LANGUAGE,
     ) -> None:
         for attempt in (1, 2):
             await drafts.start_idea(batch_id, idea.ordinal)
             try:
                 value = await self._run_on_sandbox(
                     agent,
-                    detail_prompt(request, idea, source_packet),
+                    detail_prompt(request, idea, source_packet, language),
                     detail_output_type(request.format),
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     client,

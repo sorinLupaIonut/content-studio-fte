@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from content_studio.language import DEFAULT_LANGUAGE, Language
+
 
 class BackendHealth(BaseModel):
     configured: bool
@@ -21,6 +23,7 @@ class HealthResponse(BaseModel):
 class RunRequest(BaseModel):
     message: str = Field(min_length=1, max_length=50_000)
     session_id: str | None = Field(default=None, min_length=1, max_length=200)
+    language: Language = DEFAULT_LANGUAGE
 
     @field_validator("message")
     @classmethod
@@ -63,11 +66,13 @@ class DecisionsRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=200)
     decisions: list[ApprovalDecision] = Field(min_length=1)
     resolved_by: str = Field(default="viorela", min_length=1, max_length=200)
+    language: Language = DEFAULT_LANGUAGE
 
 
 class TrustedDecisionsRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=200)
     decisions: list[ApprovalDecision] = Field(min_length=1)
+    language: Language = DEFAULT_LANGUAGE
 
 
 class MeResponse(BaseModel):

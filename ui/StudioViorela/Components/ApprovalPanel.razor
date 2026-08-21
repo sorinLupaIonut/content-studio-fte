@@ -3,9 +3,9 @@
     <section class="approval-panel" aria-live="polite">
         <div class="approval-icon">✓</div>
         <div class="approval-copy">
-            <span class="eyebrow">Confirmare necesară</span>
-            <h3>@Title</h3>
-            <p>@Message</p>
+            <span class="eyebrow">@T[Copy.ApprovalEyebrow]</span>
+            <h3>@(Title ?? T[Copy.ApprovalDefaultTitle])</h3>
+            <p>@(Message ?? T[Copy.ApprovalDefaultMessage])</p>
             @if (Summary.Count > 0)
             {
                 <ul class="approval-summary">
@@ -17,20 +17,27 @@
             }
         </div>
         <div class="approval-actions">
-            <button class="button button-ghost" disabled="@Busy" @onclick="() => OnDecision.InvokeAsync(false)">@RejectLabel</button>
+            <button class="button button-ghost" disabled="@Busy" @onclick="() => OnDecision.InvokeAsync(false)">
+                @(RejectLabel ?? T[Copy.Cancel])
+            </button>
             <button class="button button-primary" disabled="@Busy" @onclick="() => OnDecision.InvokeAsync(true)">
-                @(Busy ? "Se aplică…" : "Confirmă")
+                @(Busy ? T[Copy.Applying] : T[Copy.Confirm])
             </button>
         </div>
     </section>
 }
 
 @code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+
     [Parameter, EditorRequired] public RunResponseDto? Run { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback<bool> OnDecision { get; set; }
-    [Parameter] public string Title { get; set; } = "Modificarea este pregătită";
-    [Parameter] public string Message { get; set; } = "Profilul nu se schimbă până când alegi explicit „Confirmă”.";
-    [Parameter] public string RejectLabel { get; set; } = "Renunță";
+
+    // Null rather than a Romanian literal: the default has to follow the
+    // language, and a default baked in here would not.
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string? RejectLabel { get; set; }
     [Parameter] public List<string> Summary { get; set; } = [];
 }

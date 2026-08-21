@@ -244,8 +244,9 @@ h2 {
 
 .rail-foot {
     display: flex;
-    gap: 10px;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
     margin-top: auto;
     padding-top: 14px;
     border-top: 1px solid var(--line);
@@ -1600,8 +1601,32 @@ select:disabled {
 
     .brand,
     .rail-label,
-    .rail-foot {
+    .identity {
         display: none;
+    }
+
+    /* Kept, but folded into the bar as a compact row: an English speaker on
+       a phone still has to find the switch, and anyone has to find the way
+       out. Only the identity chip goes, since it is the one thing here that
+       is informational rather than actionable. */
+    .rail-foot {
+        flex: 0 0 auto;
+        flex-direction: row;
+        gap: 6px;
+        align-items: center;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+    }
+
+    .language-picker button {
+        padding: 6px;
+        font-size: .68rem;
+    }
+
+    .signout-button {
+        padding: 8px 9px;
+        font-size: .68rem;
     }
 
     .primary-nav {
@@ -1813,24 +1838,79 @@ select:disabled {
     font-size: .78rem;
 }
 
-/* The sign-out control sits beside the identity chip and stays quiet until
-   hovered - leaving is always available, never loud. */
-.signout {
-    display: grid;
-    flex: 0 0 auto;
-    width: 30px;
-    height: 30px;
-    place-items: center;
-    margin-left: auto;
-    border-radius: 9px;
-    color: var(--faint);
-    font-size: 1rem;
+/* Leaving is always available and never loud - but it is also spelled out.
+   The glyph alone read as decoration, and a way out that has to be guessed
+   at is not a way out. */
+.signout-button {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 600;
     text-decoration: none;
+    transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.signout-button:hover,
+.signout-button:focus-visible {
+    border-color: var(--plum-deep);
+    color: var(--ink);
+    background: var(--surface-2);
+}
+
+.signout-icon {
+    font-size: .95rem;
+    line-height: 1;
+}
+
+/* A segmented pair rather than a dropdown: two options are faster to read
+   than to open, and the one not in use doubles as the affordance. */
+.language-picker {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--rail);
+}
+
+.language-picker button {
+    flex: 1;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--faint);
+    background: transparent;
+    font-family: inherit;
+    font-size: .74rem;
+    font-weight: 600;
+    cursor: pointer;
     transition: color .15s ease, background .15s ease;
 }
 
-.signout:hover,
-.signout:focus-visible {
+.language-picker button:hover {
     color: var(--ink);
-    background: var(--surface-2);
+}
+
+.language-picker button.active {
+    color: var(--on-accent);
+    background: var(--plum);
+}
+
+/* On the access screens the picker is a footnote, not a control the eye
+   should land on before the sign-in button. */
+.access-language {
+    justify-content: center;
+    margin-top: 6px;
+    border-color: transparent;
+    background: transparent;
+}
+
+.access-language button {
+    flex: 0 0 auto;
 }

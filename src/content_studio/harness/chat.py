@@ -22,6 +22,7 @@ from content_studio.config import CHAT_MODEL
 from content_studio.harness.drafts import GenerationDraftClient
 from content_studio.harness.generation import IdeaVariant, StreamEvent, StrictContract
 from content_studio.harness.posts import SavedPostContent
+from content_studio.language import DEFAULT_LANGUAGE, Language, normalise
 from content_studio.worker import build_sandbox, build_worker, describe_request, read_profile
 
 ChatTargetKind = Literal[
@@ -49,6 +50,7 @@ class ChatTarget(StrictContract):
 class ChatRunRequest(StrictContract):
     message: str = Field(min_length=1, max_length=50_000)
     target: ChatTarget = Field(default_factory=ChatTarget)
+    language: Language = DEFAULT_LANGUAGE
 
     @field_validator("message")
     @classmethod
@@ -188,7 +190,11 @@ def _silent(target_context: dict[str, Any] | None) -> str:
     return SILENT_REEL_TARGET if content.get("script") is None else ""
 
 
-def chat_prompt(message: str, target_context: dict[str, Any] | None) -> str:
+def chat_prompt(
+    message: str,
+    target_context: dict[str, Any] | None,
+    language: Language = DEFAULT_LANGUAGE,
+) -> str:
     """Bind the user's message to one server-verified target, never a label."""
 
     if target_context is None:
@@ -219,8 +225,18 @@ def chat_prompt(message: str, target_context: dict[str, Any] | None) -> str:
             + "\n"
             + json.dumps(target_context, ensure_ascii=False)
         )
+    # This line used to say "în română" unconditionally, and being inside the
+    # user message it beat the system prompt outright - the first English chat
+    # came back Romanian because of exactly this.
+    reply_line = (
+        "Răspunde natural, în română, prin contractul structurat cerut de aplicație."
+        if normalise(language) == "ro"
+        else "Reply naturally, IN ENGLISH, through the structured contract the "
+        "application requires. The Romanian below is the method and the source "
+        "material, not the language of your answer."
+    )
     return f"""MOD CHAT UI STRUCTURAT D1B
-Răspunde natural, în română, prin contractul structurat cerut de aplicație.
+{reply_line}
 Textul pentru utilizatoare stă în `reply`. `patch` este null dacă nu rescrii
 ținta. Nu include JSON, câmpuri tehnice sau explicații despre patch în `reply`.
 
@@ -238,6 +254,7 @@ class _LiveChatRun:
     run_id: str
     session_id: str
     target: ChatTarget
+    language: Language = DEFAULT_LANGUAGE
     events: list[StreamEvent] = field(default_factory=list)
     sequence: int = 0
     terminal: bool = False
@@ -317,6 +334,7 @@ class ChatCoordinator:
             run_id=run_id,
             session_id=session_id,
             target=request.target,
+            language=request.language,
         )
         self._runs[run_id] = state
         self._active[principal_id] = run_id
@@ -393,6 +411,7 @@ class ChatCoordinator:
                 data_mcp,
                 model=CHAT_MODEL,
                 output_type=output_type,
+                language=state.language,
                 model_settings=ModelSettings(
                     reasoning={"effort": "low"},
                     verbosity="low",
@@ -406,7 +425,7 @@ class ChatCoordinator:
             )
             result = Runner.run_streamed(
                 worker,
-                chat_prompt(message, target_context),
+                chat_prompt(message, target_context, state.language),
                 session=session,
                 run_config=RunConfig(
                     sandbox=SandboxRunConfig(client=client, session=sandbox),

@@ -1,29 +1,29 @@
 @page "/profile"
 @inject StudioApiClient Api
 
-<PageTitle>Profil · Studio Viorela</PageTitle>
+<PageTitle>@T[Copy.ProfileTab]</PageTitle>
 
 <section class="page-heading">
     <div>
-        <span class="eyebrow">Vocea din spatele conținutului</span>
-        <h1>Profilul brandului</h1>
-        <p>Agentul folosește aceste informații în fiecare idee. Editează doar ce s-a schimbat și confirmă înainte de salvare.</p>
+        <span class="eyebrow">@T[Copy.ProfileEyebrow]</span>
+        <h1>@T[Copy.ProfileHeading]</h1>
+        <p>@T[Copy.ProfileLede]</p>
     </div>
-    <span class="step-chip">Sursă vie · MCP</span>
+    <span class="step-chip">@T[Copy.ProfileChip]</span>
 </section>
 
 @if (_loading)
 {
     <section class="loading-card" aria-live="polite">
-        <span class="spinner"></span> Se încarcă profilul actual…
+        <span class="spinner"></span> @T[Copy.ProfileLoading]
     </section>
 }
 else if (_error is not null)
 {
     <section class="notice notice-error" role="alert">
-        <strong>Profilul nu a putut fi încărcat.</strong>
+        <strong>@T[Copy.ProfileFailed]</strong>
         <span>@_error</span>
-        <button class="button button-ghost" @onclick="LoadAsync">Încearcă din nou</button>
+        <button class="button button-ghost" @onclick="LoadAsync">@T[Copy.TryAgain]</button>
     </section>
 }
 else
@@ -45,7 +45,7 @@ else
                     </span>
                     @if (section.ReadOnly)
                     {
-                        <span class="readonly-chip">din metodă</span>
+                        <span class="readonly-chip">@T[Copy.FromMethod]</span>
                     }
                     <span class="chevron @(IsExpanded(section.Key) ? "open" : null)">⌄</span>
                 </button>
@@ -64,9 +64,9 @@ else
                         @if (!section.ReadOnly)
                         {
                             <div class="section-actions">
-                                <span>Salvarea cere confirmarea ta.</span>
+                                <span>@T[Copy.SaveNeedsConfirm]</span>
                                 <button class="button button-primary" disabled="@_busy" @onclick="() => PrepareAsync(section)">
-                                    @(_busy && _activeKey == section.Key ? "Se pregătește…" : "Pregătește salvarea")
+                                    @(_busy && _activeKey == section.Key ? T[Copy.Preparing] : T[Copy.PrepareSaveShort])
                                 </button>
                             </div>
                         }
@@ -83,6 +83,8 @@ else
 }
 
 @code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+
     private readonly HashSet<string> _expanded = [];
     private List<ProfileSectionDto> _sections = [];
     private RunResponseDto? _pending;
@@ -169,8 +171,8 @@ else
             _pending = null;
             _activeKey = null;
             _message = approved && result.Status == "completed"
-                ? "Modificarea a fost salvată."
-                : "Modificarea a fost anulată.";
+                ? T[Copy.ChangeSaved]
+                : T[Copy.ChangeCancelledShort];
             if (approved)
             {
                 await LoadAsync();
@@ -199,24 +201,9 @@ else
         _ => "·"
     };
 
-    private static string GroupLabel(string group) => group switch
-    {
-        "identity" => "Identitate",
-        "ideal_client" => "Client ideal",
-        "voice" => "Voce și ton",
-        "offer" => "Ofertă",
-        "pillars" => "Piloni",
-        "ctas" => "Îndemnuri",
-        "restrictions" => "Limite",
-        "results" => "Rezultate",
-        _ => "Profil"
-    };
+    // The section *titles* are not here on purpose: they are headings parsed
+    // out of her own profile, which is her content and stays Romanian.
+    private string GroupLabel(string group) => Values.GroupLabel(T, group);
 
-    private static string BlockLabel(string kind) => kind switch
-    {
-        "bullet" => "Punct",
-        "ordered" => "Pas",
-        "quote" => "Formulare exactă",
-        _ => "Descriere"
-    };
+    private string BlockLabel(string kind) => Values.BlockLabel(T, kind);
 }

@@ -550,6 +550,121 @@ changelog entry below and [infra/README.md](../infra/README.md).
 
 ## Changelog
 
+- **2026-08-21 · Claude Code** — **The studio is bilingual: the interface, the
+  chat and the generated content all follow one switch, and the sign-out control
+  is spelled out.** Asked for by Sorin so the product can be shown to an American
+  entrepreneur, and asked for explicitly at the widest of the three scopes he was
+  offered — interface, interface plus chat, or everything including the posts
+  themselves. He chose everything, and chose to defer the evals.
+
+  **The design decision that mattered.** The obvious way to make the agent write
+  English is to fork the method: a second `SKILL.md` tree, a second
+  `BASE_INSTRUCTIONS`. That was refused. `skills/` and `BASE_INSTRUCTIONS` are the
+  single source of truth for *how* the work is done, and a translated copy of a
+  living method goes stale the first time somebody edits one side — the exact
+  failure the language policy in AGENTS.md exists to prevent. Instead the output
+  language is a separate axis: new `src/content_studio/language.py` holds one
+  appended override block, and `build_worker(..., language=...)` puts it *after*
+  the profile, because rule 1 of `BASE_INSTRUCTIONS` says "răspunzi în română" and
+  the closer contradiction wins. The model reads the Romanian method and writes
+  English. Romanian appends nothing at all, so the default path is byte-identical
+  to what it was.
+
+  **Where the language enters, and where it deliberately does not.** It is a
+  typed field on the four request bodies that can start or resume agent work —
+  `RunRequest`, `DecisionsRequest`, `TrustedDecisionsRequest`, `ChatRunRequest`,
+  `GenerationStartRequest` — each defaulting to `"ro"`, so all six existing
+  `build_worker` call sites keep working untouched. It is **not** on
+  `GenerationBatchRequest`: that model is `model_dump`ed straight into the
+  `ui_create_generation_batch` MCP tool arguments, so a field there would have
+  needed a tool signature and a column. It travels as a separate parameter into
+  the background task instead, and a unit test pins that it never reaches the tool
+  payload. `normalise()` falls back rather than raising, so a stale tab asking for
+  a language this build does not have still gets an answer.
+
+  **Interface, in one file with both languages on the same line.** New
+  `ui/StudioViorela/Localization/` — `Phrase` (ro, en), `Translator` (resolves,
+  cascaded from `MainLayout` so a switch re-renders every descendant with nobody
+  subscribing), `Copy` (~190 phrases) and `Values` (domain vocabulary). Two
+  dictionaries or two objects with matching property names would let a translation
+  drift silently on the first one-sided edit; one line per phrase makes the drift
+  visible in the diff. `StudioApiClient` stamps the language centrally rather than
+  each page remembering to — a page that forgot would show English and get Romanian
+  back, and nothing would fail loudly enough to notice.
+
+  **The values never translate, and one thing stays Romanian on purpose.**
+  `Pilon`, `Sursă`, `Format` and the five hook types are the API contract, so the
+  `<option value>` stays Romanian in both languages and only the label changes.
+  Profile *section titles* also stay Romanian in English mode: they are headings
+  parsed out of her own profile by `profile.py`, which makes them her content, not
+  interface chrome. That is correct rather than an omission, and it is written
+  down in AGENTS.md so the next session does not "fix" it.
+
+  **Sign-out, spelled out.** The `⎋` glyph was replaced by a bordered control
+  reading "Ieși din cont" / "Log out", on Sorin's judgement that an icon nobody
+  recognises is not a way out. The mobile breakpoint used to drop `.rail-foot`
+  entirely, which silently took sign-out with it and would now have taken the
+  language switch too; it is now kept as a compact row with only the identity chip
+  hidden — that chip is the one item there that is informational rather than
+  actionable.
+
+  **Not from this application.** Sorin asked about a Chrome banner reading "You
+  are using an unsupported command-line flag: --no-sandbox". It is the Playwright
+  browser this session drives, confirmed by `Get-CimInstance Win32_Process`
+  showing `user-data-dir=C:/Users/sorin/.claude/browser-profile`. Nothing to fix.
+
+  **The bug the live test caught, and the lesson.** With the override in place,
+  correct, and unit-tested, the first real English chat came back **in Romanian**.
+  The request carried `language: "en"`, the interface was English, and the model
+  still answered Romanian — because `chat_prompt` said *"Răspunde natural, în
+  română"* unconditionally, and that line sits in the **user message**, which is
+  closer to the answer than any system prompt and therefore wins. The same trap
+  in a quieter form applied to `title_prompt` and `detail_prompt`: they name no
+  language at all, but they are written entirely in Romanian, which pulls just as
+  hard. All three now restate the language where the task is stated
+  (`language.task_note`), and five regression tests pin it — including that the
+  Romanian prompts are unchanged.
+
+  This is the second time in this feature that *proximity* decided the outcome,
+  the first being the override having to sit after the profile. Worth carrying
+  forward: in this codebase the system prompt does not win arguments with the
+  task prompt.
+
+  **Verified:** `ruff` clean, **131 unit tests** (18 new: language parsing, the
+  override composition, the request contracts, that `build_worker` appends the
+  block after the profile while keeping `REGULI OBLIGATORII` intact, and that
+  every task prompt carries the language — all constructed without network or a
+  model call), `dotnet build` clean, 7 UI contract tests pass. Live: image
+  `20260821-1455`, one active revision, the new CSS served with
+  `cache-control: no-cache`, `google-provider-authentication-secret` survived the
+  deploy again.
+
+  **Verified live, both directions.** Re-run against the deployed build on
+  2026-08-21 through a browser driven straight from `playwright-core` over CDP,
+  reusing the signed-in Chrome profile — the Playwright MCP server does not
+  re-handshake after a mid-session disconnect, and an MCP client only binds its
+  tools at session start, so driving the library directly is the way back in.
+  Both requests were captured on the wire:
+
+  - `{"message": "Give me one short idea …", "language": "en"}` → answered in
+    English.
+  - `{"message": "Dă-mi o idee scurtă …", "language": "ro"}` → answered in
+    Romanian, with diacritics.
+
+  The second one is the stronger of the two: it was sent **in the same session,
+  after** the English exchange, so the conversation history in context was
+  English and the model still followed the language named on that turn. That is
+  the behaviour the task note was added to produce.
+
+  One interface note found while testing, not a fault: with the chat drawer open
+  it overlays the rail, so the language picker is only reachable with the drawer
+  closed.
+
+  **Known gap, accepted on Sorin's instruction:** `evals/cases.json` still asserts
+  Romanian answers only and was not extended to English. The evals are the only
+  real proof for a change of this kind, and they are deferred to a later session
+  by his explicit decision, not by oversight.
+
 - **2026-08-21 · Claude Code** — **Sign-in and sign-out now live inside the
   application, and three bugs found on the way there are fixed.** The client sees
   the studio's own card - brand mark, "Conținut care sună ca tine", one button -

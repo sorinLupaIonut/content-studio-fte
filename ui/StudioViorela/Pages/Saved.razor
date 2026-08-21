@@ -4,22 +4,22 @@
 @inject StudioApiClient Api
 @inject StudioContextState ContextState
 
-<PageTitle>Salvate · Studio Viorela</PageTitle>
+<PageTitle>@T[Copy.SavedTab]</PageTitle>
 
 <section class="page-heading">
     <div>
-        <span class="eyebrow">Colecția ta</span>
-        <h1>Postări salvate</h1>
-        <p>Aici sunt numai postările finale pe care ai ales explicit să le păstrezi.</p>
+        <span class="eyebrow">@T[Copy.SavedEyebrow]</span>
+        <h1>@T[Copy.SavedHeading]</h1>
+        <p>@T[Copy.SavedLede]</p>
     </div>
-    <span class="step-chip">@RomanianText.SavedPosts(_posts.Count)</span>
+    <span class="step-chip">@Values.SavedPosts(T, _posts.Count)</span>
 </section>
 
 @if (_error is not null)
 {
     <div class="notice notice-error" role="alert">
         <span>@_error</span>
-        <button class="icon-button" type="button" @onclick="() => _error = null" aria-label="Închide mesajul">×</button>
+        <button class="icon-button" type="button" @onclick="() => _error = null" aria-label="@T[Copy.DismissMessage]">×</button>
     </div>
 }
 
@@ -31,21 +31,21 @@
 @if (_loading)
 {
     <section class="loading-card" aria-live="polite">
-        <span class="spinner"></span> Se încarcă postările salvate…
+        <span class="spinner"></span> @T[Copy.SavedLoading]
     </section>
 }
 else if (_posts.Count == 0)
 {
     <section class="empty-state">
         <span class="empty-illustration">♡</span>
-        <h2>Încă nu ai postări salvate</h2>
-        <p>După ce dezvolți o idee și alegi o variantă, o poți salva și găsi aici.</p>
-        <a class="button button-primary" href="/generator">Creează prima idee</a>
+        <h2>@T[Copy.SavedEmptyHeading]</h2>
+        <p>@T[Copy.SavedEmptyBody]</p>
+        <a class="button button-primary" href="/generator">@T[Copy.SavedEmptyCta]</a>
     </section>
 }
 else
 {
-    <section class="saved-list" aria-label="Postările salvate">
+    <section class="saved-list" aria-label="@T[Copy.SavedListAria]">
         @foreach (var post in _posts)
         {
             <article class="saved-card @(IsOpen(post.Id) ? "open" : null)">
@@ -53,7 +53,7 @@ else
                     <span class="saved-date">@post.PostedOn</span>
                     <span class="saved-title">
                         <strong>@post.Title</strong>
-                        <small>@post.Format · @post.Pillar · @HookLabel(post.HookType)</small>
+                        <small>@Values.FormatLabel(T, post.Format) · @Values.PillarLabel(T, post.Pillar) · @HookLabel(post.HookType)</small>
                     </span>
                     <span class="chevron @(IsOpen(post.Id) ? "open" : null)">⌄</span>
                 </button>
@@ -64,48 +64,47 @@ else
                         @if (_dirty)
                         {
                             <div class="draft-banner" role="status">
-                                Ciornă nesalvată. Postarea din bibliotecă rămâne neschimbată până confirmi.
+                                @T[Copy.UnsavedDraft]
                             </div>
                         }
 
                         <label class="editor-field">
-                            <span>Titlu</span>
+                            <span>@T[Copy.FieldTitle]</span>
                             <input type="text" @bind="_draft.Title" @bind:event="oninput" @onchange="MarkDirty" />
                         </label>
 
                         <div class="editor-grid">
                             <label class="editor-field">
-                                <span>Pilon</span>
+                                <span>@T[Copy.FieldPillar]</span>
                                 <select @bind="_draft.Pillar" @bind:after="MarkDirty">
-                                    <option>Poziționare</option>
-                                    <option>Educație</option>
-                                    <option>Conexiune</option>
-                                    <option>Conversie</option>
-                                    <option>Magnetism</option>
+                                    @foreach (var value in Values.Pillars)
+                                    {
+                                        <option value="@value">@Values.PillarLabel(T, value)</option>
+                                    }
                                 </select>
                             </label>
                             <label class="editor-field">
-                                <span>Format</span>
+                                <span>@T[Copy.FieldFormat]</span>
                                 <select @bind="_draft.Format" @bind:after="MarkDirty">
-                                    <option>Reel</option>
-                                    <option>Carusel</option>
-                                    <option>Stories</option>
+                                    @foreach (var value in Values.Formats)
+                                    {
+                                        <option value="@value">@Values.FormatLabel(T, value)</option>
+                                    }
                                 </select>
                             </label>
                             <label class="editor-field">
-                                <span>Tip de hook</span>
+                                <span>@T[Copy.FieldHookType]</span>
                                 <select @bind="_draft.HookType" @bind:after="MarkDirty">
-                                    <option value="PROVOCARE">Provocare</option>
-                                    <option value="CIFRA">Cifră</option>
-                                    <option value="SECRET">Secret</option>
-                                    <option value="INTREBARE">Întrebare</option>
-                                    <option value="CONTRAST">Contrast</option>
+                                    @foreach (var value in HookTypes)
+                                    {
+                                        <option value="@value">@HookLabel(value)</option>
+                                    }
                                 </select>
                             </label>
                         </div>
 
                         <label class="editor-field">
-                            <span>Hook</span>
+                            <span>@T[Copy.LabelHook]</span>
                             <textarea rows="2" @bind="_draft.Hook" @bind:after="MarkDirty"></textarea>
                         </label>
                         @* Shown on what the post carries, not on its format: a silent
@@ -114,60 +113,60 @@ else
                         @if (HasScript)
                         {
                             <label class="editor-field">
-                                <span>Script / conținut</span>
+                                <span>@T[Copy.LabelScript]</span>
                                 <textarea rows="10" @bind="_draft.Script" @bind:after="MarkDirty"></textarea>
                             </label>
                         }
                         <label class="editor-field">
-                            <span>Caption</span>
+                            <span>@T[Copy.LabelCaption]</span>
                             <textarea rows="5" @bind="_draft.Caption" @bind:after="MarkDirty"></textarea>
                         </label>
 
                         <div class="editor-grid">
                             <label class="editor-field">
-                                <span>Hashtaguri <small>(3–5, separate prin spațiu)</small></span>
+                                <span>@T[Copy.LabelHashtags] <small>@T[Copy.HashtagsHint]</small></span>
                                 <input type="text" @bind="_hashtags" @bind:after="MarkDirty" />
                             </label>
                             <label class="editor-field">
-                                <span>CTA</span>
+                                <span>@T[Copy.LabelCta]</span>
                                 <input type="text" @bind="_draft.Cta" @bind:after="MarkDirty" />
                             </label>
                         </div>
 
                         <label class="editor-field">
-                            <span>Sursă</span>
+                            <span>@T[Copy.LabelSource]</span>
                             <input type="text" @bind="_draft.Source" @bind:after="MarkDirty" />
                         </label>
 
                         @if (HasScript)
                         {
                             <fieldset class="editor-production">
-                                <legend>Producție</legend>
+                                <legend>@T[Copy.LabelProduction]</legend>
                                 @if (NeedsProduction)
                                 {
-                                    <p class="field-note">Postarea aceasta e dinainte de blocul de producție. Completează cele trei câmpuri o singură dată ca să o poți salva mai departe.</p>
+                                    <p class="field-note">@T[Copy.LegacyProductionNote]</p>
                                 }
                                 <div class="editor-grid">
                                     <label class="editor-field">
-                                        <span>Durată sau număr de cadre</span>
+                                        <span>@T[Copy.FieldDuration]</span>
                                         <input type="text" @bind="_production.DurationOrCount" @bind:after="MarkDirty" />
                                     </label>
                                     <label class="editor-field">
-                                        <span>Direcție vizuală</span>
+                                        <span>@T[Copy.FieldVisual]</span>
                                         <input type="text" @bind="_production.VisualDirection" @bind:after="MarkDirty" />
                                     </label>
                                 </div>
                                 <label class="editor-field">
-                                    <span>Blocuri de conținut <small>(unul pe linie)</small></span>
+                                    <span>@T[Copy.FieldBlocks] <small>@T[Copy.BlocksHint]</small></span>
                                     <textarea rows="4" @bind="_blocks" @bind:after="MarkDirty"></textarea>
                                 </label>
                             </fieldset>
                         }
 
                         <div class="editor-actions">
-                            <button class="button button-ghost" disabled="@(_busy || !_dirty)" @onclick="() => ResetAsync(post)">Renunță la modificări</button>
+                            <button class="button button-ghost" disabled="@(_busy || !_dirty)" @onclick="() => ResetAsync(post)">@T[Copy.DiscardChanges]</button>
                             <button class="button button-primary" disabled="@(_busy || !_dirty)" @onclick="() => PrepareUpdateAsync(post)">
-                                @(_busy && _updateRun is null ? "Se pregătește…" : "Salvează modificările")
+                                @(_busy && _updateRun is null ? T[Copy.Preparing] : T[Copy.SaveChanges])
                             </button>
                         </div>
 
@@ -175,9 +174,9 @@ else
                         {
                             <ApprovalPanel Run="_updateRun"
                                            Busy="_busy"
-                                           Title="Înlocuiești postarea salvată?"
-                                           Message="Versiunea de acum se pierde definitiv; nu există istoric. Confirmă doar dacă textul de mai sus e cel bun."
-                                           RejectLabel="Nu acum"
+                                           Title="@T[Copy.ReplacePostTitle]"
+                                           Message="@T[Copy.ReplacePostMessage]"
+                                           RejectLabel="@T[Copy.NotNow]"
                                            Summary="UpdateSummary"
                                            OnDecision="DecideUpdateAsync" />
                         }
@@ -189,6 +188,12 @@ else
 }
 
 @code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+
+    /// <summary>Stored hook values, in the order the editor offers them.</summary>
+    private static readonly string[] HookTypes =
+        ["PROVOCARE", "CIFRA", "SECRET", "INTREBARE", "CONTRAST"];
+
     private List<SavedPostDto> _posts = [];
     private PostContentDto? _draft;
     private string? _draftId;
@@ -367,7 +372,7 @@ else
             _updateRun = null;
             if (approved && result.Status == "completed")
             {
-                _message = "Postarea a fost înlocuită.";
+                _message = T[Copy.PostReplaced];
                 await LoadAsync();
                 var post = _posts.FirstOrDefault(item => item.Id == _draftId);
                 if (post is not null)
@@ -377,7 +382,7 @@ else
             }
             else
             {
-                _message = "Modificarea a fost anulată. Postarea a rămas cum era.";
+                _message = T[Copy.ChangeCancelled];
             }
         }
         catch (Exception ex)
@@ -429,15 +434,7 @@ else
         FormatDetails = post.FormatDetails
     };
 
-    private static string HookLabel(string value) => value switch
-    {
-        "PROVOCARE" => "Provocare",
-        "CIFRA" => "Cifră",
-        "SECRET" => "Secret",
-        "INTREBARE" => "Întrebare",
-        "CONTRAST" => "Contrast",
-        _ => value
-    };
+    private string HookLabel(string value) => Values.HookLabel(T, value);
 
     public void Dispose()
     {

@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from content_studio.language import DEFAULT_LANGUAGE, Language, task_note
+
 FormatChoice = Literal["Reel", "Carusel", "Stories"]
 PillarChoice = Literal[
     "Poziționare",
@@ -264,6 +266,10 @@ class GenerationBatchRequest(StrictContract):
 
 class GenerationStartRequest(GenerationBatchRequest):
     replace_current: bool = False
+    # Deliberately on the start request and not on GenerationBatchRequest:
+    # that model is serialised straight into the MCP tool arguments, so a
+    # field there would need a tool signature and a column to land in.
+    language: Language = DEFAULT_LANGUAGE
 
 
 class VariantSelectionRequest(StrictContract):
@@ -290,7 +296,11 @@ def encode_sse(event: StreamEvent) -> str:
     )
 
 
-def title_prompt(request: GenerationBatchRequest, source_packet: dict[str, Any]) -> str:
+def title_prompt(
+    request: GenerationBatchRequest,
+    source_packet: dict[str, Any],
+    language: Language = DEFAULT_LANGUAGE,
+) -> str:
     """The bounded title-only branch of the existing proposal skill."""
 
     packet = json.dumps(source_packet, ensure_ascii=False)
@@ -304,7 +314,7 @@ Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
 
 Răspunde numai prin contractul structurat cerut de aplicație.
-"""
+{task_note(language)}"""
 
 
 #: What the model has to know about a Reel that the schema alone cannot say.
@@ -336,6 +346,7 @@ def detail_prompt(
     request: GenerationBatchRequest,
     idea: IdeaTitle,
     source_packet: dict[str, Any],
+    language: Language = DEFAULT_LANGUAGE,
 ) -> str:
     """The complete five-variant branch for one already-persisted idea."""
 
@@ -355,7 +366,7 @@ Material-sursă colectat o singură dată: {packet}
 
 Dezvoltă exact ideea primită. Răspunde numai prin contractul structurat cerut de
 aplicație; `idea_ordinal` și `title` rămân identice cu ideea existentă.
-"""
+{task_note(language)}"""
 
 
 def public_batch(batch: dict[str, Any]) -> dict[str, Any]:

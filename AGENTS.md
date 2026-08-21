@@ -65,6 +65,26 @@ the check scripts, and anything printed by a developer tool.
 A Romanian docstring on a function with an English name is correct here, and so is
 an English identifier quoted inside Romanian prose.
 
+### The language switch
+
+Since 2026-08-21 the studio can also be *used* in English, so the product can be
+shown to someone who does not read Romanian. This does not weaken anything above.
+
+- The **interface** is bilingual, and both languages sit on the same line in
+  [ui/StudioViorela/Localization/Copy.cs](ui/StudioViorela/Localization/Copy.cs).
+  Split into two files or two dictionaries and they drift silently.
+- The **method stays Romanian and untranslated** — `BASE_INSTRUCTIONS`, every
+  `SKILL.md`, every `references/`. What changes the output language is one
+  appended block in [language.py](src/content_studio/language.py), never a second
+  copy of the method.
+- **Domain values never translate.** `Pilon`, `Sursă`, `Format` and the hook types
+  are the API contract; only their labels change. See
+  [Values.cs](ui/StudioViorela/Localization/Values.cs).
+- Profile **section titles are her content**, parsed out of the profile itself, so
+  they stay Romanian in both languages. That is correct, not an omission.
+- `evals/cases.json` still asserts Romanian only. Extending it to English is open
+  work, deliberately deferred.
+
 ## Where each truth lives
 
 | Thing | Owner | Do not duplicate it |
@@ -75,6 +95,8 @@ an English identifier quoted inside Romanian prose.
 | Database shape | `db/schema.sql` | |
 | Environment and paths | `config.py` | no other module calls `os.getenv` |
 | Tool contract | `mcp_server/server.py` | |
+| Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
+| Output-language override | `language.py` | the skills stay Romanian |
 
 ## Conventions
 

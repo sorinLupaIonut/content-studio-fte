@@ -1,11 +1,40 @@
 using System.Text.Json;
+using StudioViorela.Localization;
 using StudioViorela.Models;
 
 namespace StudioViorela.Services;
 
-public sealed class StudioContextState
+public sealed class StudioContextState(LanguageState language)
 {
-    public ChatTargetDto Target { get; private set; } = ChatTargetDto.General();
+    private Translator T => language.Translator;
+
+    private ChatTargetDto? _target;
+
+    // What the label is *made of*, kept apart from the label itself. Storing
+    // the finished string would freeze it in whichever language was on screen
+    // when the target was set, and the open chat context would keep speaking
+    // the old one after a switch.
+    private string _subject = "";
+    private string _hookType = "";
+
+    /// <summary>The current chat target, labelled in the language on screen.</summary>
+    public ChatTargetDto Target
+    {
+        get
+        {
+            var target = _target ?? ChatTargetDto.General();
+            target.Label = Describe(target.Kind);
+            return target;
+        }
+        private set => _target = value;
+    }
+
+    private string Describe(string kind) => kind switch
+    {
+        "generation_variant" => $"{_subject} · {HookLabel(_hookType)}",
+        "saved_post" => $"{T[Copy.ChatSavedPrefix]} · {_subject}",
+        _ => T[Copy.ChatGeneral]
+    };
 
     public event Action? Changed;
     public event Func<string, Task>? GenerationPatched;
@@ -17,13 +46,14 @@ public sealed class StudioContextState
         string ideaTitle,
         GenerationVariantDto variant)
     {
+        _subject = ideaTitle;
+        _hookType = variant.HookType;
         Target = new ChatTargetDto
         {
             Kind = "generation_variant",
             Id = variant.Id,
             BatchId = batchId,
-            IdeaId = ideaId,
-            Label = $"{ideaTitle} · {HookLabel(variant.HookType)}"
+            IdeaId = ideaId
         };
         Changed?.Invoke();
     }
@@ -40,11 +70,11 @@ public sealed class StudioContextState
 
     public void SetSavedPost(SavedPostDto post)
     {
+        _subject = post.Title;
         Target = new ChatTargetDto
         {
             Kind = "saved_post",
-            Id = post.Id,
-            Label = $"Salvată · {post.Title}"
+            Id = post.Id
         };
         Changed?.Invoke();
     }
@@ -90,13 +120,5 @@ public sealed class StudioContextState
         }
     }
 
-    private static string HookLabel(string value) => value switch
-    {
-        "PROVOCARE" => "Provocare",
-        "CIFRA" => "Cifră",
-        "SECRET" => "Secret",
-        "INTREBARE" => "Întrebare",
-        "CONTRAST" => "Contrast",
-        _ => value
-    };
+    private string HookLabel(string value) => Values.HookLabel(T, value);
 }

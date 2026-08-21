@@ -73,6 +73,7 @@ from content_studio.config import (
     database_url,
     describe_database,
 )
+from content_studio.language import DEFAULT_LANGUAGE, Language, instruction_suffix
 from content_studio.mcp_server.protocol import (
     CONVERSATION_HEADER,
     MODEL_VISIBLE_TOOLS,
@@ -237,6 +238,7 @@ def build_worker(
     model: str | None = None,
     output_type: type[Any] | None = None,
     model_settings: ModelSettings | None = None,
+    language: Language = DEFAULT_LANGUAGE,
 ) -> SandboxAgent:
     """The single agent: skills mounted from `skills/`, data through MCP.
 
@@ -247,12 +249,18 @@ def build_worker(
 
     The tools are not declared either: they come from the server, descriptions
     included.
+
+    `language` changes only what comes out, never the method: the skills stay
+    Romanian and an override block is appended. See `content_studio.language`.
     """
     return SandboxAgent(
         name="Content Worker",
         model=model or MODEL,
         instructions=(
             f"{BASE_INSTRUCTIONS}\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
+            # The language override goes last, after the profile, because it
+            # has to contradict rule 1 above and the closer contradiction wins.
+            f"{instruction_suffix(language)}"
         ),
         capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS_DIR))],
         mcp_servers=[data_mcp],

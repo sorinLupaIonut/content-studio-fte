@@ -92,7 +92,9 @@ def create_app(
         response: Response,
         _identity: Identity = identity_dependency,
     ) -> RunResponse:
-        result = await request.app.state.harness.run(body.message, body.session_id)
+        result = await request.app.state.harness.run(
+            body.message, body.session_id, body.language
+        )
         if result.status == "pending":
             response.status_code = 202
         return result
@@ -114,7 +116,7 @@ def create_app(
         identity: Identity = identity_dependency,
     ) -> RunResponse:
         result = await request.app.state.harness.decide(
-            run_id, body.session_id, body.decisions, identity.principal_id
+            run_id, body.session_id, body.decisions, identity.principal_id, body.language
         )
         if result.status == "pending":
             response.status_code = 202
@@ -170,6 +172,7 @@ def create_app(
             body.session_id,
             body.decisions,
             identity.principal_id,
+            body.language,
         )
         if result.status == "pending":
             response.status_code = 202

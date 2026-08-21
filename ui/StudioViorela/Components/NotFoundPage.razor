@@ -1,0 +1,13 @@
+@* Its own component rather than inline markup in App.razor, so that it sits
+   inside MainLayout's CascadingValue and can read the language like any page. *@
+<PageTitle>@T[Copy.NotFoundTab]</PageTitle>
+<section class="empty-state">
+    <span class="eyebrow">404</span>
+    <h1>@T[Copy.NotFoundHeading]</h1>
+    <p>@T[Copy.NotFoundBody]</p>
+    <a class="button button-primary" href="/generator">@T[Copy.NotFoundCta]</a>
+</section>
+
+@code {
+    [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+}

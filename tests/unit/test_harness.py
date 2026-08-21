@@ -82,7 +82,10 @@ class FakeService:
             },
         )
 
-    async def run(self, message: str, session_id: str | None) -> RunResponse:
+    async def run(
+        self, message: str, session_id: str | None, language: str = "ro"
+    ) -> RunResponse:
+        self.language_seen = language
         return RunResponse(
             run_id="run-1",
             session_id=session_id or "viorela-new",
@@ -104,7 +107,9 @@ class FakeService:
         session_id: str,
         decisions: list[ApprovalDecision],
         resolved_by: str,
+        language: str = "ro",
     ) -> RunResponse:
+        self.language_seen = language
         return RunResponse(
             run_id=run_id,
             session_id=session_id,
