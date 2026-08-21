@@ -550,6 +550,53 @@ changelog entry below and [infra/README.md](../infra/README.md).
 
 ## Changelog
 
+- **2026-08-21 · Claude Code** — **The Azure identity migration is finished and
+  verified end to end, break-glass account included.** Nothing was provisioned and
+  nothing was spent; this is the account layer the deployment will sit on.
+
+  **What the tenant actually contains**, read from Azure rather than assumed:
+  one tenant (`650b4a3c`), one verified domain,
+  one subscription (`980fad85`), three users — all of them Sorin. Exactly one role
+  assignment exists on the whole subscription (`Owner` → the Gmail guest) and
+  exactly one on the billing account (`Billing account owner` → the same object).
+  `sorin.lupa@ciel.ro` holds nothing: not a directory role, not RBAC, not billing.
+
+  A prior suspicion that `ciel.ro` had kept billing ownership was **wrong**. The
+  subscription still appearing in its `az account list` was a stale local profile
+  cache, not access. Both authoritative sources say Gmail.
+
+  Note for whoever checks this next: `Microsoft.Authorization/classicAdministrators`
+  is retired and answers `InvalidResourceType`. Billing ownership is read from
+  `Microsoft.Billing/billingAccounts` and its `billingRoleAssignments`, which is a
+  different list from subscription RBAC — checking one proves nothing about the
+  other.
+
+  **The break-glass account is now a key that has been turned.** The native admin
+  account on the tenant's default domain was created with a temporary password;
+  Sorin signed in and set a real one. `lastPasswordChangeDateTime` no longer equals
+  `createdDateTime`, which is the cheap way to test whether a temporary password is
+  still live without risking a lockout by guessing at it.
+
+  The tenant has **Security Defaults ON**, and the first sign-in forced MFA
+  registration with no "Ask later" escape — worth knowing before any further
+  account is created here. It was registered as generic **TOTP** through the "Set up
+  a different authentication app" link rather than push-based Microsoft
+  Authenticator: that path shows the seed in text, so it lives on paper and the
+  account can be rebuilt on any phone. Push in the same app as the Gmail identity
+  would have made one lost phone lock both doors at once, which is the failure the
+  account exists to prevent. `passwordPolicies` is now `DisablePasswordExpiration`
+  — a break-glass password that expires quietly fails on exactly the day it is
+  needed.
+
+  **This changes nothing for testers.** They authenticate through Google and are
+  checked against `AUTH_ALLOWED_EMAILS`; they never become tenant users. The count
+  stays at three however many people are granted access.
+
+  **Handling.** Sorin typed every password and the MFA seed himself. No snapshot was
+  taken of the screen showing the seed, and the two Playwright dumps that had
+  touched that flow were deleted — one of them had been written into the repository
+  root, where a later `git add -A` would have found it.
+
 - **2026-08-21 · Claude Code** — **The allowlist is provisioned, and adding a
   tester is now one command.** The two Google addresses were written into `.env`
   as `AUTH_ALLOWED_EMAILS` — deployment configuration, per the decision that keeps
