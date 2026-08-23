@@ -30,6 +30,8 @@ database already follow.
 from __future__ import annotations
 
 import logging
+import threading
+from collections.abc import Callable
 from contextvars import ContextVar
 from typing import Any
 
@@ -186,3 +188,89 @@ def configure(app: Any) -> dict[str, Any]:
     _configured = True
     log.info("observability: Application Insights wired, sampling everything")
     return {"ok": True, "detail": "Application Insights primește urmele."}
+
+
+# ---- the agent's own trace ---------------------------------------------------
+# The SDK keeps a second, richer trace of its own: which agent ran, which tool it
+# called, what the model was asked and answered. It was leaving no mark here -
+# `public.traces` held one row per run with the final reply and nothing about how
+# it was reached, and the SDK's `group_id` was the session, not the run. So the
+# audit could say a run happened and `replay.py` could show the turns, but the
+# steps between them lived only in OpenAI's dashboard.
+
+
+class RunTraceProcessor:
+    """Collect the SDK's spans and hand each finished trace to a sink.
+
+    Registered with `agents.tracing.add_trace_processor`, so it sits beside
+    whatever else is exporting rather than replacing it.
+
+    The run id is read from the ContextVar, never passed in - the rule the rest
+    of this module already follows. `on_trace_start` runs in the task that
+    called `Runner.run`, which is the task `bind_run` bound, and child tasks
+    inherit the value at creation.
+
+    The sink must not block and must not raise: these callbacks run inside the
+    agent's own execution, and telemetry that can stall a run is worse than no
+    telemetry. Everything here is wrapped accordingly.
+    """
+
+    def __init__(self, sink: Callable[[str, dict[str, Any]], None]) -> None:
+        self._sink = sink
+        self._runs: dict[str, str] = {}
+        self._spans: dict[str, list[dict[str, Any]]] = {}
+        # The interface documents these as thread-safe; the SDK may end a span
+        # from a worker thread even when the run itself is a coroutine.
+        self._lock = threading.Lock()
+
+    def on_trace_start(self, trace: Any) -> None:
+        with self._lock:
+            self._runs[trace.trace_id] = current_run()
+
+    def on_span_start(self, span: Any) -> None:
+        return None
+
+    def on_span_end(self, span: Any) -> None:
+        try:
+            exported = span.export() or {}
+        except Exception:  # noqa: BLE001
+            return
+        with self._lock:
+            self._spans.setdefault(span.trace_id, []).append(exported)
+
+    def on_trace_end(self, trace: Any) -> None:
+        with self._lock:
+            run_id = self._runs.pop(trace.trace_id, "-")
+            spans = self._spans.pop(trace.trace_id, [])
+        # Not every trace belongs to a run: the CLI and anything started outside
+        # `Audit.open_run` have no id, and `public.traces.run_id` is a foreign
+        # key. Dropping those is right - there is nothing to hang them off.
+        if run_id in ("", "-"):
+            return
+        try:
+            payload = {
+                "run_id": run_id,
+                "trace": trace.export() or {},
+                "spans": spans,
+            }
+            self._sink(run_id, payload)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("observability: could not hand off a trace: %s", exc)
+
+    def shutdown(self) -> None:
+        with self._lock:
+            self._runs.clear()
+            self._spans.clear()
+
+    def force_flush(self) -> None:
+        return None
+
+
+def record_agent_traces(sink: Callable[[str, dict[str, Any]], None]) -> bool:
+    """Register the processor. False when the SDK's tracing is not importable."""
+    try:
+        from agents.tracing import add_trace_processor
+    except ImportError:  # pragma: no cover - the package is a hard dependency
+        return False
+    add_trace_processor(RunTraceProcessor(sink))
+    return True

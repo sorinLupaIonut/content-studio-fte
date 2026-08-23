@@ -109,12 +109,27 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
 Decision 7 of the deployment course, wired on 2026-08-21 and adapted to what
 this project already had.
 
-- **One `run_id`, three surfaces.** The id is born in `Audit.open_run`, bound
-  once with `bind_run`, and from there it reaches every log line, the
-  OpenTelemetry span, and the rows in Neon. Nothing passes it as a parameter.
-- **The fourth surface, Phoenix, is deliberately absent.** `public.traces` plus
-  `replay.py` already give a durable, replayable record of a run; Phoenix would
-  add an account, a key and a bill for a second copy of it.
+- **One `run_id`, four things carry it.** The id is born in `Audit.open_run`,
+  bound once with `bind_run`, and from there it reaches every log line, the
+  OpenTelemetry span, the rows in Neon, and — since 2026-08-23 — the agent's own
+  spans, collected by `RunTraceProcessor` into `public.traces`. Nothing passes it
+  as a parameter; the processor reads the ContextVar like everything else does.
+- **`public.traces` holds two kinds of row per run.** What was answered, written
+  by `close_run`, and how it was reached, written by `sdk_trace`. Same `run_id`,
+  which is what makes them one story rather than two tables.
+- **The log id is a record factory, not a handler filter.** A filter attached to
+  the handlers that exist at configure time misses the one Application Insights
+  installs afterwards, and the id was absent from exactly the surface you search
+  when the container is gone. See `install_run_id_factory` — the comment there is
+  the evidence, not a guess.
+- **Phoenix was refused, then asked for.** It was left out because
+  `public.traces` plus `replay.py` already give a durable, replayable record —
+  an account, a key and a bill for a second copy. Sorin reversed that on
+  2026-08-23 and wants it. It is not wired yet: it needs an account and a key
+  from him, and the packages that speak Phoenix's protocol move the
+  OpenTelemetry stack under the Azure distro, which is the thing to verify
+  before believing it is harmless. Neon stays the durable record either way, and
+  the export is fire-and-forget.
 - **Sampling is 100%.** The course samples a tenth of successes because it
   assumes production traffic. Three accounts is not production traffic, and
   dropping nine runs in ten would discard the only evidence of a weekly fault.
@@ -182,7 +197,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Output-language override | `language.py` | the skills stay Romanian |
 | Model prices | `pricing.py` | one table; a copy drifts silently |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
-| Telemetry wiring | `observability.py` | one `run_id`, three surfaces |
+| Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
 | Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
 | Which providers carry their own allowlist | `config.py` → `AUTH_SELF_PROVISION_PROVIDERS` | decided once, in `auth.py` |
 | Who owns which books | `documents.client_id` | scoped in the SQL, not in the caller |

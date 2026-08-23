@@ -83,6 +83,7 @@ from content_studio.mcp_server.protocol import (
     MODEL_VISIBLE_TOOLS,
     OWNER_HEADER,
 )
+from content_studio.observability import record_agent_traces
 from content_studio.worker import (
     GATED_TOOLS,
     build_sandbox,
@@ -167,6 +168,9 @@ class HarnessService:
         self.engine: AsyncEngine | None = None
         self.trail: Audit | None = None
         self.database_error: str | None = None
+        # Held so the garbage collector does not reclaim a write that nobody is
+        # awaiting. Fire-and-forget still has to keep a reference until it fires.
+        self._trace_writes: set[asyncio.Task] = set()
         # Built before the coordinators because both take it.
         self.accounts = AccountDirectory(self._internal_data_mcp)
         self.generator = GenerationCoordinator(
@@ -186,6 +190,32 @@ class HarnessService:
             self.trail = Audit(url, connect_args)
         except (MissingConfig, RuntimeError) as exc:
             self.database_error = str(exc).splitlines()[0]
+
+        # Registered once the trail exists, and only then: without a database
+        # there is nowhere for a trace to go, and a processor that drops
+        # everything on the floor is worse than one that was never installed.
+        if self.trail is not None:
+            record_agent_traces(self._keep_trace)
+
+    def _keep_trace(self, run_id: str, payload: dict[str, Any]) -> None:
+        """Sink for the SDK's traces. Synchronous, non-blocking, never raises.
+
+        Called from inside the agent's own execution, so it does the least
+        possible: schedule the write and return. A failure to schedule is logged
+        by the caller and the run continues - Neon is the durable record of
+        *what* happened either way, through `runs` and `audit_log`; this row is
+        the detail of how.
+        """
+        if self.trail is None:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # Ended outside the event loop - nothing to schedule onto.
+            return
+        task = loop.create_task(self.trail.sdk_trace(run_id, payload))
+        self._trace_writes.add(task)
+        task.add_done_callback(self._trace_writes.discard)
 
     async def close(self) -> None:
         await self.chat.close()

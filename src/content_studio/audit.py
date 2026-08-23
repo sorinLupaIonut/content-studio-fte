@@ -293,6 +293,15 @@ class Audit:
         await self._write(TRACE_SQL, run_id, _json({"output": reply}))
         await self.event(run_id, RUN_COMPLETED)
 
+    async def sdk_trace(self, run_id: str, payload: dict) -> None:
+        """One row holding the agent's own spans for a finished run.
+
+        Separate from the trace `close_run` writes - that one is the reply, this
+        one is how it was reached. Both hang off the same `run_id`, which is what
+        makes them one story rather than two tables.
+        """
+        await self._write(TRACE_SQL, run_id, _json(payload))
+
     async def event(self, run_id: str | None, kind: str, subject: object = None) -> None:
         """One row in the trail. `run_id` may be None for what happens outside a run."""
         await self._write(EVENT_SQL, run_id, event_name(kind, subject))
