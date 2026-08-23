@@ -11,6 +11,13 @@ from starlette.exceptions import HTTPException
 from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 
+# Python's table knows neither web font format, and Starlette answers an unknown
+# extension with text/plain. Registered here rather than assumed, because on
+# Windows `mimetypes` reads the system registry first and that differs between
+# machines - so the local answer is not evidence about the container's.
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/woff", ".woff")
+
 
 def _accepted_encodings(scope) -> set[str]:
     """Return content codings accepted with a non-zero quality value."""
