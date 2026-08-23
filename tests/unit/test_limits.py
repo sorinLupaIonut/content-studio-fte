@@ -3,7 +3,7 @@
 import unittest
 
 from content_studio.harness.limits import RateLimiter, is_limited, key_for
-from content_studio.observability import RUN_ID, RunIdFilter
+from content_studio.observability import RUN_ID, install_run_id_factory
 
 
 class RateLimiterTests(unittest.TestCase):
@@ -85,30 +85,54 @@ class KeyTests(unittest.TestCase):
         self.assertEqual(key_for({}, None), "peer:unknown")
 
 
-class RunIdFilterTests(unittest.TestCase):
+class RunIdOnEveryRecordTests(unittest.TestCase):
+    """The id has to be on the record itself, not added by one handler's filter.
+
+    A filter is what this used to be, and it left Application Insights without
+    the id: the exporter's handler is installed after `configure_logging` and
+    runs before the stdout handler that carried the filter.
+    """
+
+    def setUp(self):
+        import logging
+
+        install_run_id_factory()
+        self.make = logging.getLogRecordFactory()
+
     def _record(self):
         import logging
 
-        return logging.LogRecord("t", logging.INFO, "f", 1, "m", None, None)
+        return self.make("t", logging.INFO, "f", 1, "m", None, None)
 
-    def test_puts_the_current_run_on_the_record(self):
+    def test_the_record_is_born_with_the_current_run(self):
         token = RUN_ID.set("run-42")
         try:
-            record = self._record()
-            RunIdFilter().filter(record)
-            self.assertEqual(record.run_id, "run-42")
+            self.assertEqual(self._record().run_id, "run-42")
         finally:
             RUN_ID.reset(token)
 
     def test_outside_a_run_the_field_still_exists(self):
         """The format string names it, so a missing field would raise on log."""
-        record = self._record()
-        RunIdFilter().filter(record)
-        self.assertEqual(record.run_id, "-")
+        self.assertEqual(self._record().run_id, "-")
 
+    def test_installing_twice_does_not_nest_the_factory(self):
+        import logging
 
-if __name__ == "__main__":
-    unittest.main()
+        install_run_id_factory()
+        first = logging.getLogRecordFactory()
+        install_run_id_factory()
+        self.assertIs(logging.getLogRecordFactory(), first)
+
+    def test_an_explicit_run_id_is_not_overwritten(self):
+        import logging
+
+        record = self.make("t", logging.INFO, "f", 1, "m", None, None)
+        record.run_id = "given"
+        self.assertEqual(
+            logging.getLogRecordFactory()("t", logging.INFO, "f", 1, "m", None, None).run_id,
+            RUN_ID.get(),
+        )
+        self.assertEqual(record.run_id, "given")
 
 
 class RateLimitMiddlewareTests(unittest.TestCase):
@@ -205,3 +229,7 @@ class CodedRefusalTests(unittest.TestCase):
         self.assertFalse(
             any(c in "ăâîșțĂÂÎȘȚ" for c in error.detail), error.detail
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

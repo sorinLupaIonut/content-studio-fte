@@ -6,7 +6,9 @@ with a shared `run_id`. Three of the four apply to this studio:
 * **OpenTelemetry spans**, exported to Application Insights - where a request
   went, how long each hop took, which one threw.
 * **Every log line**, which carries the same `run_id` whether it is printed to
-  the container's stdout or shipped to Application Insights.
+  the container's stdout or shipped to Application Insights. That is a log
+  record factory, not a handler filter, and `install_run_id_factory` explains
+  why the difference decides whether the id survives the export.
 * **The audit trail in Neon**, keyed by that same `run_id`, which `replay.py`
   already reconstructs turn by turn.
 
@@ -42,6 +44,7 @@ RUN_ID: ContextVar[str] = ContextVar("run_id", default="-")
 LOG_FORMAT = "%(asctime)s %(levelname)-7s [run=%(run_id)s] %(name)s: %(message)s"
 
 _configured = False
+_factory_installed = False
 
 log = logging.getLogger("content_studio")
 
@@ -75,36 +78,56 @@ def _current_span() -> Any | None:
     return span
 
 
-class RunIdFilter(logging.Filter):
-    """Puts the run id on every record.
+def install_run_id_factory() -> None:
+    """Stamp `run_id` on every record as it is created. Idempotent.
 
-    A filter and not a formatter, because the value has to survive into
-    `record.__dict__`: the Azure exporter turns those extras into
-    customDimensions, so `run_id` is searchable in Application Insights and not
-    merely visible in the printed line.
+    WHY A FACTORY AND NOT A FILTER. This was a filter, attached to the handlers
+    that existed when `configure_logging` ran - and it did not work where it
+    mattered most. `configure_azure_monitor` installs its own handler on the
+    `content_studio` logger *afterwards*, and a logger runs its own handlers
+    before the root's, so the exporter saw each record before the filter on the
+    stdout handler had put anything on it. The id was in the terminal and absent
+    from Application Insights, which is the surface you search when the terminal
+    is gone. Verified against the live resource on 2026-08-23: every exported
+    record carried `logger_name` and nothing else.
+
+    A record factory runs at construction, before any handler is consulted and
+    before any handler exists, so a handler installed later inherits it for
+    free. `record.__dict__` is also exactly where the Azure exporter looks when
+    it builds customDimensions.
     """
+    global _factory_installed
+    if _factory_installed:
+        return
+    previous = logging.getLogRecordFactory()
 
-    def filter(self, record: logging.LogRecord) -> bool:
+    def factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
+        record = previous(*args, **kwargs)
+        # `hasattr` rather than an unconditional write: a caller that passed
+        # `extra={"run_id": ...}` meant it, and this is not the place to argue.
         if not hasattr(record, "run_id"):
             record.run_id = RUN_ID.get()
-        return True
+        return record
+
+    logging.setLogRecordFactory(factory)
+    _factory_installed = True
 
 
 def configure_logging(level: int = logging.INFO) -> None:
-    """Every handler, including the ones uvicorn installed, learns the run id."""
+    """Every handler, including ones installed later, gets the run id."""
+    install_run_id_factory()
+
     root = logging.getLogger()
     root.setLevel(level)
     if not root.handlers:
         root.addHandler(logging.StreamHandler())
 
-    run_ids = RunIdFilter()
     formatter = logging.Formatter(LOG_FORMAT)
     # uvicorn attaches its own handlers to its own loggers with propagate off,
-    # so walking the root alone would leave the access log without an id.
+    # so walking the root alone would leave the access log unformatted.
     names = ["", "uvicorn", "uvicorn.error", "uvicorn.access", "content_studio"]
     for name in names:
         for handler in logging.getLogger(name).handlers:
-            handler.addFilter(run_ids)
             if isinstance(handler, logging.StreamHandler):
                 handler.setFormatter(formatter)
 
