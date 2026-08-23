@@ -296,6 +296,21 @@ def encode_sse(event: StreamEvent) -> str:
     )
 
 
+#: Read on 2026-08-23 out of a real failed batch, in Phoenix. `gpt-5-nano`
+#: opened `propune-postari`, then tried `apply_patch` with
+#: `*** Update File: .agents/propune-postari` — writing a JSON blob over what is
+#: actually the skill's own DIRECTORY, since `Skills` mounts at `.agents/`. The
+#: tool answered "failed to read archive for path", the model read the same path
+#: to see what went wrong, and two of six turns were gone before a single title
+#: existed. The batch then died on MaxTurnsExceeded.
+#:
+#: The turn limit was the symptom. This is the cause, and it is cheaper to say
+#: "do not write" once than to buy the model more turns to waste.
+SANDBOX_READONLY_NOTE = """Folderul de skill-uri este doar pentru citit. Nu scrie
+și nu modifica niciun fișier în sandbox — fără `apply_patch`, fără fișiere de
+stare, fără notițe. Citește ce îți trebuie și răspunde."""
+
+
 def title_prompt(
     request: GenerationBatchRequest,
     source_packet: dict[str, Any],
@@ -312,6 +327,8 @@ Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
+
+{SANDBOX_READONLY_NOTE}
 
 Răspunde numai prin contractul structurat cerut de aplicație.
 {task_note(language)}"""
@@ -363,6 +380,8 @@ Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
 
 {format_brief(request.format)}
+
+{SANDBOX_READONLY_NOTE}
 
 Dezvoltă exact ideea primită. Răspunde numai prin contractul structurat cerut de
 aplicație; `idea_ordinal` și `title` rămân identice cu ideea existentă.

@@ -17,6 +17,7 @@ from agents import ModelSettings, Runner
 from agents.mcp import MCPServerStreamableHttp
 from agents.run_config import RunConfig, SandboxRunConfig
 
+from content_studio.audit import Audit
 from content_studio.config import (
     GENERATION_CONCURRENCY,
     GENERATION_DETAIL_MODEL,
@@ -36,6 +37,7 @@ from content_studio.harness.generation import (
     title_prompt,
 )
 from content_studio.language import DEFAULT_LANGUAGE, Language
+from content_studio.observability import bind_run
 from content_studio.worker import build_sandbox, build_worker, read_profile
 
 RUN_TIMEOUT_SECONDS = 600
@@ -153,6 +155,20 @@ async def collect_source_packet(
     return _trim_source(packet)
 
 
+def describe_batch(request: GenerationBatchRequest) -> str:
+    """What was asked for, as one line, for `runs.input_message`.
+
+    Romanian and readable, because this is the column a person reads in
+    `replay.py` when they want to know what a run was even about.
+    """
+    parts = [f"10 idei · {request.pillar} · {request.source} · {request.format}"]
+    if request.focus:
+        parts.append(f"focus: {request.focus}")
+    if request.material_ids:
+        parts.append(f"{len(request.material_ids)} materiale")
+    return " — ".join(parts)
+
+
 class GenerationCoordinator:
     """Own background batch tasks while all durable state remains in MCP."""
 
@@ -182,6 +198,7 @@ class GenerationCoordinator:
         self,
         principal_id: str,
         start_request: GenerationStartRequest,
+        trail: Audit | None = None,
     ) -> dict[str, Any]:
         request = GenerationBatchRequest.model_validate(
             start_request.model_dump(exclude={"replace_current", "language"})
@@ -210,6 +227,23 @@ class GenerationCoordinator:
             )
 
         batch_id = UUID(str(batch["id"]))
+
+        # The run is opened HERE, before the task exists, for the same reason
+        # `open_run` writes its row before the model is called: the id has to
+        # exist for anything to hang off it. `open_run` also calls `bind_run`,
+        # and `asyncio.create_task` copies the current context - so the
+        # background task and every task it spawns inherit the id without a
+        # single call site passing it. `_generate` binds again anyway; see there.
+        #
+        # Until 2026-08-23 this path opened no run at all. Costs were metered, so
+        # budgets were right, but there was no `runs` row, no `public.traces`
+        # (the processor drops a trace whose run is "-"), and `replay.py` could
+        # not reconstruct a generation. Chat was covered; the product's main
+        # feature was not.
+        run_id = None
+        if trail is not None:
+            run_id = await trail.open_run(session_id, describe_batch(request))
+
         task = asyncio.create_task(
             self._generate(
                 batch_id,
@@ -219,6 +253,8 @@ class GenerationCoordinator:
                 profile_md,
                 source_packet,
                 start_request.language,
+                trail,
+                run_id,
             ),
             name=f"generation-{batch_id}",
         )
@@ -428,7 +464,15 @@ class GenerationCoordinator:
         profile_md: str,
         source_packet: dict[str, Any],
         language: Language = DEFAULT_LANGUAGE,
+        trail: Audit | None = None,
+        run_id: str | None = None,
     ) -> None:
+        # Redundant with the context this task inherited, and kept anyway: the
+        # guarantee is then local to the task that actually runs the agent,
+        # instead of resting on where `create_task` happened to be called.
+        if run_id is not None:
+            bind_run(run_id)
+
         data_mcp = self._data_mcp_factory(session_id)
         internal = self._internal_mcp_factory(session_id)
         try:
@@ -462,10 +506,25 @@ class GenerationCoordinator:
                 drafts,
                 language,
             )
+            if trail is not None:
+                # The titles are what the batch is judged on; the details are
+                # rows of their own. One readable line, same as chat's reply.
+                with suppress(Exception):
+                    await trail.close_run(
+                        run_id, "; ".join(idea.title for idea in titles.ideas)
+                    )
         except asyncio.CancelledError:
+            # A cancelled batch is not a fault, but leaving its run `running`
+            # for ever makes every later question about open runs meaningless.
+            if trail is not None:
+                with suppress(Exception):
+                    await trail.failed(run_id, RuntimeError("generation cancelled"))
             raise
         except BaseException as exc:  # noqa: BLE001 - background task boundary
             logger.exception("generation batch %s failed", batch_id)
+            if trail is not None:
+                with suppress(Exception):
+                    await trail.failed(run_id, exc)
             with suppress(Exception):
                 await GenerationDraftClient(internal).fail_batch(
                     batch_id, safe_generation_error(exc)

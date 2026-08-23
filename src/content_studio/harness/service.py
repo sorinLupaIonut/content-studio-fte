@@ -699,7 +699,7 @@ class HarnessService:
         # than eleven calls later. The generator checks again between ideas.
         await self.accounts.require_budget()
         try:
-            return await self.generator.start(principal_id, request)
+            return await self.generator.start(principal_id, request, self.trail)
         except ActiveBatchError as exc:
             raise HarnessError(409, str(exc)) from exc
         except ValueError as exc:
