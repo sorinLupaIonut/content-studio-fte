@@ -122,17 +122,31 @@ this project already had.
   installs afterwards, and the id was absent from exactly the surface you search
   when the container is gone. See `install_run_id_factory` — the comment there is
   the evidence, not a guess.
-- **Phoenix was refused, then asked for.** It was left out because
-  `public.traces` plus `replay.py` already give a durable, replayable record —
-  an account, a key and a bill for a second copy. Sorin reversed that on
-  2026-08-23 and wants it. It is not wired yet: it needs an account and a key
-  from him, and the packages that speak Phoenix's protocol move the
-  OpenTelemetry stack under the Azure distro, which is the thing to verify
-  before believing it is harmless. Neon stays the durable record either way, and
-  the export is fire-and-forget.
-- **Sampling is 100%.** The course samples a tenth of successes because it
-  assumes production traffic. Three accounts is not production traffic, and
-  dropping nine runs in ten would discard the only evidence of a weekly fault.
+- **Phoenix was refused, then asked for, and is wired since 2026-08-23.** It was
+  left out because `public.traces` plus `replay.py` already give a durable,
+  replayable record — an account, a key and a bill for a second copy. That stays
+  true: **Neon is the record, Phoenix is the sample**, and the second one is what
+  evaluators read. The feared dependency conflict did not happen — alongside
+  `azure-monitor-opentelemetry`, the OpenTelemetry stack resolves to the same
+  1.43.0 / 0.64b0 it was already on.
+- **Phoenix gets its own `TracerProvider`, never the global one.** The global
+  provider belongs to `configure_azure_monitor`, and OpenTelemetry refuses to
+  replace one silently. A second provider also bounds the damage: a Phoenix
+  outage backs up its own batch processor, not Application Insights'.
+- **`exclusive_processor=False` is load-bearing.** The default is True, and True
+  calls `agents.set_trace_processors([...])` — which would delete
+  `RunTraceProcessor` and stop `public.traces` receiving another span. Check that
+  line first if `openinference-instrumentation-openai-agents` is ever upgraded.
+- **Sampling is 100%, and it has to be asked for.** The course samples a tenth of
+  successes because it assumes production traffic. Three accounts is not
+  production traffic, and dropping nine runs in ten would discard the only
+  evidence of a weekly fault. This was a claim before it was a fact:
+  `configure_azure_monitor` with no sampling argument installs a
+  `RateLimitedSampler` at five spans per second, which on 2026-08-23 was keeping
+  319 records for 490 requests. `sampling_ratio=1.0`, and a unit test holds it.
+- **The harness names itself.** Without an explicit `resource`, every row arrives
+  as `cloud_RoleName: unknown_service` — the field Application Map and the Roles
+  tab group by. Two container apps and no way to tell them apart is not a map.
 - **Telemetry never gates a request.** `/health` reports `observability` but
   never requires it. Monitoring that can cause an outage is worse than none.
 - **The rate limit and the budget gate are different mechanisms.** The limit
@@ -198,6 +212,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Model prices | `pricing.py` | one table; a copy drifts silently |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
+| Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |
 | Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
 | Which providers carry their own allowlist | `config.py` → `AUTH_SELF_PROVISION_PROVIDERS` | decided once, in `auth.py` |
 | Who owns which books | `documents.client_id` | scoped in the SQL, not in the caller |
