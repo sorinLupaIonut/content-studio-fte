@@ -29,6 +29,9 @@ param image string
 @description('Comma-separated e-mail allowlist. The harness refuses every address outside it.')
 param allowedEmails string
 
+@description('Easy Auth providers whose principals are let in without the allowlist and get a studio on first sign-in. Only for a directory nobody can enrol themselves into. Empty disables it.')
+param selfProvisionProviders string = ''
+
 @description('Bulk generation and chat model. Matches the default in config.py.')
 param model string = 'gpt-5-mini'
 
@@ -49,6 +52,10 @@ param e2bApiKey string
 @description('Google OAuth client secret for Easy Auth. Empty leaves sign-in untouched.')
 @secure()
 param googleClientSecret string = ''
+
+@description('Client secret of the Entra external tenant application, for the studio-account sign-in. Empty leaves that provider unconfigured.')
+@secure()
+param entraClientSecret string = ''
 
 var harnessAppName = '${namePrefix}-harness'
 var mcpAppName = '${namePrefix}-mcp'
@@ -268,6 +275,14 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'appinsights-connection-string'
           value: insights.properties.ConnectionString
         }
+      ], empty(entraClientSecret) ? [] : [
+        {
+          // Named by Easy Auth's own convention: `auth openid-connect add
+          // --client-secret-name` expects to find it here, already set. Unlike
+          // the Google command, that one will not create it for you.
+          name: 'entra-authentication-secret'
+          value: entraClientSecret
+        }
       ], empty(googleClientSecret) ? [] : [
         {
           name: 'google-provider-authentication-secret'
@@ -298,6 +313,10 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'CLIENT_OWNER_EMAIL'
               value: clientOwnerEmail
+            }
+            {
+              name: 'AUTH_SELF_PROVISION_PROVIDERS'
+              value: selfProvisionProviders
             }
             {
               name: 'HARNESS_HOST'

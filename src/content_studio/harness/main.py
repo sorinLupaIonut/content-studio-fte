@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from content_studio.config import (
+    AUTH_SELF_PROVISION_PROVIDERS,
     CLIENT_OWNER_EMAIL,
     CLIENT_SLUG,
     HARNESS_HOST,
@@ -107,6 +108,42 @@ def create_app(
         # for a minute, so this is a round trip once per principal per minute,
         # not once per request.
         slug = await request.app.state.harness.accounts.bind(identity.principal_id)
+
+        # A principal from a self-allowlisting provider gets a studio written on
+        # its first request. Handled before the owner fall-through below and
+        # returning early, because none of that reasoning applies here: such a
+        # principal has no business ever being scoped to `CLIENT_SLUG`, not even
+        # for the moment the data plane is unreachable. Where the fall-through
+        # asks "is this the owner?", this asks "does this person have their own
+        # studio yet?" and makes one if not.
+        if identity.may_self_provision:
+            accounts = request.app.state.harness.accounts
+            try:
+                account = await accounts.account_for(identity.principal_id)
+            except Exception as exc:  # noqa: BLE001
+                # `bind` degrades to CLIENT_SLUG when the data server is down.
+                # For everyone else that is a harmless default; here it would be
+                # somebody else's profile, library and allowance. Refuse instead.
+                raise CodedError(
+                    503, "account lookup unavailable", "account_lookup_failed"
+                ) from exc
+            if account is None:
+                account = await accounts.provision_self(
+                    identity.principal_id,
+                    identity.email,
+                    identity.provider,
+                    identity.display_name,
+                )
+                if account is None:
+                    # A row exists and does not resolve, which means suspended.
+                    # Provisioning deliberately will not undo that.
+                    raise CodedError(
+                        403, "account not provisioned", "account_not_provisioned"
+                    )
+                # Re-bind: the first call pinned CLIENT_SLUG, because at that
+                # moment this person genuinely had no client of their own.
+                await accounts.bind(identity.principal_id)
+            return identity
 
         # Falling through to `CLIENT_SLUG` is right for exactly one person: the
         # client the studio predates accounts for. For anyone else it would hand
@@ -216,6 +253,23 @@ def create_app(
         if result.status == "pending":
             response.status_code = 202
         return result
+
+    @app.get("/api/auth/options")
+    async def auth_options() -> dict:
+        """Which sign-in buttons the access screen should draw.
+
+        Deliberately public - it is read by a browser that has not signed in yet,
+        which is the whole point, and it discloses nothing that the sign-in page
+        does not already show. No identity dependency here, and nothing about
+        who may enter: that answer stays in `authenticated`.
+
+        Driven by configuration so that adding the provider is a deployment of
+        the allowlist kind (`-SkipBuild`) rather than a rebuild of the interface.
+        Until AUTH_SELF_PROVISION_PROVIDERS names one, the button does not exist
+        and cannot lead anyone to a `/.auth/login/` path Easy Auth would 404.
+        """
+        providers = AUTH_SELF_PROVISION_PROVIDERS
+        return {"password_provider": providers[0] if providers else None}
 
     @app.get("/api/me", response_model=MeResponse)
     async def me(

@@ -44,7 +44,19 @@ function Invoke-Az {
 
     $output = & az @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "az $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+        # Redact the value after any secret-bearing flag before echoing the
+        # command. Without this a single failed call prints the client secret
+        # to the console, into the shell's scrollback and into whatever is
+        # capturing the run - which is how a secret quietly stops being one.
+        $safe = @()
+        for ($i = 0; $i -lt $Arguments.Count; $i++) {
+            $safe += $Arguments[$i]
+            if ($Arguments[$i] -in @('--client-secret', '--password', '--secrets')) {
+                $i++
+                $safe += '<redacted>'
+            }
+        }
+        throw "az $($safe -join ' ') failed with exit code $LASTEXITCODE"
     }
     if ($AsJson) {
         if (-not $output) { return $null }
@@ -168,6 +180,119 @@ Invoke-Az -Arguments @(
 ) | Out-Null
 
 Remove-Variable clientSecret
+
+# --- 3. The studio account provider (Entra External ID) -------------------
+# A second door, alongside Google rather than instead of it. Google identifies
+# people who already have an account somewhere; this one identifies people Sorin
+# created himself, in a directory nobody can enrol into. That difference is why
+# the harness may skip its allowlist for this provider and write a studio on
+# first sign-in - see AUTH_SELF_PROVISION_PROVIDERS in config.py.
+#
+# The provider NAME is the contract between three places: the /.auth/login path
+# the interface links to, the value in AUTH_SELF_PROVISION_PROVIDERS, and this
+# registration. Change it in one and the button leads nowhere.
+$entraProvider = 'entra'
+$entraRedirect = "https://$fqdn/.auth/login/$entraProvider/callback"
+
+$entraTenant   = $dotenv['ENTRA_TENANT_SUBDOMAIN']
+$entraClientId = $dotenv['ENTRA_CLIENT_ID']
+$entraSecret   = $dotenv['ENTRA_CLIENT_SECRET']
+
+if (-not $entraTenant -or -not $entraClientId -or -not $entraSecret) {
+    Write-Host "`n-- studio accounts: not configured, skipped --" -ForegroundColor Yellow
+    Write-Host @"
+
+Google sign-in above is unaffected. To add username-and-password accounts you
+create yourself, do this once in the Azure portal, then run this script again:
+
+  1. Create a Microsoft Entra External ID tenant (external, not workforce).
+  2. In it: User flows -> new sign-up and sign-in flow.
+  3. App registrations -> new registration. Redirect URI, Web, exactly this:
+
+       $entraRedirect
+
+     Then Certificates & secrets -> new client secret.
+  4. Associate the application with the user flow.
+  5. Turn OFF self-service sign-up. There is no button for it; one Graph call,
+     signed in as an administrator of the new tenant:
+
+       PATCH https://graph.microsoft.com/beta/identity/authenticationEventsFlows/{id}
+       { "onInteractiveAuthFlowStart": { "isSignUpAllowed": false } }
+
+     Until this runs, anybody who finds the sign-in page can enrol themselves -
+     and would be given a studio automatically. It is not optional.
+  6. Put these into ${EnvFile}:
+
+       ENTRA_TENANT_SUBDOMAIN=...        # the bit before .ciamlogin.com
+       ENTRA_CLIENT_ID=...
+       ENTRA_CLIENT_SECRET=...
+       AUTH_SELF_PROVISION_PROVIDERS=$entraProvider
+
+  7. Run infra/deploy.ps1 -SkipBuild FIRST - it carries the secret and the
+     AUTH_SELF_PROVISION_PROVIDERS value into the running app - and only then
+     run this script, which points Easy Auth at the secret by name.
+"@
+} else {
+    Write-Host "`n-- studio accounts: configuring $entraProvider --" -ForegroundColor Cyan
+    Write-Host "Redirect URI : $entraRedirect"
+
+    # The external tenant's OpenID metadata. `ciamlogin.com` is the external-tenant
+    # host; a workforce tenant would be `login.microsoftonline.com` and is
+    # deliberately not what this is for.
+    $entraConfig = "https://$entraTenant.ciamlogin.com/$entraTenant.onmicrosoft.com/v2.0/.well-known/openid-configuration"
+
+    # `add` fails on a provider that already exists and `update` fails on one that
+    # does not, so ask first. Re-running this script has to stay safe.
+    #
+    # Asked through `auth show` rather than `openid-connect show`: the latter
+    # writes to stderr when the provider is absent, and under
+    # $ErrorActionPreference = 'Stop' PowerShell turns a native command's stderr
+    # into a terminating error - so the check for "does it exist" would abort
+    # the script precisely when the answer is no.
+    $existing = az containerapp auth show `
+        --resource-group $ResourceGroup --name $appName `
+        --query "identityProviders.customOpenIdConnectProviders.$entraProvider.registration.clientId" `
+        --output tsv
+    $verb = if ($existing) { 'update' } else { 'add' }
+
+    # By NAME, not by value. Two reasons: the secret then never reaches a command
+    # line or a process list, and `openid-connect add` refuses a literal secret
+    # anyway - unlike the Google command it will not create the container app
+    # secret for you, it only references one that already exists. main.bicep
+    # writes it, from .env, through a parameters file.
+    $secretName = 'entra-authentication-secret'
+    $known = az containerapp secret list `
+        --resource-group $ResourceGroup --name $appName `
+        --query "[?name=='$secretName'].name" --output tsv
+    if (-not $known) {
+        throw "The container app has no secret named '$secretName'. Run infra/deploy.ps1 -SkipBuild first: it carries ENTRA_CLIENT_SECRET from .env into the app, and this command can only point at a secret that is already there."
+    }
+
+    $arguments = @(
+        'containerapp', 'auth', 'openid-connect', $verb,
+        '--resource-group', $ResourceGroup,
+        '--name', $appName,
+        '--provider-name', $entraProvider,
+        '--client-id', $entraClientId,
+        '--client-secret-name', $secretName,
+        '--yes',
+        '--output', 'none'
+    )
+    # Only `add` takes the metadata endpoint; `update` carries the client
+    # credentials and nothing else.
+    # Three values, not one string: `--scopes 'openid profile email'` is stored as a
+    # single scope named "openid profile email", which is not what any of them mean.
+    if ($verb -eq 'add') { $arguments += @('--openid-configuration', $entraConfig, '--scopes', 'openid', 'profile', 'email') }
+
+    Invoke-Az -Arguments $arguments | Out-Null
+    Remove-Variable entraSecret
+
+    Write-Host "Provider     : $entraProvider ($verb)"
+    Write-Host "Metadata     : $entraConfig"
+    # `--redirect-provider google` is left as it is on purpose: under
+    # AllowAnonymous the platform never redirects on its own, so the value is
+    # inert. The interface always names the provider in the /.auth/login path.
+}
 
 Write-Host "`n== sign-in is on ==" -ForegroundColor Green
 Write-Host "https://$fqdn"

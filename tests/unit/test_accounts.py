@@ -215,3 +215,174 @@ class OwnerFallbackTests(unittest.IsolatedAsyncioTestCase):
         directory = AccountDirectory.__new__(AccountDirectory)
         directory.account_for = self._Directory("outage").account_for
         self.assertIsNone(await directory.provisioned("p"))
+
+
+class FakeProvisionConn:
+    """Enough asyncpg to run `provision_self` against an in-memory directory.
+
+    Models the two things the real statements promise and the code leans on:
+    `ON CONFLICT (slug) DO NOTHING` returns no id when the slug is taken, and a
+    suspended principal still has a row even though it resolves to nobody.
+    """
+
+    def __init__(
+        self,
+        *,
+        taken_slugs: set[str] | None = None,
+        existing_principal: str | None = None,
+        disabled: bool = False,
+    ) -> None:
+        self.clients: dict[str, str] = {slug: f"id-{slug}" for slug in (taken_slugs or set())}
+        # RESOLVE_SQL reads the label off `clients`, not off `app_users`. The fake
+        # has to do the same or it cannot show a wrong name being written.
+        self.client_names: dict[str, str] = {slug: slug for slug in self.clients}
+        self.users: dict[str, dict[str, Any]] = {}
+        self.disabled = disabled
+        if existing_principal:
+            self.clients.setdefault("existing", "id-existing")
+            self.client_names.setdefault("existing", "Before")
+            self.users[existing_principal] = {
+                "principal_id": existing_principal,
+                "email": "before@studio.invalid",
+                "role": "user",
+                "disabled": disabled,
+                "client_slug": "existing",
+                "client_name": "Before",
+            }
+        self.locked: list[str] = []
+
+    async def execute(self, sql: str, *args: Any) -> None:
+        if "pg_advisory_xact_lock" in sql:
+            self.locked.append(args[0])
+        elif "INSERT INTO public.app_users" in sql:
+            principal, email, provider, client_id = args
+            if principal in self.users:
+                return  # ON CONFLICT DO NOTHING
+            slug = next(s for s, i in self.clients.items() if i == client_id)
+            self.users[principal] = {
+                "principal_id": principal,
+                "email": email,
+                "role": "user",
+                "disabled": False,
+                "client_slug": slug,
+                "client_name": self.client_names[slug],
+            }
+
+    async def fetchval(self, sql: str, *args: Any) -> Any:
+        if "pg_advisory_xact_lock" in sql:
+            self.locked.append(args[0])
+            return None
+        if "FROM public.app_users" in sql:
+            return 1 if args[0] in self.users else None
+        if "INSERT INTO public.clients" in sql:
+            slug, name = args[0], args[1]
+            if slug in self.clients:
+                return None  # ON CONFLICT DO NOTHING
+            self.clients[slug] = f"id-{slug}"
+            self.client_names[slug] = name
+            return self.clients[slug]
+        raise AssertionError(f"unexpected fetchval: {sql}")
+
+    async def fetchrow(self, _sql: str, *args: Any) -> dict[str, Any] | None:
+        return self.users.get(args[0])
+
+
+class TestSlugFromLabel(unittest.TestCase):
+    def test_the_local_part_becomes_the_slug(self) -> None:
+        from content_studio.mcp_server.accounts import slug_from_label
+
+        self.assertEqual(slug_from_label("Ana.Maria+test@example.com"), "ana-maria-test")
+
+    def test_it_matches_the_column_pattern(self) -> None:
+        """`^[a-z0-9][a-z0-9-]*$` - an address can reduce to nothing usable."""
+        from content_studio.mcp_server.accounts import slug_from_label
+
+        for address in ("--weird--@example.com", "@example.com", "___@example.com"):
+            with self.subTest(address=address):
+                slug = slug_from_label(address)
+                self.assertRegex(slug, r"^[a-z0-9][a-z0-9-]*$")
+
+
+class TestProvisionSelf(unittest.IsolatedAsyncioTestCase):
+    async def test_a_first_time_principal_gets_its_own_client(self) -> None:
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn()
+        account, created = await provision_self(
+            conn, principal_id="p-1", email="tester@studio.invalid", provider="entra"
+        )
+        self.assertTrue(created)
+        assert account is not None
+        self.assertEqual(account.client_slug, "tester")
+        self.assertEqual(account.role, "user")
+        self.assertEqual(conn.locked, ["p-1"])
+
+    async def test_a_taken_slug_is_never_hijacked(self) -> None:
+        """The failure this guards is two people sharing one profile and budget."""
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn(taken_slugs={"tester"})
+        account, _ = await provision_self(
+            conn, principal_id="p-2", email="tester@studio.invalid", provider="entra"
+        )
+        assert account is not None
+        self.assertEqual(account.client_slug, "tester-2")
+        self.assertEqual(conn.clients["tester"], "id-tester")
+
+    async def test_a_second_call_creates_nothing(self) -> None:
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn()
+        await provision_self(
+            conn, principal_id="p-3", email="tester@studio.invalid", provider="entra"
+        )
+        before = dict(conn.clients)
+        account, created = await provision_self(
+            conn, principal_id="p-3", email="tester@studio.invalid", provider="entra"
+        )
+        self.assertFalse(created)
+        assert account is not None
+        self.assertEqual(conn.clients, before)
+
+    async def test_a_suspended_principal_is_not_given_a_new_studio(self) -> None:
+        """Suspension is how a tester is revoked; provisioning must not undo it."""
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn(existing_principal="p-4", disabled=True)
+        account, created = await provision_self(
+            conn, principal_id="p-4", email="tester@studio.invalid", provider="entra"
+        )
+        self.assertIsNone(account)
+        self.assertFalse(created)
+        self.assertEqual(set(conn.clients), {"existing"})
+
+
+class TestDisplayNameWins(unittest.IsolatedAsyncioTestCase):
+    """The platform gives a name for some providers and an address for others."""
+
+    async def test_the_display_name_becomes_the_slug_and_the_label(self) -> None:
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn()
+        account, _ = await provision_self(
+            conn,
+            principal_id="p-5",
+            email="ana.pop@studioviorela.ro",
+            provider="entra",
+            display_name="Ana Pop",
+        )
+        assert account is not None
+        self.assertEqual(account.client_slug, "ana-pop")
+        self.assertEqual(account.client_name, "Ana Pop")
+        # The address still lands in the column that is named after it.
+        self.assertEqual(conn.users["p-5"]["email"], "ana.pop@studioviorela.ro")
+
+    async def test_without_one_the_address_is_used(self) -> None:
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn()
+        account, _ = await provision_self(
+            conn, principal_id="p-6", email="ana.pop@studioviorela.ro", provider="entra"
+        )
+        assert account is not None
+        self.assertEqual(account.client_slug, "ana-pop")

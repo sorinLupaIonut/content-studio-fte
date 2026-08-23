@@ -120,6 +120,24 @@ AUTH_ALLOWED_PRINCIPAL_IDS = tuple(
 # allowance. Naming the owner turns "whoever gets here" into "her".
 CLIENT_OWNER_EMAIL = os.getenv("CLIENT_OWNER_EMAIL", "").strip().lower()
 
+# Providers whose principals may enter without being on the allowlist, and get a
+# studio written for them on their first request.
+#
+# This is safe for exactly one kind of provider: a directory only Sorin can put
+# people into. Membership of the external Entra tenant then *is* the allowlist -
+# "authenticated here" already means "Sorin created this person", which is the
+# fact AUTH_ALLOWED_EMAILS exists to assert. It is emphatically not safe for
+# Google, where membership means somebody has an email address.
+#
+# The value is the provider name Easy Auth reports in x-ms-client-principal-idp,
+# which for a custom OpenID Connect provider is the name it was registered under.
+# Empty - the default - keeps every door exactly as it was.
+AUTH_SELF_PROVISION_PROVIDERS = tuple(
+    value.strip().lower()
+    for value in os.getenv("AUTH_SELF_PROVISION_PROVIDERS", "").split(",")
+    if value.strip()
+)
+
 AUTH_DEV_PRINCIPAL_ID = os.getenv("AUTH_DEV_PRINCIPAL_ID", "local-sorin").strip()
 AUTH_DEV_EMAIL = os.getenv("AUTH_DEV_EMAIL", "local@studio.invalid").strip().lower()
 # Empty is a supported state, not a misconfiguration: the harness runs and logs

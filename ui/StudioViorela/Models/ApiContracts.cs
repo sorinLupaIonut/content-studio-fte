@@ -3,6 +3,21 @@ using System.Text.Json.Serialization;
 
 namespace StudioViorela.Models;
 
+/// <summary>
+/// Which sign-in buttons the access screen may draw. Read before anyone has
+/// signed in, so it carries nothing but the shape of the door.
+/// </summary>
+public sealed class AuthOptionsDto
+{
+    /// <summary>
+    /// The Easy Auth provider name behind the username-and-password button, or
+    /// null when no such provider is configured — in which case the button is
+    /// not drawn at all, rather than drawn pointing at a path that 404s.
+    /// </summary>
+    [JsonPropertyName("password_provider")]
+    public string? PasswordProvider { get; set; }
+}
+
 public sealed class MeDto
 {
     [JsonPropertyName("principal_id")]

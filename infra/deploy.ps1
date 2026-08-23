@@ -178,6 +178,22 @@ if ($clientOwnerEmail) {
     Write-Warning "No CLIENT_OWNER_EMAIL in $EnvFile. Anyone allowed but not provisioned will land on the default client."
 }
 
+# Providers that carry their own allowlist - the external Entra tenant only
+# Sorin can add people to. A principal arriving from one of these is let in
+# without being named in AUTH_ALLOWED_EMAILS, and gets a studio written on its
+# first request. Empty is the safe default and leaves every door as it was.
+$selfProvisionProviders = $dotenv['AUTH_SELF_PROVISION_PROVIDERS']
+# Carried through for the same reason as the Google one: bicep declares the
+# secrets list, and a declared list is the whole truth to ARM. Left out here,
+# this deployment would delete the secret that Easy Auth's studio-account
+# provider references, and the auth sidecar would fail to start.
+$entraClientSecret = $dotenv['ENTRA_CLIENT_SECRET']
+if ($selfProvisionProviders) {
+    Write-Host ("Self-signup  : {0}" -f $selfProvisionProviders)
+} else {
+    Write-Host "Self-signup  : none; only the allowlisted addresses get in"
+}
+
 # Easy Auth keeps the Google client secret as a container app secret, added by
 # enable-auth.ps1. Bicep declares the secrets list, and a declared list is the
 # whole truth to ARM - so deploying without this value here deletes the secret,
@@ -279,12 +295,14 @@ $parameters = @{
         image             = @{ value = $image }
         allowedEmails     = @{ value = $AllowedEmails }
         clientOwnerEmail  = @{ value = $clientOwnerEmail }
+        selfProvisionProviders = @{ value = $selfProvisionProviders }
         model             = @{ value = $Model }
         databaseUrl       = @{ value = $dotenv['DATABASE_URL'] }
         databaseUrlDirect = @{ value = $dotenv['DATABASE_URL_DIRECT'] }
         openaiApiKey      = @{ value = $dotenv['OPENAI_API_KEY'] }
         e2bApiKey         = @{ value = $dotenv['E2B_API_KEY'] }
         googleClientSecret = @{ value = $googleClientSecret }
+        entraClientSecret  = @{ value = $entraClientSecret }
     }
 }
 

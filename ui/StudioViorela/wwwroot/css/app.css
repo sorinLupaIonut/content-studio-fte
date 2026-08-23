@@ -1832,6 +1832,29 @@ select:disabled {
     text-decoration: none;
 }
 
+/* Two ways in, and the rule through the word says they are alternatives rather
+   than steps. Drawn with the pseudo-elements so it stays centred whatever the
+   word's length is - "sau" and "or" are not the same width. */
+.access-or {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* The card centres its children, so without this the paragraph shrinks to
+       the width of the word and the two rules have nothing to divide. */
+    width: 100%;
+    margin: 12px 0;
+    color: var(--faint);
+    font-size: .76rem;
+}
+
+.access-or::before,
+.access-or::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+}
+
 .access-quiet {
     margin: 14px 0 0;
     color: var(--faint);

@@ -265,3 +265,40 @@ class AccountDirectory:
         payload = await self._call("ui_create_account", fields)
         self.forget()
         return (payload or {}).get("account", {})
+
+    async def provision_self(
+        self, principal_id: str, email: str, provider: str, display_name: str = ""
+    ) -> Account | None:
+        """Write a studio for a principal that signed in without one.
+
+        Only called for providers that carry their own allowlist; `auth.py`
+        decides that, and this method does not second-guess it - the check lives
+        where the provider name is trusted.
+
+        Raises rather than swallowing, unlike `bind` above. This one is not a
+        read that can degrade to a default: if it fails, the alternative is
+        letting the request continue scoped to `CLIENT_SLUG`, which is somebody
+        else's studio. An error page is the better failure.
+        """
+        payload = await self._call(
+            "ui_provision_account",
+            {
+                "principal_id": principal_id,
+                "email": email,
+                "provider": provider,
+                "display_name": display_name,
+            },
+        )
+        raw = (payload or {}).get("account")
+        # Whatever happened, the cached "no account" answer for this principal is
+        # now stale - including when provisioning found them suspended.
+        self.forget(principal_id)
+        if not raw:
+            return None
+        return Account(
+            principal_id=raw["principal_id"],
+            email=raw["email"],
+            role=raw["role"],
+            client_slug=raw["client_slug"],
+            client_name=raw["client_name"],
+        )

@@ -26,13 +26,21 @@ public static class Copy
         new("Conținut care sună ca tine.", "Content that sounds like you.");
     public static readonly Phrase SignInWithGoogle =
         new("Intră cu Google", "Sign in with Google");
+    // The studio account: a username and a password Sorin issues from the Entra
+    // external tenant. Named for what the person holds, not for the product
+    // behind it — nobody signing in thinks of themselves as having "an Entra".
+    public static readonly Phrase SignInWithStudioAccount =
+        new("Intră cu user și parolă", "Sign in with username and password");
+    public static readonly Phrase SignInOr = new("sau", "or");
     public static readonly Phrase InvitedOnly =
         new("Doar conturile invitate au acces.", "Only invited accounts have access.");
     public static readonly Phrase DeniedTitle =
         new("Acest cont nu are acces", "This account has no access");
+    // Provider-neutral since the studio has two doors: naming Google here would
+    // be wrong for half the people who can reach this screen.
     public static readonly Phrase DeniedLede = new(
-        "Ai intrat cu un cont Google care nu e pe lista studioului.",
-        "You signed in with a Google account that is not on the studio list.");
+        "Ai intrat cu un cont care nu e pe lista studioului.",
+        "You signed in with an account that is not on the studio list.");
     public static readonly Phrase DeniedCta =
         new("Ieși și încearcă alt cont", "Sign out and try another account");
 

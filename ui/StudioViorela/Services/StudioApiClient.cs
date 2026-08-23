@@ -15,6 +15,9 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
     // Named Tr, not T: the generic parameter of ReadAsync<T> already owns T.
     private Translator Tr => language.Translator;
 
+    public Task<AuthOptionsDto> GetAuthOptionsAsync() =>
+        GetAsync<AuthOptionsDto>("api/auth/options");
+
     public Task<MeDto> GetMeAsync() => GetAsync<MeDto>("api/me");
 
     public Task<UsageDto> GetUsageAsync() => GetAsync<UsageDto>("api/me/usage");

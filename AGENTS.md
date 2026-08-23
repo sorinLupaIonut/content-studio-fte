@@ -77,6 +77,20 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
   row; listing `app_users` would hide any client nobody has signed in as — such
   as the original one, whose budget would then be unreachable from the only page
   that can change it.
+- **Two doors, and they are strangers.** Since 2026-08-23 a second identity
+  provider is supported: an Entra external tenant only Sorin can add people to,
+  named in `AUTH_SELF_PROVISION_PROVIDERS`. A principal from it skips the
+  `.env` allowlist — membership of that directory *is* the allowlist — and gets
+  a `clients` row written on its first request, always role `user`, always the
+  default allowance. **Addresses are never matched across providers.** The same
+  string arriving from Google and from the tenant is two people with two
+  studios; linking them by email would be the one quiet way to hand somebody
+  else's profile over. See [plans/ACCOUNTS-OIDC.md](plans/ACCOUNTS-OIDC.md).
+- **Self-provisioning is safe for that provider and no other.** It rests
+  entirely on nobody being able to enrol themselves, which in an external tenant
+  is off by default and has no portal control — one Graph call sets
+  `isSignUpAllowed: false`. Adding Google to that setting would hand a studio to
+  anyone with an email address.
 - **The library is scoped too, since 2026-08-21.** `documents.client_id` is NOT
   NULL and both readers — `ui_list_library` and `search_books` — join through
   `clients` on the slug from the connection. The books are licensed material;
@@ -164,6 +178,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, three surfaces |
 | Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
+| Which providers carry their own allowlist | `config.py` → `AUTH_SELF_PROVISION_PROVIDERS` | decided once, in `auth.py` |
 | Who owns which books | `documents.client_id` | scoped in the SQL, not in the caller |
 
 ## Conventions

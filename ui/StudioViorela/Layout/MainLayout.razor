@@ -31,7 +31,32 @@ else if (_gate == Gate.SignedOut)
             <span class="brand-mark access-mark" aria-hidden="true">V</span>
             <h1>@T[Copy.BrandName]</h1>
             <p class="access-lede">@T[Copy.SignInLede]</p>
-            <a class="button button-primary access-cta" href="/.auth/login/google?post_login_redirect_uri=/">
+            @* Two doors that stay strangers to each other. A studio account and
+               a Google account are different principals even on the same
+               address, and nothing here or on the server matches one to the
+               other by email. The button appears only once the provider exists,
+               so it can never point at a /.auth path Easy Auth would 404. *@
+            @if (_passwordProvider is not null)
+            {
+                @* prompt=select_account here too, and for the same reason as on
+                   the Google link below: without it the platform reuses the
+                   session it already has, and a second person at the same
+                   browser cannot get to their own studio. Verified against the
+                   live app on 2026-08-23, where its absence silently returned
+                   the previous tester. *@
+                <a class="button button-primary access-cta"
+                   href="@($"/.auth/login/{_passwordProvider}?prompt=select_account&post_login_redirect_uri=/")">
+                    @T[Copy.SignInWithStudioAccount]
+                </a>
+                <p class="access-or"><span>@T[Copy.SignInOr]</span></p>
+            }
+            @* prompt=select_account, or the platform reuses the session it
+               already has and silently returns the same identity - which reads
+               as the button refusing to let you change account. Write the
+               ampersand raw: Razor encodes `&amp;` a second time and the next
+               parameter arrives named `amp;post_login_redirect_uri`. *@
+            <a class="button @(_passwordProvider is null ? "button-primary" : "button-ghost") access-cta"
+               href="/.auth/login/google?prompt=select_account&post_login_redirect_uri=/">
                 @T[Copy.SignInWithGoogle]
             </a>
             <p class="access-quiet">@T[Copy.InvitedOnly]</p>
@@ -132,6 +157,7 @@ else
     private MeDto? _me;
     private UsageDto? _usage;
     private string? _identityError;
+    private string? _passwordProvider;
 
     private Translator T => Language.Translator;
 
@@ -174,6 +200,7 @@ else
         catch (StudioApiException ex) when (ex.StatusCode == 401)
         {
             _gate = Gate.SignedOut;
+            await LoadAuthOptionsAsync();
         }
         catch (StudioApiException ex) when (ex.StatusCode == 403)
         {
@@ -185,6 +212,26 @@ else
             // render and surface the error where the old layout showed it.
             _identityError = ex.Message;
             _gate = Gate.Open;
+        }
+    }
+
+    /// <summary>
+    /// Which doors to draw. Never allowed to break the access screen: if this
+    /// cannot be read the person sees one sign-in button instead of two, which
+    /// is a smaller failure than a blank page in front of a locked studio.
+    /// </summary>
+    private async Task LoadAuthOptionsAsync()
+    {
+        try
+        {
+            var options = await Api.GetAuthOptionsAsync();
+            _passwordProvider = string.IsNullOrWhiteSpace(options.PasswordProvider)
+                ? null
+                : options.PasswordProvider;
+        }
+        catch (Exception)
+        {
+            _passwordProvider = null;
         }
     }
 

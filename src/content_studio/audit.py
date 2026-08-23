@@ -102,6 +102,11 @@ GENERATION_VARIANT_SELECTED = "generation_variant_selected"
 GENERATION_VARIANT_PATCHED = "generation_variant_patched"
 GENERATION_CANCELLED = "generation_cancelled"
 
+#: A studio written for a principal that signed in with no account. Unattended -
+#: nobody clicked anything - which is exactly why it is worth a row: it is the
+#: only write in the system that happens without a person asking for it.
+ACCOUNT_PROVISIONED = "account_provisioned"
+
 #: `event` carries an optional subject after ": " — `capability_invoked: save_post`.
 #: One free-text column has to answer "what happened" and "to what"; a separator
 #: the reader agrees on is the cheapest way to get both back out.

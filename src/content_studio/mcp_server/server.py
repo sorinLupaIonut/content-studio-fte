@@ -54,6 +54,7 @@ from content_studio import enable_utf8_output
 # `event` column is free text, so a typo on this side would simply produce a row
 # `replay.py` cannot group. One import keeps both ends honest.
 from content_studio.audit import (
+    ACCOUNT_PROVISIONED,
     GENERATION_BATCH_CREATED,
     GENERATION_BATCH_FAILED,
     GENERATION_CANCELLED,
@@ -93,6 +94,7 @@ from content_studio.harness.posts import SavedPostContent, SavePostsRequest
 from content_studio.mcp_server.accounts import (
     create_account,
     list_accounts,
+    provision_self,
     resolve_account,
     set_disabled,
 )
@@ -1051,6 +1053,37 @@ async def ui_create_account(
             budget_micros=budget_micros,
         )
     return {"account": account.as_dict()}
+
+
+@server.tool()
+async def ui_provision_account(
+    principal_id: str, email: str, provider: str, display_name: str = ""
+) -> dict:
+    """Creează intern studioul unui principal la prima lui logare; nu este pentru agent.
+
+    Only reached for providers named in AUTH_SELF_PROVISION_PROVIDERS, which the
+    harness checks before calling - a directory only Sorin can add people to.
+    Role and allowance are not parameters here; see `provision_self`.
+    """
+    async with connection() as conn:
+        account, created = await provision_self(
+            conn,
+            principal_id=principal_id,
+            email=email,
+            provider=provider,
+            display_name=display_name,
+        )
+        if created and account is not None:
+            # The first argument is a session id, and there is no session: this
+            # runs while a request is being authenticated, before any run exists.
+            # The sub-select finds nothing and `run_id` lands NULL, which the
+            # column allows - a trail row with no run beats no trail row at all.
+            await conn.execute(
+                AUDIT_SQL,
+                principal_id,
+                event_name(ACCOUNT_PROVISIONED, account.client_slug),
+            )
+    return {"account": account.as_dict() if account is not None else None}
 
 
 def main() -> int:
