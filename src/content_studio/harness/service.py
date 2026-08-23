@@ -376,6 +376,18 @@ class HarnessService:
                     )
                 ),
             ),
+            # Reported separately from Application Insights: they answer
+            # different questions, and one being off says nothing about the
+            # other. Neither is ever required.
+            "phoenix": BackendHealth(
+                configured=bool((observability or {}).get("phoenix", {}).get("ok")),
+                active=bool((observability or {}).get("phoenix", {}).get("ok")),
+                detail=str(
+                    (observability or {})
+                    .get("phoenix", {})
+                    .get("detail", "Phoenix nu a fost inițializat.")
+                ),
+            ),
         }
         required = (openai_ok, database_ok, mcp_ok, e2b_ok, skills_ok)
         return HealthResponse(

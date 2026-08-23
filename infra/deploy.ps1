@@ -188,6 +188,22 @@ $selfProvisionProviders = $dotenv['AUTH_SELF_PROVISION_PROVIDERS']
 # this deployment would delete the secret that Easy Auth's studio-account
 # provider references, and the auth sidecar would fail to start.
 $entraClientSecret = $dotenv['ENTRA_CLIENT_SECRET']
+
+# Decision 7, surface 4. All three are optional and empty is a supported state -
+# the harness reports the surface as off and everything else runs unchanged. Read
+# here rather than defaulted in bicep so that removing them from .env actually
+# turns Phoenix off, instead of leaving a stale secret behind on the revision.
+$phoenixEndpoint = $dotenv['PHOENIX_COLLECTOR_ENDPOINT']
+$phoenixApiKey   = $dotenv['PHOENIX_API_KEY']
+$phoenixProject  = $dotenv['PHOENIX_PROJECT_NAME']
+if (-not $phoenixEndpoint) { $phoenixEndpoint = '' }
+if (-not $phoenixApiKey)   { $phoenixApiKey = '' }
+if (-not $phoenixProject)  { $phoenixProject = 'studio-viorela' }
+if ($phoenixApiKey) {
+    Write-Host ("Phoenix      : {0}, cheia citita din .env, netiparita" -f $phoenixProject)
+} else {
+    Write-Host "Phoenix      : fara PHOENIX_API_KEY in .env; suprafata a patra ramane oprita"
+}
 if ($selfProvisionProviders) {
     Write-Host ("Self-signup  : {0}" -f $selfProvisionProviders)
 } else {
@@ -303,6 +319,9 @@ $parameters = @{
         e2bApiKey         = @{ value = $dotenv['E2B_API_KEY'] }
         googleClientSecret = @{ value = $googleClientSecret }
         entraClientSecret  = @{ value = $entraClientSecret }
+        phoenixCollectorEndpoint = @{ value = $phoenixEndpoint }
+        phoenixApiKey            = @{ value = $phoenixApiKey }
+        phoenixProjectName       = @{ value = $phoenixProject }
     }
 }
 

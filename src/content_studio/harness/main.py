@@ -47,6 +47,7 @@ from content_studio.harness.posts import PostUpdateRequest, SavePostsRequest
 from content_studio.harness.service import HarnessError, HarnessService
 from content_studio.harness.static_ui import mount_ui
 from content_studio.observability import configure as configure_observability
+from content_studio.observability import shutdown_phoenix
 
 
 def create_app(
@@ -66,6 +67,10 @@ def create_app(
             yield
         finally:
             await service.close()
+            # Configured here, so shut down here. The batch processor holds
+            # spans for a few seconds; without this the last run of a revision
+            # is the one that never reaches Phoenix.
+            shutdown_phoenix()
 
     app = FastAPI(title="Content Studio Harness", version="0.1.0", lifespan=lifespan)
 

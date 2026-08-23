@@ -57,6 +57,16 @@ param googleClientSecret string = ''
 @secure()
 param entraClientSecret string = ''
 
+@description('Phoenix Cloud collector endpoint. Empty leaves the fourth surface off.')
+param phoenixCollectorEndpoint string = ''
+
+@secure()
+@description('Phoenix Cloud API key. Empty leaves the fourth surface off.')
+param phoenixApiKey string = ''
+
+@description('Which Phoenix project the spans land in.')
+param phoenixProjectName string = 'studio-viorela'
+
 var harnessAppName = '${namePrefix}-harness'
 var mcpAppName = '${namePrefix}-mcp'
 var fullImage = '${acr.properties.loginServer}/${image}'
@@ -269,6 +279,12 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
           value: e2bApiKey
         }
         {
+          // Empty is a supported state: `configure_phoenix` reads it, finds
+          // nothing and reports the surface as off. See observability.py.
+          name: 'phoenix-api-key'
+          value: phoenixApiKey
+        }
+        {
           // Not an API key, but it does authorise ingestion into this
           // resource. Kept as a secret so it is redacted in the portal and in
           // `az containerapp show`, like everything else that grants anything.
@@ -349,6 +365,18 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               secretRef: 'appinsights-connection-string'
+            }
+            {
+              name: 'PHOENIX_COLLECTOR_ENDPOINT'
+              value: phoenixCollectorEndpoint
+            }
+            {
+              name: 'PHOENIX_PROJECT_NAME'
+              value: phoenixProjectName
+            }
+            {
+              name: 'PHOENIX_API_KEY'
+              secretRef: 'phoenix-api-key'
             }
           ]
           probes: [

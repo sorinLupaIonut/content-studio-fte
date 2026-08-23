@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+import unittest.mock
 
 from content_studio.observability import RUN_ID, RunTraceProcessor
 
@@ -118,6 +119,66 @@ class RunTraceProcessorTests(unittest.TestCase):
 
         self.assertEqual(self.processor._runs, {})
         self.assertEqual(self.processor._spans, {})
+
+
+
+class AzureMonitorWiringTests(unittest.TestCase):
+    """What `configure` asks Azure Monitor for, and why it must keep asking.
+
+    Both of these were silent defaults that contradicted the module docstring,
+    found on 2026-08-23 by reading the live resource rather than the code: spans
+    were being dropped by a rate limiter nobody had chosen, and every row
+    arrived as `unknown_service`. A default that disagrees with the
+    documentation is exactly the thing a test should hold in place.
+    """
+
+    def _configure_with_spy(self) -> dict:
+        """Run `configure` against a real app with every exporter stubbed out.
+
+        The instrumentors are patched rather than allowed to run: they attach to
+        asyncpg and httpx process-wide, and a unit test has no business leaving
+        that behind for whatever runs next.
+        """
+        from fastapi import FastAPI
+
+        import content_studio.observability as obs
+
+        seen: dict = {}
+        was_configured = obs._configured
+        obs._configured = False
+        try:
+            with (
+                unittest.mock.patch(
+                    "azure.monitor.opentelemetry.configure_azure_monitor",
+                    side_effect=lambda **kwargs: seen.update(kwargs),
+                ),
+                unittest.mock.patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor"),
+                unittest.mock.patch("opentelemetry.instrumentation.asyncpg.AsyncPGInstrumentor"),
+                unittest.mock.patch(
+                    "opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor"
+                ),
+                unittest.mock.patch.object(
+                    obs, "APPLICATIONINSIGHTS_CONNECTION_STRING", "InstrumentationKey=test"
+                ),
+            ):
+                obs.configure(FastAPI())
+        finally:
+            obs._configured = was_configured
+        return seen
+
+    def test_every_span_is_kept(self) -> None:
+        """Without this the distro installs a 5-spans-per-second rate limiter."""
+        self.assertEqual(self._configure_with_spy().get("sampling_ratio"), 1.0)
+
+    def test_the_service_names_itself(self) -> None:
+        """Otherwise both container apps report as `unknown_service`."""
+        from opentelemetry.sdk.resources import SERVICE_NAME
+
+        from content_studio.observability import SERVICE_HARNESS
+
+        resource = self._configure_with_spy().get("resource")
+        self.assertIsNotNone(resource)
+        self.assertEqual(resource.attributes.get(SERVICE_NAME), SERVICE_HARNESS)
 
 
 if __name__ == "__main__":

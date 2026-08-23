@@ -146,6 +146,16 @@ APPLICATIONINSIGHTS_CONNECTION_STRING = os.getenv(
     "APPLICATIONINSIGHTS_CONNECTION_STRING", ""
 ).strip()
 
+# The fourth surface. Empty is a supported state exactly like the one above: the
+# agent's steps stay in `public.traces`, which is the durable record either way.
+# Phoenix Cloud hands out a space URL; the endpoint may be given with or without
+# the `/v1/traces` path - `observability._traces_endpoint` settles it.
+PHOENIX_COLLECTOR_ENDPOINT = os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "").strip()
+PHOENIX_API_KEY = os.getenv("PHOENIX_API_KEY", "").strip()
+#: The project a span lands in. One per environment, so a local experiment does
+#: not sit in the same list as what the client actually ran.
+PHOENIX_PROJECT_NAME = os.getenv("PHOENIX_PROJECT_NAME", "studio-viorela").strip()
+
 # Per principal, per minute. A ceiling on accidents - a page stuck in a retry
 # loop, a held-down button - not a security boundary; the budget gate is what
 # bounds deliberate spending. 0 turns it off.

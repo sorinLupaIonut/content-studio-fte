@@ -1,7 +1,7 @@
-"""Three surfaces, one id.
+"""Four surfaces, one id.
 
 The deployment course names four observability surfaces and ties them together
-with a shared `run_id`. Three of the four apply to this studio:
+with a shared `run_id`. All four are wired here:
 
 * **OpenTelemetry spans**, exported to Application Insights - where a request
   went, how long each hop took, which one threw.
@@ -11,16 +11,28 @@ with a shared `run_id`. Three of the four apply to this studio:
   why the difference decides whether the id survives the export.
 * **The audit trail in Neon**, keyed by that same `run_id`, which `replay.py`
   already reconstructs turn by turn.
+* **Phoenix**, which gets the agent's own steps in OpenInference form - the
+  surface evaluators read, and the one that answers "is the behaviour drifting"
+  rather than "what happened in this run". It was refused once, on the grounds
+  that `public.traces` already holds a durable, replayable record; that stays
+  true, and Phoenix does not replace it. It is off unless a key is present, and
+  when it is off nothing else changes.
 
-The fourth surface, Phoenix, is deliberately not wired. It is another account,
-another key and another bill, and what it would add - a searchable record of the
-agent's own reasoning - is already in `public.traces`, durable and replayable.
-Should that change, it is one exporter, not a redesign.
+Sampling is 100%, and it has to be *asked for*. The course samples roughly a
+tenth of the successful runs because it assumes production traffic. This studio
+has three accounts. Dropping nine runs in ten would throw away the only evidence
+of a fault that happens once a week, and would save nothing worth saving.
 
-Sampling is 100%, also deliberately. The course samples roughly a tenth of the
-successful runs because it assumes production traffic. This studio has three
-accounts. Dropping nine runs in ten would throw away the only evidence of a
-fault that happens once a week, and would save nothing worth saving.
+That paragraph used to be a claim rather than a fact. `configure_azure_monitor`
+called with no sampling argument does NOT keep everything: in
+azure-monitor-opentelemetry 1.8.9 the default branch builds a
+`RateLimitedSampler(target_spans_per_second_limit=5.0)`. Verified against the
+live resource on 2026-08-23 - one page load fires around forty asset requests in
+two seconds, so the limit was reached constantly and Application Insights held
+319 records standing in for 490 requests, each carrying an `itemCount` the portal
+extrapolates from. Charts stayed correct; the individual trace you go looking for
+after an incident was often simply not there. `sampling_ratio=1.0` selects
+`ApplicationInsightsSampler(1.0)` instead, which keeps every span.
 
 Everything here degrades to silence. With no connection string the harness runs
 exactly as it did before, logging to stdout - the same rule the sandbox and the
@@ -35,7 +47,12 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from typing import Any
 
-from content_studio.config import APPLICATIONINSIGHTS_CONNECTION_STRING
+from content_studio.config import (
+    APPLICATIONINSIGHTS_CONNECTION_STRING,
+    PHOENIX_API_KEY,
+    PHOENIX_COLLECTOR_ENDPOINT,
+    PHOENIX_PROJECT_NAME,
+)
 
 # The thread that ties the three surfaces together. A ContextVar rather than a
 # parameter because a run crosses about twenty call sites and several spawned
@@ -44,6 +61,11 @@ from content_studio.config import APPLICATIONINSIGHTS_CONNECTION_STRING
 RUN_ID: ContextVar[str] = ContextVar("run_id", default="-")
 
 LOG_FORMAT = "%(asctime)s %(levelname)-7s [run=%(run_id)s] %(name)s: %(message)s"
+
+#: What this process calls itself in telemetry. Matches the container app name so
+#: a row in Application Insights and a revision in Azure are obviously the same
+#: thing. The MCP server is a separate container and names itself separately.
+SERVICE_HARNESS = "studio-harness"
 
 _configured = False
 _factory_installed = False
@@ -145,28 +167,50 @@ def configure(app: Any) -> dict[str, Any]:
 
     configure_logging()
 
+    # Independent of Application Insights on purpose: the two surfaces answer
+    # different questions, and a studio running locally with no Azure at all can
+    # still send the agent's steps somewhere it can look at them.
+    phoenix = configure_phoenix()
+
     if not APPLICATIONINSIGHTS_CONNECTION_STRING:
         return {
             "ok": False,
+            "phoenix": phoenix,
             "detail": (
                 "APPLICATIONINSIGHTS_CONNECTION_STRING lipsește; "
                 "urmele rămân doar în stdout și în Neon."
             ),
         }
     if _configured:
-        return {"ok": True, "detail": "Application Insights primește urmele."}
+        return {
+            "ok": True,
+            "phoenix": phoenix,
+            "detail": "Application Insights primește urmele.",
+        }
 
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
         from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     except ImportError as exc:  # pragma: no cover - a partial install
-        return {"ok": False, "detail": f"Pachetele de telemetrie lipsesc ({exc.name})."}
+        return {
+            "ok": False,
+            "phoenix": phoenix,
+            "detail": f"Pachetele de telemetrie lipsesc ({exc.name}).",
+        }
 
     configure_azure_monitor(
         connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING,
         logger_name="content_studio",
+        # Keep every span. See the header of this module for what the default
+        # does instead, and how it was caught.
+        sampling_ratio=1.0,
+        # Without this every row arrives as `cloud_RoleName: unknown_service`,
+        # which is what the Application Map and the Roles tab group by. Two
+        # container apps and no way to tell them apart is not a map.
+        resource=Resource.create({SERVICE_NAME: SERVICE_HARNESS}),
         # The distro instruments FastAPI itself, by patching the constructor -
         # which would have no effect on an app already built, and would double
         # every server span on one built later. Own it here instead, where the
@@ -187,7 +231,11 @@ def configure(app: Any) -> dict[str, Any]:
 
     _configured = True
     log.info("observability: Application Insights wired, sampling everything")
-    return {"ok": True, "detail": "Application Insights primește urmele."}
+    return {
+        "ok": True,
+        "phoenix": phoenix,
+        "detail": "Application Insights primește urmele.",
+    }
 
 
 # ---- the agent's own trace ---------------------------------------------------
@@ -274,3 +322,131 @@ def record_agent_traces(sink: Callable[[str, dict[str, Any]], None]) -> bool:
         return False
     add_trace_processor(RunTraceProcessor(sink))
     return True
+
+
+# ---- the fourth surface: Phoenix ---------------------------------------------
+# Neon answers "what happened in this run"; Phoenix answers "is the behaviour
+# drifting". Different questions, so both are kept. Phoenix is the sample you
+# browse and run evaluators against; `public.traces` stays the durable record,
+# and nothing here is allowed to affect it.
+
+
+def _traces_endpoint(base: str) -> str:
+    """Phoenix Cloud hands out a space URL; OTLP wants the `/v1/traces` path.
+
+    Accepting either shape is deliberate: the value is copied out of a web page
+    by hand, and a missing suffix would fail as silent non-delivery rather than
+    as an error.
+    """
+    base = base.rstrip("/")
+    return base if base.endswith("/v1/traces") else f"{base}/v1/traces"
+
+
+class _StampRunId:
+    """Put the run id on every Phoenix span, at start, read from the ContextVar.
+
+    Same move as `install_run_id_factory`, one surface over: nothing has to pass
+    the id and nothing has to remember to. Duck-typed against `SpanProcessor`
+    rather than subclassing it, so this module still imports with no OpenTelemetry
+    SDK present - the rule the rest of the file follows.
+
+    Registered before the exporting processor: a provider runs its processors in
+    order, and the attribute has to exist before the span is handed on.
+    """
+
+    def on_start(self, span: Any, parent_context: Any = None) -> None:
+        try:
+            span.set_attribute("studio.run_id", RUN_ID.get())
+        except Exception:  # noqa: BLE001 - telemetry never breaks a run
+            pass
+
+    def on_end(self, span: Any) -> None:
+        return None
+
+    def shutdown(self) -> None:
+        return None
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return True
+
+
+_phoenix_provider: Any | None = None
+
+
+def configure_phoenix() -> dict[str, Any]:
+    """Send the agent's own steps to Phoenix. Safe without a key.
+
+    ITS OWN TRACER PROVIDER, not the global one. The global provider belongs to
+    `configure_azure_monitor`, and OpenTelemetry refuses to replace one once set
+    - quietly, with a log line, which is the worst way to find out. A second
+    provider also bounds the damage: if Phoenix stops answering, the batch
+    processor that backs up is not the one Application Insights depends on.
+    """
+    global _phoenix_provider
+
+    if not (PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY):
+        return {
+            "ok": False,
+            "detail": (
+                "PHOENIX_COLLECTOR_ENDPOINT sau PHOENIX_API_KEY lipsește; "
+                "urmele agentului rămân în public.traces."
+            ),
+        }
+    if _phoenix_provider is not None:
+        return {"ok": True, "detail": f"Phoenix primește urmele ({PHOENIX_PROJECT_NAME})."}
+
+    try:
+        from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    except ImportError as exc:  # pragma: no cover - a partial install
+        return {"ok": False, "detail": f"Pachetele Phoenix lipsesc ({exc.name})."}
+
+    try:
+        provider = TracerProvider(
+            resource=Resource.create(
+                {
+                    SERVICE_NAME: SERVICE_HARNESS,
+                    # How Phoenix decides which project a span belongs to.
+                    "openinference.project.name": PHOENIX_PROJECT_NAME,
+                }
+            )
+        )
+        provider.add_span_processor(_StampRunId())
+        provider.add_span_processor(
+            BatchSpanProcessor(
+                OTLPSpanExporter(
+                    endpoint=_traces_endpoint(PHOENIX_COLLECTOR_ENDPOINT),
+                    headers={"authorization": f"Bearer {PHOENIX_API_KEY}"},
+                )
+            )
+        )
+        # `exclusive_processor=False` is not a preference. The default is True,
+        # and True calls `agents.set_trace_processors([...])`, which REPLACES the
+        # SDK's processor list - taking `RunTraceProcessor` with it and stopping
+        # `public.traces` from ever receiving another span. Read out of
+        # openinference-instrumentation-openai-agents 2.0.0 on 2026-08-23; if
+        # that package is ever upgraded, check this line first.
+        OpenAIAgentsInstrumentor().instrument(
+            tracer_provider=provider, exclusive_processor=False
+        )
+    except Exception as exc:  # noqa: BLE001 - never let telemetry refuse a boot
+        return {"ok": False, "detail": f"Phoenix nu a putut fi pornit ({exc})."}
+
+    _phoenix_provider = provider
+    log.info("observability: Phoenix wired, project=%s", PHOENIX_PROJECT_NAME)
+    return {"ok": True, "detail": f"Phoenix primește urmele ({PHOENIX_PROJECT_NAME})."}
+
+
+def shutdown_phoenix() -> None:
+    """Flush whatever the batch processor is still holding. Never raises."""
+    global _phoenix_provider
+    provider, _phoenix_provider = _phoenix_provider, None
+    if provider is None:
+        return
+    try:
+        provider.shutdown()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("observability: Phoenix did not shut down cleanly: %s", exc)
