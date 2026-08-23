@@ -25,9 +25,6 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
     public Task<AdminAccountsDto> GetAdminAccountsAsync() =>
         GetAsync<AdminAccountsDto>("api/admin/accounts");
 
-    public Task<JsonElement> CreateAccountAsync(CreateAccountDto body) =>
-        PostAsync<CreateAccountDto, JsonElement>("api/admin/accounts", body);
-
     public async Task SetDisabledAsync(string principalId, bool disabled)
     {
         using var response = await http.PutAsJsonAsync(
@@ -204,6 +201,8 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
                         return Tr[Copy.RateLimited];
                     case "cannot_suspend_self":
                         return Tr[Copy.AdminCannotSuspendSelf];
+                    case "cannot_suspend_admin":
+                        return Tr[Copy.AdminCannotSuspendAdmin];
                     case "account_not_found":
                         return Tr[Copy.AdminAccountMissing];
                     case "profile_section_unknown":

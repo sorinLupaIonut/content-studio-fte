@@ -261,13 +261,13 @@ class AccountDirectory:
         self.forget(principal_id)
         return (payload or {}).get("account")
 
-    async def create_account(self, **fields: Any) -> dict[str, Any]:
-        payload = await self._call("ui_create_account", fields)
-        self.forget()
-        return (payload or {}).get("account", {})
-
     async def provision_self(
-        self, principal_id: str, email: str, provider: str, display_name: str = ""
+        self,
+        principal_id: str,
+        email: str,
+        provider: str,
+        display_name: str = "",
+        client_slug: str | None = None,
     ) -> Account | None:
         """Write a studio for a principal that signed in without one.
 
@@ -287,6 +287,7 @@ class AccountDirectory:
                 "email": email,
                 "provider": provider,
                 "display_name": display_name,
+                "client_slug": client_slug or "",
             },
         )
         raw = (payload or {}).get("account")

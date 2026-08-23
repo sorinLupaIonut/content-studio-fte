@@ -92,7 +92,6 @@ from content_studio.harness.generation import (
 )
 from content_studio.harness.posts import SavedPostContent, SavePostsRequest
 from content_studio.mcp_server.accounts import (
-    create_account,
     list_accounts,
     provision_self,
     resolve_account,
@@ -1024,46 +1023,22 @@ async def ui_list_accounts() -> dict:
 
 
 @server.tool()
-async def ui_create_account(
+async def ui_provision_account(
     principal_id: str,
     email: str,
-    client_slug: str,
-    client_name: str,
-    provider: str = "google",
-    role: str = "user",
-    profile_from: str | None = None,
-    budget_micros: int = 1_000_000,
-) -> dict:
-    """Creează intern un cont nou, cu clientul lui; nu este pentru agent.
-
-    `profile_from` copies another client's profile as a starting point. A copy,
-    never a reference: two testers sharing one profile row would mean one
-    tester's edit changing the other's output.
-    """
-    async with connection() as conn:
-        account = await create_account(
-            conn,
-            principal_id=principal_id,
-            email=email,
-            client_slug=client_slug,
-            client_name=client_name,
-            provider=provider,
-            role=role,
-            profile_from=profile_from,
-            budget_micros=budget_micros,
-        )
-    return {"account": account.as_dict()}
-
-
-@server.tool()
-async def ui_provision_account(
-    principal_id: str, email: str, provider: str, display_name: str = ""
+    provider: str,
+    display_name: str = "",
+    client_slug: str = "",
 ) -> dict:
     """Creează intern studioul unui principal la prima lui logare; nu este pentru agent.
 
     Only reached for providers named in AUTH_SELF_PROVISION_PROVIDERS, which the
     harness checks before calling - a directory only Sorin can add people to.
     Role and allowance are not parameters here; see `provision_self`.
+
+    `client_slug` attaches the principal to a studio that already exists instead
+    of making one. The harness passes it for the owner alone, whose `clients` row
+    predates accounts entirely.
     """
     async with connection() as conn:
         account, created = await provision_self(
@@ -1072,6 +1047,7 @@ async def ui_provision_account(
             email=email,
             provider=provider,
             display_name=display_name,
+            client_slug=client_slug or None,
         )
         if created and account is not None:
             # The first argument is a session id, and there is no session: this

@@ -274,6 +274,8 @@ class FakeProvisionConn:
             return None
         if "FROM public.app_users" in sql:
             return 1 if args[0] in self.users else None
+        if "SELECT id FROM public.clients" in sql:
+            return self.clients.get(args[0])
         if "INSERT INTO public.clients" in sql:
             slug, name = args[0], args[1]
             if slug in self.clients:
@@ -301,6 +303,63 @@ class TestSlugFromLabel(unittest.TestCase):
             with self.subTest(address=address):
                 slug = slug_from_label(address)
                 self.assertRegex(slug, r"^[a-z0-9][a-z0-9-]*$")
+
+
+class TestProvisionIntoAnExistingClient(unittest.IsolatedAsyncioTestCase):
+    """The owner path: a studio that predates `app_users` gets its principal."""
+
+    async def test_the_principal_joins_the_named_client(self) -> None:
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn(taken_slugs={"viorela"})
+        account, created = await provision_self(
+            conn,
+            principal_id="principal-owner",
+            email="owner@example.com",
+            provider="google",
+            display_name="Viorela",
+            client_slug="viorela",
+        )
+
+        self.assertTrue(created)
+        self.assertIsNotNone(account)
+        self.assertEqual(account.client_slug, "viorela")
+        # The point of passing a slug is that no second studio appears.
+        self.assertEqual(set(conn.clients), {"viorela"})
+
+    async def test_an_unknown_slug_raises_rather_than_inventing_one(self) -> None:
+        """A configured name that misses means the deployment is wrong.
+
+        Claiming a fresh client here would put the owner in an empty studio that
+        looks like hers and is not, which is worse than an error page.
+        """
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn()
+        with self.assertRaises(LookupError):
+            await provision_self(
+                conn,
+                principal_id="principal-owner",
+                email="owner@example.com",
+                provider="google",
+                client_slug="viorela",
+            )
+        self.assertEqual(conn.users, {})
+
+    async def test_a_suspended_owner_stays_suspended(self) -> None:
+        from content_studio.mcp_server.accounts import provision_self
+
+        conn = FakeProvisionConn(existing_principal="principal-owner", disabled=True)
+        account, created = await provision_self(
+            conn,
+            principal_id="principal-owner",
+            email="owner@example.com",
+            provider="google",
+            client_slug="existing",
+        )
+
+        self.assertIsNone(account)
+        self.assertFalse(created)
 
 
 class TestProvisionSelf(unittest.IsolatedAsyncioTestCase):

@@ -14,9 +14,6 @@
         <h1>@T[Copy.AdminTitle]</h1>
         <p>@T[Copy.AdminIntro]</p>
     </div>
-    <button class="button button-primary" @onclick="() => _creating = !_creating">
-        @T[Copy.AdminNewAccount]
-    </button>
 </section>
 
 @if (_notice is not null)
@@ -29,49 +26,6 @@
 @if (_error is not null)
 {
     <div class="notice notice-error" role="alert">@_error</div>
-}
-
-@if (_creating)
-{
-    <section class="panel">
-        <h2>@T[Copy.AdminNewAccount]</h2>
-        <div class="admin-form">
-            <label>
-                <span>@T[Copy.AdminPrincipalId]</span>
-                <input @bind="_draft.PrincipalId" />
-                <small>@T[Copy.AdminPrincipalHelp]</small>
-            </label>
-            <label>
-                <span>@T[Copy.AdminEmail]</span>
-                <input @bind="_draft.Email" type="email" />
-            </label>
-            <label>
-                <span>@T[Copy.AdminSlug]</span>
-                <input @bind="_draft.ClientSlug" />
-            </label>
-            <label>
-                <span>@T[Copy.AdminName]</span>
-                <input @bind="_draft.ClientName" />
-            </label>
-            <label>
-                <span>@T[Copy.AdminBudgetDollars]</span>
-                <input @bind="_budgetDollars" type="number" min="0" step="0.5" />
-            </label>
-            <label class="admin-check">
-                <input type="checkbox" @bind="_copyProfile" />
-                <span>
-                    @T[Copy.AdminCopyProfile]
-                    <small>@T[Copy.AdminCopyProfileHelp]</small>
-                </span>
-            </label>
-        </div>
-        <div class="admin-actions">
-            <button class="button" @onclick="() => _creating = false">@T[Copy.AdminCancel]</button>
-            <button class="button button-primary" disabled="@_busy" @onclick="CreateAsync">
-                @T[Copy.AdminCreate]
-            </button>
-        </div>
-    </section>
 }
 
 @if (_accounts.Count == 0)
@@ -160,8 +114,13 @@ else
                                 @* Suspending is reversible and keeps the usage
                                    rows; it is a timestamp, not a delete. It acts
                                    on a principal, so a client nobody has signed
-                                   in as has nothing to suspend. *@
-                                @if (!string.IsNullOrEmpty(account.PrincipalId))
+                                   in as has nothing to suspend - and an admin is
+                                   never offered, because `db/provision.py` is the
+                                   only thing that makes one and the only thing
+                                   that should unmake one. The server enforces it;
+                                   this only keeps the interface honest. *@
+                                @if (!string.IsNullOrEmpty(account.PrincipalId)
+                                     && !account.IsAdmin)
                                 {
                                     <button class="button button-small"
                                             disabled="@_busy"
@@ -184,19 +143,15 @@ else
     [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
 
     private List<AdminAccountDto> _accounts = new();
-    private CreateAccountDto _draft = new();
     private string? _editing;
     private Phrase? _notice;
     private string? _error;
-    private bool _creating;
     private bool _busy;
 
-    // Dollars in the form, micro-dollars on the wire. The conversion happens
+    // Dollars in the field, micro-dollars on the wire. The conversion happens
     // once, here, at the edge - see pricing.py for why nothing downstream is
     // allowed to hold money as a float.
-    private decimal _budgetDollars = 1m;
     private decimal _editDollars = 1m;
-    private bool _copyProfile = true;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -251,30 +206,6 @@ else
         {
             await Api.SetDisabledAsync(account.PrincipalId!, !account.Disabled);
             _notice = Copy.AdminSuspendSaved;
-            _error = null;
-            await LoadAsync();
-        }
-        catch (StudioApiException ex)
-        {
-            _error = ex.Message;
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-    private async Task CreateAsync()
-    {
-        _busy = true;
-        try
-        {
-            _draft.BudgetMicros = ToMicros(_budgetDollars);
-            _draft.ProfileFrom = _copyProfile ? "viorela" : null;
-            await Api.CreateAccountAsync(_draft);
-            _draft = new CreateAccountDto();
-            _creating = false;
-            _notice = Copy.AdminCreated;
             _error = null;
             await LoadAsync();
         }

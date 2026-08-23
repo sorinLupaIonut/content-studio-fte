@@ -9,6 +9,7 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from content_studio.config import CLIENT_SLUG, MissingConfig
+from content_studio.harness.accounts import Account
 from content_studio.harness.auth import AuthSettings, IdentityResolver
 from content_studio.harness.chat import ChatRunAccepted
 from content_studio.harness.generation import StreamEvent
@@ -576,6 +577,189 @@ class TestDegradedBoot(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(service.database_error, "DATABASE_URL lipsește.")
         finally:
             await service.close()
+
+
+class TestSuspendingAnAdministrator(unittest.TestCase):
+    """An admin is made in a terminal, so it is not unmade from a web page.
+
+    The interface hides the button, but the button is a convenience; these
+    assertions are about the route, which is what a stolen session would reach.
+    """
+
+    ADMIN = Account(
+        principal_id="test-principal",
+        email="admin@example.com",
+        role="admin",
+        client_slug="admin",
+        client_name="Admin",
+    )
+    OTHER_ADMIN = Account(
+        principal_id="second-admin",
+        email="second@example.com",
+        role="admin",
+        client_slug="second",
+        client_name="Second",
+    )
+    TESTER = Account(
+        principal_id="tester",
+        email="tester@example.com",
+        role="user",
+        client_slug="tester",
+        client_name="Tester",
+    )
+
+    def setUp(self) -> None:
+        rows = {a.principal_id: a for a in (self.ADMIN, self.OTHER_ADMIN, self.TESTER)}
+        suspended: list[tuple[str, bool]] = []
+
+        class AdminAccounts(FakeAccounts):
+            async def account_for(self, principal_id):
+                return rows.get(principal_id)
+
+            async def set_disabled(self, principal_id, disabled):
+                suspended.append((principal_id, disabled))
+                return {"principal_id": principal_id, "disabled": disabled}
+
+        class AdminService(FakeService):
+            def __init__(self) -> None:
+                super().__init__()
+                self.accounts = AdminAccounts()
+
+        self.suspended = suspended
+        self._client_context = TestClient(
+            create_app(AdminService, identity_resolver=TEST_AUTH)
+        )
+        self.client = self._client_context.__enter__()
+
+    def tearDown(self) -> None:
+        self._client_context.__exit__(None, None, None)
+
+    def suspend(self, principal_id: str, disabled: bool = True):
+        return self.client.put(
+            f"/api/admin/accounts/{principal_id}/disabled", json={"disabled": disabled}
+        )
+
+    def test_another_administrator_is_refused(self) -> None:
+        response = self.suspend("second-admin")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "cannot_suspend_admin")
+        self.assertEqual(self.suspended, [])
+
+    def test_the_caller_is_still_refused_first(self) -> None:
+        response = self.suspend("test-principal")
+
+        self.assertEqual(response.json()["code"], "cannot_suspend_self")
+        self.assertEqual(self.suspended, [])
+
+    def test_a_tester_is_suspended_normally(self) -> None:
+        response = self.suspend("tester")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.suspended, [("tester", True)])
+
+    def test_restoring_asks_nothing_about_the_role(self) -> None:
+        """A suspended row does not resolve, so the check must not run on the way back."""
+        response = self.suspend("second-admin", disabled=False)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.suspended, [("second-admin", False)])
+
+
+OWNER_EMAIL = "owner@example.com"
+
+OWNER_HEADERS = {
+    "x-ms-client-principal-id": "principal-owner",
+    "x-ms-client-principal-name": OWNER_EMAIL,
+    "x-ms-client-principal-idp": "google",
+}
+
+AZURE_AUTH = IdentityResolver(
+    AuthSettings(
+        mode="azure",
+        harness_host="0.0.0.0",
+        running_in_azure=True,
+        allowed_emails=(OWNER_EMAIL,),
+        allowed_principal_ids=(),
+        dev_principal_id="",
+        dev_email="",
+    )
+)
+
+
+class TestTheOwnerGetsARow(unittest.TestCase):
+    """The client whose studio predates `app_users` is recorded on sign-in.
+
+    Before this she reached her studio through a fall-through that wrote
+    nothing, so the admin page listed her as somebody nobody had signed in as
+    and offered no way to suspend her - the one account it could not act on.
+    """
+
+    def build(self, *, provisioned, raises=False):
+        calls: list[dict] = []
+
+        class OwnerAccounts(FakeAccounts):
+            async def account_for(self, principal_id):
+                return None
+
+            async def provision_self(
+                self, principal_id, email, provider, display_name="", client_slug=None
+            ):
+                calls.append({"principal_id": principal_id, "client_slug": client_slug})
+                if raises:
+                    raise RuntimeError("data plane is down")
+                return provisioned
+
+        class OwnerService(FakeService):
+            def __init__(self) -> None:
+                super().__init__()
+                self.accounts = OwnerAccounts()
+
+        self.calls = calls
+        app = create_app(OwnerService, identity_resolver=AZURE_AUTH)
+        return TestClient(app)
+
+    def me(self, client):
+        return client.get("/api/me", headers=OWNER_HEADERS)
+
+    @patch("content_studio.harness.main.CLIENT_OWNER_EMAIL", OWNER_EMAIL)
+    def test_her_principal_is_bound_to_the_studio_she_already_has(self) -> None:
+        account = Account(
+            principal_id="principal-owner",
+            email=OWNER_EMAIL,
+            role="user",
+            client_slug=CLIENT_SLUG,
+            client_name="Viorela",
+        )
+        with self.build(provisioned=account) as client:
+            response = self.me(client)
+
+        self.assertEqual(response.status_code, 200)
+        # The slug is what stops a second studio being claimed for her.
+        self.assertEqual(self.calls, [
+            {"principal_id": "principal-owner", "client_slug": CLIENT_SLUG}
+        ])
+
+    @patch("content_studio.harness.main.CLIENT_OWNER_EMAIL", OWNER_EMAIL)
+    def test_a_suspended_owner_is_refused(self) -> None:
+        """Otherwise the button on the admin page would be decoration."""
+        with self.build(provisioned=None) as client:
+            response = self.me(client)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "account_not_provisioned")
+
+    @patch("content_studio.harness.main.CLIENT_OWNER_EMAIL", OWNER_EMAIL)
+    def test_a_broken_data_plane_does_not_lock_her_out(self) -> None:
+        """Bookkeeping that fails is not a reason to close the client's studio.
+
+        The opposite of the self-provisioning branch, deliberately: there the
+        fallback is somebody else's studio, here it is her own.
+        """
+        with self.build(provisioned=None, raises=True) as client:
+            response = self.me(client)
+
+        self.assertEqual(response.status_code, 200)
 
 
 if __name__ == "__main__":

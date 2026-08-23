@@ -31,7 +31,6 @@ from content_studio.harness.generation import (
 )
 from content_studio.harness.limits import RateLimiter, is_limited, key_for
 from content_studio.harness.models import (
-    CreateAccountRequest,
     DecisionsRequest,
     HealthResponse,
     MeResponse,
@@ -156,11 +155,49 @@ def create_app(
             CLIENT_OWNER_EMAIL
             and resolver.settings.mode != "development"
             and slug == CLIENT_SLUG
-            and identity.email.lower() != CLIENT_OWNER_EMAIL
         ):
-            known = await request.app.state.harness.accounts.provisioned(
-                identity.principal_id
-            )
+            accounts = request.app.state.harness.accounts
+            if identity.email.lower() == CLIENT_OWNER_EMAIL:
+                # The owner reached her studio without an `app_users` row, which
+                # is how it worked before accounts existed. Record the principal
+                # against the client she already has, so that she appears on the
+                # admin page under her address and can be suspended and restored
+                # there like everybody else. Until this, the one account the page
+                # could not act on was the actual client's.
+                #
+                # Errors let her through instead of stopping her, the opposite of
+                # the branch above, and for the opposite reason: there the
+                # fallback is somebody else's studio, here it *is* hers. A row
+                # that could not be written is bookkeeping that failed, and
+                # bookkeeping does not get to lock the client out of her own
+                # work.
+                try:
+                    account = await accounts.account_for(identity.principal_id)
+                    if account is None:
+                        account = await accounts.provision_self(
+                            identity.principal_id,
+                            identity.email,
+                            identity.provider,
+                            identity.display_name,
+                            client_slug=CLIENT_SLUG,
+                        )
+                        if account is None:
+                            # A row exists and does not resolve: suspended, by
+                            # somebody who meant it. That is the whole point of
+                            # writing the row, so it is honoured here.
+                            raise CodedError(
+                                403,
+                                "account not provisioned",
+                                "account_not_provisioned",
+                            )
+                        await accounts.bind(identity.principal_id)
+                except CodedError:
+                    raise
+                except Exception:  # noqa: BLE001
+                    return identity
+                return identity
+
+            known = await accounts.provisioned(identity.principal_id)
             if known is False:
                 raise CodedError(
                     403, "account not provisioned", "account_not_provisioned"
@@ -318,17 +355,6 @@ def create_app(
             items.append({**account, **row})
         return {"items": items}
 
-    @app.post("/api/admin/accounts", status_code=201)
-    async def admin_create_account(
-        body: CreateAccountRequest,
-        request: Request,
-        _identity: Identity = admin_dependency,
-    ) -> dict:
-        account = await request.app.state.harness.accounts.create_account(
-            **body.model_dump()
-        )
-        return {"account": account}
-
     @app.put("/api/admin/accounts/{principal_id}/disabled")
     async def admin_set_disabled(
         principal_id: str,
@@ -345,6 +371,15 @@ def create_app(
         # prevent.
         if body.disabled and principal_id == identity.principal_id:
             raise CodedError(400, "cannot suspend self", "cannot_suspend_self")
+        # No administrator is suspendable from here, not only the one asking.
+        # `db/provision.py` is the only thing that makes an admin, deliberately;
+        # a page that can unmake one is the same page with the sign reversed.
+        # Only on the way in: a restore needs no such check, and could not run
+        # one anyway, because a suspended row does not resolve.
+        if body.disabled:
+            target = await request.app.state.harness.accounts.account_for(principal_id)
+            if target is not None and target.is_admin:
+                raise CodedError(400, "cannot suspend an admin", "cannot_suspend_admin")
         account = await request.app.state.harness.accounts.set_disabled(
             principal_id, body.disabled
         )

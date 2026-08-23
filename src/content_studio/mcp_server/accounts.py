@@ -234,6 +234,12 @@ VALUES ($1, $2, $3, $4, 'user')
 ON CONFLICT (principal_id) DO NOTHING
 """
 
+# Binding to a studio that already exists, rather than claiming a fresh one.
+# The one caller is the owner path: the client the studio predates accounts for
+# has had a `clients` row since before `app_users` existed, and what is missing
+# is only the principal that points at it.
+CLIENT_ID_BY_SLUG_SQL = "SELECT id FROM public.clients WHERE slug = $1"
+
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
 
@@ -263,6 +269,7 @@ async def provision_self(
     email: str,
     provider: str,
     display_name: str = "",
+    client_slug: str | None = None,
 ) -> tuple[Account | None, bool]:
     """Give a first-time principal its own empty studio. Idempotent.
 
@@ -280,6 +287,12 @@ async def provision_self(
 
     The library starts empty because the books are licensed material; copying
     somebody's shelf onto a new account is a decision, not a default.
+
+    `client_slug` binds the principal to a studio that already exists instead of
+    claiming a new one. Raising when that slug is unknown is deliberate: the
+    caller passes a configured name, so a miss means the deployment is wrong, and
+    inventing a client to paper over it would put the person somewhere nobody
+    meant them to be.
     """
     await conn.execute(LOCK_PRINCIPAL_SQL, principal_id)
 
@@ -292,6 +305,17 @@ async def provision_self(
     # person, so it beats an address split at the "@" - and it is the only thing
     # some providers report, which is why it is preferred for the slug too.
     label = (display_name or "").strip() or email
+
+    if client_slug:
+        client_id = await conn.fetchval(CLIENT_ID_BY_SLUG_SQL, client_slug)
+        if client_id is None:
+            raise LookupError(f"no client with slug {client_slug!r}")
+        await conn.execute(CLAIM_USER_SQL, principal_id, email, provider, client_id)
+        account = await resolve_account(conn, principal_id)
+        if account is None:
+            raise RuntimeError(f"provisioning {principal_id!r} left no account behind")
+        return account, True
+
     base = slug_from_label(label)
     client_id = None
     slug = base

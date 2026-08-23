@@ -63,13 +63,19 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
 - **The first admin is made from the terminal**, `db/provision.py`, and only
   there. An admin page that can mint admins is one stolen session from being
   somebody else's admin page.
-- **Only the owner may fall through.** An authenticated principal with no
-  `app_users` row used to land on `CLIENT_SLUG` — which is how the client kept
-  working before accounts existed, and also how a tester who was allowlisted but
-  never provisioned would land on *her* profile, library and allowance.
-  `CLIENT_OWNER_EMAIL` names the one address that may; everyone else is told
-  their account is not set up yet. Empty keeps the old behaviour, and
-  development mode is exempt.
+- **Only the owner may fall through, and she stops falling.** An authenticated
+  principal with no `app_users` row used to land on `CLIENT_SLUG` — which is how
+  the client kept working before accounts existed, and also how a tester who was
+  allowlisted but never provisioned would land on *her* profile, library and
+  allowance. `CLIENT_OWNER_EMAIL` names the one address that may; everyone else
+  is told their account is not set up yet. Empty keeps the old behaviour, and
+  development mode is exempt. Since 2026-08-23 that fall-through also **writes
+  her row**, bound to the `clients` record she already has — never a new one —
+  so the admin page can see and suspend her like anybody else; before it, the
+  one account that page could not act on was the actual client's. A failure
+  there lets her through rather than refusing: the fallback is her own studio,
+  so bookkeeping does not get to lock her out. A row that exists and is
+  suspended does refuse, which is what makes the button mean something.
 - **`provisioned()` has three answers, not two.** True, False, and None when the
   data plane could not be asked. Refusing on None would turn one bad minute into
   everybody locked out of their own studio.

@@ -93,7 +93,6 @@ INTERNAL_UI_TOOLS = frozenset(
         "ui_list_usage",
         "ui_list_accounts",
         "ui_set_account_disabled",
-        "ui_create_account",
         "ui_provision_account",
     }
 )

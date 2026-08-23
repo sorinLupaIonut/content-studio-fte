@@ -113,33 +113,9 @@ public sealed class AdminAccountDto
     public string BudgetDisplay => $"${BudgetMicros / 1_000_000d:0.00}";
 
     public string SpentDisplay => $"${SpentMicros / 1_000_000d:0.00}";
-}
 
-public sealed class CreateAccountDto
-{
-    [JsonPropertyName("principal_id")]
-    public string PrincipalId { get; set; } = "";
-
-    [JsonPropertyName("email")]
-    public string Email { get; set; } = "";
-
-    [JsonPropertyName("client_slug")]
-    public string ClientSlug { get; set; } = "";
-
-    [JsonPropertyName("client_name")]
-    public string ClientName { get; set; } = "";
-
-    [JsonPropertyName("provider")]
-    public string Provider { get; set; } = "google";
-
-    [JsonPropertyName("role")]
-    public string Role { get; set; } = "user";
-
-    [JsonPropertyName("profile_from")]
-    public string? ProfileFrom { get; set; }
-
-    [JsonPropertyName("budget_micros")]
-    public long BudgetMicros { get; set; } = 1_000_000;
+    /// <summary>Role comparison in one place, so a stray "Admin" never reads as a user.</summary>
+    public bool IsAdmin => string.Equals(Role, "admin", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class SetBudgetDto

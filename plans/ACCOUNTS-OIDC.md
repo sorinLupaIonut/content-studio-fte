@@ -19,9 +19,11 @@ artifact *Harta identităților*.
 ## What is already built
 
 More than the brief assumes. Since 2026-08-21 the admin page lists clients,
-edits budgets, suspends and restores principals, and `POST /api/admin/accounts`
-creates an account with a role, a copied profile and a lifetime allowance. The
-budget gate, the per-client library scoping and the audit are all in place.
+edits budgets, and suspends and restores principals. The budget gate, the
+per-client library scoping and the audit are all in place.
+
+It also created accounts by hand, until 2026-08-23 — see *The form that had to
+go* below.
 
 None of that changes. `auth.py` keeps reading `x-ms-client-principal-*` and
 never learns that a second provider exists.
@@ -98,7 +100,7 @@ sign-in button is not drawn. That is why it could ship before the tenant exists.
 | `config.py` | `AUTH_SELF_PROVISION_PROVIDERS`, and why it is safe only here |
 | `harness/auth.py` | the named provider skips the allowlist; addresses are never matched across providers |
 | `harness/main.py` | the branch in `authenticated`, and public `GET /api/auth/options` |
-| `mcp_server/accounts.py` | `provision_self`, `slug_from_email` |
+| `mcp_server/accounts.py` | `provision_self`, `slug_from_label` |
 | `mcp_server/server.py` | `ui_provision_account`, with its audit row in the same transaction |
 | `MainLayout.razor`, `Copy.cs`, `app.css` | the second button, drawn only when the provider exists |
 | `infra/` | the OIDC registration, and the setting carried through bicep |
@@ -134,6 +136,12 @@ directory and can then reach it with the token it already holds.
 
 Creating a tester is now: one Graph `POST /users` (or the portal form), hand over
 the address and password. The studio appears on their first request.
+
+**Set `forceChangePasswordNextSignIn` on every real tester.** A password Sorin
+generates has to travel to the person somehow — spoken, typed into a message —
+and every one of those places keeps a copy. Forcing the change makes the one he
+handed over worthless the moment it is used. It is off only for throwaway
+accounts used to test the flow itself.
 
 **A consent screen shows once per person** — "Studio Viorela would like to view
 your basic profile". Granting tenant-wide admin consent for the application
@@ -215,3 +223,58 @@ Creating the tenant, running the sign-up call once, and deciding which testers
 exist. `db/provision.py` remains the only way to mint an admin — an admin page
 that can create admins is one stolen session away from being somebody else's
 admin page, and that reasoning does not weaken because the provider changed.
+
+## The form that had to go, 2026-08-23
+
+The admin page carried a *Cont nou* form from before the tenant existed, when a
+Google address was the only way in and a studio had to be written by hand for
+it. Sorin asked what it was still for. The answer was: nothing, and worse than
+nothing.
+
+It asked for a **principal id**, above help text promising the person could read
+it off their own profile page. No such page exists — the id is not rendered
+anywhere in the interface. And it could not exist, because the order is
+impossible: to be shown anything you must sign in, and to sign in through Google
+you must already have the row the form was meant to write. Closing the owner
+fall-through in the multi-user work is what sealed that loop; the form had been
+quietly unusable since.
+
+So the whole path is gone: the panel, `POST /api/admin/accounts`,
+`CreateAccountRequest`, the harness wrapper and the `ui_create_account` tool.
+`create_account` itself stays in `mcp_server/accounts.py`, because
+`db/provision.py` calls it directly and that remains the only way to mint an
+admin.
+
+**And no administrator can be suspended from the page any more**, not only the
+one asking. Same reasoning read backwards: if a terminal is the only thing that
+may make an admin, a web page is not the thing that may unmake one. The rule is
+in the route, not the markup — the hidden button is a courtesy to the eye, the
+`cannot_suspend_admin` refusal is the rail. The check runs only on the way in; a
+restore cannot run it, because a suspended row does not resolve.
+
+Creating a person is now one thing in one place: the Entra portal.
+
+## The owner joins the table, 2026-08-23
+
+Sorin noticed the *Suspendă* button missing on Viorela's row and read it as an
+omission. It was not the button: she had no `app_users` row at all, because the
+owner fall-through binds her to `CLIENT_SLUG` and writes nothing. Suspension
+acts on a principal, so there was nothing to act on — and there never would have
+been, since signing in changed no state. Even a hand-written row would not have
+helped: the owner exemption is checked *before* the suspension test, so she
+would have kept walking through a closed door.
+
+The fall-through now provisions her the way the tenant provisions a tester, with
+one difference that is the whole point: `provision_self` takes a `client_slug`
+and attaches the principal to the studio that already exists, instead of
+claiming a new one. An unknown slug raises rather than inventing a client —
+putting the owner in an empty studio that looks like hers would be worse than an
+error page.
+
+Two asymmetries with the self-provisioning branch, both deliberate:
+
+- **Errors let her through.** There, degrading means landing in somebody else's
+  studio, so it refuses. Here `CLIENT_SLUG` *is* hers, so a failed write is
+  bookkeeping that failed, and bookkeeping does not close the client's studio.
+- **A suspended row refuses.** That is what turns the button from decoration
+  into a control, and it is reachable back from the same page.

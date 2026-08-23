@@ -394,6 +394,9 @@ public static class Copy
     public static readonly Phrase AdminCannotSuspendSelf = new(
         "Nu îți poți suspenda propriul cont.",
         "You cannot suspend your own account.");
+    public static readonly Phrase AdminCannotSuspendAdmin = new(
+        "Un administrator nu poate fi suspendat de aici.",
+        "An administrator cannot be suspended from here.");
     public static readonly Phrase AdminAccountMissing = new(
         "Contul nu există.",
         "That account does not exist.");
@@ -412,8 +415,8 @@ public static class Copy
     public static readonly Phrase AdminNav = new("Administrare", "Admin");
     public static readonly Phrase AdminTitle = new("Conturi de test", "Test accounts");
     public static readonly Phrase AdminIntro = new(
-        "Fiecare cont are profilul lui și limita lui. Limita e pe viață, nu lunară.",
-        "Each account has its own profile and its own limit. The limit is for life, not monthly.");
+        "Conturile noi se creează în tenant, nu aici. Limita e pe viață, nu lunară.",
+        "New accounts are created in the tenant, not here. The limit is for life, not monthly.");
     public static readonly Phrase AdminColAccount = new("Cont", "Account");
     public static readonly Phrase AdminColRole = new("Rol", "Role");
     public static readonly Phrase AdminColUsed = new("Folosit", "Used");
@@ -422,29 +425,13 @@ public static class Copy
     public static readonly Phrase AdminColLastUsed = new("Ultima dată", "Last used");
     public static readonly Phrase AdminNever = new("niciodată", "never");
     public static readonly Phrase AdminSetBudget = new("Schimbă limita", "Change limit");
-    public static readonly Phrase AdminBudgetDollars = new("Limită în dolari", "Limit in dollars");
     public static readonly Phrase AdminSave = new("Salvează", "Save");
     public static readonly Phrase AdminCancel = new("Renunță", "Cancel");
-    public static readonly Phrase AdminNewAccount = new("Cont nou", "New account");
-    public static readonly Phrase AdminPrincipalId = new("ID de principal", "Principal id");
-    public static readonly Phrase AdminPrincipalHelp = new(
-        "Îl vede fiecare pe pagina lui de profil, după ce se loghează o dată.",
-        "Each person sees theirs on their profile page, after signing in once.");
-    public static readonly Phrase AdminEmail = new("Email", "Email");
-    public static readonly Phrase AdminSlug = new("Identificator", "Slug");
-    public static readonly Phrase AdminName = new("Nume afișat", "Display name");
-    public static readonly Phrase AdminCopyProfile =
-        new("Pornește de la profilul Viorelei", "Start from Viorela's profile");
-    public static readonly Phrase AdminCopyProfileHelp = new(
-        "O copie, nu o legătură: ce schimbă el nu atinge profilul ei.",
-        "A copy, not a link: what they change never touches hers.");
-    public static readonly Phrase AdminCreate = new("Creează contul", "Create the account");
     public static readonly Phrase AdminEmpty = new(
         "Niciun cont provizionat încă. Primul admin se face din terminal.",
         "No accounts provisioned yet. The first admin is made from the terminal.");
     public static readonly Phrase AdminForbidden = new(
         "Pagina aceasta este numai pentru administrator.",
         "This page is for the administrator only.");
-    public static readonly Phrase AdminCreated = new("Cont creat.", "Account created.");
     public static readonly Phrase AdminBudgetSaved = new("Limită salvată.", "Limit saved.");
 }
