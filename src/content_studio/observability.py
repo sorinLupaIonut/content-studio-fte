@@ -342,32 +342,32 @@ def _traces_endpoint(base: str) -> str:
     return base if base.endswith("/v1/traces") else f"{base}/v1/traces"
 
 
-class _StampRunId:
-    """Put the run id on every Phoenix span, at start, read from the ContextVar.
+def _make_run_id_stamp() -> Any:
+    """A span processor that stamps `run_id` on every span, from the ContextVar.
 
     Same move as `install_run_id_factory`, one surface over: nothing has to pass
-    the id and nothing has to remember to. Duck-typed against `SpanProcessor`
-    rather than subclassing it, so this module still imports with no OpenTelemetry
-    SDK present - the rule the rest of the file follows.
+    the id and nothing has to remember to.
 
-    Registered before the exporting processor: a provider runs its processors in
-    order, and the attribute has to exist before the span is handed on.
+    WHY A SUBCLASS AND WHY BUILT HERE. This was a plain duck-typed object -
+    `on_start`, `on_end`, `shutdown`, `force_flush`, which is the whole
+    documented `SpanProcessor` interface. It crashed the first span it saw:
+    opentelemetry-sdk 1.43 also calls a private `_on_ending` on every registered
+    processor, so ending a span raised `AttributeError` from inside the SDK.
+    Subclassing inherits that hook and any future one. The class is defined
+    inside a function because the base class is imported lazily - this module
+    still has to import with no OpenTelemetry SDK present, the rule the rest of
+    the file follows.
     """
+    from opentelemetry.sdk.trace import SpanProcessor
 
-    def on_start(self, span: Any, parent_context: Any = None) -> None:
-        try:
-            span.set_attribute("studio.run_id", RUN_ID.get())
-        except Exception:  # noqa: BLE001 - telemetry never breaks a run
-            pass
+    class _StampRunId(SpanProcessor):
+        def on_start(self, span: Any, parent_context: Any = None) -> None:
+            try:
+                span.set_attribute("studio.run_id", RUN_ID.get())
+            except Exception:  # noqa: BLE001 - telemetry never breaks a run
+                pass
 
-    def on_end(self, span: Any) -> None:
-        return None
-
-    def shutdown(self) -> None:
-        return None
-
-    def force_flush(self, timeout_millis: int = 30_000) -> bool:
-        return True
+    return _StampRunId()
 
 
 _phoenix_provider: Any | None = None
@@ -414,7 +414,9 @@ def configure_phoenix() -> dict[str, Any]:
                 }
             )
         )
-        provider.add_span_processor(_StampRunId())
+        # Before the exporting processor: a provider runs its processors in
+        # order, and the attribute has to exist before the span is handed on.
+        provider.add_span_processor(_make_run_id_stamp())
         provider.add_span_processor(
             BatchSpanProcessor(
                 OTLPSpanExporter(
