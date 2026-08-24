@@ -311,6 +311,32 @@ SANDBOX_READONLY_NOTE = """Folderul de skill-uri este doar pentru citit. Nu scri
 stare, fără notițe. Citește ce îți trebuie și răspunde."""
 
 
+#: Where the skill actually is. `Skills` mounts each folder at `.agents/<name>/`,
+#: and until 2026-08-24 nothing said so — the prompt asked the model to "activate"
+#: a skill and left it to guess the path.
+#:
+#: It guessed badly, every single time. Measured over batch 3862ae03: nineteen of
+#: forty tool calls were failed probes at the DIRECTORY `.agents/dezvolta-postarea`
+#: - ten `view_image` calls, eight `sed` calls, one at a README.md that does not
+#: exist - before the model found `SKILL.md` underneath it. Each wasted turn
+#: resends the whole ~18k-token context, which is why one idea's input ranged
+#: from 57k tokens (found it on the second turn) to 113k (fifth).
+#:
+#: So: name the file, name the directory, and say plainly that the thing is a
+#: directory. The last sentence is not padding - `view_image` on a folder was the
+#: single most repeated mistake in the batch.
+def skill_path_note(skill: str) -> str:
+    """Tell the model where the skill is, instead of letting it search."""
+
+    return f"""Metoda este montată în sandbox la `.agents/{skill}/`, iar
+`.agents/{skill}` este un DIRECTOR, nu un fișier și nu o imagine — nu îl citi cu
+`sed` și nu îl deschide cu `view_image`.
+
+Citește întâi `sed -n '1,200p' .agents/{skill}/SKILL.md`. Materialele la care
+trimite SKILL.md sunt fișiere `.md` în `.agents/{skill}/references/`; deschide-le
+pe cele de care ai nevoie, tot cu `sed`."""
+
+
 def title_prompt(
     request: GenerationBatchRequest,
     source_packet: dict[str, Any],
@@ -327,6 +353,8 @@ Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
+
+{skill_path_note("propune-postari")}
 
 {SANDBOX_READONLY_NOTE}
 
@@ -380,6 +408,8 @@ Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
 
 {format_brief(request.format)}
+
+{skill_path_note("dezvolta-postarea")}
 
 {SANDBOX_READONLY_NOTE}
 
