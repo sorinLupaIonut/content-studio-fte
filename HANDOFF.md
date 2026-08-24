@@ -1,128 +1,163 @@
-# Handoff — 2026-08-24
+# Handoff — 2026-08-24, sesiunea de după cea de cost
 
-Ce s-a făcut azi, unde s-a oprit, și ce urmează. Ramura: `deploy`.
+Ramura: `deploy`. Ultimul handoff (munca de cost, $0.2490 → $0.0470) e la
+commit-ul `bb795cf` — `git show bb795cf:HANDOFF.md`.
 
-## Rezultatul
+## ⚠️ Starea în care e agentul acum
 
-Un lot de 10 idei, cu aceleași alegeri (`Memorie · Educație · Reel`):
+**Promptul nu mai are contractul de ieșire.** Cele zece reguli au fost tăiate din
+`BASE_INSTRUCTIONS` în constanta `OUTPUT_RULES` din
+[worker.py](src/content_studio/worker.py) și **nu sunt atașate nicăieri**.
 
-| | $/lot | loturi din $1 |
-|---|---|---|
-| La început — cât se **taxa** | $0.2490 | 4 |
-| La început — cât **costa** cu adevărat | $0.0886 | 11 |
-| **Acum** | **$0.0470** | **21** |
+Concret, până sunt puse la loc, agentul rulează fără: „nu inventezi cifre"
+(regula 7), „sursa nu intră în caption" (regula 8), „Lucruri pe care nu le spui
+niciodată" (regula 2), verificarea de mod Internet, și regula 10.
 
-Din cele 5,3×, **2,8× era o factură greșită** — token-ii din cache erau taxați
-la preț întreg. Restul e muncă reală pe token-i.
+**Nu se face un lot real în starea asta.** E o etapă intermediară cerută
+explicit, nu o scăpare. Textul e păstrat întreg fiindcă `evals/cases.json`
+asertează pe regulile 7, 8 și 10.
 
-```
-                    ÎNCEPUT      ACUM
-apeluri OpenAI         51         24
-prefix             18.304     ~12.400
-ture per idee        ~4,25        2,0
-ratări de cache          5          2
-rată de cache          86%        87%
-idei complete        10/10      10/10
-```
+## Ce s-a făcut și e urcat
 
-## Cele șapte commit-uri
+Două commit-uri, `bb795cf..cd8b00e`, împinse pe `origin/deploy`.
 
-```
-6693684  Antetul lotului nu mai spune ca e gata ce nu e
-9b83126  Descrierea skill-ului acopera si modul UI, titlurile pe mini
-cc850ea  Skill-urile devin unelte, sandbox-ul dispare de peste tot
-3e8265b  Generarea poate rula si fara sandbox, in spatele unui comutator
-85e75d7  Un singur slot incalzeste cache-ul, restul il citesc
-eaa7fb2  Agentul nu mai cauta skill-ul, i se spune unde e
-8809d43  Token-ii din cache nu mai sunt taxati la pret intreg
-```
+### `6a50291` — promptul spune adevărul despre uneltele pe care le are
 
-## Schimbări de arhitectură
+Trei lucruri, toate din aceeași familie: text care descria o realitate veche.
 
-**Sandbox-ul E2B a dispărut** — din chat, din generare, din CLI. Fiecare folder
-de skill e acum un `FunctionTool`, numit și descris din propriul frontmatter:
-`worker.py` → `skill_tools()`, `parse_skill()`. `USE_SANDBOX=1` reactivează
-calea veche; ramura se poate șterge când nu mai e nevoie de comparație.
+1. **Nota de metodă mințea.** Spunea „nu ai fișiere: nu încerca să deschizi
+   nimic", în timp ce fiecare `SKILL.md` trimitea modelul la `references/...`.
+   Acum e funcție de ce e atașat efectiv: `skill_tool_method_note(references=…)`.
+2. **Unealta `citeste-referinta`**, cu enum peste cele 15 fișiere de pe disc.
+   Căutarea merge prin dicționar, deci `../../.env` nu e o cheie — traversarea e
+   imposibilă prin construcție, nu printr-o verificare la runtime.
+3. **Lista de unelte era scrisă de mână** — promitea cinci; în chat sunt șapte,
+   în generare trei. `data_tool_note(server)` o citește din `tool_filter`.
 
-Regula 4 din AGENTS.md descrie încă sandbox-ul — **trebuie rescrisă.** Ce a
-supraviețuit din ea, și e important: skill-urile sunt tot foldere pe disc,
-descrise de ele însele, iar descrierea e tot ce decide dacă corpul metodei se
-plătește vreodată. S-a schimbat doar livrarea.
+Plus măsurătoarea: `evals/references.json` (când ar trebui să pornească fiecare)
+și `evals/references.py` (dacă a pornit). Vezi mai jos.
 
-**Titlurile au trecut de pe nano pe mini.** Costă +$0.0020 pe lot; cache-ul
-comun compensează doar o parte. **Mutarea se plătește din calitate, nu din cost.**
+### `cd8b00e` — promptul se poate inspecta fără să pornească nimic
 
-## Lecția care merită reținută
+`tests/checks/prompt.py` construiește agentul exact ca o rulare reală, dar cu un
+server MCP care nu se conectează niciodată. Fără bază de date, fără OpenAI, fără
+cost. Rulează ambele forme (CHAT / GENERARE).
 
-**Descrierea skill-ului e cea care decide, nu promptul.**
+Configurația `Prompt (build_worker)` din `.vscode/launch.json` — singura din
+fișier cu `justMyCode: false` și cu `-X frozen_modules=off`.
 
-Ambele descrieri erau scrise pentru conversație — *„folosește-l când Viorela
-cere: «vreau un reel despre limite»"*. Dar generarea nu trimite replici, trimite
-un formular. Niciun declanșator nu se potrivea, așa că nano n-a chemat niciodată
-`propune-postari` și a scris zece titluri din memorie:
+## Cifrele de plecare, măsurate
 
 ```
-ÎNAINTE                              DUPĂ
-Educație fără oboseală…              Cum începi să spui NU fără să te pierzi
-3 pași pentru curiozitate…           Ce ascunde vinovăția când spui NU
-De ce rămânem blocate în             3 întrebări care te opresc din a spune
-  overhead-ul zilnic                   DA din reflex
+prompt   CHAT       5.097 → 1.493 caractere   (~1.456 → ~426 token-i)
+prompt   GENERARE   5.097 → 1.427 caractere   (~1.456 → ~407 token-i)
 ```
 
-Remedierea a fost o propoziție în frontmatter: „Îl folosești OBLIGATORIU și în
-MOD UI STRUCTURAT D1B". Fără cod.
+```
+uv run python evals/references.py
+  → 5 din 15 referințe nu sunt numite de niciun SKILL.md (nu pot porni deloc)
 
-## Ce s-a mai reparat
-
-- **Profilul** — secțiunea CTA (5 din 6 subsecțiuni erau `⚠️ DE COMPLETAT`) și
-  subsolul de changelog, scoase. **Aplicat pe toate cele patru rânduri din
-  `clients` în Neon**, nu doar local: la runtime profilul vine din bază, iar
-  `content/profile.md` e doar sămânța.
-- **Antetul lotului** minea când o idee pica — `readyIdeas` era primit și ignorat.
-- **Deploy-ul** — un singur tag `:current`, deployat **pe digest** (altfel
-  Container Apps nu face revizie nouă), curățenie locală și în ACR după push.
-
-## Ce am greșit pe parcurs, ca să nu se repete
-
-1. **Am dat 42% economie pentru scoaterea sandbox-ului.** Comparasem cu un lot
-   care încă avea un bug reparat între timp. Real: 10–19%.
-2. **Era să șterg imaginea din producție.** Scrisesem „șterge manifestele fără
-   tag" — dar tag-ul e un **index OCI** care referă doi copii fără tag. Cei „60
-   de orfani" erau copiii celor 30 de taguri. Regula corectă: șterge **după tag**.
-3. **`group_id` nu devine `session.id` în Phoenix.** Afirmat, verificat, fals.
-
-## Ce rămâne deschis
-
-- **MCP rămâne** — decizia lui Sorin, nu se atinge. Măsurat: 17 ms pe lot, deci
-  nu el e problema de latență. `minReplicas: 0` e. Fix de o linie în `main.bicep`.
-- **`references/`** (137 KB) nu e citit de nicio rulare. Metoda din ele nu ajunge
-  niciodată la model. E o întrebare de calitate, nu de cost.
-- **Evals (Decizia 8)** — niciun punct de atașare nu există încă. Sunt singura
-  dovadă reală pentru orice atinge textul ei.
-- **`gpt-5-nano` pe detalii** — respins explicit, scade calitatea prea mult.
-- **AGENTS.md, regula 4** — descrie sandbox-ul care nu mai există.
-
-## Cum verifici un lot
-
-```sql
-SELECT model, split_part(kind,'-idea-',1) LIKE '%-titles' AS titluri,
-       count(*) AS rulari, sum(input_tokens) AS input,
-       sum(cached_input_tokens) AS din_cache,
-       round(100.0*sum(cached_input_tokens)/NULLIF(sum(input_tokens),0)) AS pct_cache,
-       sum(output_tokens) AS output, sum(cost_micros) AS micro
-FROM public.usage_events WHERE created_at > NOW() - INTERVAL '15 minutes'
-GROUP BY 1,2;
+uv run python evals/references.py --traces --minutes 20160
+  → 100 de ture de model, 0 citiri de referință
 ```
 
-Numărul de ture și apelurile de skill se citesc din `public.traces`, filtrând
-`span_data.type` pe `response` și `function`.
+Astea sunt baza de comparație pentru orice se face mai departe.
 
-## Înainte de commit
+## Problema nerezolvată: breakpoint-urile nu se leagă
+
+Simptom: bulina roșie apare, la pornirea sesiunii devine cerc gol, **în orice
+fișier**. Nu s-a rezolvat.
+
+**Ce s-a eliminat deja — nu refaceți:**
+
+- `debugpy 1.8.21` e instalat în `.venv`
+- extensiile sunt toate: `ms-python.python`, `ms-python.debugpy`,
+  `ms-python.vscode-pylance`, `ms-python.vscode-python-envs`
+- porturile 5678 (harness) și 5679 (MCP) ascultau și **acceptau** conexiuni
+- `content_studio.worker` e importat la nivel de modul în harness
+  ([service.py:87](src/content_studio/harness/service.py:87),
+  [chat.py:26](src/content_studio/harness/chat.py:26),
+  [generator.py:41](src/content_studio/harness/generator.py:41)) — deci într-un
+  attach pe harness s-AR lega; în MCP server nu, fiindcă acolo nu e importat
+- nu există o a doua copie a proiectului pe disc
+- nu există drive-uri substituite (`subst` e gol)
+- majuscula drive-ului e consecventă (`E:`) în toate procesele
+
+**Ce s-a găsit pe drum și era real:** la un moment dat `Code.exe` era deja
+ESTABLISHED pe 5678. `debugpy` acceptă un singur client, deci al doilea attach e
+refuzat tăcut — exact ce arată ca „nu se atașează". Se verifică cu:
+
+```
+netstat -ano | findstr ":5678"
+```
+
+**Următorii pași de diagnostic, în ordine:**
+
+1. **Tooltip-ul cercului gol.** VS Code scrie acolo motivul exact. E cea mai
+   informativă propoziție din tot procesul și încă n-a fost citită.
+2. `Ctrl+Shift+P` → `Debug: Start Debugging` pornește configurația **selectată în
+   dropdown**, nu una aleasă. Se alege explicit din `Ctrl+Shift+D`.
+3. Breakpoint pe `agent = build_worker(...)` din
+   [tests/checks/prompt.py](tests/checks/prompt.py) — e în fișierul pornit, nu
+   într-un modul importat. Dacă **ăsta** rămâne gol, cauza nu e potrivirea de
+   căi.
+4. Dacă și ăla e gol: `Help → Toggle Developer Tools → Console`, și panoul
+   `Output → Python Debugger`.
+
+## Ce așteaptă o decizie
+
+1. **Unde se duc cele zece reguli.** Trei variante puse pe masă; recomandarea
+   era a doua: regulile 2, 7, 9, 10 rămân în prompt (siguranță, mereu active),
+   iar 1, 3, 4, 5, 8 și blocul Internet trec în `SKILL.md` (metodă). Blochează
+   tot restul.
+2. **Cinci declanșatoare marcate `proposed: true`** în `evals/references.json`:
+   `propune-postari/carti.md`, `dezvolta-postarea/piloni-si-cont.md`,
+   `tipuri-de-reels.md`, `intrebari-frecvente.md`, `idei.md`.
+   La `idei.md` (39 KB) e o suspiciune separată: conținutul e material de Faza 1,
+   dar fișierul stă în skill-ul de Faza 2. Poate e în folderul greșit.
+3. **`hookuri.md` e marcat `forbidden` în modul TITLURI** — acel mod nu scrie
+   hook-uri, deci fișierul ar fi plătit degeaba. Decizie luată de agent, merită
+   confirmată sau schimbată în `optional`.
+4. **Domeniul fazei DETALII.** Rulează de zece ori per lot și nu se cachează după
+   punctul de divergență: toate referințele metodei ≈ +$0.05/lot, doar cea de
+   format ≈ +$0.01/lot.
+
+## Ce urmează, după decizii
+
+**Rescrierea celor două `SKILL.md`.** Acolo e tot rostul muncii de azi: unealta
+există și merge, dar corpurile skill-urilor spun încă „deschizi
+`references/piloni.md`" — verbul unui shell care nu mai există, și o cale care
+nici măcar nu e cheie validă în enum (cheia e `propune-postari/piloni.md`).
+De-aia măsurătoarea arată 0 din 15.
+
+**Nu se sparge niciun fișier de referință** — instrucțiune explicită.
+
+## Un defect găsit, neatins
+
+[evals/run.py:45](evals/run.py:45):
+
+```python
+SKILL_PATTERN = re.compile(r"\.agents[/\]([\w-]+)[/\]SKILL\.md")
+```
+
+Se aplică pe **argumentele apelurilor de unelte**, adică pe o cale din sandbox.
+De când skill-urile sunt unelte, unealta de skill nu ia niciun argument
+(`_NO_ARGS`), deci regexul nu se potrivește niciodată și mulțimea `skills`
+rămâne mereu goală. **Cazul 13 — „Trigger: `propune-postari` fires" — pică acum
+chiar și când skill-ul chiar pornește.** Aceeași clasă de defect: cod scris
+pentru sandbox care a supraviețuit sandbox-ului. Fix: skill-urile se citesc din
+numele uneltelor, nu din argumente.
+
+## Comenzi
 
 ```
 uv run ruff check .
-uv run python -m unittest discover -s tests/unit     # 225 de teste
+uv run python -m unittest discover -s tests/unit      # 243 de teste
+uv run python tests/checks/prompt.py                  # promptul si uneltele
+uv run python evals/references.py                     # auditul static
+uv run python evals/references.py --traces --minutes 30
 ```
 
-Deploy: `powershell -File infra/deploy.ps1 -LocalBuild` — cere **Docker Desktop
-pornit**, fiindcă `az acr build` e refuzat pe Free Trial (`TasksOperationsNotAllowed`).
+Deploy: `powershell -File infra/deploy.ps1 -LocalBuild` — cere Docker Desktop
+pornit. CI rulează doar pe `main` și `english`, deci push-ul pe `deploy` nu
+declanșează nimic.
