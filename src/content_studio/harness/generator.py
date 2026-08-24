@@ -41,6 +41,16 @@ from content_studio.observability import bind_run
 from content_studio.worker import build_sandbox, build_worker, read_profile
 
 RUN_TIMEOUT_SECONDS = 600
+
+#: Every run in a batch - the title pass, the ten detail passes and any retry -
+#: carries this workflow name and the batch id as its group. The runs already
+#: shared one trace, because the trace context propagates into the tasks spawned
+#: under it; what they did not share was a name, so a lot read as a dozen nested
+#: spans all called "Agent workflow" and there was no way to tell a lot from the
+#: run of a single idea. Note that `group_id` does NOT become Phoenix's
+#: `session.id` - checked on 2026-08-23, Sessions stayed at 0 - it is a
+#: correlation field, nothing more. Read by whoever is debugging, so English.
+GENERATION_WORKFLOW = "Generation batch"
 SOURCE_TEXT_LIMIT = 2_000
 
 
@@ -495,6 +505,7 @@ class GenerationCoordinator:
                 title_prompt(request, source_packet, language),
                 IdeaTitles,
                 f"{batch_id}-titles",
+                str(batch_id),
             )
             await drafts.put_titles(batch_id, titles)
             await self._generate_details(
@@ -625,6 +636,7 @@ class GenerationCoordinator:
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     client,
                     sandbox,
+                    str(batch_id),
                 )
                 if value.idea_ordinal != idea.ordinal or value.title != idea.title:
                     raise ValueError("detail output changed the persisted idea identity")
@@ -651,12 +663,14 @@ class GenerationCoordinator:
         sandbox = await client.create(options=options)
         return agent.clone(), client, sandbox
 
-    async def _run_isolated(self, agent, prompt: str, output_type, label: str):
+    async def _run_isolated(
+        self, agent, prompt: str, output_type, label: str, group: str
+    ):
         client, options = build_sandbox()
         sandbox = await client.create(options=options)
         try:
             return await self._run_on_sandbox(
-                agent, prompt, output_type, label, client, sandbox
+                agent, prompt, output_type, label, client, sandbox, group
             )
         finally:
             await sandbox.aclose()
@@ -669,6 +683,7 @@ class GenerationCoordinator:
         label: str,
         client,
         sandbox,
+        group: str,
     ):
         result = await asyncio.wait_for(
             Runner.run(
@@ -676,7 +691,8 @@ class GenerationCoordinator:
                 prompt,
                 run_config=RunConfig(
                     sandbox=SandboxRunConfig(client=client, session=sandbox),
-                    group_id=label,
+                    workflow_name=GENERATION_WORKFLOW,
+                    group_id=group,
                 ),
                 max_turns=6,
             ),
