@@ -1,0 +1,113 @@
+{
+  "_": [
+    "Every `references/` file, and when it is supposed to reach the model.",
+    "",
+    "The reason this file exists: a reference is invisible when it fails. Nothing",
+    "raises, nothing logs, the answer still arrives - just written from memory",
+    "instead of from the method. So the expectation has to be written down next",
+    "to the file, the way cases.json writes the correct behaviour next to a case.",
+    "",
+    "expect:  required   the run is wrong if this reference was NOT asked for",
+    "         forbidden  the run is wrong if it WAS - it cost tokens for nothing",
+    "         optional   allowed either way (the default for a scenario not listed)",
+    "",
+    "scenarios, named after the runs that actually exist:",
+    "         titluri          the D1B TITLES run, once per batch",
+    "         detalii-reel     the D1B DETAILS run, format Reel, ten per batch",
+    "         detalii-carusel  the same, format Carusel",
+    "         detalii-stories  the same, format Stories",
+    "         chat-faza1       the CLI conversation, phase 1",
+    "         chat-productie   she asks about filming, editing or posting",
+    "",
+    "`when` is Romanian and stays Romanian: it is the sentence that belongs in",
+    "SKILL.md, and it is copied from there when it is already written there.",
+    "",
+    "`proposed: true` marks a trigger nobody has decided yet - the file is on",
+    "disk, no SKILL.md points at it, and the line below is a suggestion waiting",
+    "for a verdict. Not a fact. Remove the flag when it becomes one."
+  ],
+  "references": [
+    {
+      "file": "propune-postari/piloni.md",
+      "when": "Faza 1, Pasul 1 — înainte de a întreba pilonul, ca să oferi exact vocabularul închis al celor cinci.",
+      "expect": { "titluri": "required", "chat-faza1": "required" }
+    },
+    {
+      "file": "propune-postari/surse.md",
+      "when": "Faza 1, Pașii 1 și 2 — cele patru surse, ce are voie fiecare să dea, și ce unealtă se cheamă pentru fiecare.",
+      "expect": { "titluri": "required", "chat-faza1": "required" }
+    },
+    {
+      "file": "propune-postari/hookuri.md",
+      "when": "Faza 1, Pasul 3 — cele cinci tipuri de hook și ordinea lor.",
+      "expect": { "chat-faza1": "required", "titluri": "forbidden" },
+      "note": "Forbidden in `titluri` on purpose: that mode writes no hooks at all, so paying for the file would be pure loss."
+    },
+    {
+      "file": "propune-postari/carti.md",
+      "when": "Faza 1, Pasul 2 — numai când sursa aleasă de ea este Cărți.",
+      "expect": { "chat-faza1": "optional" },
+      "proposed": true
+    },
+    {
+      "file": "dezvolta-postarea/structura-reel.md",
+      "when": "Faza 2, format Reel — structura în patru pași: hook, promisiune, payoff, CTA.",
+      "expect": { "detalii-reel": "required", "detalii-stories": "forbidden", "detalii-carusel": "forbidden" }
+    },
+    {
+      "file": "dezvolta-postarea/hookuri-si-scripturi.md",
+      "when": "Faza 2 — formulările celor cinci hook-uri, la orice format.",
+      "expect": { "detalii-reel": "required", "detalii-carusel": "required", "detalii-stories": "required" }
+    },
+    {
+      "file": "dezvolta-postarea/b-roll.md",
+      "when": "Faza 2, format Reel — ce se vede pe ecran, fiindcă reel-ul e mut.",
+      "expect": { "detalii-reel": "required", "detalii-carusel": "forbidden", "detalii-stories": "forbidden" }
+    },
+    {
+      "file": "dezvolta-postarea/stories.md",
+      "when": "Faza 2, format Stories — secvența de 3–7 story-uri.",
+      "expect": { "detalii-stories": "required", "detalii-reel": "forbidden", "detalii-carusel": "forbidden" }
+    },
+    {
+      "file": "dezvolta-postarea/piloni-si-cont.md",
+      "when": "Faza 2 — ce înseamnă pilonul ales, dincolo de eticheta primită din formular.",
+      "expect": { "detalii-reel": "optional", "detalii-carusel": "optional", "detalii-stories": "optional" },
+      "proposed": true
+    },
+    {
+      "file": "dezvolta-postarea/tipuri-de-reels.md",
+      "when": "Faza 2, format Reel — alegerea tipului de reel potrivit unghiului.",
+      "expect": { "detalii-reel": "optional" },
+      "proposed": true
+    },
+    {
+      "file": "dezvolta-postarea/idei.md",
+      "when": "NEDECIS — banca ei de idei. Stă la `dezvolta-postarea`, dar conținutul e material pentru Faza 1.",
+      "expect": {},
+      "proposed": true,
+      "note": "40 KB, the largest file in the repo's method, and possibly in the wrong skill. Decide what it is before deciding when it fires."
+    },
+    {
+      "file": "dezvolta-postarea/intrebari-frecvente.md",
+      "when": "Numai când ea întreabă despre producție — cameră, lumină, microfon, fundal, ritm de postare.",
+      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden" },
+      "proposed": true
+    },
+    {
+      "file": "dezvolta-postarea/filmare.md",
+      "when": "Numai dacă ea întreabă despre filmare.",
+      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden", "titluri": "forbidden" }
+    },
+    {
+      "file": "dezvolta-postarea/editare.md",
+      "when": "Numai dacă ea întreabă despre montaj.",
+      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden", "titluri": "forbidden" }
+    },
+    {
+      "file": "dezvolta-postarea/distribuire.md",
+      "when": "Numai dacă ea întreabă despre postare și distribuție.",
+      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden", "titluri": "forbidden" }
+    }
+  ]
+}

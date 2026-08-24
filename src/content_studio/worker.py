@@ -88,10 +88,11 @@ enable_utf8_output()
 #: The tools that write under her name. Only these are gated; reads are free.
 GATED_TOOLS = ("save_post", "save_posts_batch", "update_post", "update_profile")
 
-# The rules live in the system prompt rather than in a skill, because they are
-# always in force. Progressive disclosure is for what is needed sometimes — the
-# method, the pillars, the hook types. An output contract that loads "when needed"
-# is a contract the model may not read exactly when it is breaking it.
+# Who the assistant is and who it is talking to. Nothing about what it may write:
+# that is OUTPUT_RULES below, and nothing about how the method is reached: that is
+# the notes further down. Three jobs that used to share one string, and sharing it
+# is how the tool list inside the rules drifted two tools out of date without
+# anything failing.
 BASE_INSTRUCTIONS = """\
 Ești asistentul de conținut al Viorelei — life coach pentru femei care vor să iasă
 din people pleasing, burnout și autosabotaj.
@@ -103,6 +104,16 @@ CU CINE VORBEȘTI. Vorbești cu Viorela — clienta, cea care comandă conținut
 o strigi „Andreea". Andreea e avatarul, femeia de 25–45 de ani pentru care se
 scriu postările; apare în conținut, niciodată în conversația cu Viorela.
 
+Mesajele ei pot veni dictate, fără diacritice, cu greșeli de transcriere. Le
+interpretezi cu bunăvoință, fără s-o corectezi. Răspunsul tău are diacritice.\
+"""
+
+#: The output contract, cut out of BASE_INSTRUCTIONS on 2026-08-24 and NOT
+#: ATTACHED ANYWHERE YET. Kept verbatim rather than deleted: `evals/cases.json`
+#: asserts on rules 7, 8 and 10, and losing the text would lose the assertions'
+#: subject. Where it goes next - back into the prompt, into the skills, or into a
+#: reference - is the open decision this split exists to make possible.
+OUTPUT_RULES = """\
 REGULI OBLIGATORII — contractul de ieșire, nu preferințe de stil:
 
 1. Vocea Viorelei, nu vocea unui robot. Tonul și expresiile din „Vocea ta",
@@ -134,36 +145,26 @@ REGULI OBLIGATORII — contractul de ieșire, nu preferințe de stil:
    până răspunde". NU oferi variante implicite: fraza „dacă nu răspunzi, folosesc
    X" e interzisă — aștepți răspunsul, atât. Sursa o alege ea dintr-o listă
    închisă; n-o inventezi tu. După ce a ales-o, nu aduci material din alta.
-10. Nimic nu se salvează fără confirmarea ei.
+10. Nimic nu se salvează fără confirmarea ei. Uneltele de scriere se cheamă doar
+    după „da"-ul ei, niciodată din proprie inițiativă.
 
-Mesajele ei pot veni dictate, fără diacritice, cu greșeli de transcriere. Le
-interpretezi cu bunăvoință, fără s-o corectezi. Răspunsul tău are diacritice.
+MODUL INTERNET — verificare obligatorie înainte de răspuns. Când sursa aleasă este
+Internet sau Combinat cu Internet, folosești `search_web` înainte să scrii
+propunerile. Din rezultat iei numai unghiuri; cifrele, studiile, citatele și
+afirmațiile găsite pe web nu intră în postare ca fapte. Dacă unealta web dă
+eroare, te oprești și spui asta; nu generezi din memorie și nu schimbi sursa fără
+răspunsul ei.
 
-UNDE EȘTI ACUM — Deciziile 0–10. Ai skill-urile `propune-postari` și
-`dezvolta-postarea`, și cinci unelte: `search_books`, `search_web`,
-`list_posts`, `save_post`, `update_profile`. Când sursa aleasă este
-Internet sau Combinat cu Internet, folosești `search_web` înainte să
-scrii propunerile. Din rezultat iei numai unghiuri; cifrele, studiile, citatele
-și afirmațiile găsite pe web nu intră în postare ca fapte. Unghiul poate decide
-despre ce vorbești, dar conținutul concret se sprijină numai pe profilul aflat
-deja în context și pe exemple obișnuite formulate ca posibilități, nu ca adevăruri
-generale, cauze sau sfaturi medicale. Dacă unealta web dă eroare, te oprești și
-spui asta; nu generezi din memorie și nu schimbi sursa fără răspunsul ei.
-
-MODUL INTERNET — verificare obligatorie înainte de răspuns. Sunt permise
-întrebări de reflecție („ce observi?”, „ce ai putea refuza?”), situații obișnuite
-și formulări de limite sprijinite de profil. Sunt interzise afirmațiile generale
-de forma „X cauzează / previne / arată / înseamnă Y”, listele de simptome sau
-„semne”, diagnosticele, recomandările medicale și reguli inventate precum
-„50–50”. Un hook CIFRĂ poate număra întrebări, pași ori formulări create de tine
-(„3 întrebări”), dar nu oameni, rezultate, simptome, efecte, procente, raporturi
-sau durate precum „48h” ori „în 2 minute”. Ca regulă simplă, în modul Internet
-fiecare idee și hook este o întrebare, un îndemn către ea sau descrierea formei
-postării — nu o propoziție declarativă care promite un rezultat. Dacă un bloc nu
-trece verificarea, îl rescrii înainte să-l arăți.
-
-Uneltele de scriere se cheamă doar după „da"-ul ei, niciodată din proprie
-inițiativă (regula 10).\
+Sunt permise întrebări de reflecție („ce observi?”, „ce ai putea refuza?”),
+situații obișnuite și formulări de limite sprijinite de profil. Sunt interzise
+afirmațiile generale de forma „X cauzează / previne / arată / înseamnă Y”,
+listele de simptome sau „semne”, diagnosticele, recomandările medicale și reguli
+inventate precum „50–50”. Un hook CIFRĂ poate număra întrebări, pași ori
+formulări create de tine („3 întrebări”), dar nu oameni, rezultate, simptome,
+efecte, procente, raporturi sau durate precum „48h” ori „în 2 minute”. Ca regulă
+simplă, în modul Internet fiecare idee și hook este o întrebare, un îndemn către
+ea sau descrierea formei postării — nu o propoziție declarativă care promite un
+rezultat. Dacă un bloc nu trece verificarea, îl rescrii înainte să-l arăți.\
 """
 
 #: The two paragraphs that were the tail of BASE_INSTRUCTIONS until 2026-08-24.
@@ -184,6 +185,12 @@ pilonul sau sursa. Când alege o propunere dintr-o listă existentă, deschizi
 de raport despre postările existente nu activează niciunul dintre aceste skill-uri.
 """.strip()
 
+#: The name the model calls. A constant because the note, the tool and every
+#: SKILL.md have to agree on it, and a typo in one of them is a tool the model
+#: asks for and never receives.
+REFERENCE_TOOL_NAME = "citeste-referinta"
+
+
 #: The same instruction for an agent with NO sandbox, where each skill is a tool.
 #: Telling a model it has a shell it does not have is worse than saying nothing:
 #: it spends a turn calling `exec_command` and gets an error back.
@@ -194,17 +201,56 @@ de raport despre postările existente nu activează niciunul dintre aceste skill
 #: instructions and tool schemas, plus a turn of flailing at a directory, to hand
 #: over a file a single tool call can return.
 #:
-#: Progressive disclosure survives this, which is the point: the skill's own
-#: frontmatter description becomes the tool description, so it is still the
-#: description that decides whether the body is ever paid for.
-SKILL_TOOL_METHOD_NOTE = """
-Metoda ta stă în unelte, câte una pentru fiecare skill, numite exact ca el.
-Chemi unealta potrivită și primești metoda întreagă. Nu ai shell și nu ai
-fișiere: nu încerca să deschizi nimic și nu inventa unelte.
+#: Progressive disclosure survives this, and gains a third step: the skill's own
+#: frontmatter description decides whether the body is ever paid for, and the
+#: body decides whether a `references/` file is - see `reference_tool`.
+def skill_tool_method_note(*, references: bool) -> str:
+    """The method note for the tools shape, told the truth about what exists.
 
-APLICAREA METODEI ESTE OBLIGATORIE. Chemi unealta ÎNAINTE de primul răspuns,
-citești ce întoarce și abia apoi scrii. Nu improvizezi fluxul din memorie.
-""".strip()
+    Two versions, not one. This note is the only place the model learns which
+    tools it has, and its first version said "nu ai fișiere" while every
+    SKILL.md still told it to open `references/...`. A contradiction inside one
+    context window, nothing logged, and 126 KB of method never read. Naming a
+    reference tool that is not attached would be the same fault pointing the
+    other way, so the sentence exists only when the tool does.
+    """
+
+    parts = [
+        "Metoda ta stă în unelte, câte una pentru fiecare skill, numite exact ca el."
+        " Chemi unealta potrivită și primești metoda întreagă."
+    ]
+    if references:
+        parts.append(
+            "Când corpul skill-ului te trimite la o referință, o ceri cu"
+            f" `{REFERENCE_TOOL_NAME}`, cu numele exact pe care ți-l dă el."
+            " Ceri numai referința de care ai nevoie, când ai nevoie de ea."
+        )
+    parts.append("Nu ai shell: nu deschizi fișiere singur și nu inventa unelte.")
+    parts.append(
+        "APLICAREA METODEI ESTE OBLIGATORIE. Chemi unealta ÎNAINTE de primul răspuns,"
+        " citești ce întoarce și abia apoi scrii. Nu improvizezi fluxul din memorie."
+    )
+    return "\n\n".join(parts)
+
+
+#: What the model may reach the data with, read off the server rather than typed
+#: out. The sentence this replaces named five tools while seven were attached in
+#: chat and three in generation - so the prompt promised `save_post` to an agent
+#: that did not have it. A hand-written list of tools is a second source of truth
+#: for something the code already knows; this asks the one that decides.
+def data_tool_note(server: MCPServerStreamableHttp) -> str:
+    """The data tools actually visible in this run, named."""
+
+    allowed = (getattr(server, "tool_filter", None) or {}).get("allowed_tool_names")
+    if not allowed:
+        # No filter means the server decides; do not invent a list for it.
+        return "La date ajungi NUMAI prin uneltele serverului de date, niciodată altfel."
+    listed = ", ".join(f"`{name}`" for name in sorted(allowed))
+    return (
+        "La date ajungi NUMAI prin unelte, niciodată altfel. În această rulare ai"
+        f" exact: {listed}. Dacă o unealtă nu e în listă, nu există acum:"
+        " nu o chema și nu presupune că ai putea."
+    )
 
 
 #: The last conversation this client touched. Since Decision 11 the answer comes
@@ -303,12 +349,25 @@ def build_worker(
     `language` changes only what comes out, never the method: the skills stay
     Romanian and an override block is appended. See `content_studio.language`.
     """
-    method_note = SANDBOX_METHOD_NOTE if USE_SANDBOX else SKILL_TOOL_METHOD_NOTE
+    # Built before the prompt, because the prompt has to describe the tools that
+    # are actually attached. These lines are the whole fix: one place decides
+    # whether the reference tool exists, and the note is written from that answer
+    # rather than from what happened to be true when it was last edited.
+    references = None if USE_SANDBOX else reference_tool()
+    method_note = (
+        SANDBOX_METHOD_NOTE
+        if USE_SANDBOX
+        else skill_tool_method_note(references=references is not None)
+    )
+    # Identity, then the method, then the data, then the contract. Each part
+    # written from what is actually attached rather than from what was true
+    # when the string was last edited.
+    tool_note = f"{method_note}\n\n{data_tool_note(data_mcp)}"
     common: dict[str, Any] = {
         "name": "Content Worker",
         "model": model or MODEL,
         "instructions": (
-            f"{BASE_INSTRUCTIONS}\n\n{method_note}"
+            f"{BASE_INSTRUCTIONS}\n\n{tool_note}"
             f"\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
             # The language override goes last, after the profile, because it
             # has to contradict rule 1 above and the closer contradiction wins.
@@ -319,7 +378,10 @@ def build_worker(
         "model_settings": model_settings or ModelSettings(),
     }
     if not USE_SANDBOX:
-        return Agent(tools=skill_tools(), **common)
+        tools = skill_tools()
+        if references is not None:
+            tools.append(references)
+        return Agent(tools=tools, **common)
     return SandboxAgent(
         capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS_DIR))],
         **common,
@@ -404,6 +466,93 @@ def skill_tools() -> list[FunctionTool]:
     if not tools:
         raise MissingConfig(f"Niciun skill în {SKILLS_DIR}")
     return tools
+
+
+#: Every reference on disk, addressed as `<skill>/<file>.md`.
+#:
+#: A dict, and the lookup goes through it rather than joining the model's string
+#: onto a path. `../../.env` is not a key, so the traversal a free-text filename
+#: would otherwise invite never gets the chance to become a bug.
+#:
+#: Sorted, because these keys become an enum in the tool schema and the schema
+#: sits in the cached prefix. An order that varied between processes would cost
+#: a full prefix re-read on every request that landed on the other one.
+def reference_index() -> dict[str, Path]:
+    """`{"propune-postari/piloni.md": Path(...)}` for every reference file."""
+
+    index: dict[str, Path] = {}
+    for folder in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
+        for path in sorted((folder / "references").glob("*.md")):
+            index[f"{folder.name}/{path.name}"] = path
+    return index
+
+
+#: What the model reads before deciding to spend a turn on a reference. It says
+#: "only when the skill sends you", because the skill body is the index: the
+#: schema knows the names, and only SKILL.md knows what each one is for.
+REFERENCE_TOOL_DESCRIPTION = """
+Întoarce, întreg, un fișier de referință al metodei — detaliul pe care corpul
+unui skill îl are doar ca trimitere. Îl chemi numai când skill-ul te trimite
+explicit acolo, cu numele exact pe care ți-l dă, și ceri numai fișierul de care
+ai nevoie: sunt materiale lungi, se citesc pe rând, nu toate.
+""".strip()
+
+
+def reference_tool() -> FunctionTool | None:
+    """The one tool that opens a `references/` file. None when there are none.
+
+    This is the third step of progressive disclosure, and the step the sandbox
+    used to serve with a shell: the description decides whether the skill body
+    is loaded, the body decides whether a reference is. Nothing is in context
+    until something upstream asked for it by name.
+
+    None rather than an empty enum: strict mode cannot spell "a string from
+    nowhere", and a tool that can never succeed spends schema tokens on every
+    request to teach the model a dead end. `build_worker` drops the sentence
+    about it from the system prompt in the same breath.
+
+    The file is read when the tool is CALLED, not when it is built, so a
+    reference edited on disk reaches the next call - the same contract the
+    mounted folder had, one level further in.
+    """
+
+    index = reference_index()
+    if not index:
+        return None
+    schema = {
+        "type": "object",
+        "properties": {
+            "fisier": {
+                "type": "string",
+                "description": "Numele referinței, exact cum îl scrie skill-ul.",
+                "enum": sorted(index),
+            }
+        },
+        "required": ["fisier"],
+        "additionalProperties": False,
+    }
+
+    async def invoke(_ctx: Any, args: str) -> str:
+        # The enum makes an unknown name a schema violation, so this guard is
+        # for the model that answers around its own schema, and for the file
+        # deleted between build and call. It returns the refusal as a result
+        # rather than raising: a raise ends the run, and a detail run is one of
+        # ten that were meant to come back together.
+        try:
+            name = json.loads(args or "{}").get("fisier", "")
+        except json.JSONDecodeError:
+            name = ""
+        path = index.get(name)
+        if path is None or not path.is_file():
+            return f"Nu există referința {name!r}. Alege una din lista uneltei."
+        return path.read_text(encoding="utf-8")
+
+    return FunctionTool(
+        name=REFERENCE_TOOL_NAME,
+        description=REFERENCE_TOOL_DESCRIPTION,
+        params_json_schema=schema,
+        on_invoke_tool=invoke,
+    )
 
 
 def build_sandbox() -> tuple[E2BSandboxClient, E2BSandboxClientOptions]:
