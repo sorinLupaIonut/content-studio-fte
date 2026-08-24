@@ -221,18 +221,66 @@ class FormatDetails(StrictContract):
     duration_or_count: str = Field(min_length=1, max_length=120)
 
 
-def checked_hashtags(values: list[str]) -> list[str]:
-    """The one hashtag rule, shared by every contract that carries hashtags."""
+#: What a hashtag has to look like, stated where the model writes it.
+#:
+#: The provider enforces `pattern` WHILE the model writes, not afterwards -
+#: probed on 2026-08-24 by asking gpt-5-mini outright for hashtags containing
+#: spaces and getting back none. So this is prevention; `checked_hashtags` below
+#: is the net under it, for any path where the schema is not enforced.
+HASHTAG_PATTERN = r"^#\S+$"
 
-    normalized = [value.strip() for value in values]
-    if any(
-        not value.startswith("#") or any(char.isspace() for char in value)
-        for value in normalized
-    ):
-        raise ValueError("each hashtag must be one whitespace-free value beginning with #")
-    if len(set(normalized)) != len(normalized):
-        raise ValueError("hashtags must be unique")
-    return normalized
+#: Injected into the JSON schema rather than onto the Python type ON PURPOSE.
+#: A `StringConstraints(pattern=...)` would be a field constraint, and field
+#: constraints run BEFORE an "after" validator - so `perfecționism` would be
+#: rejected before `checked_hashtags` ever got the chance to repair it into
+#: `#perfecționism`. Prevention in the schema, repair in the validator, and
+#: neither standing in the other's way.
+HASHTAG_FIELD = {
+    "items": {"type": "string", "pattern": HASHTAG_PATTERN},
+    "description": (
+        "Trei până la cinci hashtaguri. Fiecare începe cu # și e un singur "
+        "cuvânt lipit, fără spații: #grijadetine, nu «#grijade tine»."
+    ),
+}
+
+
+def checked_hashtags(values: list[str]) -> list[str]:
+    """The one hashtag rule: repair what is unambiguous, refuse what is not.
+
+    THIS USED TO RAISE, AND IT WAS THE MOST EXPENSIVE LINE IN THE PROJECT.
+    Recovered on 2026-08-24 by pulling every failed run back from the provider
+    by `response_id`: of 44 turns that died on a contract, 39 died here. Not one
+    was malformed JSON. The 367 rejected values were 279 that simply had no `#`
+    (`perfecționism` for `#perfecționism`), 67 with a space in the middle
+    (`#grijade tine`), and 21 with other whitespace - every single one of them
+    mechanically repairable. The bill for refusing instead of repairing was
+    $0.1889 of $0.7920 spent, 24%, thrown away and re-earned by a second call
+    that was given no idea what it had done wrong.
+
+    Repair is not indulgence here: Instagram truncates a hashtag at the first
+    space anyway, so `#grijade tine` was never going to be one tag. Joining it
+    is what she would have done by hand.
+
+    What still refuses: a value that repairs to nothing, and a set that comes
+    out of repair with fewer than three distinct tags. The count is re-checked
+    here because Pydantic's `min_length` on the list runs BEFORE this validator,
+    so anything dropped below the floor would otherwise pass unnoticed.
+    """
+
+    repaired: list[str] = []
+    for value in values:
+        # One token, one `#`, whatever whitespace the model put in the middle.
+        token = "#" + "".join(value.split()).lstrip("#")
+        if token == "#":
+            continue
+        if token not in repaired:
+            repaired.append(token)
+    if not 3 <= len(repaired) <= 5:
+        raise ValueError(
+            "three to five distinct hashtags are needed; after repair there "
+            f"were {len(repaired)} (from {values!r})"
+        )
+    return repaired
 
 
 def checked_hook_order(variants: list[Any]) -> None:
@@ -259,7 +307,9 @@ class IdeaVariant(StrictContract):
     hook: str = Field(min_length=3, max_length=500)
     script: str | None = Field(default=None, min_length=3, max_length=12_000)
     caption: str = Field(min_length=3, max_length=8_000)
-    hashtags: list[str] = Field(min_length=3, max_length=5)
+    hashtags: list[str] = Field(
+        min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
+    )
     cta: str = Field(min_length=2, max_length=1_000)
     source: str = Field(min_length=2, max_length=2_000)
     format_details: FormatDetails | None = None
@@ -290,7 +340,9 @@ class ProducedVariant(StrictContract):
     hook: str = Field(min_length=3, max_length=500)
     script: str = Field(min_length=3, max_length=12_000)
     caption: str = Field(min_length=3, max_length=8_000)
-    hashtags: list[str] = Field(min_length=3, max_length=5)
+    hashtags: list[str] = Field(
+        min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
+    )
     cta: str = Field(min_length=2, max_length=1_000)
     source: str = Field(min_length=2, max_length=2_000)
     format_details: FormatDetails
@@ -320,7 +372,9 @@ class SilentReelVariant(StrictContract):
     hook_type: HookType
     hook: str = Field(min_length=3, max_length=500)
     caption: str = Field(min_length=SILENT_REEL_CAPTION_FLOOR, max_length=8_000)
-    hashtags: list[str] = Field(min_length=3, max_length=5)
+    hashtags: list[str] = Field(
+        min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
+    )
     cta: str = Field(min_length=2, max_length=1_000)
     source: str = Field(min_length=2, max_length=2_000)
 
