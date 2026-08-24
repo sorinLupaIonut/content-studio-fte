@@ -35,7 +35,7 @@ after an incident was often simply not there. `sampling_ratio=1.0` selects
 `ApplicationInsightsSampler(1.0)` instead, which keeps every span.
 
 Everything here degrades to silence. With no connection string the harness runs
-exactly as it did before, logging to stdout - the same rule the sandbox and the
+exactly as it did before, logging to stdout - the same rule the database and the
 database already follow.
 """
 

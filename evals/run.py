@@ -5,7 +5,7 @@ Needs the MCP server running in another terminal:
     uv run content-studio-server
     uv run python evals/run.py
 
-Every case starts with an empty history. The sandbox and the MCP connection are
+Every case starts with an empty history. The MCP connection is
 reused, but the conversations do not mix. Any write tool is refused during an
 eval; the set must not leave posts or profile changes behind.
 """
@@ -22,15 +22,14 @@ from pathlib import Path
 
 from agents import Runner
 from agents.mcp import MCPServerStreamableHttp
-from agents.run_config import RunConfig, SandboxRunConfig
+from agents.run_config import RunConfig
 
 from content_studio import enable_utf8_output
 from content_studio.audit import calls_in
-from content_studio.config import MCP_TIMEOUT, MCP_URL
+from content_studio.config import MCP_TIMEOUT, MCP_URL, SKILLS_DIR
 from content_studio.mcp_server.protocol import MODEL_VISIBLE_TOOLS
 from content_studio.worker import (
     GATED_TOOLS,
-    build_sandbox,
     build_worker,
     describe_request,
     read_profile,
@@ -42,7 +41,18 @@ HERE = Path(__file__).parent
 CASES_FILE = HERE / "cases.json"
 DEFAULT_REPORT = HERE / "report-latest.json"
 
-SKILL_PATTERN = re.compile(r"\.agents[/\\]([\w-]+)[/\\]SKILL\.md")
+#: A skill is activated by CALLING ITS TOOL, so the tool's name is the evidence.
+#:
+#: This used to be a regex over the call's ARGUMENTS, looking for the path the
+#: skill was mounted at inside the sandbox. The sandbox went, skill tools take no
+#: arguments at all, and the pattern therefore matched nothing: every case
+#: asserting on `skills` failed while the skill was firing perfectly. Read from
+#: disk, so a new skill folder needs no edit here.
+def skill_names() -> set[str]:
+    return {p.name for p in SKILLS_DIR.iterdir() if (p / "SKILL.md").is_file()}
+
+
+SKILL_TOOLS = skill_names()
 NUMBER_PATTERN = re.compile(r"^\s*(10|[1-9])[.)]\s", re.MULTILINE)
 HOOK_PATTERN = re.compile(
     r"^\s*[-*]\s*(PROVOCARE|CIFR[ĂA]|SECRET|[ÎI]NTREBARE|CONTRAST)\s*:",
@@ -88,8 +98,8 @@ def tools_and_skills(result) -> tuple[set[str], set[str], list[dict]]:
     details: list[dict] = []
     for call in calls_in(result):
         tools.add(call["name"])
-        text = json.dumps(call["arguments"], ensure_ascii=False)
-        skills.update(SKILL_PATTERN.findall(text))
+        if call["name"] in SKILL_TOOLS:
+            skills.add(call["name"])
         details.append(
             {
                 "name": call["name"],
@@ -215,9 +225,7 @@ async def main() -> int:
         await data_mcp.cleanup()
         return 2
 
-    client, sandbox_options = build_sandbox()
-    sandbox = await client.create(options=sandbox_options)
-    config = RunConfig(sandbox=SandboxRunConfig(client=client, session=sandbox))
+    config = RunConfig()
     worker = build_worker(profile_md, data_mcp)
     report: list[dict] = []
     failures = 0
@@ -285,7 +293,6 @@ async def main() -> int:
                 }
             )
     finally:
-        await sandbox.aclose()
         await data_mcp.cleanup()
 
     options.report.parent.mkdir(parents=True, exist_ok=True)

@@ -6,13 +6,13 @@ instead of repeating it.
 
 ## What changed since the deployment brief
 
-Verified on 2026-08-17 against the installed `openai-agents` 0.20.0 package and
-the live OpenAI Sandbox Agents documentation. One behavioral difference matters:
-`RunState.to_string()` is synchronous and returns `str`; only
-`RunState.from_string(...)` is asynchronous. Do not `await state.to_string()`.
-All other SDK names used by this repository passed the import probe. The complete
-probe record and sandbox-resume findings live in
+Verified on 2026-08-17 against the installed `openai-agents` 0.20.0 package. One
+behavioral difference matters: `RunState.to_string()` is synchronous and returns
+`str`; only `RunState.from_string(...)` is asynchronous. Do not
+`await state.to_string()`. All other SDK names used by this repository passed the
+import probe; the complete record is in
 [plans/DEPLOYMENT.md](plans/DEPLOYMENT.md#d0-findings--read-these-before-writing-harness-code).
+Its sandbox-resume findings are history now — see rule 4.
 
 Domain spec — pillars, hook types, sources, the two phases — is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -32,9 +32,17 @@ Six rules a new session must respect without asking again.
 3. **Embeddings use the same model to store and to search** — `text-embedding-3-small`.
    Different models at the two ends means a search that returns garbage without
    complaining.
-4. **Sandbox with folder-shaped skills.** `SandboxAgent`, not a plain `Agent`. The
-   method lives in `skills/<name>/SKILL.md` plus `references/`, mounted into the
-   sandbox and disclosed progressively. They are edited without touching code.
+4. **Folder-shaped skills, delivered as tools.** The method lives in
+   `skills/<name>/SKILL.md` plus `references/`, and it is edited without touching
+   code. Disclosure has three steps: the frontmatter `description` is always in
+   context and decides whether the body is ever paid for; the body arrives when the
+   model calls the skill's tool; a `references/` file arrives only when the body
+   asks for it by name, through `citeste-referinta`. There is **no sandbox and no
+   shell** — an E2B sandbox delivered these same folders until 2026-08-24, and was
+   removed after measurement: of 148 KB mounted, a generation run opened one file
+   and never touched `references/`, while the sandbox charged 5,448 tokens of
+   instructions and tool schemas on every call. Never tell the model it has files
+   or a shell; `worker.py` builds that sentence from the tools actually attached.
 5. **One agent.** The two phases are skills, not separate agents. The cost, accepted
    with open eyes: a `SKILL.md` is text, not a schema. It cannot enforce "exactly ten
    proposals with exactly five hooks" — that is asked for, counted afterwards, and

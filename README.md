@@ -1,7 +1,7 @@
 # Content Studio FTE
 
 A **Digital FTE** — a digital full-time employee — rather than a chatbot with a
-prompt. One sandboxed agent does the work of a content assistant for a real
+prompt. One agent does the work of a content assistant for a real
 coaching business: it asks what it needs to know, gathers material from a private
 library of 17 books or from the web, proposes ten posts, develops the one that is
 chosen, and saves it only after a human says yes.
@@ -33,9 +33,9 @@ and every one of them is visible in the code:
    `text-embedding-3-small`, always. Two different models return garbage without
    complaining, so every row carries the model it was made with.
 4. **Skills are folders, not code.** `SKILL.md` plus a `references/` directory,
-   mounted into an E2B sandbox and disclosed progressively: the index is always in
-   context, the body opens when the task matches, the references open only when the
-   skill points at them. The method can be edited without touching Python.
+   delivered as tools and disclosed progressively: the description is always in
+   context, the body opens when the task matches, a reference opens only when the
+   skill asks for it by name. The method can be edited without touching Python.
 5. **One agent, not a crew.** The two phases are skills, not separate agents — one
    context, so the 30k-character client profile is not copied twice.
 6. **Nothing is saved without human approval.** The gate sits on the MCP server
@@ -49,11 +49,11 @@ flowchart TB
     U["The client<br/>(terminal, Romanian)"] --> W
 
     subgraph proc["worker.py — one process"]
-        W["SandboxAgent<br/>profile + 10 output rules in the system prompt"]
+        W["Agent<br/>profile + method note in the system prompt"]
         A["audit.py<br/>own connection"]
     end
 
-    W -->|"skills mounted"| S["E2B sandbox<br/>propune-postari · dezvolta-postarea"]
+    W -->|"skills as tools"| S["propune-postari · dezvolta-postarea<br/>+ citeste-referinta"]
     W -->|"5 tools, HTTP"| M["MCP server<br/>content-data"]
     W -.->|"gate: the four write tools"| G{"approve?"}
     G -->|"no"| W
@@ -85,8 +85,8 @@ book. A quote with no page number never receives an invented one.
 
 ## Quickstart
 
-Requires Python 3.13+, [uv](https://docs.astral.sh/uv/), a Neon Postgres database,
-an OpenAI key, and an [E2B](https://e2b.dev) key (free tier).
+Requires Python 3.13+, [uv](https://docs.astral.sh/uv/), a Neon Postgres database
+and an OpenAI key.
 
 ```bash
 git clone https://github.com/sorinLupaIonut/content-studio-fte
@@ -128,7 +128,7 @@ uv run content-studio-harness
 ```
 
 `GET http://127.0.0.1:8000/health` reports the active backends without making a
-model or sandbox call. The interactive API contract is at
+model call. The interactive API contract is at
 `http://127.0.0.1:8000/docs`. A missing dependency leaves health available as
 `degraded`, but `/runs` refuses safely rather than replacing the Neon approval
 gate with temporary state.
@@ -173,7 +173,7 @@ src/content_studio/
 
 ui/StudioViorela/      .NET 10 Blazor UI: profile, generator and streaming chat
 
-skills/                mounted into the sandbox; Romanian, edited without code
+skills/                one tool each; Romanian, edited without code
   propune-postari/       phase 1: three questions, then 10 proposals × 5 hooks
   dezvolta-postarea/     phase 2: develop the chosen one, then save it
 
@@ -214,11 +214,11 @@ skill fires when it should and stays quiet when it should not.
 
 | # | Decision | State |
 |---|---|---|
-| 0 | Minimal chat agent — uv, Agents SDK, no sandbox | ✅ |
+| 0 | Minimal chat agent — uv, Agents SDK | ✅ |
 | 1 | The architecture rules | ✅ |
 | 2 | Schema and flow planned, with the reason for each choice | ✅ |
 | 3 | Neon + pgvector + schema, then `SQLAlchemySession` | ✅ 7 tables, memory across restarts |
-| 4 | `propune-postari` as a sandboxed skill | ✅ 10 proposals × 5 hooks |
+| 4 | `propune-postari` as a folder skill | ✅ 10 proposals × 5 hooks |
 | 5 | Import + embedding of the 17 books | ✅ 4,778 chunks, search returns the page |
 | 6 | `content-data` MCP server, seven tools | ✅ books, web, posts, guarded writes |
 | 7 | `dezvolta-postarea` + saving | ✅ full cycle, and a second post from the same list |

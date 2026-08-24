@@ -1,4 +1,4 @@
-"""Title-first generation with durable MCP drafts and bounded E2B concurrency."""
+"""Title-first generation with durable MCP drafts and bounded concurrency."""
 
 from __future__ import annotations
 
@@ -40,9 +40,7 @@ from content_studio.language import DEFAULT_LANGUAGE, Language
 from content_studio.observability import bind_run
 from content_studio.worker import (
     build_worker,
-    open_sandbox,
     read_profile,
-    sandbox_run_kwargs,
 )
 
 RUN_TIMEOUT_SECONDS = 600
@@ -636,11 +634,8 @@ class GenerationCoordinator:
         slots = [item for item in created if not isinstance(item, BaseException)]
         failures = [item for item in created if isinstance(item, BaseException)]
         if failures:
-            await asyncio.gather(
-                *(self._close_slot(slot[2]) for slot in slots), return_exceptions=True
-            )
             raise RuntimeError(
-                f"only {len(slots)}/{slot_count} sandbox slots were created"
+                f"only {len(slots)}/{slot_count} slots were created"
             ) from failures[0]
         queue: asyncio.Queue[IdeaTitle] = asyncio.Queue()
         for idea in titles.ideas:
@@ -653,8 +648,7 @@ class GenerationCoordinator:
         # bought in a fifth of its calls.
         warmed = asyncio.Event()
 
-        async def consume(slot, leader: bool) -> None:
-            agent, client, sandbox = slot
+        async def consume(agent, leader: bool) -> None:
             first = True
             while True:
                 try:
@@ -680,8 +674,6 @@ class GenerationCoordinator:
                         source_packet,
                         idea,
                         agent,
-                        client,
-                        sandbox,
                         drafts,
                         language,
                         _PrefixWarmed(warmed) if leader and first else None,
@@ -694,14 +686,9 @@ class GenerationCoordinator:
                         warmed.set()
                 first = False
 
-        try:
-            await asyncio.gather(
-                *(consume(slot, index == 0) for index, slot in enumerate(slots))
-            )
-        finally:
-            await asyncio.gather(
-                *(self._close_slot(slot[2]) for slot in slots), return_exceptions=True
-            )
+        await asyncio.gather(
+            *(consume(slot, index == 0) for index, slot in enumerate(slots))
+        )
 
     async def _generate_one_detail(
         self,
@@ -710,8 +697,6 @@ class GenerationCoordinator:
         source_packet: dict[str, Any],
         idea: IdeaTitle,
         agent,
-        client,
-        sandbox,
         drafts: GenerationDraftClient,
         language: Language = DEFAULT_LANGUAGE,
         hooks: RunHooks | None = None,
@@ -719,13 +704,11 @@ class GenerationCoordinator:
         for attempt in (1, 2):
             await drafts.start_idea(batch_id, idea.ordinal)
             try:
-                value = await self._run_on_sandbox(
+                value = await self._run_agent(
                     agent,
                     detail_prompt(request, idea, source_packet, language),
                     detail_output_type(request.format),
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
-                    client,
-                    sandbox,
                     str(batch_id),
                     hooks,
                 )
@@ -761,42 +744,32 @@ class GenerationCoordinator:
 
     @staticmethod
     async def _create_slot(agent):
-        # A slot without a sandbox is still a slot: it owns one concurrent run
-        # and its place in the queue. Only the two E2B handles go missing.
-        client, sandbox = await open_sandbox()
-        return agent.clone(), client, sandbox
+        """One slot: a clone of the agent, owning one concurrent run and its
+        place in the queue.
 
-    @staticmethod
-    async def _close_slot(sandbox) -> None:
-        if sandbox is not None:
-            await sandbox.aclose()
+        It used to also carry an E2B client and session, opened here and closed
+        in `finally`. Both went with the sandbox on 2026-08-24; the clone is what
+        the slot always actually was.
+        """
+        return agent.clone()
 
     async def _run_isolated(
         self, agent, prompt: str, output_type, label: str, group: str
     ):
-        client, sandbox = await open_sandbox()
-        try:
-            return await self._run_on_sandbox(
-                agent, prompt, output_type, label, client, sandbox, group
-            )
-        finally:
-            await self._close_slot(sandbox)
+        return await self._run_agent(agent, prompt, output_type, label, group)
 
-    async def _run_on_sandbox(
+    async def _run_agent(
         self,
         agent,
         prompt: str,
         output_type,
         label: str,
-        client,
-        sandbox,
         group: str,
         hooks: RunHooks | None = None,
     ):
         run_config = RunConfig(
             workflow_name=GENERATION_WORKFLOW,
             group_id=group,
-            **sandbox_run_kwargs(client, sandbox),
         )
         result = await asyncio.wait_for(
             Runner.run(

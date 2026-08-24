@@ -1,4 +1,4 @@
-"""D1 HTTP contract and approval matching, without model or sandbox calls."""
+"""D1 HTTP contract and approval matching, without any model call."""
 
 import asyncio
 import unittest
@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from content_studio.config import CLIENT_SLUG, USE_SANDBOX, MissingConfig
+from content_studio.config import CLIENT_SLUG, MissingConfig
 from content_studio.harness.accounts import Account
 from content_studio.harness.auth import AuthSettings, IdentityResolver
 from content_studio.harness.chat import ChatRunAccepted
@@ -516,19 +516,15 @@ class TestDecisionMatching(unittest.TestCase):
 
 
 class TestSdkContracts(unittest.TestCase):
-    def test_harness_never_passes_a_live_sandbox_session(self) -> None:
+    def test_the_run_config_carries_the_session_and_nothing_else(self) -> None:
+        # This used to assert that the harness handed the SDK sandbox OPTIONS
+        # rather than a session it had opened itself. The sandbox went on
+        # 2026-08-24, so what is left to hold is that the run is grouped by
+        # session - which is what ties every span and audit row to one story.
         config = HarnessService._run_config("s1")
 
-        # Since 2026-08-24 there may be no sandbox at all — see USE_SANDBOX. The
-        # guarantee being held here is unchanged and still worth holding: IF this
-        # path configures one, it hands over options for the SDK to open, never a
-        # session already opened here.
-        if not USE_SANDBOX:
-            self.assertIsNone(config.sandbox)
-            return
-        self.assertIsNone(config.sandbox.session)
-        self.assertIsNotNone(config.sandbox.client)
-        self.assertEqual(config.sandbox.options.sandbox_type, "e2b")
+        self.assertEqual(config.group_id, "s1")
+        self.assertIsNone(getattr(config, "sandbox", None))
 
     def test_interrupted_state_is_serialized_synchronously(self) -> None:
         class State:

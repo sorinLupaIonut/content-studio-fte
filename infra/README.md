@@ -117,7 +117,7 @@ adding a tester to the email list will silently do nothing.
 ## Secrets
 
 Four values are read from `.env` at deploy time — `DATABASE_URL`,
-`DATABASE_URL_DIRECT`, `OPENAI_API_KEY`, `E2B_API_KEY` — and land as Container
+`DATABASE_URL_DIRECT`, `OPENAI_API_KEY` — and land as Container
 Apps secrets referenced by `secretRef`. They are never printed, never written into
 the template, and never passed on a command line: `deploy.ps1` writes a parameters
 file into the temp directory and deletes it in a `finally` block, and the Bicep

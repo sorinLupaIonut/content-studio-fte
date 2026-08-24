@@ -46,9 +46,6 @@ param databaseUrlDirect string
 @secure()
 param openaiApiKey string
 
-@secure()
-param e2bApiKey string
-
 @description('Google OAuth client secret for Easy Auth. Empty leaves sign-in untouched.')
 @secure()
 param googleClientSecret string = ''
@@ -275,10 +272,6 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
           value: openaiApiKey
         }
         {
-          name: 'e2b-api-key'
-          value: e2bApiKey
-        }
-        {
           // Empty is a supported state: `configure_phoenix` reads it, finds
           // nothing and reports the surface as off. See observability.py.
           name: 'phoenix-api-key'
@@ -357,10 +350,6 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'OPENAI_API_KEY'
               secretRef: 'openai-api-key'
-            }
-            {
-              name: 'E2B_API_KEY'
-              secretRef: 'e2b-api-key'
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

@@ -59,7 +59,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if not load_dotenv(PROJECT_ROOT / ".env"):
     load_dotenv()
 
-#: Skill folders mounted into the sandbox. They stay outside the Python package
+#: The folders the method lives in, one per skill. They stay outside the package
 #: on purpose: they are prose the client's method lives in, edited without
 #: touching code. Override with SKILLS_DIR when running from somewhere else.
 SKILLS_DIR = Path(os.getenv("SKILLS_DIR", PROJECT_ROOT / "skills"))
@@ -91,26 +91,6 @@ GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-mini")
 GENERATION_CONCURRENCY = int(os.getenv("GENERATION_CONCURRENCY", "5"))
 if not 1 <= GENERATION_CONCURRENCY <= 5:
     raise RuntimeError("GENERATION_CONCURRENCY must be between 1 and 5")
-
-# Whether the agent gets an E2B sandbox and reads its skills with a shell, or
-# gets one tool per skill instead. EVERYWHERE - chat, generation and the CLI:
-# two shapes of the same agent is already one more than anybody wants, and a
-# third that depends on which surface you came through is not a design.
-#
-# Off by default since 2026-08-24. What the sandbox bought, measured: of 148 KB
-# of skills mounted into it, a generation run opened exactly one file and never
-# touched `references/`. What it charged: 5,448 tokens of instructions and tool
-# schemas in every single call, plus a turn spent finding the file.
-#
-# Still a switch rather than a deletion, because the comparison has to be
-# runnable: two batches on one deployment, one variable apart, is a measurement;
-# two deployments is a story. Delete the branch once the numbers are in.
-USE_SANDBOX = os.getenv("USE_SANDBOX", "0").strip().lower() not in {
-    "0",
-    "false",
-    "no",
-    "off",
-}
 
 # Chat is separate from bulk generation so its latency/quality can be tuned
 # without silently changing either half of the accepted hybrid topology.
@@ -233,11 +213,6 @@ class MissingConfig(RuntimeError):
 def has_openai_key() -> bool:
     """Whether model calls are configured, without exposing the key."""
     return bool(os.getenv("OPENAI_API_KEY"))
-
-
-def has_e2b_key() -> bool:
-    """Whether sandbox creation is configured, without exposing the key."""
-    return bool(os.getenv("E2B_API_KEY"))
 
 
 def normalize_url(url: str) -> tuple[str, dict[str, object]]:

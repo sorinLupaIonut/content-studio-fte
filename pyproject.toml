@@ -1,7 +1,7 @@
 [project]
 name = "content-studio-fte"
 version = "0.1.0"
-description = "A Digital FTE content worker: one sandboxed agent with folder-based skills, a purpose-built MCP server, Neon Postgres + pgvector, an audit trail you can replay, and an approval gate on every write."
+description = "A Digital FTE content worker: one agent with folder-based skills as tools, a purpose-built MCP server, Neon Postgres + pgvector, an audit trail you can replay, and an approval gate on every write."
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MIT" }
@@ -12,7 +12,6 @@ keywords = [
     "digital-fte",
     "pgvector",
     "neon",
-    "e2b",
     "agent-skills",
     "rag",
 ]
@@ -28,7 +27,7 @@ dependencies = [
     "azure-monitor-opentelemetry>=1.8.9",
     "fastapi>=0.116.0",
     "mcp>=2.0.0",
-    "openai-agents[e2b,sqlalchemy]>=0.20.0",
+    "openai-agents[sqlalchemy]>=0.20.0",
     "openinference-instrumentation-openai-agents>=2.0.0",
     "opentelemetry-exporter-otlp-proto-http>=1.43.0",
     "opentelemetry-instrumentation-asyncpg>=0.64b0",
@@ -44,7 +43,6 @@ Repository = "https://github.com/sorinLupaIonut/content-studio-fte"
 Documentation = "https://github.com/sorinLupaIonut/content-studio-fte/blob/main/docs/manual.html"
 
 [project.scripts]
-content-studio = "content_studio.worker:cli"
 content-studio-harness = "content_studio.harness.main:run"
 content-studio-server = "content_studio.mcp_server.server:main"
 

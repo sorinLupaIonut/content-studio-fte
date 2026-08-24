@@ -1,8 +1,7 @@
 """D1 orchestration: HTTP requests around the existing agent and durable gate.
 
-The harness is the control plane. E2B is only the execution plane, so this module
-never creates a live sandbox session itself. Passing `client` and `options` lets
-the Agents SDK serialize and later resume the sandbox together with `RunState`.
+The harness is the control plane: it owns the database handles and the audit, and
+opens one isolated MCP run per request.
 """
 
 from __future__ import annotations
@@ -32,7 +31,6 @@ from content_studio.config import (
     SKILLS_DIR,
     MissingConfig,
     database_url,
-    has_e2b_key,
     has_openai_key,
 )
 from content_studio.harness.accounts import (
@@ -90,7 +88,6 @@ from content_studio.worker import (
     describe_request,
     new_session_id,
     read_profile,
-    sandbox_run_kwargs,
 )
 
 SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,200}$")
@@ -162,7 +159,7 @@ def _client_header() -> dict[str, str]:
 
 
 class HarnessService:
-    """Long-lived database handles plus one isolated MCP/sandbox run per request."""
+    """Long-lived database handles plus one isolated MCP run per request."""
 
     def __init__(self) -> None:
         self.engine: AsyncEngine | None = None
@@ -285,8 +282,6 @@ class HarnessService:
         missing = []
         if not has_openai_key():
             missing.append("OPENAI_API_KEY")
-        if not has_e2b_key():
-            missing.append("E2B_API_KEY")
         if self.engine is None or self.trail is None:
             missing.append("DATABASE_URL")
         if not SKILLS_DIR.is_dir():
@@ -302,7 +297,6 @@ class HarnessService:
         self, observability: dict[str, object] | None = None
     ) -> HealthResponse:
         openai_ok = has_openai_key()
-        e2b_ok = has_e2b_key()
         skills_ok = SKILLS_DIR.is_dir()
 
         database_ok = False
@@ -347,13 +341,13 @@ class HarnessService:
                 detail=database_detail,
             ),
             "mcp": BackendHealth(configured=True, active=mcp_ok, detail=mcp_detail),
-            "e2b": BackendHealth(
-                configured=e2b_ok,
-                active=e2b_ok and skills_ok,
+            "skills": BackendHealth(
+                configured=skills_ok,
+                active=skills_ok,
                 detail=(
-                    "Cheie și skill-uri configurate; sandbox-ul se creează numai la run."
-                    if e2b_ok and skills_ok
-                    else "E2B_API_KEY sau folderul de skill-uri lipsește."
+                    "Folderul de skill-uri e la locul lui."
+                    if skills_ok
+                    else "Folderul de skill-uri lipsește."
                 ),
             ),
             "artifacts": BackendHealth(
@@ -389,7 +383,7 @@ class HarnessService:
                 ),
             ),
         }
-        required = (openai_ok, database_ok, mcp_ok, e2b_ok, skills_ok)
+        required = (openai_ok, database_ok, mcp_ok, skills_ok)
         return HealthResponse(
             status="ready" if all(required) else "degraded", backends=backends
         )
@@ -918,10 +912,7 @@ class HarnessService:
 
     @staticmethod
     def _run_config(session_id: str) -> RunConfig:
-        # `sandbox_run_kwargs` with no client builds its own and passes `options`
-        # rather than a live session, which is what this path always did: the SDK
-        # opens the sandbox itself for a run it is about to start.
-        return RunConfig(group_id=session_id, **sandbox_run_kwargs())
+        return RunConfig(group_id=session_id)
 
     @staticmethod
     def _identity_session(prefix: str, principal_id: str) -> str:

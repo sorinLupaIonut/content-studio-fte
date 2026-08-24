@@ -242,9 +242,19 @@ class TestGenerationContracts(unittest.TestCase):
         idea = IdeaTitle(ordinal=1, title="O limită blândă", angle="Un exemplu")
         packet = {"source": "Memorie"}
 
-        self.assertIn("TITLURI", title_prompt(request, packet))
+        # It used to look for the marker lines "MOD UI STRUCTURAT D1B - TITLURI"
+        # and "- DETALII". Those went on 2026-08-24: the structured contract
+        # already makes their content unviolable, so what is left to check is
+        # that each prompt names its own skill and carries its own payload.
+        titles = title_prompt(request, packet)
+        self.assertIn("propune-postari", titles)
+        self.assertNotIn("dezvolta-postarea", titles)
+        # The titles run must not receive an idea to develop; that is phase 2.
+        self.assertNotIn("O limită blândă", titles)
+
         details = detail_prompt(request, idea, packet)
-        self.assertIn("DETALII", details)
+        self.assertIn("dezvolta-postarea", details)
+        self.assertNotIn("propune-postari", details)
         self.assertIn("O limită blândă", details)
 
 

@@ -162,7 +162,7 @@ Write-Host ("Image        : {0}" -f $image)
 
 # --- 2. The secrets, read once, never printed -----------------------------
 $dotenv = Read-DotEnv -Path $EnvFile
-foreach ($required in @('DATABASE_URL', 'DATABASE_URL_DIRECT', 'OPENAI_API_KEY', 'E2B_API_KEY')) {
+foreach ($required in @('DATABASE_URL', 'DATABASE_URL_DIRECT', 'OPENAI_API_KEY')) {
     if (-not $dotenv.ContainsKey($required) -or -not $dotenv[$required]) {
         throw "$required is missing from $EnvFile"
     }
@@ -351,7 +351,6 @@ $parameters = @{
         databaseUrl       = @{ value = $dotenv['DATABASE_URL'] }
         databaseUrlDirect = @{ value = $dotenv['DATABASE_URL_DIRECT'] }
         openaiApiKey      = @{ value = $dotenv['OPENAI_API_KEY'] }
-        e2bApiKey         = @{ value = $dotenv['E2B_API_KEY'] }
         googleClientSecret = @{ value = $googleClientSecret }
         entraClientSecret  = @{ value = $entraClientSecret }
         phoenixCollectorEndpoint = @{ value = $phoenixEndpoint }

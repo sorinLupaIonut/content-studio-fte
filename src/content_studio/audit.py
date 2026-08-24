@@ -59,6 +59,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from content_studio.config import SKILLS_DIR
 from content_studio.observability import bind_run
 
 #: The tools that cross the MCP boundary. The rest (`exec_command` and everything
@@ -112,8 +113,17 @@ ACCOUNT_PROVISIONED = "account_provisioned"
 #: the reader agrees on is the cheapest way to get both back out.
 SEPARATOR = ": "
 
-#: `.agents/propune-postari/SKILL.md` inside a shell command.
-SKILL_PATTERN = re.compile(r"\.agents/([\w-]+)/SKILL\.md")
+#: A skill is activated by CALLING ITS TOOL, and the tool is named after the
+#: folder. Read from disk so a new skill folder needs no edit here.
+#:
+#: This was a regex over a shell command's arguments -
+#: `.agents/<name>/SKILL.md` - back when the skills were mounted in a sandbox.
+#: The sandbox went on 2026-08-24 and skill tools take no arguments at all, so
+#: it matched nothing and `public.runs` silently stopped recording any skill
+#: activation whatsoever. Same fault, same day, as `evals/run.py`.
+SKILL_TOOLS = frozenset(
+    p.name for p in SKILLS_DIR.iterdir() if (p / "SKILL.md").is_file()
+) if SKILLS_DIR.is_dir() else frozenset()
 
 #: Ten proposals numbered at the start of a line.
 NUMBERING_PATTERN = re.compile(r"^\s*(\d{1,2})[.)]", re.MULTILINE)
@@ -125,9 +135,13 @@ INSERT INTO public.agent_sessions (session_id) VALUES ($1)
 ON CONFLICT (session_id) DO NOTHING
 """
 
+#: `used_sandbox` is vestigial since the sandbox was removed on 2026-08-24. The
+#: column stays because dropping one from a live database is a migration, not a
+#: tidy-up, and the historical rows where it is true are real. Every new row is
+#: written false rather than left to a default that would keep claiming otherwise.
 OPEN_RUN_SQL = """
 INSERT INTO public.runs (id, session_id, input_message, used_sandbox)
-VALUES ($1, $2, $3, $4)
+VALUES ($1, $2, $3, false)
 """
 
 CLOSE_RUN_SQL = """
@@ -251,9 +265,7 @@ class Audit:
         except Exception as e:  # noqa: BLE001 — a lost trail row does not stop the turn
             print(f"[audit] could not write: {type(e).__name__}: {e}", file=sys.stderr)
 
-    async def open_run(
-        self, session_id: str, message: str, used_sandbox: bool = True
-    ) -> str | None:
+    async def open_run(self, session_id: str, message: str) -> str | None:
         """Start the run and return its id, or None if it could not be written.
 
         The row goes in BEFORE the model is called. An audit written only at the
@@ -274,7 +286,7 @@ class Audit:
                 if self._sessions_table:
                     await raw.execute(SESSION_SQL, session_id)
 
-                await raw.execute(OPEN_RUN_SQL, run_id, session_id, message, used_sandbox)
+                await raw.execute(OPEN_RUN_SQL, run_id, session_id, message)
         except Exception as e:  # noqa: BLE001
             print(f"[audit] could not open the run: {type(e).__name__}: {e}", file=sys.stderr)
             return None
@@ -419,11 +431,8 @@ class Audit:
         for call in calls_in(result):
             name, arguments = call["name"], call["arguments"]
 
-            # Skills have no tool of their own: they are opened with shell, from
-            # inside the sandbox. So activation is read from the command that ran,
-            # not from a hook.
-            for found in SKILL_PATTERN.finditer(_json(arguments)):
-                skills.add(found.group(1))
+            if name in SKILL_TOOLS:
+                skills.add(name)
 
             if name not in MCP_TOOLS:
                 continue

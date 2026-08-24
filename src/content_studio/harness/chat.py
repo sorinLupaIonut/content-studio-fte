@@ -26,9 +26,7 @@ from content_studio.language import DEFAULT_LANGUAGE, Language, normalise
 from content_studio.worker import (
     build_worker,
     describe_request,
-    open_sandbox,
     read_profile,
-    sandbox_run_kwargs,
 )
 
 ChatTargetKind = Literal[
@@ -241,8 +239,7 @@ def chat_prompt(
         "application requires. The Romanian below is the method and the source "
         "material, not the language of your answer."
     )
-    return f"""MOD CHAT UI STRUCTURAT D1B
-{reply_line}
+    return f"""{reply_line}
 Textul pentru utilizatoare stă în `reply`. `patch` este null dacă nu rescrii
 ținta. Nu include JSON, câmpuri tehnice sau explicații despre patch în `reply`.
 
@@ -408,7 +405,6 @@ class ChatCoordinator:
     ) -> None:
         data_mcp = self._data_mcp_factory(state.session_id)
         internal_mcp = self._internal_mcp_factory(state.session_id)
-        sandbox = None
         decoder = ReplyJsonStream()
         visible_reply = ""
         try:
@@ -427,7 +423,6 @@ class ChatCoordinator:
                     max_tokens=12_000,
                 ),
             )
-            client, sandbox = await open_sandbox()
             session = SQLAlchemySession(
                 state.session_id, engine=engine, create_tables=True, ensure_ascii=False
             )
@@ -435,10 +430,7 @@ class ChatCoordinator:
                 worker,
                 chat_prompt(message, target_context, state.language),
                 session=session,
-                run_config=RunConfig(
-                    group_id=state.session_id,
-                    **sandbox_run_kwargs(client, sandbox),
-                ),
+                run_config=RunConfig(group_id=state.session_id),
                 max_turns=6,
             )
             state.result = result
@@ -512,8 +504,6 @@ class ChatCoordinator:
             )
         finally:
             state.result = None
-            if sandbox is not None:
-                await sandbox.aclose()
             await asyncio.gather(
                 data_mcp.cleanup(), internal_mcp.cleanup(), return_exceptions=True
             )

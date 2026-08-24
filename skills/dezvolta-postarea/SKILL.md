@@ -5,41 +5,19 @@ description: >-
   postare completă: script, caption, hashtaguri, CTA. Folosește-l când Viorela
   a ales dintr-o listă deja arătată: „dezvoltă a treia, cu contrastul",
   „îmi place 7", „scrie-o pe aia cu vinovăția", „hai pe prima". Îl folosești
-  și când cere încă una din aceeași listă. Îl folosești OBLIGATORIU și în MOD UI
-  STRUCTURAT D1B — DETALII, unde ideea vine ca formular, nu în cuvintele ei.
+  și când cere încă una din aceeași listă. Îl folosești OBLIGATORIU și când ideea
+  îți este dată întreagă în mesaj, ca formular, nu în cuvintele ei.
   NU-l folosi ca să scoți propuneri noi — aia e faza 1.
 ---
 
 # Faza 2 — postarea întreagă
 
-## Mod UI structurat — toate cele cinci variante
-
-Dacă mesajul începe cu markerul exact `MOD UI STRUCTURAT D1B — DETALII`,
-interfața îți dă o singură idee existentă, formatul, pilonul, sursa, focusul și
-materialul-sursă. În acest mod:
-
-- nu cauți lista în conversație, nu pui întrebări și nu alegi altă idee;
-- dezvolți ideea primită în exact cinci variante complete, în ordinea
-  PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST;
-- la **Reel** fiecare variantă are `hook_type`, `hook`, `caption`, 3–5
-  `hashtags`, `cta` și `source` — fără `script` și fără `format_details`,
-  pentru că reel-urile ei sunt mute (vezi mai jos);
-- la **Carusel** și **Stories** fiecare variantă are în plus `script` și
-  `format_details`, cu `content_blocks`, `visual_direction` și
-  `duration_or_count` potrivite formatului;
-- toate cele cinci variante folosesc același unghi, dar hook-ul și construcția
-  lor sunt realmente diferite;
-- nu arăți un mesaj conversațional, nu ceri aprobare, nu salvezi și nu chemi
-  `save_post`. Interfața va afișa și va salva ulterior numai varianta aleasă.
-
-Respecți în continuare metoda formatului din Pasul 1, regulile de conținut din
-Pasul 2 și restricțiile profilului. Contractul structurat al aplicației verifică
-cele cinci tipuri și câmpurile complete. Restul acestui skill rămâne fluxul
-normal al conversației CLI, unde dezvolți o singură variantă aleasă.
-
 ## Pasul 0 — verifică dacă lista există
 
-Înainte de orice altceva, verifici conversația: există lista celor zece
+Sari peste tot pasul acesta când ideea ți-a fost dată întreagă în mesaj: atunci
+alegerea e deja făcută și o dezvolți pe aceea.
+
+Altfel, înainte de orice altceva, verifici conversația: există lista celor zece
 propuneri la care se referă „a treia”, „prima” sau „aia cu vinovăția”?
 
 Dacă NU există, te oprești. Spui limpede că nu ai nicio listă din care să iei

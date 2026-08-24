@@ -1,32 +1,54 @@
 {
-  // The services used during local development, plus the two ways to debug
-  // something the editor did not start itself.
+  // Rewritten on 2026-08-24. Every configuration here is `launch`: the editor
+  // starts the process itself, so the code under the debugger is the code on
+  // disk and breakpoints cannot fail to bind.
+  //
+  // The attach configurations that used to live here are gone. They cost a
+  // full afternoon: the selected one was "Attach: harness (container)", whose
+  // `pathMappings` rewrote every breakpoint path to /app/src — a filesystem
+  // that does not exist in a local process — so every breakpoint in every file
+  // went hollow while the connection itself succeeded. Nothing reported an
+  // error. `git show <commit>:.vscode/launch.json` has them if a container ever
+  // needs debugging.
+  //
   // Secrets stay in `.env`; this committed file never contains keys.
-  // Every configuration keeps `justMyCode: true`, and the launch configurations
-  // are paired with attach ones. Both exist for the same measured reason:
-  // importing `harness.main` raises 130_891 exceptions — all caught inside
-  // Pydantic and FastAPI, all normal — and any pydevd setting that inspects them
-  // walks the stack per exception (~84 frames each, ~11M in total). The import
-  // goes from 5s to minutes, which reads as a frozen launch. Attaching after
-  // startup skips all of it, because by then the imports are done.
   "version": "0.2.0",
   "configurations": [
     {
-      // Internal business-data service. Start this before the harness.
-      "name": "MCP server",
+      // START HERE for anything about the prompt. No database, no MCP, no
+      // OpenAI call, no cost. Stops inside `build_worker` in under a second.
+      "name": "1. Prompt (build_worker)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/checks/prompt.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "pythonArgs": ["-X", "frozen_modules=off"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      // The one place justMyCode is false, so you can step into the SDK.
+      "justMyCode": false
+    },
+    {
+      // Business data. The harness needs it, so it starts first in the compound.
+      "name": "2. MCP server",
       "type": "debugpy",
       "request": "launch",
       "module": "content_studio.mcp_server.server",
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "pythonArgs": ["-X", "frozen_modules=off"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true
     },
     {
-      // Uvicorn serves the FastAPI object `app` from harness/main.py.
-      // No --reload: it creates a child process that makes debugger ownership
-      // and breakpoints less predictable.
-      "name": "FastAPI harness",
+      // FastAPI. No --reload: a reloader forks, and the debugger then owns the
+      // parent while the code runs in the child.
+      //
+      // Importing this raises ~130k exceptions inside Pydantic and FastAPI, all
+      // caught and all normal. They are only expensive if the debugger stops to
+      // inspect them, so leave every entry in the BREAKPOINTS panel's exception
+      // section unticked. With them off, startup is ordinary.
+      "name": "3. Harness (FastAPI)",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
@@ -38,25 +60,24 @@
         "8000"
       ],
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "pythonArgs": ["-X", "frozen_modules=off"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "env": {
         "AUTH_MODE": "development",
-        "HARNESS_HOST": "127.0.0.1"
+        "HARNESS_HOST": "127.0.0.1",
+        // Silences debugpy's frozen-modules warning; the -X flag above is the
+        // actual fix, this only stops the message that looks like an error.
+        "PYDEVD_DISABLE_FILE_VALIDATION": "1"
       },
       "justMyCode": true
     },
     {
-      // Standalone Blazor WebAssembly development host. It calls FastAPI on 8000.
-      // Deliberately not `type: coreclr`. That type comes from the C# extension,
-      // and even with the extension installed it would attach to the DevServer
-      // process, which is a static file server; the application itself runs in the
-      // browser's WebAssembly runtime, where a .NET debugger on this side cannot
-      // see it. `node-terminal` ships inside VS Code, needs no extension, and does
-      // the one thing this process needs: run the command in a terminal and stop
-      // with the rest of the compound. Debug the C# that runs in the browser from
-      // the browser's own devtools instead.
-      "name": "Blazor UI",
+      // The Blazor host. Deliberately `node-terminal`, not `coreclr`: the app
+      // runs in the browser's WebAssembly runtime, where a .NET debugger on this
+      // side cannot reach it. This just runs the command and stops with the
+      // compound. Debug the C# from the browser's own devtools.
+      "name": "4. Blazor UI",
       "type": "node-terminal",
       "request": "launch",
       "command": "dotnet run --project ui/StudioViorela/StudioViorela.csproj --no-launch-profile --urls http://127.0.0.1:5178",
@@ -70,159 +91,30 @@
       }
     },
     {
-      // The terminal front. Same worker, same gate, no browser — the cheapest
-      // place to step through a turn, because you drive it by typing.
-      // It reads with `input()`, so the integrated terminal is mandatory here.
-      "name": "CLI worker",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "content_studio.worker",
-      "args": ["--new"],
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": true
-    },
-    {
-      // The prompt and the tools, with nothing else running. No database, no MCP
-      // connection, no OpenAI call - the server object is built and never
-      // connected, so this starts in under a second and costs nothing.
-      // Breakpoint on the first line of `build_worker` and step: `references`,
-      // `method_note`, `tool_note`, `common`, `agent.instructions`.
-      //
-      // `-X frozen_modules=off` for the reason in `debug.py`: CPython ships
-      // frozen copies of the import machinery, and a breakpoint in a module
-      // reached through them can silently fail to bind. Here it matters more
-      // than anywhere else, because the breakpoint IS in an imported module.
-      "name": "Prompt (build_worker)",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/tests/checks/prompt.py",
-      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-      "pythonArgs": ["-X", "frozen_modules=off"],
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      // False on purpose, and it is the exception in this file: stepping INTO
-      // the SDK is how you see what `Agent(...)` does with the instructions.
-      "justMyCode": false
-    },
-    {
-      // The whole free suite under the debugger. Put a breakpoint in a failing
-      // test and start here instead of reading the traceback.
-      "name": "Unit tests",
+      // The free suite under the debugger. Breakpoint in a failing test and
+      // start here instead of reading the traceback.
+      "name": "5. Unit tests",
       "type": "debugpy",
       "request": "launch",
       "module": "unittest",
       "args": ["discover", "-s", "tests/unit"],
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "pythonArgs": ["-X", "frozen_modules=off"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "justMyCode": true
-    },
-    // Attaching comes in two flavours, and the difference is `pathMappings`.
-    // A local process reports real Windows paths (E:\...\src\...), so a mapping
-    // onto the image's /app/src describes a filesystem that is not there; the
-    // editor then looks for the breakpoint's file under a path the process never
-    // reports, and it binds to nothing. In a container the same mapping is
-    // exactly what makes it work. One config each, rather than one that is
-    // subtly wrong half the time.
-
-    {
-      // For a process this editor did not launch but that runs on this machine:
-      // the terminals the tasks open, or one started by hand —
-      //
-      //   $env:DEBUGPY_PORT=5678; uv run uvicorn content_studio.harness.main:app `
-      //     --host 127.0.0.1 --port 8000
-      //
-      // Add DEBUGPY_WAIT=1 when the bug is in startup itself, so the process
-      // blocks until this configuration connects.
-      "name": "Attach: harness (local)",
-      "type": "debugpy",
-      "request": "attach",
-      "connect": {
-        "host": "127.0.0.1",
-        "port": 5678
-      },
-      "justMyCode": true
-    },
-    {
-      // The same door for the data service. Two ports, because both processes
-      // can be under the debugger at once and one listener cannot serve both.
-      "name": "Attach: MCP server (local)",
-      "type": "debugpy",
-      "request": "attach",
-      "connect": {
-        "host": "127.0.0.1",
-        "port": 5679
-      },
-      "justMyCode": true
-    },
-    {
-      // Once the service runs in an image: docker run -e DEBUGPY_PORT=5678 -p 5678:5678
-      // `remoteRoot` is where the sources live inside it, and it has to match the
-      // WORKDIR the Dockerfile sets — that file does not exist yet (decision D2),
-      // so treat /app/src as the value to keep in sync, not as a fact.
-      "name": "Attach: harness (container)",
-      "type": "debugpy",
-      "request": "attach",
-      "connect": {
-        "host": "127.0.0.1",
-        "port": 5678
-      },
-      "pathMappings": [
-        {
-          "localRoot": "${workspaceFolder}/src",
-          "remoteRoot": "/app/src"
-        }
-      ],
       "justMyCode": true
     }
   ],
   "compounds": [
     {
-      // The one to select. The pre-launch task starts all three services in
-      // their own terminals — none of them under a debugger — and waits until
-      // each reports its port open; only then do the two attach configurations
-      // connect. That order is what makes debugging usable here: see the note at
-      // the top of the file.
+      // THE ONE TO PICK to press "Generare" in the site with the debugger on.
+      // Three processes, started in this order, all owned by the editor. The
+      // debug toolbar gets a process picker, so you can stop inside the harness
+      // and inside the MCP tool it calls.
       //
-      // The UI is at http://127.0.0.1:5178 and the harness at :8000.
-      // Stopping the debug session detaches; the three terminals keep running,
-      // so re-attaching costs nothing. Starting again is also safe: the task
-      // sweeps this workspace's leftover processes before it starts new ones,
-      // so a second F5 can no longer silently re-attach to the old ones.
-      "name": "Studio complet (attach pe MCP + harness)",
-      "configurations": ["Attach: harness (local)", "Attach: MCP server (local)"],
-      "preLaunchTask": "Pornește toate serviciile",
-      "stopAll": true
-    },
-    {
-      // The old shape, kept because it is the one every VS Code tutorial shows:
-      // the editor launches each service itself. On this project it is slow to
-      // the point of looking frozen — the debugger inspects every exception
-      // raised while Pydantic builds its models — so reach for the compound
-      // above instead. This one stays useful only for a stripped-down process.
-      "name": "Studio complet (launch direct — lent)",
-      "configurations": ["MCP server", "FastAPI harness", "Blazor UI"],
-      "stopAll": true
-    },
-    {
-      // The shape the container will have: no .NET process at all. The UI is
-      // published to disk first (the pre-launch task) and FastAPI serves it from
-      // `/`, exactly as the image will. Open http://127.0.0.1:8000 — not 5178.
-      // Slower to start and no hot reload, so use it to check the served build
-      // rather than to write Razor.
-      "name": "Studio ca in container (MCP + harness)",
-      "configurations": ["MCP server", "FastAPI harness"],
-      "preLaunchTask": "Publică UI-ul",
-      "stopAll": true
-    },
-    {
-      // The terminal path: the data service plus the worker that talks to it.
-      // Two processes, so the debug toolbar gets a process picker and you can
-      // stop inside the worker and inside the MCP tool it calls.
-      "name": "Terminal (MCP + CLI)",
-      "configurations": ["MCP server", "CLI worker"],
+      // The UI is at http://127.0.0.1:5178 and opens by itself.
+      "name": "Site complet (MCP + harness + UI)",
+      "configurations": ["2. MCP server", "3. Harness (FastAPI)", "4. Blazor UI"],
       "stopAll": true
     }
   ]

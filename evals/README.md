@@ -5,7 +5,7 @@ evals. Each one carries the conversation and the correct behaviour side by side 
 the plain-language `expected` field is the real specification, and the matcher is
 only what can be automated of it.
 
-The runner uses the real worker, the real skills in E2B and the real MCP server:
+The runner uses the real worker, the real skill tools and the real MCP server:
 
 ```bash
 uv run content-studio-server

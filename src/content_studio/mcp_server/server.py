@@ -723,8 +723,8 @@ async def update_profile(section: str, new_text: str, ctx: Context) -> dict:
 # ---- D1b internal UI operations ---------------------------------------------
 #
 # These functions are MCP tools so the harness still crosses the same typed data
-# boundary as the agent. `MODEL_VISIBLE_TOOLS` filters them out of every
-# `SandboxAgent`; only the harness calls them programmatically.
+# boundary as the agent. `MODEL_VISIBLE_TOOLS` filters them out of the agent's
+# view entirely; only the harness calls them programmatically.
 
 
 @server.tool()

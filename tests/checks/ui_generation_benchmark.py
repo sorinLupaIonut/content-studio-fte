@@ -1,7 +1,7 @@
 """Paid D1b probe: one title run, then ten details at explicit concurrency levels.
 
-This uses the real configured model, full live profile, content-data MCP, E2B
-sandbox and folder skills. It does not persist drafts or posts.
+This uses the real configured model, full live profile, content-data MCP and the
+skill tools. It does not persist drafts or posts.
 
     uv run python tests/checks/ui_generation_benchmark.py --concurrency 5
 """
@@ -19,7 +19,7 @@ from typing import Any
 
 from agents import ModelSettings, Runner
 from agents.mcp import MCPServerStreamableHttp
-from agents.run_config import RunConfig, SandboxRunConfig
+from agents.run_config import RunConfig
 
 from content_studio import enable_utf8_output
 from content_studio.config import (
@@ -28,9 +28,16 @@ from content_studio.config import (
     MCP_TIMEOUT,
     MCP_URL,
 )
-from content_studio.harness.generation import IdeaDetails, IdeaTitle, IdeaTitles
+from content_studio.harness.generation import (
+    GenerationBatchRequest,
+    IdeaDetails,
+    IdeaTitle,
+    IdeaTitles,
+    detail_prompt,
+    title_prompt,
+)
 from content_studio.mcp_server.protocol import CONVERSATION_HEADER, MODEL_VISIBLE_TOOLS
-from content_studio.worker import build_sandbox, build_worker, read_profile
+from content_studio.worker import build_worker, read_profile
 
 enable_utf8_output()
 
@@ -82,50 +89,31 @@ def safe_failure(exc: Exception) -> str:
     if "Invalid JSON" in message:
         return f"{name}: invalid structured JSON"
     if "Max turns" in message:
-        return f"{name}: sandbox skill did not finish within the turn limit"
-    if "exec_command" in message:
-        return f"{name}: sandbox skill command failed"
+        return f"{name}: the skill did not finish within the turn limit"
     return f"{name}: generation failed"
 
 
-def title_prompt() -> str:
-    return f"""MOD UI STRUCTURAT D1B — TITLURI
-Activează skill-ul `propune-postari` și urmează ramura lui pentru UI.
-
-Format: {FORMAT}
-Pilon: {PILLAR}
-Sursă: {SOURCE}
-Focus: {FOCUS}
-Material-sursă: {SOURCE_PACKET}
-
-Răspunde numai prin contractul structurat cerut de aplicație.
-"""
+#: The benchmark used to carry its OWN copies of the two prompts, and they had
+#: drifted: they still said "Activează skill-ul", the wording measured on
+#: 2026-08-24 to leave the title phase never calling its tool at all. A benchmark
+#: that measures a prompt nobody sends measures nothing, so it now asks the
+#: harness for the same strings production sends.
+REQUEST = GenerationBatchRequest(
+    format=FORMAT, pillar=PILLAR, source=SOURCE, focus=FOCUS
+)
+PACKET = {"source": SOURCE, "note": SOURCE_PACKET}
 
 
-def detail_prompt(idea: IdeaTitle) -> str:
-    idea_json = json.dumps(idea.model_dump(), ensure_ascii=False)
-    return f"""MOD UI STRUCTURAT D1B — DETALII
-Activează skill-ul `dezvolta-postarea` și urmează ramura lui pentru UI.
-
-Ideea existentă: {idea_json}
-Format: {FORMAT}
-Pilon: {PILLAR}
-Sursă: {SOURCE}
-Focus: {FOCUS}
-Material-sursă: {SOURCE_PACKET}
-
-Dezvoltă exact ideea primită. Răspunde numai prin contractul structurat cerut de
-aplicație; `idea_ordinal` și `title` rămân identice cu ideea existentă.
-"""
+def titles_prompt() -> str:
+    return title_prompt(REQUEST, PACKET)
 
 
-async def run_on_sandbox(
-    agent, prompt: str, output_type: type[Any], label: str, client, sandbox
-):
-    config = RunConfig(
-        sandbox=SandboxRunConfig(client=client, session=sandbox),
-        group_id=f"d1b-benchmark-{label}-{uuid.uuid4().hex[:8]}",
-    )
+def details_prompt(idea: IdeaTitle) -> str:
+    return detail_prompt(REQUEST, idea, PACKET)
+
+
+async def run_agent(agent, prompt: str, output_type: type[Any], label: str):
+    config = RunConfig(group_id=f"d1b-benchmark-{label}-{uuid.uuid4().hex[:8]}")
     result = await asyncio.wait_for(
         Runner.run(agent, prompt, run_config=config, max_turns=6),
         timeout=RUN_TIMEOUT_SECONDS,
@@ -136,27 +124,18 @@ async def run_on_sandbox(
 
 
 async def run_isolated(agent, prompt: str, output_type: type[Any], label: str):
-    client, options = build_sandbox()
-    sandbox = await client.create(options=options)
-    try:
-        return await run_on_sandbox(
-            agent, prompt, output_type, label, client, sandbox
-        )
-    finally:
-        await sandbox.aclose()
+    return await run_agent(agent, prompt, output_type, label)
 
 
-async def run_detail(agent, idea: IdeaTitle, client, sandbox) -> DetailResult:
+async def run_detail(agent, idea: IdeaTitle) -> DetailResult:
     started = time.perf_counter()
     for attempt in (1, 2):
         try:
-            value = await run_on_sandbox(
+            value = await run_agent(
                 agent,
-                detail_prompt(idea),
+                details_prompt(idea),
                 IdeaDetails,
                 f"idea-{idea.ordinal}-attempt-{attempt}",
-                client,
-                sandbox,
             )
             if value.idea_ordinal != idea.ordinal or value.title != idea.title:
                 raise ValueError("the detail output changed the existing idea identity")
@@ -178,17 +157,9 @@ async def run_detail(agent, idea: IdeaTitle, client, sandbox) -> DetailResult:
 
 
 async def create_pool_slot(agent):
-    client, options = build_sandbox()
-    sandbox = await client.create(options=options)
-    # SandboxAgent instances hold per-run state and the SDK deliberately rejects
-    # concurrent reuse. A clone is the same agent definition and skills, not a
-    # second role or a delegated agent.
-    return agent.clone(), client, sandbox
-
-
-async def close_pool_slot(slot) -> None:
-    _, _, sandbox = slot
-    await sandbox.aclose()
+    # An Agent holds per-run state and the SDK deliberately rejects concurrent
+    # reuse. A clone is the same definition and the same tools, not a second role.
+    return agent.clone()
 
 
 async def detail_probe(agent, ideas: list[IdeaTitle], concurrency: int) -> dict[str, Any]:
@@ -200,11 +171,8 @@ async def detail_probe(agent, ideas: list[IdeaTitle], concurrency: int) -> dict[
     slots = [item for item in created if not isinstance(item, BaseException)]
     failures = [item for item in created if isinstance(item, BaseException)]
     if failures:
-        await asyncio.gather(
-            *(close_pool_slot(slot) for slot in slots), return_exceptions=True
-        )
         raise RuntimeError(
-            f"only {len(slots)}/{concurrency} E2B pool slots were created"
+            f"only {len(slots)}/{concurrency} pool slots were created"
         ) from failures[0]
     queue: asyncio.Queue[IdeaTitle] = asyncio.Queue()
     for idea in ideas:
@@ -212,21 +180,15 @@ async def detail_probe(agent, ideas: list[IdeaTitle], concurrency: int) -> dict[
 
     results: list[DetailResult] = []
 
-    async def consume(slot) -> None:
-        slot_agent, client, sandbox = slot
+    async def consume(slot_agent) -> None:
         while not queue.empty():
             try:
                 idea = queue.get_nowait()
             except asyncio.QueueEmpty:
                 return
-            results.append(await run_detail(slot_agent, idea, client, sandbox))
+            results.append(await run_detail(slot_agent, idea))
 
-    try:
-        await asyncio.gather(*(consume(slot) for slot in slots))
-    finally:
-        await asyncio.gather(
-            *(close_pool_slot(slot) for slot in slots), return_exceptions=True
-        )
+    await asyncio.gather(*(consume(slot) for slot in slots))
 
     results.sort(key=lambda item: item.ordinal)
     wall_seconds = time.perf_counter() - started
@@ -291,7 +253,7 @@ async def main() -> int:
         print("Generating the ten titles once...")
         started = time.perf_counter()
         titles = await run_isolated(
-            title_agent, title_prompt(), IdeaTitles, "titles"
+            title_agent, titles_prompt(), IdeaTitles, "titles"
         )
         title_seconds = time.perf_counter() - started
         print(f"Titles ready: 10/10 in {title_seconds:.2f}s")

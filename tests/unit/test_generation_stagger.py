@@ -62,7 +62,7 @@ class StaggerTests(unittest.TestCase):
         release = asyncio.Event()
         leader_done = asyncio.Event()
 
-        async def fake_detail(_b, _r, _s, idea, _a, _c, _sb, _d, _l, hooks=None):
+        async def fake_detail(_b, _r, _s, idea, _a, _d, _l, hooks=None):
             started.append(idea.ordinal)
             if hooks is None:
                 return
@@ -74,7 +74,7 @@ class StaggerTests(unittest.TestCase):
             leader_done.set()
 
         async def fake_slot(agent):
-            return agent.clone(), object(), _Sandbox()
+            return agent.clone()
 
         async def drive() -> list[int]:
             task = asyncio.create_task(
@@ -112,11 +112,6 @@ class StaggerTests(unittest.TestCase):
         # `finally`, so a leader that dies on its first idea does not take the
         # batch with it.
         self.assertGreater(len(self._run(warms=False, raises=True)), 1)
-
-
-class _Sandbox:
-    async def aclose(self) -> None:
-        return None
 
 
 if __name__ == "__main__":

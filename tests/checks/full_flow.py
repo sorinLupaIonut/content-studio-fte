@@ -1,4 +1,4 @@
-"""End-to-end check: skills in the sandbox, data over MCP, the gate and the trail.
+"""End-to-end check: skills as tools, data over MCP, the gate and the trail.
 
 Needs the server running:  uv run content-studio-server
 
@@ -41,7 +41,7 @@ import sys
 import time
 
 from agents.mcp import MCPServerStreamableHttp
-from agents.run_config import RunConfig, SandboxRunConfig
+from agents.run_config import RunConfig
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
@@ -59,7 +59,6 @@ from content_studio.config import MCP_TIMEOUT, MCP_URL, database_url
 from content_studio.mcp_server.protocol import CONVERSATION_HEADER, MODEL_VISIBLE_TOOLS
 from content_studio.worker import (
     GATED_TOOLS,
-    build_sandbox,
     build_worker,
     open_session,
     read_profile,
@@ -253,16 +252,12 @@ async def main() -> int:
 
     worker = build_worker(profile_md, data_mcp)
     trail = Audit(url, connect_args)
-    client, sandbox_options = build_sandbox()
     gatekeeper = Gatekeeper()
 
-    started = time.monotonic()
-    sandbox = await client.create(options=sandbox_options)
-    print(f"Sandbox started in {time.monotonic() - started:.0f}s")
     print(f"Profile: {len(profile_md):,} characters · {len(book_titles)} books")
     print(f"Session: {session_id}\n")
 
-    config = RunConfig(sandbox=SandboxRunConfig(client=client, session=sandbox))
+    config = RunConfig()
     history: list = []
     answers: list[str] = []
     called: list[str] = []
@@ -298,7 +293,6 @@ async def main() -> int:
             print(f"worker> {answer}\n")
             print("-" * 72)
     finally:
-        await sandbox.aclose()
         await data_mcp.cleanup()
         await trail.close()
 

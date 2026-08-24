@@ -1,4 +1,4 @@
-"""Content Worker — one agent in a sandbox, skills on disk, data over MCP.
+"""Content Worker — one agent, skills as tools, data over MCP.
 
 **A single agent**, which loads its instructions from `SKILL.md` folders.
 
@@ -16,15 +16,14 @@ What it costs, and you should know it:
     so it can come back with nine. It is counted afterwards, in
     `tests/checks/full_flow.py`, and judged in the evals (Decision 10).
 
-What is NOT mounted into the sandbox: anything from this project except `skills/`.
-`.env` holds the Neon password and the agent has a shell — so it has no business
-being in there.
-
-The sandbox is E2B: needs `E2B_API_KEY` in `.env`, free Hobby tier.
+The agent has no shell and no filesystem. Each skill folder is a `FunctionTool`
+named and described by its own frontmatter, and each `references/` file is fetched
+by name through one more tool — see `skill_tools` and `reference_tool`. Nothing
+from this project is reachable except what those two return, which is why `.env`
+being next to `skills/` is not a problem any more.
 
 Data is reached only through the `content-data` MCP server (rule 1), which runs
-separately. The sandbox has nothing to do with it: MCP tools are called from this
-process, not from inside the sandbox.
+separately.
 
 Everything this file prints is Romanian, and so is the system prompt below: the
 person on the other side of the terminal is the client, and she works in Romanian.
@@ -37,49 +36,30 @@ Run it, in two terminals:
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 import re
-import sys
 import uuid
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from agents import Agent, FunctionTool, ModelSettings, Runner
-from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
-from agents.extensions.sandbox.e2b import E2BSandboxClient, E2BSandboxClientOptions
 from agents.mcp import MCPServerStreamableHttp
-from agents.run_config import RunConfig, SandboxRunConfig
-from agents.sandbox import SandboxAgent
-from agents.sandbox.capabilities import Capabilities
-from agents.sandbox.capabilities.skills import Skills
-from agents.sandbox.entries import LocalDir
-from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
 from content_studio.audit import (
     APPROVAL_GRANTED,
     APPROVAL_REJECTED,
     APPROVAL_REQUESTED,
-    Audit,
 )
 from content_studio.config import (
     CLIENT_SLUG,
-    MCP_TIMEOUT,
-    MCP_URL,
     MODEL,
     SKILLS_DIR,
-    USE_SANDBOX,
     MissingConfig,
-    database_url,
-    describe_database,
 )
 from content_studio.language import DEFAULT_LANGUAGE, Language, instruction_suffix
 from content_studio.mcp_server.protocol import (
-    CONVERSATION_HEADER,
-    MODEL_VISIBLE_TOOLS,
     profile_uri,
 )
 
@@ -167,43 +147,27 @@ ea sau descrierea formei postării — nu o propoziție declarativă care promit
 rezultat. Dacă un bloc nu trece verificarea, îl rescrii înainte să-l arăți.\
 """
 
-#: The two paragraphs that were the tail of BASE_INSTRUCTIONS until 2026-08-24.
-#: They are about HOW the method is reached, not about what comes out, and the
-#: two are now different depending on where the method lives. Split out rather
-#: than duplicated: the ten output rules stay in one place, and only this changes.
-#:
-#: Romanian and untranslated, like everything the model reads.
-SANDBOX_METHOD_NOTE = """
-Ai un sandbox cu shell și fișiere. Îl folosești ca să citești skill-urile, nu ca
-să inventezi unelte. La date ajungi NUMAI prin unelte — nu încerca să te conectezi
-la baza de date din sandbox.
-
-ACTIVAREA SKILL-URILOR ESTE OBLIGATORIE. La orice cerere de conținut nou, deschizi
-`propune-postari` ÎNAINTE de primul răspuns — inclusiv dacă ea a dat deja formatul,
-pilonul sau sursa. Când alege o propunere dintr-o listă existentă, deschizi
-`dezvolta-postarea` înainte s-o scrii. Nu improvizezi fluxul din memorie. O cerere
-de raport despre postările existente nu activează niciunul dintre aceste skill-uri.
-""".strip()
-
 #: The name the model calls. A constant because the note, the tool and every
 #: SKILL.md have to agree on it, and a typo in one of them is a tool the model
 #: asks for and never receives.
 REFERENCE_TOOL_NAME = "citeste-referinta"
 
 
-#: The same instruction for an agent with NO sandbox, where each skill is a tool.
-#: Telling a model it has a shell it does not have is worse than saying nothing:
-#: it spends a turn calling `exec_command` and gets an error back.
+#: How the method is reached. Telling a model it has a shell it does not have is
+#: worse than saying nothing: it spends a turn calling `exec_command` and gets an
+#: error back.
 #:
-#: Measured on 2026-08-23, this is why the alternative exists at all: of 148 KB of
-#: skills mounted into the sandbox, a generation run opened exactly one file -
+#: Measured on 2026-08-23, and the reason the shape changed: of 148 KB of skills
+#: mounted into an E2B sandbox, a generation run opened exactly one file -
 #: SKILL.md - and never touched `references/`. The sandbox charged 5,448 tokens of
 #: instructions and tool schemas, plus a turn of flailing at a directory, to hand
-#: over a file a single tool call can return.
+#: over a file a single tool call can return. It was removed on 2026-08-24.
 #:
-#: Progressive disclosure survives this, and gains a third step: the skill's own
+#: Progressive disclosure survived it, and gained a third step: the skill's own
 #: frontmatter description decides whether the body is ever paid for, and the
 #: body decides whether a `references/` file is - see `reference_tool`.
+#:
+#: Romanian and untranslated, like everything the model reads.
 def skill_tool_method_note(*, references: bool) -> str:
     """The method note for the tools shape, told the truth about what exists.
 
@@ -328,23 +292,18 @@ def build_worker(
     output_type: type[Any] | None = None,
     model_settings: ModelSettings | None = None,
     language: Language = DEFAULT_LANGUAGE,
-) -> SandboxAgent | Agent:
-    """The single agent. Skills from `skills/`, data through MCP, either way.
+) -> Agent:
+    """The single agent. Skills from `skills/`, data through MCP.
 
-    Two shapes, one flag — see `USE_SANDBOX` in `config.py`:
+    One `FunctionTool` per skill folder, described by the skill's own frontmatter,
+    plus one tool that returns a `references/` file by name. No shell, no
+    `apply_patch`, no `view_image`, and none of the SDK's 3,472-token coding-agent
+    prompt.
 
-    · **sandbox** — `Skills(from_=LocalDir(...))` mounts every folder and the model
-      reads `SKILL.md` with a shell. This is what rule 4 described.
-    · **tools** — one `FunctionTool` per skill, described by the skill's own
-      frontmatter. No shell, no `apply_patch`, no `view_image`, and none of the
-      SDK's 3,472-token coding-agent prompt.
-
-    What does NOT change between them: skills are folders on disk, discovered by
-    themselves, named and described by their own frontmatter, and the description
-    is what decides whether the body is ever loaded. That was the point of rule 4,
-    and it survives both shapes. What changes is only the delivery.
-
-    The MCP tools are untouched in both, and so is rule 1.
+    Skills are still folders on disk, discovered by themselves, named and described
+    by their own frontmatter, and the description is still what decides whether the
+    body is ever loaded. That was the point of rule 4, and the delivery changing
+    from a mounted folder to a tool did not cost it.
 
     `language` changes only what comes out, never the method: the skills stay
     Romanian and an override block is appended. See `content_studio.language`.
@@ -353,12 +312,8 @@ def build_worker(
     # are actually attached. These lines are the whole fix: one place decides
     # whether the reference tool exists, and the note is written from that answer
     # rather than from what happened to be true when it was last edited.
-    references = None if USE_SANDBOX else reference_tool()
-    method_note = (
-        SANDBOX_METHOD_NOTE
-        if USE_SANDBOX
-        else skill_tool_method_note(references=references is not None)
-    )
+    references = reference_tool()
+    method_note = skill_tool_method_note(references=references is not None)
     # Identity, then the method, then the data, then the contract. Each part
     # written from what is actually attached rather than from what was true
     # when the string was last edited.
@@ -377,15 +332,10 @@ def build_worker(
         "output_type": output_type,
         "model_settings": model_settings or ModelSettings(),
     }
-    if not USE_SANDBOX:
-        tools = skill_tools()
-        if references is not None:
-            tools.append(references)
-        return Agent(tools=tools, **common)
-    return SandboxAgent(
-        capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS_DIR))],
-        **common,
-    )
+    tools = skill_tools()
+    if references is not None:
+        tools.append(references)
+    return Agent(tools=tools, **common)
 
 
 #: `name` and `description` out of a SKILL.md frontmatter. Deliberately not a
@@ -555,41 +505,6 @@ def reference_tool() -> FunctionTool | None:
     )
 
 
-def build_sandbox() -> tuple[E2BSandboxClient, E2BSandboxClientOptions]:
-    """The E2B client and its options. The key is read from `E2B_API_KEY`."""
-    return E2BSandboxClient(), E2BSandboxClientOptions(sandbox_type="e2b")
-
-
-async def open_sandbox():
-    """`(client, session)` when the sandbox is on, `(None, None)` when it is not.
-
-    One place decides, so no caller has to branch on the flag before it can start
-    a run - and no caller can forget to.
-    """
-    if not USE_SANDBOX:
-        return None, None
-    client, options = build_sandbox()
-    return client, await client.create(options=options)
-
-
-def sandbox_run_kwargs(client=None, session=None, options=None) -> dict[str, Any]:
-    """The `sandbox=` argument for `RunConfig`, or nothing at all.
-
-    Absent rather than None: passing an empty `SandboxRunConfig` would ask the SDK
-    to prepare a sandbox for an agent that has no capabilities to use it.
-    """
-    if not USE_SANDBOX:
-        return {}
-    if client is None:
-        client, options = build_sandbox()
-    return {
-        "sandbox": SandboxRunConfig(
-            client=client,
-            **({"session": session} if session is not None else {"options": options}),
-        )
-    }
-
-
 def describe_request(request) -> tuple[str, dict, str]:
     """(name, arguments, call id) out of an approval request."""
     raw = getattr(request, "raw_item", None)
@@ -638,181 +553,3 @@ async def run_turn(worker, message, session, config, trail, run_id, approve):
 
     return result
 
-
-async def ask_in_terminal(name: str, arguments: dict) -> tuple[bool, str]:
-    """The gate, as the client sees it: what is about to be written, and a yes/no."""
-    print(f"\n  ⚠ Vrea să cheme `{name}`:")
-    for key, value in arguments.items():
-        text = " ".join(str(value).split())
-        print(f"      {key:<12} {text[:80]}{'…' if len(text) > 80 else ''}")
-
-    answer = input("  Îi dai voie? (da / nu) ").strip().lower()
-    if answer in {"da", "d", "yes", "y"}:
-        return True, ""
-    return False, "Viorela n-a aprobat scrierea. Nu insista; întreab-o ce vrea schimbat."
-
-
-async def main() -> int:
-    for key in ("OPENAI_API_KEY", "E2B_API_KEY"):
-        if not os.getenv(key):
-            print(f"Lipsește {key}. Copiază .env.example în .env.", file=sys.stderr)
-            return 1
-
-    if not SKILLS_DIR.is_dir():
-        print(f"Lipsește folderul de skill-uri: {SKILLS_DIR}", file=sys.stderr)
-        return 1
-
-    try:
-        url, connect_args = database_url()
-    except (MissingConfig, RuntimeError) as e:
-        print(f"{e}", file=sys.stderr)
-        return 1
-
-    # `--nou` still works: it is what the Romanian version answered to, and muscle
-    # memory outlives a rename.
-    new = bool({"--new", "--nou"} & set(sys.argv))
-    # `pool_pre_ping`: a conversation sits idle for minutes between messages, and
-    # Neon closes idle connections. Without the ping, the conversation memory dies
-    # on resume.
-    engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
-
-    try:
-        session_id = await open_session(engine, new)
-    except Exception as e:  # noqa: BLE001
-        print(f"{type(e).__name__}: {e}", file=sys.stderr)
-        await engine.dispose()
-        return 1
-
-    data_mcp = MCPServerStreamableHttp(
-        params={
-            "url": MCP_URL,
-            "headers": {CONVERSATION_HEADER: session_id},
-        },
-        name="content-data",
-        cache_tools_list=True,
-        tool_filter={"allowed_tool_names": sorted(MODEL_VISIBLE_TOOLS)},
-        client_session_timeout_seconds=MCP_TIMEOUT,
-        # The approval gate sits on the server REGISTRATION, not inside the tool
-        # (Decision 9). That way it protects every call the agent makes through
-        # this registration, whatever the prompt says. Reads stay free.
-        require_approval={"always": {"tool_names": list(GATED_TOOLS)}},
-    )
-    try:
-        await data_mcp.connect()
-        tools = [t.name for t in await data_mcp.list_tools()]
-        name, profile_md = await read_profile(data_mcp)
-    except Exception as e:  # noqa: BLE001
-        print(
-            f"Nu pot inițializa datele prin MCP la {MCP_URL} ({type(e).__name__}: {e}).",
-            file=sys.stderr,
-        )
-        print("Pornește serverul în alt terminal:", file=sys.stderr)
-        print("  uv run content-studio-server", file=sys.stderr)
-        await data_mcp.cleanup()
-        await engine.dispose()
-        return 1
-
-    worker = build_worker(profile_md, data_mcp)
-
-    # A separate engine from the business one: rule 2 wants the trail to have its
-    # own connection, outside any transaction that might fail.
-    trail = Audit(url, connect_args)
-
-    shape = "sandbox" if USE_SANDBOX else "skill-uri ca unelte"
-    print(f"Content Worker · {MODEL} · Deciziile 0–10 · {shape} + MCP + audit + poartă")
-    print(f"Bază     : {describe_database(url)}")
-    print(f"Clientă  : {name} · profil {len(profile_md):,} caractere în system prompt")
-    print(f"Sesiune  : {session_id}{'  (nouă)' if new else '  (reluată)'}")
-    print(f"Unelte   : {', '.join(tools)}")
-    # The sandbox, when there is one, is created ONCE and reused for every turn.
-    # Otherwise a new one would start on every message, skill mounting included —
-    # seconds lost for nothing.
-    #
-    # It is created empty, without a manifest: given a live session, the SDK
-    # applies the entries its capabilities ask for, so the skills mount on the
-    # first run. Since the session is developer-owned, its full lifecycle ends
-    # through `aclose()`; E2BSandboxClient.delete() is intentionally a no-op.
-    client = sandbox_session = None
-    if USE_SANDBOX:
-        print("Sandbox  : pornesc E2B…", end="", flush=True)
-        try:
-            client, sandbox_session = await open_sandbox()
-        except Exception as e:  # noqa: BLE001
-            print(" a picat.")
-            print(f"{type(e).__name__}: {e}", file=sys.stderr)
-            await data_mcp.cleanup()
-            await engine.dispose()
-            return 1
-        print(" gata.")
-
-    config = RunConfig(
-        # Every message stays its own trace, but all traces of one conversation can
-        # be filtered and seen together in the OpenAI dashboard.
-        group_id=session_id,
-        **sandbox_run_kwargs(client, sandbox_session),
-    )
-
-    session = SQLAlchemySession(
-        session_id,
-        engine=engine,
-        create_tables=True,
-        ensure_ascii=False,
-    )
-
-    print("Scrie un mesaj, sau „iesire” ca să termini.\n")
-
-    try:
-        while True:
-            try:
-                message = input("tu> ").strip()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                break
-
-            if not message:
-                continue
-            if message.lower() in {"iesire", "ieșire", "exit", "quit"}:
-                break
-
-            # The run row opens BEFORE the model is called: if the turn dies, you
-            # can see that it existed. Since D4 that is also what makes a dead
-            # turn visible without counting — `output_message` simply stays NULL.
-            run_id = await trail.open_run(session_id, message)
-
-            print("\n  …lucrez\r", end="", flush=True)
-            try:
-                result = await run_turn(
-                    worker, message, session, config, trail, run_id,
-                    ask_in_terminal,
-                )
-            except Exception as e:  # noqa: BLE001
-                await trail.failed(run_id, e)
-                print(f"\nworker> Ceva n-a mers ({type(e).__name__}). Mai încercăm?\n")
-                continue
-
-            await trail.turn(run_id, result)
-            await trail.close_run(run_id, str(result.final_output))
-
-            print(f"\nworker> {result.final_output}\n")
-    finally:
-        try:
-            if sandbox_session is not None:
-                await sandbox_session.aclose()
-        except Exception:  # noqa: BLE001
-            pass
-        await data_mcp.cleanup()
-        await trail.close()
-        await engine.dispose()
-
-    print(f"Conversația a rămas în bază: session_id = {session_id}")
-    print(f"Ce a făcut, rejucat:  uv run python -m content_studio.replay {session_id}")
-    return 0
-
-
-def cli() -> int:
-    """Console script entry point: `uv run content-studio`."""
-    return asyncio.run(main())
-
-
-if __name__ == "__main__":
-    raise SystemExit(cli())

@@ -306,13 +306,17 @@ def encode_sse(event: StreamEvent) -> str:
 #: called `propune-postari` at all. It reached for `list_posts` and `search_books`
 #: instead, got `[]` from both, and wrote ten titles without ever reading the
 #: method. Saying "activează skill-ul" is not the same as naming a tool.
+#:
+#: A sentence naming those two tools as "material, not method" was added at the
+#: same time and removed on 2026-08-24: it patched the symptom of a note that did
+#: not name its tool, and that note now does. If the title phase starts skipping
+#: its tool again, this is the first place to look - but put it back only if a
+#: measured batch shows it, not pre-emptively.
 def use_skill_note(skill: str) -> str:
     """Tell the model to call the tool, before anything else."""
 
     return f"""Metoda ta este unealta `{skill}`. Cheam-o ÎNAINTE de orice
-altceva, citește ce întoarce și urmează ramura ei pentru UI. Nu scrii nimic
-înainte s-o fi chemat, și nu o înlocuiești cu alte unelte: `list_posts` și
-`search_books` aduc material, nu metodă."""
+altceva, citește ce întoarce și urmeaz-o. Nu scrii nimic înainte s-o fi chemat."""
 
 
 def title_prompt(
@@ -323,8 +327,11 @@ def title_prompt(
     """The bounded title-only branch of the existing proposal skill."""
 
     packet = json.dumps(source_packet, ensure_ascii=False)
-    return f"""MOD UI STRUCTURAT D1B — TITLURI
-{use_skill_note("propune-postari")}
+    return f"""{use_skill_note("propune-postari")}
+
+Formatul, pilonul și sursa sunt deja alese de ea — nu le pui la îndoială, nu ceri
+confirmare și nu întrebi nimic. Scrii numai din materialul-sursă de mai jos și din
+profil.
 
 Format: {request.format}
 Pilon: {request.pillar}
@@ -371,8 +378,11 @@ def detail_prompt(
 
     idea_json = json.dumps(idea.model_dump(), ensure_ascii=False)
     packet = json.dumps(source_packet, ensure_ascii=False)
-    return f"""MOD UI STRUCTURAT D1B — DETALII
-{use_skill_note("dezvolta-postarea")}
+    return f"""{use_skill_note("dezvolta-postarea")}
+
+Ideea ţi se dă mai jos, întreagă — nu o cauți în conversație și nu alegi alta.
+Cele cinci variante pornesc din același unghi, dar hook-ul și construcția
+fiecăreia sunt realmente diferite, nu aceeași propoziție reformulată.
 
 Ideea existentă: {idea_json}
 Format: {request.format}
