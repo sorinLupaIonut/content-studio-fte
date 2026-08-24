@@ -66,6 +66,19 @@ Six rules a new session must respect without asking again.
    rewritten — in the skill body *and inside the inlined references*, because
    `surse.md` sends the model at `carti.md`. `tests/unit/test_method.py` walks
    every format/source shape and holds it.
+5. **What a `SKILL.md` cannot enforce, a schema can — and the schema is where
+   it goes.** Rule 5 below accepts that a skill body cannot demand "exactly ten
+   proposals, really different from each other". Measured on 2026-08-24 with
+   that sentence 3,800 tokens above the schema: batch `a16a3f94` proposed
+   delegation twice and boundaries twice, closest title pair 0.629. Ten
+   archetypes for ten slots — `ANGLE_TYPES`, written before the title, one
+   each — took the closest pair to 0.475. Proven the same day, three ways:
+   OpenAI enforces `enum`, `pattern` and `minLength` **while the model writes**,
+   not afterwards, so a structural rule costs no retry. The corollary is a
+   discipline, not a licence: a rule that belongs to the method still lives in
+   the skill; only what has a field to sit next to moves into a contract, and
+   the glossary rides on that field's `description`.
+
 5. **One agent.** The two phases are skills, not separate agents. The cost, accepted
    with open eyes: a `SKILL.md` is text, not a schema. It cannot enforce "exactly ten
    proposals with exactly five hooks" — that is asked for, counted afterwards, and
@@ -255,6 +268,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Model prices | `pricing.py` | one table; a copy drifts silently |
 | Which model wrote a batch | `generation_batches.model` | chosen in the UI, both phases |
 | What gets preloaded, and when | `method.py` | the tables, not the call site |
+| That the ten proposals differ | `generation.py` → `ANGLE_TYPES` | ten archetypes, ten slots |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
 | Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |

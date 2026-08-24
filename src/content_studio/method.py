@@ -53,6 +53,15 @@ ALWAYS: dict[str, tuple[str, ...]] = {
     "dezvolta-postarea": (
         "dezvolta-postarea/piloni-si-cont.md",
         "propune-postari/surse.md",
+        # Sorin's call, 2026-08-24, with the objection on the record: the file
+        # is the Brand Legends manual, and four of its ten worked reels are
+        # talking-head scripts ("Vorbeste:", "VIDEO CU TINE", "REEL TALKING")
+        # while her reels are mute and the Reel contract has no `script` field.
+        # It goes in whole anyway. Two things keep the contradiction survivable:
+        # `SILENT_REEL_BRIEF` is in the user message, so the mute rule is the
+        # LAST thing read before writing, and the four carousels here are the
+        # only worked method Carusel has anywhere in the project.
+        "dezvolta-postarea/idei.md",
     ),
 }
 

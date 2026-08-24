@@ -30,6 +30,65 @@ HOOK_TYPES: tuple[str, ...] = (
     "CONTRAST",
 )
 
+#: Ten ways one theme can be approached, one per proposal.
+#:
+#: TEN, NOT NINE AND NOT TWELVE. The count is the mechanism: ten archetypes for
+#: ten slots makes the set a permutation, so "different from each other" stops
+#: being a request and becomes arithmetic. Add an eleventh and two proposals can
+#: share; remove one and the contract cannot be satisfied.
+#:
+#: None of them collides with a `HookType`. PROVOCARE, CIFRA, SECRET, INTREBARE
+#: and CONTRAST are how a hook opens in Faza 2; these are what the post is
+#: about. Two vocabularies that overlapped by a word would be two vocabularies
+#: the model conflates.
+#:
+#: Romanian and uppercase, like the hook types, because these are domain values
+#: - the same rule that keeps `Pilon` and `Sursă` untranslated.
+ANGLE_TYPES: tuple[str, ...] = (
+    "DURERE",
+    "MIT",
+    "METODA",
+    "POVESTE",
+    "GRESEALA",
+    "INAINTE_DUPA",
+    "CULISE",
+    "DOVADA",
+    "OBIECTIE",
+    "RITUAL",
+)
+
+AngleType = Literal[
+    "DURERE",
+    "MIT",
+    "METODA",
+    "POVESTE",
+    "GRESEALA",
+    "INAINTE_DUPA",
+    "CULISE",
+    "DOVADA",
+    "OBIECTIE",
+    "RITUAL",
+]
+
+#: The glossary rides on the field, not in the prompt. A description attached to
+#: the property is read where the value is written; the same sentence 3,800
+#: tokens higher up is the arrangement that produced two delegation ideas in one
+#: batch of ten.
+ANGLE_TYPE_BRIEF = (
+    "Tiparul acestei propuneri. Fiecare dintre cele zece îl folosește pe al său, "
+    "o singură dată — sunt exact zece tipare pentru zece propuneri. "
+    "DURERE: numești durerea și o recunoști, fără soluție încă. "
+    "MIT: răstorni o credință în care ea crede de mult. "
+    "METODA: pașii concreți, în ordine. "
+    "POVESTE: experiența ta, la persoana întâi. "
+    "GRESEALA: ce face ea fără să-și dea seama că o costă. "
+    "INAINTE_DUPA: cele două stări, una lângă alta. "
+    "CULISE: cum se lucrează de fapt, ce nu se vede. "
+    "DOVADA: rezultatul unui om real. "
+    "OBIECTIE: răspunsul la «da, dar…». "
+    "RITUAL: un gest mic, repetabil, de făcut azi."
+)
+
 StreamEventType = Literal[
     "text.delta",
     "status",
@@ -52,9 +111,91 @@ class StrictContract(BaseModel):
 
 
 class IdeaTitle(StrictContract):
+    """One proposal as it is stored and as Faza 2 reads it back.
+
+    No `angle_type`: the archetype is a forcing function for the moment the ten
+    are written, not a property of the idea afterwards. See `ProposedIdeas`.
+    """
+
     ordinal: int = Field(ge=1, le=10)
     title: str = Field(min_length=3, max_length=160)
     angle: str = Field(min_length=3, max_length=600)
+
+
+class ProposedIdea(StrictContract):
+    """One proposal as the model writes it, archetype first.
+
+    Field order is writing order, and `angle_type` comes before the title on
+    purpose: the model commits to an angle it has not used yet, then writes into
+    it. Reversed, it writes whatever came to mind and labels it afterwards -
+    which is exactly the behaviour this contract exists to stop.
+    """
+
+    ordinal: int = Field(ge=1, le=10)
+    angle_type: AngleType = Field(description=ANGLE_TYPE_BRIEF)
+    title: str = Field(min_length=3, max_length=160)
+    # The glossary above is written as "DURERE: numesti durerea", and the first
+    # run with it came back with every angle shaped "Durerea: ... Promisiunea:
+    # ...". The model copied the glossary's punctuation into the field she
+    # actually reads. This description is the answer to that, and it is here
+    # rather than in the prompt for the same reason the glossary is.
+    angle: str = Field(
+        min_length=3,
+        max_length=600,
+        description=(
+            "Unghiul, în una-două fraze curgătoare: ce durere atinge și ce "
+            "promite. PROZĂ, NU ETICHETE: niciun «Durerea:», niciun "
+            "«promisiunea:», niciun două-puncte care anunță ce urmează, și "
+            "nu numi tiparul ales. Se citește ca o frază spusă cuiva."
+        ),
+    )
+
+
+class ProposedIdeas(StrictContract):
+    """The ten, each on a different archetype.
+
+    WHY THE SCHEMA AND NOT THE SKILL. `propune-postari/SKILL.md` already says it
+    - "realmente diferite intre ele... nu aceeasi idee reformulata de zece ori"
+    - and calls it "singura parte grea a fazei, si singura pe care nicio schema
+    n-o poate verifica in locul tau". Measured on 2026-08-24, with that sentence
+    3,800 tokens above the schema: batch a16a3f94 proposed delegation twice (2
+    and 8) and boundaries twice (1 and 5). Pairwise embedding similarity 0.511
+    average, 0.620 for the closest pair.
+
+    Ten archetypes for ten slots makes the set a permutation: the model cannot
+    write delegation twice, because the second attempt has no unused archetype
+    left to file it under. The same lever that stopped hashtags containing
+    spaces - the constraint next to the field, not the rule far above it.
+    """
+
+    ideas: list[ProposedIdea] = Field(min_length=10, max_length=10)
+
+    @model_validator(mode="after")
+    def exact_order(self) -> ProposedIdeas:
+        if [idea.ordinal for idea in self.ideas] != list(range(1, 11)):
+            raise ValueError("ideas must be ordered exactly from 1 to 10")
+        return self
+
+    @model_validator(mode="after")
+    def one_idea_per_archetype(self) -> ProposedIdeas:
+        used = [idea.angle_type for idea in self.ideas]
+        if len(set(used)) != len(used):
+            repeated = sorted({value for value in used if used.count(value) > 1})
+            raise ValueError(
+                "each of the ten ideas uses a different angle_type; repeated: "
+                + ", ".join(repeated)
+            )
+        return self
+
+    def to_titles(self) -> IdeaTitles:
+        """Drop the archetype and hand over what the rest of the system stores."""
+
+        return IdeaTitles(
+            ideas=[
+                IdeaTitle(ordinal=idea.ordinal, title=idea.title, angle=idea.angle)
+                for idea in self.ideas
+            ]
+        )
 
 
 class IdeaTitles(StrictContract):
@@ -364,6 +505,11 @@ Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
+
+Cele zece propuneri stau în același focus, dar fiecare pornește din alt loc:
+contractul îți cere un `angle_type` diferit la fiecare, iar tiparul îl alegi
+înainte de titlu, nu după. Două propuneri care spun același lucru cu alte
+cuvinte sunt o propunere, nu două.
 
 Răspunde numai prin contractul structurat cerut de aplicație.
 {task_note(language)}"""

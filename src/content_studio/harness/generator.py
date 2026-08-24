@@ -30,6 +30,7 @@ from content_studio.harness.generation import (
     GenerationStartRequest,
     IdeaTitle,
     IdeaTitles,
+    ProposedIdeas,
     StreamEvent,
     detail_output_type,
     detail_prompt,
@@ -778,14 +779,18 @@ class GenerationCoordinator:
             title_agent = self._title_agent(
                 profile_md, data_mcp, request, language, batch_id
             )
-            titles = await self._run_isolated(
+            proposed = await self._run_isolated(
                 title_agent,
                 title_prompt(request, source_packet, language, preloaded=True),
-                IdeaTitles,
+                ProposedIdeas,
                 f"{batch_id}-titles",
                 str(batch_id),
             )
-            await drafts.put_titles(batch_id, titles)
+            # The archetype exists to make the ten different from each other
+            # while they are being written; nothing downstream needs it, so it
+            # is dropped here rather than carried through the store, the DTOs
+            # and the interface for no reader.
+            await drafts.put_titles(batch_id, proposed.to_titles())
             # AND THAT IS THE WHOLE BATCH. The ten details used to be written
             # here, eagerly, and they are the entire cost of a run: measured on
             # 2026-08-24, titles were $0.0037 of a $0.0770 batch and the ten
@@ -801,7 +806,7 @@ class GenerationCoordinator:
                 # rows of their own. One readable line, same as chat's reply.
                 with suppress(Exception):
                     await trail.close_run(
-                        run_id, "; ".join(idea.title for idea in titles.ideas)
+                        run_id, "; ".join(idea.title for idea in proposed.ideas)
                     )
         except asyncio.CancelledError:
             # A cancelled batch is not a fault, but leaving its run `running`
@@ -854,7 +859,11 @@ class GenerationCoordinator:
             "propune-postari",
             language,
             model=model,
-            output_type=IdeaTitles,
+            # THE AGENT'S output_type IS THE SCHEMA THE MODEL SEES.
+            # `_run_agent`'s own `output_type` argument only casts the result
+            # afterwards, so leaving `IdeaTitles` here would send a schema with
+            # no `angle_type` and then demand one back.
+            output_type=ProposedIdeas,
             method=method,
             model_settings=ModelSettings(
                 reasoning={"effort": "minimal"},

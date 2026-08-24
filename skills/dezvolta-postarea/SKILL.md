@@ -97,6 +97,22 @@ plus blocul de producție.
 N-are fișier de metodă, și nu ceri altul în locul lui. Structura e aici: slide 1
 = hook vizual, o idee per slide, ultimul = CTA. Script și bloc de producție, da.
 
+### Postările lucrate, ca exemplu
+
+```
+citeste-referinta("dezvolta-postarea/idei.md")
+```
+
+**O ceri când vrei un exemplu întreg, nu o regulă.** Sunt cincisprezece postări
+duse cap-coadă — hook, slide-uri, caption, CTA — plus o listă de tipare de idee.
+Patru dintre ele sunt caruseluri desfășurate slide cu slide, și sunt singurul loc
+din metodă unde caruselul e arătat, nu descris.
+
+**Reelurile de acolo sunt din alt cont.** Câteva sunt scrise pentru cineva care
+vorbește în cameră — „Vorbește:", „VIDEO CU TINE", „REEL TALKING". Ale ei sunt
+mute. Iei structura și felul în care se construiește tensiunea; nu iei scriptul
+vorbit, și nu propui unul.
+
 ### Referințele de producție — se cer, dar numai la cerere
 
 Astea **nu intră în scrierea postării**. Nu le ceri „ca să fii sigur", nu le ceri
