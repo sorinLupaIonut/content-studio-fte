@@ -190,6 +190,7 @@ def configure(app: Any) -> dict[str, Any]:
 
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
+        from opentelemetry import trace
         from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
@@ -222,6 +223,34 @@ def configure(app: Any) -> dict[str, Any]:
             "psycopg2": {"enabled": False},
         },
     )
+
+    # THE SAME STAMP PHOENIX GETS, ON THE PROVIDER APPLICATION INSIGHTS OWNS.
+    # `bind_run` sets the attribute on whatever span is current when the id is
+    # born, which is enough for chat: the id is minted inside the request, so
+    # the server span carries it and its children share the trace. The
+    # generation path is not that shape. `/api/generation-batches/.../details`
+    # answers 202 and the work happens in a task afterwards, so by the time
+    # `Audit.open_run` calls `bind_run` the server span has ended and setting an
+    # attribute on it is a no-op. Measured: on that path NOTHING reached
+    # Application Insights carrying `studio.run_id` - not the model call, not
+    # the queries - which is Surface 2's one requirement, missed on exactly the
+    # runs worth investigating. `on_start` reads the ContextVar per span, so
+    # every span opened after the id exists carries it.
+    #
+    # GUARDED, because a provider is not guaranteed to be one that accepts
+    # processors: until something installs an SDK provider the global one is a
+    # `ProxyTracerProvider`, which has no `add_span_processor`. Caught by
+    # `tests/unit/test_trace_processor.py`, which stubs the distro out - and the
+    # same shape would appear in production if `configure_azure_monitor` ever
+    # returned without installing one. Telemetry never gates a request, so a
+    # missing stamp is a log line, not an exception.
+    provider = trace.get_tracer_provider()
+    if hasattr(provider, "add_span_processor"):
+        provider.add_span_processor(_make_run_id_stamp())
+    else:  # pragma: no cover - only when the distro installed no SDK provider
+        log.warning(
+            "observability: no SDK tracer provider, spans will carry no run_id"
+        )
 
     # `/health` is polled by Container Apps every few seconds. Left in, it would
     # be most of the telemetry and none of the information.
