@@ -13,7 +13,7 @@ from contextlib import suppress
 from typing import Any
 from uuid import UUID
 
-from agents import ModelSettings, Runner
+from agents import ModelSettings, RunHooks, Runner
 from agents.mcp import MCPServerStreamableHttp
 from agents.run_config import RunConfig, SandboxRunConfig
 
@@ -51,6 +51,37 @@ RUN_TIMEOUT_SECONDS = 600
 #: `session.id` - checked on 2026-08-23, Sessions stayed at 0 - it is a
 #: correlation field, nothing more. Read by whoever is debugging, so English.
 GENERATION_WORKFLOW = "Generation batch"
+
+#: The prompt cache is MATCHED on the prefix but ROUTED on this key, and the
+#: routing was the actual leak. Measured on 2026-08-23: four detail calls fired
+#: 175ms apart, before any of them had returned. Two landed on a machine that
+#: still held the prefix from a batch thirty-one minutes earlier and read 64%
+#: and 97% of it; two landed cold and paid full price for ~18k tokens each. That
+#: is a lottery, not a cold start, and a stable key ends it.
+#:
+#: Stable ACROSS batches, deliberately. A key built from the batch id would send
+#: every batch to a fresh machine and throw away exactly the half-hour-old warmth
+#: the measurement found.
+#:
+#: One key per phase, because a cache entry belongs to one model's weights and
+#: the two phases run on different models - what nano writes, mini cannot read.
+#:
+#: THE KNOWN TENSION, so nobody has to rediscover it: the documented guidance is
+#: roughly fifteen requests per minute per key, and a batch does about forty
+#: three. Above that some requests may miss. One key is still the right first
+#: move - it is the only arrangement in which a cold batch pays for ONE miss
+#: rather than one per machine - and it is now measurable, because
+#: `usage_events.cached_input_tokens` records what actually happened. If the hit
+#: rate falls below the 94.8% measured here, partition: one key per slot index,
+#: still stable across batches.
+TITLE_CACHE_KEY = "content-studio-generation-titles"
+DETAIL_CACHE_KEY = "content-studio-generation-details"
+
+#: How long a slot waits for the leader to write the prefix before going anyway.
+#: Generous on purpose: the wait is an optimisation, and a batch that stalls
+#: because an optimisation did not fire is a far worse outcome than a batch that
+#: pays full price for four calls.
+WARMUP_TIMEOUT_SECONDS = 45
 SOURCE_TEXT_LIMIT = 2_000
 
 
@@ -177,6 +208,21 @@ def describe_batch(request: GenerationBatchRequest) -> str:
     if request.material_ids:
         parts.append(f"{len(request.material_ids)} materiale")
     return " — ".join(parts)
+
+
+class _PrefixWarmed(RunHooks):
+    """Sets an event the moment the first model response comes back.
+
+    The cached prefix exists from that instant - not from when the whole idea is
+    finished. Waiting for the finished idea would spend fifteen seconds of the
+    batch's ninety to save two seconds' worth of tokens.
+    """
+
+    def __init__(self, warmed: asyncio.Event) -> None:
+        self._warmed = warmed
+
+    async def on_llm_end(self, context, agent, response) -> None:  # noqa: ARG002
+        self._warmed.set()
 
 
 class GenerationCoordinator:
@@ -498,6 +544,7 @@ class GenerationCoordinator:
                     reasoning={"effort": "minimal"},
                     verbosity="low",
                     max_tokens=4_000,
+                    extra_args={"prompt_cache_key": TITLE_CACHE_KEY},
                 ),
             )
             titles = await self._run_isolated(
@@ -562,6 +609,7 @@ class GenerationCoordinator:
                 reasoning={"effort": "minimal"},
                 verbosity="low",
                 max_tokens=24_000,
+                extra_args={"prompt_cache_key": DETAIL_CACHE_KEY},
             ),
         )
         slot_count = min(GENERATION_CONCURRENCY, len(titles.ideas))
@@ -582,33 +630,58 @@ class GenerationCoordinator:
         for idea in titles.ideas:
             queue.put_nowait(idea)
 
-        async def consume(slot) -> None:
+        # Slot zero writes the cache prefix; the rest read it. Without this the
+        # five slots all ask "is the prefix cached?" inside the same 175ms,
+        # before any of them has written it, and four pay the fresh rate for
+        # ~18k tokens apiece - two thirds of the batch's entire fresh input,
+        # bought in a fifth of its calls.
+        warmed = asyncio.Event()
+
+        async def consume(slot, leader: bool) -> None:
             agent, client, sandbox = slot
+            first = True
             while True:
                 try:
                     idea = queue.get_nowait()
                 except asyncio.QueueEmpty:
                     return
+                if first and not leader:
+                    # Bounded, and it gives up rather than raising: the wait is
+                    # an optimisation, and a batch stalled by an optimisation is
+                    # a far worse outcome than four calls at full price.
+                    with suppress(TimeoutError):
+                        await asyncio.wait_for(warmed.wait(), WARMUP_TIMEOUT_SECONDS)
                 # Checked per idea, not only per batch: without this, an account
                 # at 95% would spend a whole batch of ten detail calls. Stopping
                 # here leaves the ideas already written, and the batch reports
                 # the rest as failed rather than pretending they succeeded.
                 if self._accounts is not None:
                     await self._accounts.require_budget()
-                await self._generate_one_detail(
-                    batch_id,
-                    request,
-                    source_packet,
-                    idea,
-                    agent,
-                    client,
-                    sandbox,
-                    drafts,
-                    language,
-                )
+                try:
+                    await self._generate_one_detail(
+                        batch_id,
+                        request,
+                        source_packet,
+                        idea,
+                        agent,
+                        client,
+                        sandbox,
+                        drafts,
+                        language,
+                        _PrefixWarmed(warmed) if leader and first else None,
+                    )
+                finally:
+                    if leader and first:
+                        # Set even when the leader's first idea FAILED. Four
+                        # slots are blocked on this event; a failure that leaves
+                        # it unset trades one lost idea for a stalled batch.
+                        warmed.set()
+                first = False
 
         try:
-            await asyncio.gather(*(consume(slot) for slot in slots))
+            await asyncio.gather(
+                *(consume(slot, index == 0) for index, slot in enumerate(slots))
+            )
         finally:
             await asyncio.gather(
                 *(slot[2].aclose() for slot in slots), return_exceptions=True
@@ -625,6 +698,7 @@ class GenerationCoordinator:
         sandbox,
         drafts: GenerationDraftClient,
         language: Language = DEFAULT_LANGUAGE,
+        hooks: RunHooks | None = None,
     ) -> None:
         for attempt in (1, 2):
             await drafts.start_idea(batch_id, idea.ordinal)
@@ -637,6 +711,7 @@ class GenerationCoordinator:
                     client,
                     sandbox,
                     str(batch_id),
+                    hooks,
                 )
                 if value.idea_ordinal != idea.ordinal or value.title != idea.title:
                     raise ValueError("detail output changed the persisted idea identity")
@@ -684,6 +759,7 @@ class GenerationCoordinator:
         client,
         sandbox,
         group: str,
+        hooks: RunHooks | None = None,
     ):
         result = await asyncio.wait_for(
             Runner.run(
@@ -695,6 +771,7 @@ class GenerationCoordinator:
                     group_id=group,
                 ),
                 max_turns=6,
+                hooks=hooks,
             ),
             timeout=RUN_TIMEOUT_SECONDS,
         )
