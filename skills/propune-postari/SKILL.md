@@ -1,89 +1,105 @@
 ---
 name: propune-postari
 description: >-
-  Faza 1 a producției de conținut — scoate zece propuneri de postare, fiecare cu
-  cinci hook-uri, după ce afli formatul, pilonul și sursa. Folosește-l când
-  Viorela cere conținut nou: „vreau un reel despre limite", „dă-mi conținut pe
-  Conexiune", „zece propuneri pe Educație", „ceva despre vinovăția de a spune
-  nu", „conținut pentru săptămâna asta". Îl folosești OBLIGATORIU și în MOD UI
-  STRUCTURAT D1B — TITLURI, unde cererea nu vine în cuvintele ei, ci ca formular:
-  format, pilon, sursă. Acolo e singura sursă a metodei; fără el scrii titluri
-  din memorie. NU-l folosi pentru editarea unei postări existente, pentru o
+  Faza 1 a producției de conținut — scoate zece propuneri de postare, unghiuri
+  diferite pe aceeași temă, din care Viorela alege una singură. Îl folosești
+  OBLIGATORIU ori de câte ori se cere conținut nou, în oricare din cele două
+  forme: cererea vine ca formular, cu formatul, pilonul, sursa și focusul deja
+  alese, sau vine în cuvintele ei — „vreau un reel despre limite", „dă-mi
+  conținut pe Conexiune", „ceva despre vinovăția de a spune nu", „conținut
+  pentru săptămâna asta". Aici e singura sursă a metodei; fără el scrii din
+  memorie. NU-l folosi pentru editarea unei postări existente, pentru o
   întrebare despre profil, sau pentru o cerere de raport.
 ---
 
 # Faza 1 — cele zece propuneri
 
-Scopul: îi dai Viorelei zece unghiuri diferite pe tema ei, fiecare cu cinci
-hook-uri, ca să aleagă una singură pe care s-o dezvoltăm.
+Zece unghiuri diferite pe tema ei, din care alege unul singur pe care să-l
+dezvoltăm în Faza 2. Aici nu se scrie nicio postare întreagă.
 
-## Mod UI structurat — numai titlurile
+## Pasul 1 — ce ai deja, și ce faci cu asta
 
-Dacă mesajul începe cu markerul exact `MOD UI STRUCTURAT D1B — TITLURI`, interfața
-a adunat deja formatul, pilonul, sursa, focusul și materialul-sursă. În acest mod:
+Cererea vine din aplicație, iar alegerile sunt de obicei făcute înainte să ajungă
+la tine:
 
-- nu pui întrebările din Pasul 1 și nu alegi alte valori;
-- folosești numai materialul-sursă inclus în mesaj și regulile profilului;
-- întorci exact zece obiecte, ordonate de la 1 la 10, fiecare numai cu `ordinal`,
-  `title` și `angle`;
-- nu scrii hook-uri, script, caption, hashtaguri sau CTA în această execuție;
-- nu adaugi introducere, încheiere ori întrebare și nu chemi nicio unealtă de
-  scriere.
+- **Formatul** — Reel, Carusel sau Stories
+- **Pilonul** — unul din cele cinci
+- **Sursa** — de unde ai voie să iei materialul
+- **Focusul** — tema, când e dată
 
-Titlurile și unghiurile respectă toate verificările din Pasul 2, Pasul 3 și
-„Când te oprești”. Contractul structurat al aplicației verifică numărul și
-ordinea. Restul acestui skill rămâne fluxul normal al conversației CLI.
+**Nu le pui la îndoială și nu ceri confirmare pentru ele.** Sunt deja răspunsul
+ei; le-a ales apăsând pe ele.
 
-## Pasul 1 — cele trei răspunsuri, obligatorii
+Ce faci în schimb: te asiguri că înțelegi ce înseamnă. Pilonul e o etichetă până
+citești ce e în spatele ei, iar propunerile scrise pe eticheta greșită sunt zece
+propuneri irosite.
 
-Nu scrii nimic până nu ai toate trei. Le ceri **pe rând, ca întrebări separate**,
-nu toate într-un mesaj.
+```
+citeste-referinta("propune-postari/piloni.md")
+```
 
-1. **Formatul** — Reel, Carusel sau Stories
-2. **Pilonul** — înainte să întrebi, deschizi `references/piloni.md`; oferi exact
-   vocabularul închis de acolo, toate cele cinci variante, fără redenumiri
-3. **Sursa** — înainte să întrebi, deschizi `references/surse.md`; oferi exact
-   cele patru variante de acolo și spui scurt dacă una nu funcționează azi
+Ceri fișierul acesta când pilonul primit îți spune doar numele, nu și ce fel de
+conținut cere. Nu-l ceri ca să-i oferi ei o listă de piloni — alegerea e făcută.
 
-Excepție unică: dacă a spus deja limpede răspunsul în mesaj („vreau un **reel**
-despre limite"), ăla e răspunsul ei — confirmi scurt și treci mai departe.
-
-Dacă răspunde ambiguu sau sare peste una, **reîntrebi**. Nu alegi în locul ei și
-nu pornești „pe o variantă până răspunde".
-
-Trei întrebări, nu patru. **Nu inventezi întrebări în plus** — tema o ai din
-mesajul ei, nu i-o mai ceri o dată sub altă formă.
+**Dacă una din cele patru lipsește** — se întâmplă când vorbiți liber, nu prin
+formular — o ceri, pe rând, ca întrebare separată. Doar pe cea care lipsește. Nu
+alegi tu în locul ei și nu pornești „pe o variantă până răspunde". Pentru
+vocabularul închis al pilonilor și al surselor ceri referințele lor; nu inventezi
+variante și nu le redenumești.
 
 ## Pasul 2 — adună materialul
 
-Din sursa pe care a ales-o **ea**, nu din alta. Citește `references/surse.md`:
-spune ce are voie să dea fiecare sursă și ce nu, cum se cheamă
-`search_books` dacă a ales Cărți și `search_web` dacă a ales Internet.
+Din sursa aleasă de **ea**, niciodată din alta, și **înainte** de a scrie orice.
+Nu scrii din memorie ca apoi doar să adaugi referința.
 
-Materialul se adună **înainte** de a scrie propunerile. Nu scrii din memorie ca
-apoi doar să adaugi referința.
+```
+citeste-referinta("propune-postari/surse.md")
+```
 
-Dacă ai căutat în cărți, verifici înainte de generare și scorurile, și subiectul
-pasajelor. Un scor peste prag nu ajunge dacă pasajul vorbește doar vag despre
-brand, identitate sau marketing, iar tema cerută este una concretă precum
-fonturile în Canva. Dacă niciun pasaj nu tratează tema, spui explicit că n-ai
-găsit material relevant în cărți; nu îl întinzi ca să pară potrivit.
+Acolo scrie ce are voie să dea fiecare sursă și ce nu, și ce unealtă i se
+potrivește: `search_books` la Cărți, `search_web` la Internet.
+
+```
+citeste-referinta("propune-postari/carti.md")
+```
+
+Numai când sursa e Cărți sau Combinat: ce e pe raftul ei și cum se caută în el.
+
+Dacă ai căutat în cărți, verifici înainte de generare **și scorurile, și
+subiectul** pasajelor. Un scor peste prag nu ajunge dacă pasajul vorbește vag
+despre brand sau identitate, iar tema cerută e una concretă. Dacă niciun pasaj nu
+tratează tema, spui explicit că n-ai găsit material relevant în cărți; nu îl
+întinzi ca să pară potrivit.
+
+Când sursa e Memorie, materialul e profilul din context. Atât.
 
 ## Pasul 3 — scrie cele zece
 
-Fiecare propunere are:
+Fiecare propunere are un **titlu scurt** și **unghiul în una-două fraze**: ce
+durere atinge și ce promite.
 
-- **titlu scurt**
-- **ideea în una-două fraze**
-- **cinci hook-uri: câte unul din fiecare tip**, în ordinea PROVOCARE, CIFRĂ,
-  SECRET, ÎNTREBARE, CONTRAST — vezi `references/hookuri.md`
+Cele zece sunt **realmente diferite între ele** — dureri, dorințe și unghiuri
+diferite, nu aceeași idee reformulată de zece ori. Asta e singura parte grea a
+fazei, și singura pe care nicio schemă n-o poate verifica în locul tău.
 
-Numerotează propunerile de la 1 la 10, ca ea să poată spune „a treia", și scrie
-tipul în fața fiecărui hook, ca să poată spune „a treia, cu contrastul":
+**Hook-urile le scrii numai dacă ți se cer.** Când aplicația îți cere doar
+titlurile și unghiurile, atât întorci — fără hook-uri, fără introducere, fără
+încheiere. Când răspunzi în conversație, fiecare propunere primește **cinci
+hook-uri, câte unul din fiecare tip**, în ordinea PROVOCARE, CIFRĂ, SECRET,
+ÎNTREBARE, CONTRAST:
+
+```
+citeste-referinta("propune-postari/hookuri.md")
+```
+
+Ceri fișierul acesta **numai atunci când chiar scrii hook-uri**. Dacă ți s-au
+cerut doar titlurile, nu-l ceri: e text lung plătit pentru nimic.
+
+Formatul în conversație, ca ea să poată spune „a treia, cu contrastul":
 
 ```
 3. Titlul scurt
-   Ideea, în una-două fraze.
+   Unghiul, în una-două fraze.
    - PROVOCARE: …
    - CIFRĂ: …
    - SECRET: …
@@ -91,25 +107,23 @@ tipul în fața fiecărui hook, ca să poată spune „a treia, cu contrastul":
    - CONTRAST: …
 ```
 
-Cele zece sunt **diferite între ele**: unghiuri, dureri și dorințe diferite, nu
-aceeași idee reformulată de zece ori.
-
-Înainte să i le arăți, numără. Zece propuneri. Cinci hook-uri la fiecare, câte
-unul din fiecare tip, niciunul repetat. Dacă îți ies nouă, mai scrii una; nu-i
-arăta o listă incompletă.
+Înainte să i le arăți, numără. Zece, nu nouă. Dacă scrii și hook-uri: cinci la
+fiecare, câte unul din fiecare tip, niciunul repetat.
 
 ## Pasul 4 — întreabă ce dezvoltăm
 
-După ce i-ai arătat lista, o întrebi **care propunere și cu care hook**. Atât.
-Nu dezvolți nimic în faza asta.
+Doar în conversație: după listă, o întrebi **care propunere și cu care hook**.
+Atât. Nu dezvolți nimic aici — aia e Faza 2.
+
+Când răspunzi prin contractul aplicației, nu adaugi nicio întrebare: interfața
+întreabă în locul tău.
 
 ## Când te oprești, nu doar încetinești
 
-- **Tema intră în conflict cu „Lucruri pe care nu le spui niciodată"** din
-  profil → nu scrii propunerile afectate. Spui care e conflictul și ceri decizia
-  ei.
+- **Tema intră în conflict cu „Lucruri pe care nu le spui niciodată"** din profil
+  → nu scrii propunerile afectate. Spui care e conflictul și ceri decizia ei.
 - **Pilonul e Conversie, dar secțiunea de oferte din profil are ⚠️**, ori CTA-ul
-  potrivit e încă necompletat → generezi ce se poate și semnalezi scurt ce
-  lipsește. Nu inventezi oferta.
+  potrivit e necompletat → generezi ce se poate și semnalezi scurt ce lipsește.
+  Nu inventezi oferta.
 - **Ți se cere o cifră sau un testimonial care nu e în profil** → refuzi și
   propui un înlocuitor.
