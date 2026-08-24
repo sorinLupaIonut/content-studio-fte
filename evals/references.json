@@ -30,55 +30,92 @@
     {
       "file": "propune-postari/piloni.md",
       "when": "Faza 1, Pasul 1 — înainte de a întreba pilonul, ca să oferi exact vocabularul închis al celor cinci.",
-      "expect": { "titluri": "required", "chat-faza1": "required" }
+      "expect": {
+        "titluri": "required",
+        "chat-faza1": "required"
+      }
     },
     {
       "file": "propune-postari/surse.md",
-      "when": "Faza 1, Pașii 1 și 2 — cele patru surse, ce are voie fiecare să dea, și ce unealtă se cheamă pentru fiecare.",
-      "expect": { "titluri": "required", "chat-faza1": "required" }
+      "when": "Ambele faze — ce are voie să dea fiecare sursă și ce unealtă i se potrivește. În Faza 1 înainte de a aduna materialul; în Faza 2 înainte de a mai căuta în aceeași sursă pentru unghiul ideii.",
+      "expect": {
+        "titluri": "required",
+        "chat-faza1": "required",
+        "detalii-reel": "optional",
+        "detalii-carusel": "optional",
+        "detalii-stories": "optional",
+        "chat-productie": "optional"
+      }
     },
     {
       "file": "propune-postari/hookuri.md",
       "when": "Faza 1, Pasul 3 — cele cinci tipuri de hook și ordinea lor.",
-      "expect": { "chat-faza1": "required", "titluri": "forbidden" },
+      "expect": {
+        "chat-faza1": "required",
+        "titluri": "forbidden"
+      },
       "note": "Forbidden in `titluri` on purpose: that mode writes no hooks at all, so paying for the file would be pure loss."
     },
     {
       "file": "propune-postari/carti.md",
       "when": "Faza 1, Pasul 2 — numai când sursa aleasă de ea este Cărți.",
-      "expect": { "chat-faza1": "optional" },
+      "expect": {
+        "chat-faza1": "optional"
+      },
       "proposed": true
     },
     {
       "file": "dezvolta-postarea/structura-reel.md",
       "when": "Faza 2, format Reel — structura în patru pași: hook, promisiune, payoff, CTA.",
-      "expect": { "detalii-reel": "required", "detalii-stories": "forbidden", "detalii-carusel": "forbidden" }
+      "expect": {
+        "detalii-reel": "required",
+        "detalii-stories": "forbidden",
+        "detalii-carusel": "forbidden"
+      }
     },
     {
       "file": "dezvolta-postarea/hookuri-si-scripturi.md",
       "when": "Faza 2 — formulările celor cinci hook-uri, la orice format.",
-      "expect": { "detalii-reel": "required", "detalii-carusel": "required", "detalii-stories": "required" }
+      "expect": {
+        "detalii-reel": "required",
+        "detalii-carusel": "required",
+        "detalii-stories": "required"
+      }
     },
     {
       "file": "dezvolta-postarea/b-roll.md",
       "when": "Faza 2, format Reel — ce se vede pe ecran, fiindcă reel-ul e mut.",
-      "expect": { "detalii-reel": "required", "detalii-carusel": "forbidden", "detalii-stories": "forbidden" }
+      "expect": {
+        "detalii-reel": "required",
+        "detalii-carusel": "forbidden",
+        "detalii-stories": "forbidden"
+      }
     },
     {
       "file": "dezvolta-postarea/stories.md",
       "when": "Faza 2, format Stories — secvența de 3–7 story-uri.",
-      "expect": { "detalii-stories": "required", "detalii-reel": "forbidden", "detalii-carusel": "forbidden" }
+      "expect": {
+        "detalii-stories": "required",
+        "detalii-reel": "forbidden",
+        "detalii-carusel": "forbidden"
+      }
     },
     {
       "file": "dezvolta-postarea/piloni-si-cont.md",
       "when": "Faza 2 — ce înseamnă pilonul ales, dincolo de eticheta primită din formular.",
-      "expect": { "detalii-reel": "optional", "detalii-carusel": "optional", "detalii-stories": "optional" },
+      "expect": {
+        "detalii-reel": "optional",
+        "detalii-carusel": "optional",
+        "detalii-stories": "optional"
+      },
       "proposed": true
     },
     {
       "file": "dezvolta-postarea/tipuri-de-reels.md",
       "when": "Faza 2, format Reel — alegerea tipului de reel potrivit unghiului.",
-      "expect": { "detalii-reel": "optional" },
+      "expect": {
+        "detalii-reel": "optional"
+      },
       "proposed": true
     },
     {
@@ -91,23 +128,46 @@
     {
       "file": "dezvolta-postarea/intrebari-frecvente.md",
       "when": "Numai când ea întreabă despre producție — cameră, lumină, microfon, fundal, ritm de postare.",
-      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden" },
+      "expect": {
+        "chat-productie": "optional",
+        "detalii-reel": "forbidden",
+        "detalii-carusel": "forbidden",
+        "detalii-stories": "forbidden"
+      },
       "proposed": true
     },
     {
       "file": "dezvolta-postarea/filmare.md",
       "when": "Numai dacă ea întreabă despre filmare.",
-      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden", "titluri": "forbidden" }
+      "expect": {
+        "chat-productie": "optional",
+        "detalii-reel": "forbidden",
+        "detalii-carusel": "forbidden",
+        "detalii-stories": "forbidden",
+        "titluri": "forbidden"
+      }
     },
     {
       "file": "dezvolta-postarea/editare.md",
       "when": "Numai dacă ea întreabă despre montaj.",
-      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden", "titluri": "forbidden" }
+      "expect": {
+        "chat-productie": "optional",
+        "detalii-reel": "forbidden",
+        "detalii-carusel": "forbidden",
+        "detalii-stories": "forbidden",
+        "titluri": "forbidden"
+      }
     },
     {
       "file": "dezvolta-postarea/distribuire.md",
       "when": "Numai dacă ea întreabă despre postare și distribuție.",
-      "expect": { "chat-productie": "optional", "detalii-reel": "forbidden", "detalii-carusel": "forbidden", "detalii-stories": "forbidden", "titluri": "forbidden" }
+      "expect": {
+        "chat-productie": "optional",
+        "detalii-reel": "forbidden",
+        "detalii-carusel": "forbidden",
+        "detalii-stories": "forbidden",
+        "titluri": "forbidden"
+      }
     }
   ]
 }

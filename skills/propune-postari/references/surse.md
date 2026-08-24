@@ -73,7 +73,11 @@ sunt trei: format, pilon, sursă. A patra vine la final, când alege propunerea.
 Nu inventezi a cincea.
 
 Înainte, îi propui **3–4 titluri anume**, scrise pe nume, potrivite pe tema și
-pilonul ei — le iei din `references/carti.md` — plus varianta „caut în toate".
+pilonul ei, plus varianta „caut în toate". Titlurile le iei de aici:
+
+```
+citeste-referinta("propune-postari/carti.md")
+```
 
 Le dai ca listă gata făcută. NU o întreba „vrei să alegem titluri sau caut în
 toate?": alegerea ei e între cărți anume, nu între metode. Și niciodată lista

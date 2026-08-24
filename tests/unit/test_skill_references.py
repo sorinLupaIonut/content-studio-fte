@@ -12,6 +12,7 @@ disk.
 import asyncio
 import importlib.util
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -181,3 +182,59 @@ class TestTheManifestMatchesDisk(unittest.TestCase):
             if filename in body:
                 expected.add(name)
         self.assertEqual(pointed, expected)
+
+
+class TestEveryMentionIsCallable(unittest.TestCase):
+    """A pointer to a reference has to be a call the tool would accept.
+
+    Found by hand on 2026-08-24, in `surse.md`: it told the model to take the
+    book titles from `references/carti.md` - the sandbox path, from when a shell
+    opened files. That is not a key the tool accepts, so the call would come back
+    "Nu există referința" and the model would carry on without the list. The
+    SKILL.md bodies were rewritten and checked; the reference files pointing at
+    EACH OTHER were not, and nothing would have said so.
+    """
+
+    #: `citeste-referinta("propune-postari/carti.md")`, however it is wrapped.
+    CALL = re.compile(r'citeste-referinta\(\s*["\']([^"\']+)["\']\s*\)')
+
+    def documents(self):
+        """Every file the model can be handed: skill bodies and references."""
+
+        for folder in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
+            skill_md = folder / "SKILL.md"
+            if skill_md.is_file():
+                yield skill_md
+            yield from sorted((folder / "references").glob("*.md"))
+
+    def test_every_call_names_a_reference_that_exists(self):
+        index = reference_index()
+        for path in self.documents():
+            for name in self.CALL.findall(path.read_text(encoding="utf-8")):
+                self.assertIn(name, index, f"{path.name} asks for {name!r}")
+
+    def test_no_document_still_points_at_a_sandbox_path(self):
+        # The bare filename is what makes this a pointer rather than prose: it
+        # is the name of a file that really exists under some skill.
+        filenames = {key.split("/", 1)[1] for key in reference_index()}
+        stale = re.compile(r"references[/\\](" + "|".join(map(re.escape, filenames)) + r")")
+        for path in self.documents():
+            found = stale.findall(path.read_text(encoding="utf-8"))
+            self.assertEqual(found, [], f"{path.name} points at references/{found}")
+
+    def test_a_bare_filename_is_never_offered_as_the_name_to_ask_for(self):
+        """`filmare.md` is not a key; `dezvolta-postarea/filmare.md` is.
+
+        The system prompt tells the model to ask "cu numele exact pe care ți-l dă"
+        the skill body. A body that prints the bare filename is therefore handing
+        it a name the tool refuses - and this very file shipped that way for a few
+        minutes, in the one section listing the references it should ask for only
+        when she brings the subject up.
+        """
+        filenames = {key.split("/", 1)[1] for key in reference_index()}
+        quoted = re.compile(r"`([^`\n]+\.md)`")
+        for path in self.documents():
+            for mention in quoted.findall(path.read_text(encoding="utf-8")):
+                if mention.split("/")[-1] not in filenames:
+                    continue  # some other .md, not one of ours
+                self.assertIn(mention, reference_index(), f"{path.name}: `{mention}`")
