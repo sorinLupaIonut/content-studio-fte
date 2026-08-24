@@ -1,0 +1,167 @@
+- generic [ref=e10]:
+  - generic [ref=e11]:
+    - navigation "Navigare principală" [ref=e12]:
+      - group "Lucrezi" [ref=e13]:
+        - link "Generator" [ref=e14] [cursor=pointer]:
+          - /url: /generator
+          - generic [ref=e15]: ✦
+          - text: Generator
+        - link "Salvate" [ref=e16] [cursor=pointer]:
+          - /url: /saved
+          - generic [ref=e17]: ♡
+          - text: Salvate
+      - group "Ce te reprezintă" [ref=e18]:
+        - link "Profil" [ref=e19] [cursor=pointer]:
+          - /url: /profile
+          - generic [ref=e20]: ◎
+          - text: Profil
+        - link "Materiale" [ref=e21] [cursor=pointer]:
+          - /url: /library
+          - generic [ref=e22]: ▤
+          - text: Materiale
+    - generic [ref=e23]:
+      - generic "Consum" [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: Consum
+          - strong [ref=e27]: 7% folosit
+        - progressbar "Consum" [ref=e28]
+      - group "Alege limba interfeței" [ref=e30]:
+        - button "Română" [ref=e31] [cursor=pointer]
+        - button "English" [ref=e32] [cursor=pointer]
+  - main [ref=e33]:
+    - generic [ref=e34]:
+      - generic [ref=e35]:
+        - generic [ref=e36]: Planifică simplu
+        - heading "Ce vrei să creezi astăzi?" [level=1] [ref=e37]
+        - paragraph [ref=e38]: Primești întâi 10 idei clare. Fiecare idee se dezvoltă apoi în fundal cu 5 hook-uri și conținutul complet.
+      - generic [ref=e39]: nano titluri · mini detalii · 5 în paralel
+    - alert [ref=e60]:
+      - generic [ref=e61]: Conexiunea live se reface automat. Lotul rămâne salvat.
+      - button "Închide mesajul" [ref=e62] [cursor=pointer]: ×
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - generic [ref=e43]: Sursa ideilor
+          - combobox "Sursa ideilor" [ref=e44]:
+            - option "Memorie" [selected]
+            - option "Cărți"
+            - option "Internet"
+            - option "Combinat"
+        - generic [ref=e45]:
+          - generic [ref=e46]: Pilon
+          - combobox "Pilon" [ref=e47]:
+            - option "Poziționare"
+            - option "Educație" [selected]
+            - option "Conexiune"
+            - option "Conversie"
+            - option "Magnetism"
+        - generic [ref=e48]:
+          - generic [ref=e49]: Format
+          - combobox "Format" [ref=e50]:
+            - option "Reel" [selected]
+            - option "Carusel"
+            - option "Stories"
+      - generic [ref=e51]:
+        - generic [ref=e52]: Ce focus ai pentru săptămâna aceasta? (opțional)
+        - textbox "Ce focus ai pentru săptămâna aceasta? (opțional)" [ref=e53]:
+          - /placeholder: "De exemplu: cum recunoști că ai intrat din nou în people pleasing"
+          - text: cum spui nu fără să te simți vinovată
+      - paragraph [ref=e54]: Sursa se colectează o singură dată și este folosită identic pentru toate cele 10 idei.
+      - button "Generează 10 idei" [active] [ref=e153] [cursor=pointer]
+    - alertdialog "Înlocuiește lotul curent" [ref=e164]:
+      - generic [ref=e165]:
+        - generic [ref=e166]: Ai deja un lot curent
+        - heading "Vrei să-l înlocuiești?" [level=3] [ref=e167]
+        - paragraph [ref=e168]: Lotul existent nu va mai fi curent. Postările deja salvate nu sunt afectate.
+      - generic [ref=e169]:
+        - button "Păstrează-l" [ref=e170] [cursor=pointer]
+        - button "Înlocuiește și generează" [ref=e171] [cursor=pointer]
+    - region "Ideile generate" [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]: Lotul tău curent
+          - heading "Ideile tale" [level=2] [ref=e67]
+          - paragraph [ref=e68]: Lotul a fost oprit.
+        - generic [ref=e69]: 10 / 10 titluri
+      - article [ref=e72]:
+        - button "1 Cum să rămâi concentrată când totul cere atenție Reel · Educație · oprită × ⌄" [disabled] [ref=e154]:
+          - generic [ref=e74]: "1"
+          - generic [ref=e75]:
+            - strong [ref=e76]: Cum să rămâi concentrată când totul cere atenție
+            - generic [ref=e77]: Reel · Educație · oprită
+          - generic [ref=e78]: ×
+          - generic [ref=e79]: ⌄
+      - article [ref=e80]:
+        - button "2 Focus = grija pentru tine, nu încă o obligație Reel · Educație · oprită × ⌄" [disabled] [ref=e155]:
+          - generic [ref=e82]: "2"
+          - generic [ref=e83]:
+            - strong [ref=e84]: Focus = grija pentru tine, nu încă o obligație
+            - generic [ref=e85]: Reel · Educație · oprită
+          - generic [ref=e86]: ×
+          - generic [ref=e87]: ⌄
+      - article [ref=e88]:
+        - button "3 3 pași ca să-ți recapeți atenția când ești în burnout Reel · Educație · oprită × ⌄" [disabled] [ref=e156]:
+          - generic [ref=e90]: "3"
+          - generic [ref=e91]:
+            - strong [ref=e92]: 3 pași ca să-ți recapeți atenția când ești în burnout
+            - generic [ref=e93]: Reel · Educație · oprită
+          - generic [ref=e94]: ×
+          - generic [ref=e95]: ⌄
+      - article [ref=e96]:
+        - button "4 De ce multitaskingul îți sabotează vocea interioară Reel · Educație · oprită × ⌄" [disabled] [ref=e157]:
+          - generic [ref=e98]: "4"
+          - generic [ref=e99]:
+            - strong [ref=e100]: De ce multitaskingul îți sabotează vocea interioară
+            - generic [ref=e101]: Reel · Educație · oprită
+          - generic [ref=e102]: ×
+          - generic [ref=e103]: ⌄
+      - article [ref=e104]:
+        - button "5 Un exercițiu de 2 minute ca să te readuci în prezent Reel · Educație · oprită × ⌄" [disabled] [ref=e158]:
+          - generic [ref=e106]: "5"
+          - generic [ref=e107]:
+            - strong [ref=e108]: Un exercițiu de 2 minute ca să te readuci în prezent
+            - generic [ref=e109]: Reel · Educație · oprită
+          - generic [ref=e110]: ×
+          - generic [ref=e111]: ⌄
+      - article [ref=e112]:
+        - button "6 Cum alegi 1 singur lucru important pe zi Reel · Educație · oprită × ⌄" [disabled] [ref=e159]:
+          - generic [ref=e114]: "6"
+          - generic [ref=e115]:
+            - strong [ref=e116]: Cum alegi 1 singur lucru important pe zi
+            - generic [ref=e117]: Reel · Educație · oprită
+          - generic [ref=e118]: ×
+          - generic [ref=e119]: ⌄
+      - article [ref=e120]:
+        - button "7 Limitele care îți protejează focusul — ce să spui și ce să lași Reel · Educație · oprită × ⌄" [disabled] [ref=e160]:
+          - generic [ref=e122]: "7"
+          - generic [ref=e123]:
+            - strong [ref=e124]: Limitele care îți protejează focusul — ce să spui și ce să lași
+            - generic [ref=e125]: Reel · Educație · oprită
+          - generic [ref=e126]: ×
+          - generic [ref=e127]: ⌄
+      - article [ref=e128]:
+        - 'button "8 Când «trebuie» îți fura focusul: reclamă-ți alegerea Reel · Educație · oprită × ⌄" [disabled] [ref=e161]':
+          - generic [ref=e130]: "8"
+          - generic [ref=e131]:
+            - strong [ref=e132]: "Când «trebuie» îți fura focusul: reclamă-ți alegerea"
+            - generic [ref=e133]: Reel · Educație · oprită
+          - generic [ref=e134]: ×
+          - generic [ref=e135]: ⌄
+      - article [ref=e136]:
+        - button "9 Cum îți restructurezi ziua când energia e limitată Reel · Educație · oprită × ⌄" [disabled] [ref=e162]:
+          - generic [ref=e138]: "9"
+          - generic [ref=e139]:
+            - strong [ref=e140]: Cum îți restructurezi ziua când energia e limitată
+            - generic [ref=e141]: Reel · Educație · oprită
+          - generic [ref=e142]: ×
+          - generic [ref=e143]: ⌄
+      - article [ref=e144]:
+        - button "10 Ce face vocea interioară când nu te alegi pe tine Reel · Educație · oprită × ⌄" [disabled] [ref=e163]:
+          - generic [ref=e146]: "10"
+          - generic [ref=e147]:
+            - strong [ref=e148]: Ce face vocea interioară când nu te alegi pe tine
+            - generic [ref=e149]: Reel · Educație · oprită
+          - generic [ref=e150]: ×
+          - generic [ref=e151]: ⌄
+  - button "Vorbește cu agentul" [ref=e58] [cursor=pointer]:
+    - generic [ref=e59]: ✦

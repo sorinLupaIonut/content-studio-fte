@@ -430,7 +430,13 @@ class ChatCoordinator:
                 worker,
                 chat_prompt(message, target_context, state.language),
                 session=session,
-                run_config=RunConfig(group_id=state.session_id),
+                run_config=RunConfig(
+                    # Named for Phoenix, where an unnamed run shows up as the
+                    # SDK default "Agent workflow" - the same title as every
+                    # other unnamed run anybody has ever made.
+                    workflow_name=f"Chat {state.session_id[:16]}",
+                    group_id=state.session_id,
+                ),
                 max_turns=6,
             )
             state.result = result

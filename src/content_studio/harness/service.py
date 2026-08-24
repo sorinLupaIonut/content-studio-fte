@@ -912,7 +912,11 @@ class HarnessService:
 
     @staticmethod
     def _run_config(session_id: str) -> RunConfig:
-        return RunConfig(group_id=session_id)
+        # Named, so Phoenix can tell one conversation from another; see the note
+        # on `workflow_name` in generator.py.
+        return RunConfig(
+            workflow_name=f"Conversation {session_id[:16]}", group_id=session_id
+        )
 
     @staticmethod
     def _identity_session(prefix: str, principal_id: str) -> str:

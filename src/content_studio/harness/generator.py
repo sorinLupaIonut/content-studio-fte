@@ -55,6 +55,24 @@ RUN_TIMEOUT_SECONDS = 600
 #: correlation field, nothing more. Read by whoever is debugging, so English.
 GENERATION_WORKFLOW = "Generation batch"
 
+
+def workflow_name(batch_id: str) -> str:
+    """`Generation batch 8e99b137` - one name per batch, shared by its 11 runs.
+
+    A constant name was the whole story in Phoenix: every batch anybody had ever
+    run appeared under the same title, so telling this morning's from this
+    afternoon's meant opening traces one by one and reading timestamps. The batch
+    id is the only thing that separates them, and `group_id` does not carry it
+    into Phoenix - see the note above. So it goes in the name.
+
+    Short prefix rather than the whole UUID: eight hex characters are unique
+    enough among a day's batches and still fit in a list column. The same
+    truncation is what `evals/references.py` and the audit print, so the id you
+    read in Phoenix is the id you paste into a query.
+    """
+
+    return f"{GENERATION_WORKFLOW} {batch_id[:8]}"
+
 #: The prompt cache is MATCHED on the prefix but ROUTED on this key, and the
 #: routing was the actual leak. Measured on 2026-08-23: four detail calls fired
 #: 175ms apart, before any of them had returned. Two landed on a machine that
@@ -768,7 +786,7 @@ class GenerationCoordinator:
         hooks: RunHooks | None = None,
     ):
         run_config = RunConfig(
-            workflow_name=GENERATION_WORKFLOW,
+            workflow_name=workflow_name(group),
             group_id=group,
         )
         result = await asyncio.wait_for(

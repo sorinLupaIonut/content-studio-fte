@@ -57,22 +57,24 @@ script și nu are bloc de producție.** Nu-l scrie, nu-l propune, nu întreba da
 citeste-referinta("dezvolta-postarea/structura-reel.md")
 ```
 
-Structura în patru pași — hook, promisiune, payoff, CTA. Rămâne validă întreagă,
-doar că se **scrie**, nu se spune: intră în caption.
+**O ceri de fiecare dată la Reel, înainte să scrii.** Structura în patru pași —
+hook, promisiune, payoff, CTA. Rămâne validă întreagă, doar că se **scrie**, nu
+se spune: intră în caption.
 
 ```
 citeste-referinta("dezvolta-postarea/hookuri-si-scripturi.md")
 ```
 
-Formulările. La un reel mut hook-ul e textul care apare pe ecran în primele două
-secunde, deci e chiar produsul, nu un ambalaj.
+**O ceri de fiecare dată la Reel.** Formulările. La un reel mut hook-ul e textul
+care apare pe ecran în primele două secunde, deci e chiar produsul, nu un
+ambalaj — iar cinci hook-uri realmente diferite nu ies din memorie.
 
 ```
 citeste-referinta("dezvolta-postarea/b-roll.md")
 ```
 
-Șabloanele de text pe ecran. Le ceri când scrii hook-ul unui Reel — acolo textul
-de pe ecran e tot ce vede cineva.
+**Le ceri de fiecare dată la Reel.** Șabloanele de text pe ecran: acolo textul de
+pe ecran e tot ce vede cineva.
 
 Tot ce ar fi spus cu vocea intră în **caption**, și de aceea captionul unui Reel
 e lung — 900–1400 de semne: intră direct în ideea din hook fără reintroducere, o
@@ -86,8 +88,9 @@ concret, ce se întâmplă de fapt, ce poate face ea cu asta — și se închide
 citeste-referinta("dezvolta-postarea/stories.md")
 ```
 
-Secvența de 3–7 story-uri, cu sticker de interacțiune unde are sens. Aici
-**scriptul rămâne**, plus blocul de producție.
+**O ceri de fiecare dată la Stories, înainte să scrii.** Secvența de 3–7
+story-uri, cu sticker de interacțiune unde are sens. Aici **scriptul rămâne**,
+plus blocul de producție.
 
 ### Carusel
 
@@ -125,8 +128,9 @@ contul ei de la el, e aici:
 citeste-referinta("dezvolta-postarea/piloni-si-cont.md")
 ```
 
-Îl ceri când eticheta nu-ți spune destul ca să știi pe ce mizează postarea. Nu-l
-ceri ca să-i oferi ei o listă de piloni — alegerea e făcută în Faza 1.
+**Îl ceri de fiecare dată, înainte să scrii.** Nu ghici din nume pe ce mizează
+postarea. Nu-l ceri ca să-i oferi ei o listă de piloni — alegerea e făcută în
+Faza 1.
 
 ## Pasul 5 — Sursa, și materialul pe care mai trebuie să-l aduci
 

@@ -46,8 +46,9 @@ zece propuneri scrise pe eticheta greșită sunt zece propuneri irosite.
 citeste-referinta("propune-postari/piloni.md")
 ```
 
-Îl ceri când pilonul primit îți spune doar numele, nu și ce fel de conținut cere.
-Nu-l ceri ca să-i oferi ei o listă de piloni — alegerea e deja făcută.
+**Îl ceri de fiecare dată, înainte să scrii prima propunere.** Nu ghici din nume
+ce fel de conținut cere pilonul; scrie acolo. Nu-l ceri ca să-i oferi ei o listă
+de piloni — alegerea e deja făcută.
 
 Dacă pilonul lipsește, îl ceri **cu vocabularul închis din referință**, toate
 cele cinci variante, fără redenumiri și fără variante inventate.
@@ -62,8 +63,9 @@ adaugi referința.
 citeste-referinta("propune-postari/surse.md")
 ```
 
-Acolo scrie ce are voie să dea fiecare sursă și ce nu, și ce unealtă i se
-potrivește: `search_books` la Cărți, `search_web` la Internet.
+**Îl ceri de fiecare dată, înainte să aduni material.** Acolo scrie ce are voie
+să dea fiecare sursă și ce nu, și ce unealtă i se potrivește: `search_books` la
+Cărți, `search_web` la Internet. Fără el nu știi ce ai voie să folosești.
 
 ```
 citeste-referinta("propune-postari/carti.md")

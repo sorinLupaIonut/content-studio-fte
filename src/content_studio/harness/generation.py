@@ -310,9 +310,10 @@ def use_skill_note(skill: str) -> str:
     """Tell the model to call the tool, before anything else."""
 
     return f"""Metoda ta este unealta `{skill}`. Cheam-o ÎNAINTE de orice
-altceva, citește ce întoarce și urmeaz-o. Nu scrii nimic înainte s-o fi chemat,
-și nu o înlocuiești cu alte unelte: `list_posts` și `search_books` aduc material,
-nu metodă."""
+altceva, citește ce întoarce și urmeaz-o. Nu scrii nimic înainte s-o fi chemat.
+
+Metoda ei nu se termină acolo: unde îți spune să ceri o referință, o ceri, tot
+înainte de a scrie. Un pas sărit e metodă neaplicată, nu timp economisit."""
 
 
 def title_prompt(
