@@ -754,6 +754,26 @@ select:disabled {
     font-size: .78rem;
 }
 
+/* The line under a card that has titles but no variants yet. Same left inset as
+   .idea-error so the three states read as one column, not three. */
+.idea-waiting-hint {
+    padding: 0 18px 15px 70px;
+    color: var(--muted);
+    font-size: .78rem;
+}
+
+/* A secondary action inside an error row: readable, and clearly not the primary
+   thing on the page. */
+.button-quiet {
+    margin-left: 10px;
+    padding: 3px 10px;
+    font-size: .74rem;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: inherit;
+    cursor: pointer;
+}
+
 .idea-details {
     padding: 0 22px 24px 70px;
     border-top: 1px solid var(--line);

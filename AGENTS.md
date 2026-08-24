@@ -32,17 +32,40 @@ Six rules a new session must respect without asking again.
 3. **Embeddings use the same model to store and to search** — `text-embedding-3-small`.
    Different models at the two ends means a search that returns garbage without
    complaining.
-4. **Folder-shaped skills, delivered as tools.** The method lives in
-   `skills/<name>/SKILL.md` plus `references/`, and it is edited without touching
-   code. Disclosure has three steps: the frontmatter `description` is always in
-   context and decides whether the body is ever paid for; the body arrives when the
-   model calls the skill's tool; a `references/` file arrives only when the body
-   asks for it by name, through `citeste-referinta`. There is **no sandbox and no
-   shell** — an E2B sandbox delivered these same folders until 2026-08-24, and was
-   removed after measurement: of 148 KB mounted, a generation run opened one file
-   and never touched `references/`, while the sandbox charged 5,448 tokens of
-   instructions and tool schemas on every call. Never tell the model it has files
-   or a shell; `worker.py` builds that sentence from the tools actually attached.
+4. **Folder-shaped skills, delivered as tools — except where the form already
+   answered.** The method lives in `skills/<name>/SKILL.md` plus `references/`,
+   and it is edited without touching code. There is **no sandbox and no shell**
+   — an E2B sandbox delivered these same folders until 2026-08-24, and was
+   removed after measurement: of 148 KB mounted, a generation run opened one
+   file and never touched `references/`, while the sandbox charged 5,448 tokens
+   of instructions and tool schemas on every call. Never tell the model it has
+   files or a shell; `worker.py` builds that sentence from the tools actually
+   attached.
+
+   **In chat, disclosure has three steps**, because the next question is
+   unknown: the frontmatter `description` is always in context and decides
+   whether the body is ever paid for; the body arrives when the model calls the
+   skill's tool; a `references/` file arrives only when the body asks for it by
+   name, through `citeste-referinta`.
+
+   **On the structured generation path the method is preloaded**, since
+   2026-08-24, by `method.py`. Format, source and pillar are chosen in the
+   interface before a token is sent, so which references the run needs is known
+   in advance — fetching them costs turns and buys nothing. Measured: a Reel
+   detail run took five model turns, four of which produced 143 output tokens
+   between them (each one the name of the next file), and each re-sent
+   everything accumulated so far — 84,269 input tokens to write 1,537. Preloaded,
+   the same run is one turn and 26,250 input. `citeste-referinta` stays attached
+   for the production references, which depend on what she asks rather than on
+   what she picked; the skill tools come off, because a tool that returns text
+   already in the prompt can only cost a turn.
+
+   **Preloading's failure mode is contradiction, not size.** A body that says
+   "cere structura-reel.md" printed above the contents of `structura-reel.md` is
+   the 2026-08-23 fault pointing the other way. Every preloaded call block is
+   rewritten — in the skill body *and inside the inlined references*, because
+   `surse.md` sends the model at `carti.md`. `tests/unit/test_method.py` walks
+   every format/source shape and holds it.
 5. **One agent.** The two phases are skills, not separate agents. The cost, accepted
    with open eyes: a `SKILL.md` is text, not a schema. It cannot enforce "exactly ten
    proposals with exactly five hooks" — that is asked for, counted afterwards, and
@@ -65,9 +88,21 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
 - **The budget is a lifetime allowance, in integer micro-dollars, and Sorin
   edits it.** No reset period, no cron; that is a decision, not an omission.
 - **A stop-gate, not a ceiling.** Cost is known only after a call returns, so the
-  gate refuses to *start* — before a run, and again between ideas in a batch.
+  gate refuses to *start* — before a batch, before each idea she opens, and
+  again inside the task that writes it.
 - **The user is shown a percentage and nothing else.** The split is server-side,
-  in `/api/me/usage`; hiding a figure in the interface would not hide it.
+  in `/api/me/usage`; hiding a figure in the interface would not hide it. The
+  model picker follows the same rule: its labels are „Rapid" and „Îngrijit",
+  never a price. See `Values.ModelLabel`.
+- **A run that fails still spent the money, and the meter has to see it.** Until
+  2026-08-24 metering happened only after `Runner.run` returned, so a missed
+  structured contract or a turn limit left no `usage_events` row. Measured
+  against `public.traces`, which records spans either way: a nano batch consumed
+  $0.0195 and recorded $0.0061, a mini batch $0.1019 against $0.0770. The gap
+  scales with the failure rate, which is backwards for a gate meant to stop
+  runaway spending. The usage is taken off a `RunHooks` and **not** off
+  `exception.run_data` — the SDK detaches that on its redaction path, which is
+  exactly the path a structured-output failure takes.
 - **The first admin is made from the terminal**, `db/provision.py`, and only
   there. An admin page that can mint admins is one stolen session from being
   somebody else's admin page.
@@ -218,6 +253,8 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
 | Output-language override | `language.py` | the skills stay Romanian |
 | Model prices | `pricing.py` | one table; a copy drifts silently |
+| Which model wrote a batch | `generation_batches.model` | chosen in the UI, both phases |
+| What gets preloaded, and when | `method.py` | the tables, not the call site |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
 | Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |

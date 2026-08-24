@@ -27,9 +27,9 @@ UPDATE public.generation_batches
 INSERT_BATCH_SQL = """
 INSERT INTO public.generation_batches (
     client_id, owner_principal_id, session_id, source, pillar, format, focus,
-    material_ids, source_packet
+    material_ids, source_packet, model
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8::uuid[], $9::jsonb)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8::uuid[], $9::jsonb, $10)
 RETURNING *
 """
 
@@ -93,22 +93,35 @@ SELECT i.id
    AND b.is_current AND NOT b.cancel_requested
 """
 
-# A batch is finished when every idea has settled, not when every idea has
-# succeeded. Demanding ten out of ten left a batch with one permanently failed
-# idea stuck in 'generating' for ever, and the nine good ideas unreachable with
-# it. 'failed' is now reserved for the case where nothing at all came back.
+# A batch is working only while an idea is ACTUALLY being written - not while
+# one is merely undeveloped.
+#
+# This used to read `status NOT IN ('ready', 'failed')`, which was right while
+# all ten details were written the moment the titles landed: an idea still
+# `waiting` then meant a queue that had not reached it yet. Since 2026-08-24
+# details are written when she opens an idea, so nine ideas sit at `waiting` by
+# design, possibly for days - and that condition pinned every batch at
+# 'generating' for ever, with a spinner and a cancel button over work nobody was
+# doing.
+#
+# 'failed' stays reserved for the case where nothing at all came back, and
+# 'titles_ready' is now a resting state rather than a moment in passing.
 REFRESH_BATCH_STATUS_SQL = """
 UPDATE public.generation_batches b
    SET status = CASE
        WHEN b.cancel_requested THEN 'cancelled'
        WHEN EXISTS (
            SELECT 1 FROM public.generation_ideas i
-            WHERE i.batch_id = b.id AND i.status NOT IN ('ready', 'failed')
+            WHERE i.batch_id = b.id AND i.status IN ('generating', 'retrying')
        ) THEN 'generating'
        WHEN EXISTS (
            SELECT 1 FROM public.generation_ideas i
             WHERE i.batch_id = b.id AND i.status = 'ready'
        ) THEN 'ready'
+       WHEN EXISTS (
+           SELECT 1 FROM public.generation_ideas i
+            WHERE i.batch_id = b.id AND i.status = 'waiting'
+       ) THEN 'titles_ready'
        ELSE 'failed'
    END,
        updated_at = now()
@@ -298,6 +311,7 @@ async def create_batch(
         request.focus,
         request.material_ids,
         _json(source_packet),
+        request.model,
     )
     return _row(row)
 

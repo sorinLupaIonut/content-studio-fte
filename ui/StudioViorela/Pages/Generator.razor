@@ -55,6 +55,16 @@
                 }
             </select>
         </label>
+        <label>
+            <span>@T[Copy.FieldModel]</span>
+            <select @bind="_model" disabled="@_busy">
+                @foreach (var value in Values.Models)
+                {
+                    <option value="@value">@Values.ModelLabel(T, value)</option>
+                }
+            </select>
+            <small class="field-hint">@T[Copy.ModelHint]</small>
+        </label>
     </div>
 
     @if (UsesBooks)
@@ -162,7 +172,7 @@ else if (_batch is not null)
             @foreach (var idea in _batch.Ideas.OrderBy(item => item.Ordinal))
             {
                 <article class="idea-card status-@idea.Status">
-                    <button class="idea-card-header" type="button" disabled="@(idea.Status != "ready")" @onclick="() => ToggleIdea(idea)" aria-expanded="@IsExpanded(idea.Id)">
+                    <button class="idea-card-header" type="button" disabled="@(idea.Status == "generating")" @onclick="() => ToggleIdeaAsync(idea)" aria-expanded="@IsExpanded(idea.Id)">
                         <span class="idea-number">@idea.Ordinal</span>
                         <span class="idea-title-copy">
                             <strong>@idea.Title</strong>
@@ -174,7 +184,23 @@ else if (_batch is not null)
 
                     @if (idea.Status == "failed")
                     {
-                        <div class="idea-error">@idea.LastError</div>
+                        <div class="idea-error">
+                            @idea.LastError
+                            <button class="button button-quiet" type="button" disabled="@_busy" @onclick="() => DevelopAsync(idea)">@T[Copy.DevelopRetry]</button>
+                        </div>
+                    }
+
+                    @* The details are written when she opens the card, not ten
+                       at a time when the batch lands. See `develop` in the
+                       generator: they are the whole cost of a run, and she
+                       develops one idea. *@
+                    @if (idea.Status == "waiting")
+                    {
+                        <div class="idea-waiting-hint">@T[Copy.DevelopHint]</div>
+                    }
+                    @if (idea.Status == "generating")
+                    {
+                        <div class="idea-waiting-hint" role="status">@T[Copy.DevelopWorking]</div>
                     }
 
                     @if (IsExpanded(idea.Id) && idea.Status == "ready")
@@ -313,6 +339,10 @@ else if (_batch is not null)
     private string _source = "Memorie";
     private string _pillar = "Educație";
     private string _format = "Reel";
+    // Matches `Values.Models[0]` and the server's fallback. Nano writes plainly
+    // and gets Romanian wrong more often; "Îngrijit" is one click away, and the
+    // hint under the picker says so.
+    private string _model = "gpt-5-nano";
     private string? _focus;
     private string? _error;
     private bool _busy;
@@ -413,6 +443,7 @@ else if (_batch is not null)
                 Source = _source,
                 Focus = _focus,
                 MaterialIds = UsesBooks ? _selectedBooks.ToList() : [],
+                Model = _model,
                 ReplaceCurrent = replace
             });
             _batch = envelope.Batch;
@@ -620,12 +651,49 @@ else if (_batch is not null)
         }
     }
 
-    private void ToggleIdea(GenerationIdeaDto idea)
+    private async Task ToggleIdeaAsync(GenerationIdeaDto idea)
     {
-        if (!_expandedIdeas.Remove(idea.Id))
+        if (_expandedIdeas.Remove(idea.Id))
         {
-            _expandedIdeas.Add(idea.Id);
-            SetChatTarget(idea);
+            return;
+        }
+
+        _expandedIdeas.Add(idea.Id);
+        SetChatTarget(idea);
+        // Opening a card is what pays for it. Only when there is nothing to
+        // show: a second open of a finished idea must not buy it twice, and the
+        // server refuses that anyway.
+        if (idea.Status == "waiting")
+        {
+            await DevelopAsync(idea);
+        }
+    }
+
+    private async Task DevelopAsync(GenerationIdeaDto idea)
+    {
+        if (_batch is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            // Optimistic, so the card reacts on the click rather than on the
+            // round trip. The server is the authority and the event stream
+            // corrects this within a second either way.
+            idea.Status = "generating";
+            await Api.DevelopGenerationIdeaAsync(_batch.Id, idea.Ordinal);
+        }
+        catch (Exception ex)
+        {
+            idea.Status = "waiting";
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
         }
     }
 

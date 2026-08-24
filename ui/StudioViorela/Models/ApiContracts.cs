@@ -256,6 +256,9 @@ public sealed class GenerationBatchDto
     [JsonPropertyName("pillar")]
     public string Pillar { get; set; } = "";
 
+    [JsonPropertyName("model")]
+    public string? Model { get; set; }
+
     [JsonPropertyName("format")]
     public string Format { get; set; } = "";
 
@@ -363,6 +366,17 @@ public sealed class GenerationStartDto
 
     [JsonPropertyName("replace_current")]
     public bool ReplaceCurrent { get; set; }
+
+    /// <summary>
+    /// Which model writes this batch — both phases, titles and details.
+    ///
+    /// One per batch and stored with it: details are generated when she opens
+    /// an idea, long after this request is gone, and they have to come from the
+    /// model she picked rather than from the deployment default of the day.
+    /// The server validates it against the same two values.
+    /// </summary>
+    [JsonPropertyName("model")]
+    public string Model { get; set; } = "gpt-5-nano";
 
     /// <summary>Interface language, which the agent answers and writes in.</summary>
     [JsonPropertyName("language")]

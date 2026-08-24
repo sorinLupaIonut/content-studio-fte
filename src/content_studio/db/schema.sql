@@ -660,3 +660,25 @@ CREATE INDEX IF NOT EXISTS idx_documents_client
 -- ─────────────────────────────────────────────────────────────────────────────
 ALTER TABLE public.usage_events
     ADD COLUMN IF NOT EXISTS cached_input_tokens BIGINT NOT NULL DEFAULT 0;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 13. WHICH MODEL WROTE THIS LOT — 2026-08-24
+--     The model became a choice in the interface, so it stops being a property
+--     of the deployment and becomes a property of the batch. It is stored rather
+--     than passed through the running task for two reasons, and the second is
+--     the one that forces it: details are generated when she opens an idea, long
+--     after the request that started the batch is gone, and they must come from
+--     the model she picked — not from whatever the environment defaults to on
+--     the day she comes back.
+--
+--     The first reason is plainer: `usage_events` records the model per call,
+--     but nothing recorded what the batch was ASKED for, so a batch that fell
+--     back could not be told from one that was chosen.
+--
+--     NULL means "whatever the deployment defaults to", which is what every row
+--     written before today meant. No backfill: guessing a value for them would
+--     invent evidence.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.generation_batches
+    ADD COLUMN IF NOT EXISTS model TEXT;

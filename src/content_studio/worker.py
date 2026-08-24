@@ -197,6 +197,34 @@ def skill_tool_method_note(*, references: bool) -> str:
     return "\n\n".join(parts)
 
 
+def preloaded_method_note(*, references: bool) -> str:
+    """The method note for the shape where the method is already in the prompt.
+
+    A second note rather than a flag inside the first one, for the same reason
+    the first one has two versions: this is where the model learns which tools
+    exist, and a sentence that describes a tool it does not have costs a turn to
+    disprove. Here there is no skill tool at all, so nothing may say there is.
+    """
+
+    parts = [
+        "Metoda ta e mai jos, în acest mesaj, întreagă - corpul ei și fiecare"
+        " referință de care are nevoie. Nu o ceri și nu o cauți: o citești și o"
+        " aplici, pas cu pas, în ordinea în care e scrisă."
+    ]
+    if references:
+        parts.append(
+            f"`{REFERENCE_TOOL_NAME}` rămâne pentru referințele care NU sunt mai"
+            " jos - alea depind de ce te întreabă ea, nu de ce a ales în"
+            " formular. Nu o chema pentru ceva ce ai deja."
+        )
+    parts.append("Nu ai shell: nu deschizi fișiere singur și nu inventa unelte.")
+    parts.append(
+        "APLICAREA METODEI ESTE OBLIGATORIE. Un pas sărit e metodă neaplicată,"
+        " nu timp economisit."
+    )
+    return "\n\n".join(parts)
+
+
 #: What the model may reach the data with, read off the server rather than typed
 #: out. The sentence this replaces named five tools while seven were attached in
 #: chat and three in generation - so the prompt promised `save_post` to an agent
@@ -292,6 +320,7 @@ def build_worker(
     output_type: type[Any] | None = None,
     model_settings: ModelSettings | None = None,
     language: Language = DEFAULT_LANGUAGE,
+    method: str | None = None,
 ) -> Agent:
     """The single agent. Skills from `skills/`, data through MCP.
 
@@ -307,13 +336,27 @@ def build_worker(
 
     `language` changes only what comes out, never the method: the skills stay
     Romanian and an override block is appended. See `content_studio.language`.
+
+    `method`, when given, is the whole method already assembled - body plus the
+    references this run was always going to need - and it changes three things
+    together, which is why it is one parameter and not three. The skill tools
+    come off (the body is already here, so a tool that returns it can only cost
+    a turn), the note stops telling the model to call one, and the block goes
+    into the prompt ahead of the profile so it lands in the cached prefix. The
+    reference tool stays on: `content_studio.method` preloads only what the form
+    determines, and the rest must still be reachable. See that module's header
+    for why this path is not the same situation as chat.
     """
     # Built before the prompt, because the prompt has to describe the tools that
     # are actually attached. These lines are the whole fix: one place decides
     # whether the reference tool exists, and the note is written from that answer
     # rather than from what happened to be true when it was last edited.
     references = reference_tool()
-    method_note = skill_tool_method_note(references=references is not None)
+    method_note = (
+        preloaded_method_note(references=references is not None)
+        if method is not None
+        else skill_tool_method_note(references=references is not None)
+    )
     # Identity, then the method, then the data, then the contract. Each part
     # written from what is actually attached rather than from what was true
     # when the string was last edited.
@@ -323,6 +366,10 @@ def build_worker(
         "model": model or MODEL,
         "instructions": (
             f"{BASE_INSTRUCTIONS}\n\n{tool_note}"
+            # Ahead of the profile, and never after the request: everything up to
+            # the profile is identical for every idea in a batch, which is what
+            # makes it one cached prefix read ten times instead of ten reads.
+            f"{'' if method is None else chr(10) * 2 + method}"
             f"\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
             # The language override goes last, after the profile, because it
             # has to contradict rule 1 above and the closer contradiction wins.
@@ -332,7 +379,11 @@ def build_worker(
         "output_type": output_type,
         "model_settings": model_settings or ModelSettings(),
     }
-    tools = skill_tools()
+    # No skill tool when the body is already in the prompt. Leaving it attached
+    # would offer the model a turn whose only possible result is a copy of what
+    # it is already reading - and a model that is told to call its method first
+    # will take that offer.
+    tools = [] if method is not None else skill_tools()
     if references is not None:
         tools.append(references)
     return Agent(tools=tools, **common)

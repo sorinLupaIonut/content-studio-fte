@@ -86,8 +86,28 @@ WEB_SEARCH_MODEL = os.getenv("WEB_SEARCH_MODEL", MODEL)
 # The move also stops paying twice for the same prefix. Now that a skill is a
 # tool, both phases build the SAME instructions; on one model that is one cached
 # prefix, and the title call warms it for the ten that follow.
-GENERATION_TITLE_MODEL = os.getenv("GENERATION_TITLE_MODEL", "gpt-5-mini")
-GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-mini")
+#
+# Since 2026-08-24 the model is a choice in the interface, one per batch, and it
+# reaches both phases - see `GENERATION_MODELS`. These two stay as the fallback
+# for a request that names none, and they are read only there.
+GENERATION_TITLE_MODEL = os.getenv("GENERATION_TITLE_MODEL", "gpt-5-nano")
+GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-nano")
+
+#: What the interface may ask for. An allowlist, not a free string: the value
+#: arrives from a browser, and `pricing.py` charges an unrecognised model at the
+#: most expensive rate in its table - so an unchecked one would be a typo that
+#: silently drains an allowance. First entry is the default.
+#:
+#: NANO IS THE DEFAULT, AND IT IS A MEASURED TRADE. On 2026-08-24, with the
+#: method still fetched turn by turn, nano finished 3 detail runs out of 10:
+#: four missed the structured contract and three ran out of turns. Three of
+#: those seven are the failure mode `content_studio.method` removes outright,
+#: which is why the preloading landed first and the default moved after. What
+#: nano cannot be talked out of is its Romanian - measured in the same run:
+#: "Încerc-o azi" for "Încearcă-o", "se brăzdează drumul", a CIFRĂ hook with no
+#: number in it. Mini is one click away in the interface for exactly that
+#: reason, and it is the right click for anything that gets published.
+GENERATION_MODELS: tuple[str, ...] = ("gpt-5-nano", "gpt-5-mini")
 GENERATION_CONCURRENCY = int(os.getenv("GENERATION_CONCURRENCY", "5"))
 if not 1 <= GENERATION_CONCURRENCY <= 5:
     raise RuntimeError("GENERATION_CONCURRENCY must be between 1 and 5")

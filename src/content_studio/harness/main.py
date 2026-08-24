@@ -566,6 +566,25 @@ def create_app(
             },
         )
 
+    @app.post("/api/generation-batches/{batch_id}/ideas/{ordinal}/details",
+              status_code=202)
+    async def develop_generation_idea(
+        batch_id: UUID,
+        ordinal: int,
+        request: Request,
+        identity: Identity = identity_dependency,
+    ) -> dict:
+        """Write the five variants for one idea, because she opened it.
+
+        The batch writes titles only. Details are the whole cost of a run and
+        she develops one idea, so they are written on demand rather than ten at
+        a time - see `GenerationCoordinator.develop`.
+        """
+        batch = await request.app.state.harness.develop_generation_idea(
+            identity.principal_id, batch_id, ordinal
+        )
+        return {"batch": batch}
+
     @app.post("/api/generation-batches/{batch_id}/cancel")
     async def cancel_generation(
         batch_id: UUID,

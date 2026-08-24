@@ -64,8 +64,22 @@ class RefreshRuleTests(unittest.TestCase):
     def setUp(self) -> None:
         self.sql = " ".join(REFRESH_BATCH_STATUS_SQL.split())
 
-    def test_a_batch_is_still_generating_only_while_an_idea_is_unsettled(self) -> None:
-        self.assertIn("i.status NOT IN ('ready', 'failed') ) THEN 'generating'", self.sql)
+    def test_a_batch_is_generating_only_while_an_idea_is_actually_being_written(
+        self,
+    ) -> None:
+        # Narrowed on 2026-08-24, when details became something she asks for.
+        # The old rule - anything not ready or failed - counted the nine ideas
+        # she has not opened yet, so every batch stayed 'generating' for ever,
+        # under a spinner and a cancel button, with nothing running.
+        self.assertIn("i.status IN ('generating', 'retrying') ) THEN 'generating'", self.sql)
+
+    def test_undeveloped_ideas_rest_at_titles_ready(self) -> None:
+        self.assertIn("i.status = 'waiting' ) THEN 'titles_ready'", self.sql)
+        # After 'ready', so one developed idea still reads as developed rather
+        # than dragging the batch back to "titles only".
+        self.assertTrue(
+            self.sql.index("THEN 'ready'") < self.sql.index("THEN 'titles_ready'")
+        )
 
     def test_one_ready_idea_is_enough_to_call_the_batch_ready(self) -> None:
         self.assertIn("i.status = 'ready' ) THEN 'ready'", self.sql)

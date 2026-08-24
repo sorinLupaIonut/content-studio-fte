@@ -242,12 +242,24 @@ def detail_output_type(format: FormatChoice) -> type[StrictContract]:
     return DETAIL_CONTRACTS[format]
 
 
+#: The models the interface may ask for, as a contract rather than a string.
+#: Anything else is a 422 at the edge instead of an unpriced model reaching
+#: `pricing.py`, which charges what it does not recognise at the most expensive
+#: rate in its table. `None` means the deployment default.
+ModelChoice = Literal["gpt-5-nano", "gpt-5-mini"]
+
+
 class GenerationBatchRequest(StrictContract):
     format: FormatChoice
     pillar: PillarChoice
     source: SourceChoice
     focus: str | None = Field(default=None, max_length=2_000)
     material_ids: list[UUID] = Field(default_factory=list, max_length=50)
+    # On the batch request rather than on the start request, unlike `language`:
+    # this one has to survive the request that created the batch. Details are
+    # generated when she opens an idea, and they must come from the model she
+    # picked then, not from whatever the deployment defaults to now.
+    model: ModelChoice | None = None
 
     @field_validator("focus")
     @classmethod
@@ -306,8 +318,23 @@ def encode_sse(event: StreamEvent) -> str:
 #: called `propune-postari` at all. It reached for `list_posts` and `search_books`
 #: instead, got `[]` from both, and wrote ten titles without ever reading the
 #: method. Saying "activează skill-ul" is not the same as naming a tool.
-def use_skill_note(skill: str) -> str:
-    """Tell the model to call the tool, before anything else."""
+def use_skill_note(skill: str, *, preloaded: bool = False) -> str:
+    """Tell the model where its method is - and only what is true.
+
+    Two versions, because there are two shapes. When `content_studio.method` has
+    already assembled the method into the system prompt there is no skill tool
+    attached, and an instruction to call one is an instruction to spend a turn
+    discovering it does not exist. The system prompt says the same thing from
+    the other side; both have to move together, which is what
+    `tests/unit/test_method.py` holds.
+    """
+
+    if preloaded:
+        return """Metoda ta e în promptul de sistem, întreagă, împreună cu
+referințele ei. Nu o ceri și nu o cauți — o aplici, pas cu pas.
+
+Scrii direct răspunsul cerut. Un pas sărit e metodă neaplicată, nu timp
+economisit."""
 
     return f"""Metoda ta este unealta `{skill}`. Cheam-o ÎNAINTE de orice
 altceva, citește ce întoarce și urmeaz-o. Nu scrii nimic înainte s-o fi chemat.
@@ -320,11 +347,13 @@ def title_prompt(
     request: GenerationBatchRequest,
     source_packet: dict[str, Any],
     language: Language = DEFAULT_LANGUAGE,
+    *,
+    preloaded: bool = False,
 ) -> str:
     """The bounded title-only branch of the existing proposal skill."""
 
     packet = json.dumps(source_packet, ensure_ascii=False)
-    return f"""{use_skill_note("propune-postari")}
+    return f"""{use_skill_note("propune-postari", preloaded=preloaded)}
 
 Formatul, pilonul și sursa sunt deja alese de ea — nu le pui la îndoială, nu ceri
 confirmare și nu întrebi nimic. Scrii numai din materialul-sursă de mai jos și din
@@ -370,12 +399,14 @@ def detail_prompt(
     idea: IdeaTitle,
     source_packet: dict[str, Any],
     language: Language = DEFAULT_LANGUAGE,
+    *,
+    preloaded: bool = False,
 ) -> str:
     """The complete five-variant branch for one already-persisted idea."""
 
     idea_json = json.dumps(idea.model_dump(), ensure_ascii=False)
     packet = json.dumps(source_packet, ensure_ascii=False)
-    return f"""{use_skill_note("dezvolta-postarea")}
+    return f"""{use_skill_note("dezvolta-postarea", preloaded=preloaded)}
 
 Ideea ţi se dă mai jos, întreagă — nu o cauți în conversație și nu alegi alta.
 Cele cinci variante pornesc din același unghi, dar hook-ul și construcția

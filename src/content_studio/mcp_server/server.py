@@ -737,6 +737,7 @@ async def ui_create_generation_batch(
     focus: str | None = None,
     material_ids: list[str] | None = None,
     source_packet: dict | None = None,
+    model: str | None = None,
 ) -> dict:
     """Creează intern lotul curent al interfeței; nu este unealtă a agentului."""
     conversation_id = conversation_of(ctx)
@@ -747,6 +748,7 @@ async def ui_create_generation_batch(
             "source": source,
             "focus": focus,
             "material_ids": material_ids or [],
+            "model": model,
         }
     )
     client_slug = await client_of(ctx)

@@ -100,6 +100,18 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
             "api/generation-batches", request);
     }
 
+    /// <summary>
+    /// Ask for the five variants of one idea. Returns as soon as the work is
+    /// accepted; the event stream carries the result.
+    /// </summary>
+    public async Task DevelopGenerationIdeaAsync(string batchId, int ordinal)
+    {
+        using var response = await http.PostAsync(
+            $"api/generation-batches/{Uri.EscapeDataString(batchId)}/ideas/{ordinal}/details",
+            null);
+        await EnsureSuccessAsync(response);
+    }
+
     public async Task CancelGenerationAsync(string batchId)
     {
         using var response = await http.PostAsync(

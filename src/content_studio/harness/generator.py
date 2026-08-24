@@ -10,6 +10,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
@@ -20,7 +21,6 @@ from agents.run_config import RunConfig
 from content_studio.audit import Audit
 from content_studio.config import (
     GENERATION_CONCURRENCY,
-    GENERATION_DETAIL_MODEL,
     GENERATION_TITLE_MODEL,
     MODEL,
 )
@@ -37,6 +37,7 @@ from content_studio.harness.generation import (
     title_prompt,
 )
 from content_studio.language import DEFAULT_LANGUAGE, Language
+from content_studio.method import method_block
 from content_studio.observability import bind_run
 from content_studio.worker import (
     build_worker,
@@ -98,9 +99,16 @@ def workflow_name(batch_id: str) -> str:
 #: `usage_events.cached_input_tokens` records what actually happened. If the hit
 #: rate falls below the 94.8% measured here, partition: one key per slot index,
 #: still stable across batches.
-def cache_key(model: str) -> str:
-    """The prompt-cache routing key for one model's generation calls."""
-    return f"content-studio-generation-{model}"
+def cache_key(model: str, shape: str = "") -> str:
+    """The prompt-cache routing key for one model's generation calls.
+
+    `shape` names what else the prefix depends on. Since the method is preloaded
+    the prefix differs by format and source, and two batches on different formats
+    routed to one key would each evict the other's prefix - the exact cold-miss
+    cost this key exists to avoid. Empty for the shapes that carry no method.
+    """
+    suffix = f"-{shape}" if shape else ""
+    return f"content-studio-generation-{model}{suffix}"
 
 #: How long a slot waits for the leader to write the prefix before going anyway.
 #: Generous on purpose: the wait is an optimisation, and a batch that stalls
@@ -250,6 +258,62 @@ class _PrefixWarmed(RunHooks):
         self._warmed.set()
 
 
+class _MeteredRun(RunHooks):
+    """Keep hold of the run context so a FAILED run can still be metered.
+
+    WHY NOT `exception.run_data`. That is where the SDK puts the context when a
+    run raises, and it is where this started. It does not survive: for a
+    structured-output failure `Runner.run` takes the redaction branch - see
+    `agents/run.py`, `raise redacted_error from None` - which detaches
+    `run_data` before the exception reaches any caller. Verified on 2026-08-24
+    against a live batch: the handler fired on all six failures and found
+    `run_data` None every time.
+
+    The hook is called on every model response, before anything can fail, and
+    `context` is the same `RunContextWrapper` the success path reads `usage`
+    off. So this holds the object rather than a copy of the numbers, and
+    whatever the run managed to spend before it broke is on it.
+
+    Composes with another hooks object instead of replacing it, because the
+    leader slot already passes `_PrefixWarmed` and both have to happen.
+    """
+
+    def __init__(self, inner: RunHooks | None = None) -> None:
+        self._inner = inner
+        self.context: Any | None = None
+
+    async def on_llm_start(self, context, agent, *args, **kwargs) -> None:
+        self.context = context
+        if self._inner is not None:
+            await self._inner.on_llm_start(context, agent, *args, **kwargs)
+
+    async def on_llm_end(self, context, agent, response) -> None:
+        self.context = context
+        if self._inner is not None:
+            await self._inner.on_llm_end(context, agent, response)
+
+    async def on_agent_start(self, context, agent) -> None:
+        self.context = context
+        if self._inner is not None:
+            await self._inner.on_agent_start(context, agent)
+
+    async def on_agent_end(self, context, agent, output) -> None:
+        self.context = context
+        if self._inner is not None:
+            await self._inner.on_agent_end(context, agent, output)
+
+    def spent(self) -> Any | None:
+        """Something shaped like a run result, for `Accounts.record_run`.
+
+        A shim rather than a second metering path: `record_run` reads
+        `result.context_wrapper.usage`, and giving it exactly that keeps one
+        place deciding how a token becomes a micro-dollar.
+        """
+        if self.context is None:
+            return None
+        return SimpleNamespace(context_wrapper=self.context)
+
+
 class GenerationCoordinator:
     """Own background batch tasks while all durable state remains in MCP."""
 
@@ -265,6 +329,11 @@ class GenerationCoordinator:
         self._accounts = accounts
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
         self._principal_tasks: dict[str, UUID] = {}
+        # One in-flight detail run per idea. A double click on a card is the
+        # obvious way to pay twice for one idea, and the database status alone
+        # does not stop it: both requests read `waiting` before either writes
+        # `generating`.
+        self._idea_tasks: dict[tuple[UUID, int], asyncio.Task[None]] = {}
 
     async def close(self) -> None:
         tasks = list(self._tasks.values())
@@ -272,8 +341,13 @@ class GenerationCoordinator:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        for detail in list(self._idea_tasks.values()):
+            detail.cancel()
+        if self._idea_tasks:
+            await asyncio.gather(*self._idea_tasks.values(), return_exceptions=True)
         self._tasks.clear()
         self._principal_tasks.clear()
+        self._idea_tasks.clear()
 
     async def start(
         self,
@@ -428,6 +502,148 @@ class GenerationCoordinator:
                 }
         raise GenerationAccessError("Varianta nu aparține lotului curent al contului.")
 
+    async def develop(
+        self,
+        principal_id: str,
+        batch_id: UUID,
+        ordinal: int,
+        language: Language = DEFAULT_LANGUAGE,
+        trail: Audit | None = None,
+    ) -> dict[str, Any]:
+        """Write the five variants for ONE idea, because she asked for it.
+
+        The batch used to write all ten as soon as the titles landed. That is
+        the whole cost of a run - $0.0733 of a $0.0770 batch, measured on
+        2026-08-24 - and she develops one. The other nine were paid for, stored,
+        and never opened.
+
+        Everything the run needs is read back off the batch rather than held in
+        memory: the request, the source packet gathered once, and the model she
+        chose. This can be called days later, from a different replica, and it
+        has to produce the same thing the batch would have produced then.
+
+        Returns the batch as the interface reads it, so the caller can render
+        the new state without a second round trip.
+        """
+        raw = await self._get_raw(principal_id, batch_id)
+        key = (batch_id, ordinal)
+        running = self._idea_tasks.get(key)
+        if running is not None and not running.done():
+            # Not an error: a second click on a card that is already working is
+            # a person being impatient, not a fault. Give back the current state.
+            return public_batch(raw)
+
+        idea = next(
+            (
+                item
+                for item in raw.get("ideas", [])
+                if int(item.get("ordinal", -1)) == ordinal
+            ),
+            None,
+        )
+        if idea is None:
+            raise GenerationAccessError(f"Lotul nu are ideea {ordinal}.")
+        if idea.get("status") == "ready":
+            return public_batch(raw)
+
+        request = GenerationBatchRequest.model_validate(
+            {
+                "format": raw["format"],
+                "pillar": raw["pillar"],
+                "source": raw["source"],
+                "focus": raw.get("focus"),
+                "material_ids": raw.get("material_ids") or [],
+                "model": raw.get("model"),
+            }
+        )
+        title = IdeaTitle(
+            ordinal=ordinal,
+            title=str(idea["title"]),
+            angle=str(idea.get("angle") or idea["title"]),
+        )
+
+        run_id = None
+        if trail is not None:
+            run_id = await trail.open_run(
+                self._session_id("generation-detail", principal_id),
+                f"Dezvoltă ideea {ordinal} din lotul {str(batch_id)[:8]}",
+            )
+
+        task = asyncio.create_task(
+            self._develop_one(
+                batch_id,
+                principal_id,
+                request,
+                raw.get("source_packet") or {},
+                title,
+                language,
+                trail,
+                run_id,
+            ),
+            name=f"generation-{batch_id}-idea-{ordinal}",
+        )
+        self._idea_tasks[key] = task
+        task.add_done_callback(lambda _t, k=key: self._idea_tasks.pop(k, None))
+        return public_batch(raw)
+
+    async def _develop_one(
+        self,
+        batch_id: UUID,
+        principal_id: str,
+        request: GenerationBatchRequest,
+        source_packet: dict[str, Any],
+        idea: IdeaTitle,
+        language: Language,
+        trail: Audit | None,
+        run_id: str | None,
+    ) -> None:
+        if run_id is not None:
+            bind_run(run_id)
+        session_id = self._session_id("generation-detail", principal_id)
+        data_mcp = self._data_mcp_factory(session_id)
+        internal = self._internal_mcp_factory(session_id)
+        try:
+            await asyncio.gather(data_mcp.connect(), internal.connect())
+            # Checked here rather than only when the batch starts: ten ideas
+            # opened one at a time over an afternoon is ten separate decisions
+            # to spend, and the gate has to stand in front of each of them.
+            if self._accounts is not None:
+                await self._accounts.require_budget()
+            _, profile_md = await read_profile(data_mcp)
+            agent = self._detail_agent(
+                profile_md, data_mcp, request, language, batch_id
+            )
+            await self._generate_one_detail(
+                batch_id,
+                request,
+                source_packet,
+                idea,
+                agent,
+                GenerationDraftClient(internal),
+                language,
+            )
+            if trail is not None:
+                with suppress(Exception):
+                    await trail.close_run(run_id, idea.title)
+        except asyncio.CancelledError:
+            if trail is not None:
+                with suppress(Exception):
+                    await trail.failed(run_id, RuntimeError("detail cancelled"))
+            raise
+        except BaseException as exc:  # noqa: BLE001 - background task boundary
+            logger.exception("idea %s of batch %s failed", idea.ordinal, batch_id)
+            if trail is not None:
+                with suppress(Exception):
+                    await trail.failed(run_id, exc)
+            with suppress(Exception):
+                await GenerationDraftClient(internal).fail_idea(
+                    batch_id, idea.ordinal, safe_generation_error(exc), retryable=False
+                )
+        finally:
+            await asyncio.gather(
+                data_mcp.cleanup(), internal.cleanup(), return_exceptions=True
+            )
+
     async def cancel(self, principal_id: str, batch_id: UUID) -> dict[str, Any]:
         await self._get_raw(principal_id, batch_id)
         session_id = self._session_id("generation-cancel", principal_id)
@@ -559,53 +775,27 @@ class GenerationCoordinator:
         try:
             await asyncio.gather(data_mcp.connect(), internal.connect())
             drafts = GenerationDraftClient(internal)
-            # The title and detail agents are clones of this one, so the
-            # language set here reaches both phases.
-            title_agent = self._phase_agent(
-                profile_md,
-                data_mcp,
-                "propune-postari",
-                language,
-                model=GENERATION_TITLE_MODEL,
-                output_type=IdeaTitles,
-                model_settings=ModelSettings(
-                    reasoning={"effort": "minimal"},
-                    verbosity="low",
-                    max_tokens=4_000,
-                    extra_args={"prompt_cache_key": cache_key(GENERATION_TITLE_MODEL)},
-                ),
-            )
-            detail_agent = self._phase_agent(
-                profile_md,
-                data_mcp,
-                "dezvolta-postarea",
-                language,
-                model=GENERATION_DETAIL_MODEL,
-                output_type=detail_output_type(request.format),
-                model_settings=ModelSettings(
-                    reasoning={"effort": "minimal"},
-                    verbosity="low",
-                    max_tokens=24_000,
-                    extra_args={"prompt_cache_key": cache_key(GENERATION_DETAIL_MODEL)},
-                ),
+            title_agent = self._title_agent(
+                profile_md, data_mcp, request, language, batch_id
             )
             titles = await self._run_isolated(
                 title_agent,
-                title_prompt(request, source_packet, language),
+                title_prompt(request, source_packet, language, preloaded=True),
                 IdeaTitles,
                 f"{batch_id}-titles",
                 str(batch_id),
             )
             await drafts.put_titles(batch_id, titles)
-            await self._generate_details(
-                batch_id,
-                request,
-                source_packet,
-                titles,
-                detail_agent,
-                drafts,
-                language,
-            )
+            # AND THAT IS THE WHOLE BATCH. The ten details used to be written
+            # here, eagerly, and they are the entire cost of a run: measured on
+            # 2026-08-24, titles were $0.0037 of a $0.0770 batch and the ten
+            # detail passes were the other $0.0733. She develops one idea. The
+            # other nine were written, stored, and never opened.
+            #
+            # So they are written when she opens one - `develop` below. The
+            # cached prefix is what makes this affordable a second time: the
+            # method and the profile are identical for every idea in the batch,
+            # so the second idea she opens reads a prefix the first one wrote.
             if trail is not None:
                 # The titles are what the batch is judged on; the details are
                 # rows of their own. One readable line, same as chat's reply.
@@ -633,6 +823,78 @@ class GenerationCoordinator:
             await asyncio.gather(
                 data_mcp.cleanup(), internal.cleanup(), return_exceptions=True
             )
+
+    # ---- the two agents, built in one place -----------------------------------
+    # Both phases are built from the same four things - the profile, the request,
+    # the language and the model on the batch - and the detail agent is now built
+    # twice: once for a batch that runs its titles, and again, minutes or days
+    # later, when she opens an idea. Two copies of this would drift, and the way
+    # they would drift is the cache key: a prefix built one way in one place and
+    # another way in the other is a cold read on every idea she opens.
+
+    @staticmethod
+    def _batch_model(request: GenerationBatchRequest) -> str:
+        """The model for this batch. Chosen in the interface, stored on the row.
+
+        Both phases get it. A batch whose titles and details came from different
+        models is a batch nobody can reason about the cost or the quality of
+        afterwards.
+        """
+        return request.model or GENERATION_TITLE_MODEL
+
+    def _title_agent(self, profile_md, data_mcp, request, language, batch_id):
+        model = self._batch_model(request)
+        method, keys = method_block("propune-postari", request.format, request.source)
+        logger.info(
+            "batch %s titles: model=%s, metoda preincarcata=%s", batch_id, model, keys
+        )
+        return self._phase_agent(
+            profile_md,
+            data_mcp,
+            "propune-postari",
+            language,
+            model=model,
+            output_type=IdeaTitles,
+            method=method,
+            model_settings=ModelSettings(
+                reasoning={"effort": "minimal"},
+                verbosity="low",
+                max_tokens=4_000,
+                extra_args={
+                    "prompt_cache_key": cache_key(
+                        model, f"titluri-{request.format}-{request.source}"
+                    )
+                },
+            ),
+        )
+
+    def _detail_agent(self, profile_md, data_mcp, request, language, batch_id):
+        model = self._batch_model(request)
+        method, keys = method_block(
+            "dezvolta-postarea", request.format, request.source
+        )
+        logger.info(
+            "batch %s detail: model=%s, metoda preincarcata=%s", batch_id, model, keys
+        )
+        return self._phase_agent(
+            profile_md,
+            data_mcp,
+            "dezvolta-postarea",
+            language,
+            model=model,
+            output_type=detail_output_type(request.format),
+            method=method,
+            model_settings=ModelSettings(
+                reasoning={"effort": "minimal"},
+                verbosity="low",
+                max_tokens=24_000,
+                extra_args={
+                    "prompt_cache_key": cache_key(
+                        model, f"detalii-{request.format}-{request.source}"
+                    )
+                },
+            ),
+        )
 
     async def _generate_details(
         self,
@@ -724,7 +986,7 @@ class GenerationCoordinator:
             try:
                 value = await self._run_agent(
                     agent,
-                    detail_prompt(request, idea, source_packet, language),
+                    detail_prompt(request, idea, source_packet, language, preloaded=True),
                     detail_output_type(request.format),
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     str(batch_id),
@@ -789,16 +1051,39 @@ class GenerationCoordinator:
             workflow_name=workflow_name(group),
             group_id=group,
         )
-        result = await asyncio.wait_for(
-            Runner.run(
-                agent,
-                prompt,
-                run_config=run_config,
-                max_turns=6,
-                hooks=hooks,
-            ),
-            timeout=RUN_TIMEOUT_SECONDS,
-        )
+        # A RUN THAT FAILED STILL SPENT THE MONEY. Metering used to live only
+        # after this call returned, so every run that raised - a missed
+        # structured contract, a turn limit - burned its tokens at the provider
+        # and left no row. Measured on 2026-08-24 against `public.traces`, which
+        # records spans whether or not the run survived: batch e83360cc consumed
+        # $0.0195 and recorded $0.0061, and the mini batch beside it consumed
+        # $0.1019 and recorded $0.0770. The gap scales with the failure rate,
+        # which is exactly backwards for a budget meant to stop runaway
+        # spending: the worse an account behaves, the less of it the gate sees.
+        metered = _MeteredRun(hooks)
+        try:
+            result = await asyncio.wait_for(
+                Runner.run(
+                    agent,
+                    prompt,
+                    run_config=run_config,
+                    max_turns=6,
+                    hooks=metered,
+                ),
+                timeout=RUN_TIMEOUT_SECONDS,
+            )
+        except BaseException:
+            # BaseException, not Exception: a cancelled batch spent its tokens
+            # too, and `CancelledError` does not inherit from `Exception`.
+            if self._accounts is not None:
+                spent = metered.spent()
+                if spent is not None:
+                    model = getattr(agent, "model", None)
+                    with suppress(Exception):
+                        await self._accounts.record_run(
+                            label, model if isinstance(model, str) else MODEL, spent
+                        )
+            raise
         # Metered before the interruption check below, because a run that ends
         # in an unexpected approval request still burned the tokens.
         if self._accounts is not None:

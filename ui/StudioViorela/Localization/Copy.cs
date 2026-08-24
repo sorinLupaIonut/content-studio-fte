@@ -110,13 +110,23 @@ public static class Copy
     public static readonly Phrase GeneratorHeading =
         new("Ce vrei să creezi astăzi?", "What do you want to create today?");
     public static readonly Phrase GeneratorLede = new(
-        "Primești întâi 10 idei clare. Fiecare idee se dezvoltă apoi în fundal cu 5 hook-uri și conținutul complet.",
-        "You get 10 clear ideas first. Each one then develops in the background with 5 hooks and the full content.");
+        "Primești întâi 10 idei clare. Deschizi ideea care îți place și ți-o scriu întreagă, cu 5 hook-uri și conținutul complet.",
+        "You get 10 clear ideas first. Open the one you like and I write it in full, with 5 hooks and the complete content.");
     public static readonly Phrase GeneratorStepChip = new(
-        "nano titluri · mini detalii · 5 în paralel",
-        "nano titles · mini details · 5 in parallel");
+        "10 titluri întâi · detaliile la cerere",
+        "10 titles first · details on demand");
 
     public static readonly Phrase FieldSource = new("Sursa ideilor", "Idea source");
+    public static readonly Phrase FieldModel = new("Cum scrie", "How it writes");
+    public static readonly Phrase DevelopHint = new(
+        "Apasă ca să scriu cele 5 variante pentru ideea asta.",
+        "Tap to have me write the 5 variants for this idea.");
+    public static readonly Phrase DevelopWorking = new(
+        "Scriu cele 5 variante…", "Writing the 5 variants…");
+    public static readonly Phrase DevelopRetry = new("Încearcă din nou", "Try again");
+    public static readonly Phrase ModelHint = new(
+        "„Rapid\" scrie mai simplu și greșește româna mai des. Pentru ce publici, alege „Îngrijit\".",
+        "\"Fast\" writes more plainly and makes more language mistakes. For anything you publish, pick \"Polished\".");
     public static readonly Phrase FieldPillar = new("Pilon", "Pillar");
     public static readonly Phrase FieldFormat = new("Format", "Format");
 

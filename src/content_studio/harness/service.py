@@ -732,6 +732,31 @@ class HarnessService:
         await self.generation_batch(principal_id, batch_id)
         return self.generator.events(principal_id, batch_id, sequence)
 
+    async def develop_generation_idea(
+        self, principal_id: str, batch_id: UUID, ordinal: int
+    ) -> dict[str, Any]:
+        """Start the five variants for one idea. Returns immediately, 202.
+
+        The budget is checked here AND again inside the task, for the same
+        reason `start_generation` checks before a batch: this endpoint is the
+        moment a person decides to spend, and it should refuse then rather than
+        after the money is gone.
+        """
+        self._require_ready()
+        await self.accounts.require_budget()
+        try:
+            return await self.generator.develop(
+                principal_id, batch_id, ordinal, trail=self.trail
+            )
+        except GenerationAccessError as exc:
+            raise HarnessError(404, str(exc)) from exc
+        except ValueError as exc:
+            raise HarnessError(422, str(exc)) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise HarnessError(
+                502, f"Ideea nu a putut fi dezvoltată ({type(exc).__name__})."
+            ) from exc
+
     async def cancel_generation(
         self, principal_id: str, batch_id: UUID
     ) -> dict[str, Any]:

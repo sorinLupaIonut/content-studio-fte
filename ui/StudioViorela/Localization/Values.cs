@@ -37,6 +37,25 @@ public static class Values
         _ => value
     };
 
+    /// <summary>
+    /// The models the interface may ask for, in the order the picker shows them.
+    ///
+    /// The value is the API model id and never translates — `GenerationStartRequest`
+    /// validates it against the same two strings, and `pricing.py` charges by it.
+    /// The LABEL says nothing about price, deliberately: the studio shows a tester
+    /// a percentage of their allowance and never a figure, and a picker reading
+    /// "cheap / expensive" would undo that in one glance. It describes what she
+    /// actually chooses between — how carefully the thing is written.
+    /// </summary>
+    public static readonly string[] Models = ["gpt-5-nano", "gpt-5-mini"];
+
+    public static string ModelLabel(Translator t, string value) => value switch
+    {
+        "gpt-5-nano" => t.Pick("Rapid", "Fast"),
+        "gpt-5-mini" => t.Pick("Îngrijit", "Polished"),
+        _ => value
+    };
+
     public static readonly string[] Formats = ["Reel", "Carusel", "Stories"];
 
     public static string FormatLabel(Translator t, string value) => value switch
@@ -80,9 +99,18 @@ public static class Values
             "gathering" => t.Pick(
                 "Se generează cele 10 titluri. Poți lăsa pagina deschisă.",
                 "The 10 titles are being generated. You can leave the page open."),
+            // Said "pornesc detaliile" until 2026-08-24, and from that day it
+            // was a lie: the batch writes titles and stops. She opens the ones
+            // she wants. A status line that promises work nobody is doing is
+            // the same fault as one that contradicts the cards under it.
+            "titles_ready" when readyIdeas == 0 => t.Pick(
+                "Cele 10 titluri sunt gata. Deschide-le pe cele care îți plac și "
+                    + "ți le scriu întregi.",
+                "The 10 titles are ready. Open the ones you like and I will write "
+                    + "them in full."),
             "titles_ready" => t.Pick(
-                "Titlurile sunt gata; pornesc detaliile.",
-                "The titles are ready; the details are starting."),
+                $"{readyIdeas} din 10 dezvoltate. Deschide oricare alta ca s-o scriu.",
+                $"{readyIdeas} of 10 developed. Open any other one and I will write it."),
             "generating" => t.Pick(
                 $"{readyIdeas}/10 idei dezvoltate complet.",
                 $"{readyIdeas}/10 ideas fully developed."),
@@ -96,11 +124,15 @@ public static class Values
             "ready" when readyIdeas >= 10 => t.Pick(
                 "Toate cele 10 idei au câte 5 variante complete.",
                 "All 10 ideas have 5 complete variants each."),
+            // Said "restul nu au ieșit" until 2026-08-24, which stopped being
+            // true the day details became something she asks for: the rest were
+            // never attempted. Blaming a failure that did not happen teaches her
+            // to distrust the ones that did.
             "ready" => t.Pick(
-                $"{readyIdeas} din 10 idei au câte 5 variante complete. "
-                    + "Restul nu au ieșit — le poți genera din nou.",
-                $"{readyIdeas} of 10 ideas have 5 complete variants each. "
-                    + "The rest did not finish — you can generate them again."),
+                $"{readyIdeas} din 10 idei sunt scrise întreg. "
+                    + "Deschide oricare alta ca s-o scriu și pe ea.",
+                $"{readyIdeas} of 10 ideas are written in full. "
+                    + "Open any other one and I will write that too."),
             "failed" => t.Pick(
                 "Lotul s-a oprit; ideile gata au rămas disponibile.",
                 "The batch stopped; the ideas that were ready are still available."),

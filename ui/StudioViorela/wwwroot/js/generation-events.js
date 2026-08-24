@@ -13,7 +13,16 @@ const eventTypes = [
 
 export function connect(url, dotnet) {
     const id = nextId++;
-    const source = new EventSource(url, { withCredentials: true });
+    // NO `withCredentials`, and that is the fix rather than an omission. The
+    // API sets `allow_credentials=False` (harness/main.py), and a browser
+    // refuses a credentialed cross-origin request whose response does not say
+    // `Access-Control-Allow-Credentials: true` - so this stream simply never
+    // connected in development, while chat's did, because chat never asked for
+    // credentials either. It was invisible while details arrived on their own;
+    // now that an idea is written when she opens it, this stream is how she
+    // learns it is ready. In production both halves are same-origin, so nothing
+    // is lost here.
+    const source = new EventSource(url);
 
     for (const type of eventTypes) {
         source.addEventListener(type, event => {
