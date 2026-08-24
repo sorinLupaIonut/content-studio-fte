@@ -5,9 +5,11 @@ description: >-
   cinci hook-uri, după ce afli formatul, pilonul și sursa. Folosește-l când
   Viorela cere conținut nou: „vreau un reel despre limite", „dă-mi conținut pe
   Conexiune", „zece propuneri pe Educație", „ceva despre vinovăția de a spune
-  nu", „conținut pentru săptămâna asta". NU-l folosi pentru editarea unei
-  postări existente, pentru o întrebare despre profil, sau pentru o cerere de
-  raport.
+  nu", „conținut pentru săptămâna asta". Îl folosești OBLIGATORIU și în MOD UI
+  STRUCTURAT D1B — TITLURI, unde cererea nu vine în cuvintele ei, ci ca formular:
+  format, pilon, sursă. Acolo e singura sursă a metodei; fără el scrii titluri
+  din memorie. NU-l folosi pentru editarea unei postări existente, pentru o
+  întrebare despre profil, sau pentru o cerere de raport.
 ---
 
 # Faza 1 — cele zece propuneri

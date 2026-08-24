@@ -296,45 +296,23 @@ def encode_sse(event: StreamEvent) -> str:
     )
 
 
-#: Read on 2026-08-23 out of a real failed batch, in Phoenix. `gpt-5-nano`
-#: opened `propune-postari`, then tried `apply_patch` with
-#: `*** Update File: .agents/propune-postari` — writing a JSON blob over what is
-#: actually the skill's own DIRECTORY, since `Skills` mounts at `.agents/`. The
-#: tool answered "failed to read archive for path", the model read the same path
-#: to see what went wrong, and two of six turns were gone before a single title
-#: existed. The batch then died on MaxTurnsExceeded.
+#: Name the tool, and say the call comes first. This replaced a note that told
+#: the model where the skill was MOUNTED - `.agents/<name>/SKILL.md`, read it with
+#: `sed` - which stopped being true the moment the sandbox went away and became
+#: an instruction to use a shell that does not exist.
 #:
-#: The turn limit was the symptom. This is the cause, and it is cheaper to say
-#: "do not write" once than to buy the model more turns to waste.
-SANDBOX_READONLY_NOTE = """Folderul de skill-uri este doar pentru citit. Nu scrie
-și nu modifica niciun fișier în sandbox — fără `apply_patch`, fără fișiere de
-stare, fără notițe. Citește ce îți trebuie și răspunde."""
+#: The measurement that made this necessary, batch c82d55fd on 2026-08-24: the
+#: DETAIL phase called its tool 11 times out of 11, and the TITLE phase never
+#: called `propune-postari` at all. It reached for `list_posts` and `search_books`
+#: instead, got `[]` from both, and wrote ten titles without ever reading the
+#: method. Saying "activează skill-ul" is not the same as naming a tool.
+def use_skill_note(skill: str) -> str:
+    """Tell the model to call the tool, before anything else."""
 
-
-#: Where the skill actually is. `Skills` mounts each folder at `.agents/<name>/`,
-#: and until 2026-08-24 nothing said so — the prompt asked the model to "activate"
-#: a skill and left it to guess the path.
-#:
-#: It guessed badly, every single time. Measured over batch 3862ae03: nineteen of
-#: forty tool calls were failed probes at the DIRECTORY `.agents/dezvolta-postarea`
-#: - ten `view_image` calls, eight `sed` calls, one at a README.md that does not
-#: exist - before the model found `SKILL.md` underneath it. Each wasted turn
-#: resends the whole ~18k-token context, which is why one idea's input ranged
-#: from 57k tokens (found it on the second turn) to 113k (fifth).
-#:
-#: So: name the file, name the directory, and say plainly that the thing is a
-#: directory. The last sentence is not padding - `view_image` on a folder was the
-#: single most repeated mistake in the batch.
-def skill_path_note(skill: str) -> str:
-    """Tell the model where the skill is, instead of letting it search."""
-
-    return f"""Metoda este montată în sandbox la `.agents/{skill}/`, iar
-`.agents/{skill}` este un DIRECTOR, nu un fișier și nu o imagine — nu îl citi cu
-`sed` și nu îl deschide cu `view_image`.
-
-Citește întâi `sed -n '1,200p' .agents/{skill}/SKILL.md`. Materialele la care
-trimite SKILL.md sunt fișiere `.md` în `.agents/{skill}/references/`; deschide-le
-pe cele de care ai nevoie, tot cu `sed`."""
+    return f"""Metoda ta este unealta `{skill}`. Cheam-o ÎNAINTE de orice
+altceva, citește ce întoarce și urmează ramura ei pentru UI. Nu scrii nimic
+înainte s-o fi chemat, și nu o înlocuiești cu alte unelte: `list_posts` și
+`search_books` aduc material, nu metodă."""
 
 
 def title_prompt(
@@ -346,17 +324,13 @@ def title_prompt(
 
     packet = json.dumps(source_packet, ensure_ascii=False)
     return f"""MOD UI STRUCTURAT D1B — TITLURI
-Activează skill-ul `propune-postari` și urmează ramura lui pentru UI.
+{use_skill_note("propune-postari")}
 
 Format: {request.format}
 Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
-
-{skill_path_note("propune-postari")}
-
-{SANDBOX_READONLY_NOTE}
 
 Răspunde numai prin contractul structurat cerut de aplicație.
 {task_note(language)}"""
@@ -398,7 +372,7 @@ def detail_prompt(
     idea_json = json.dumps(idea.model_dump(), ensure_ascii=False)
     packet = json.dumps(source_packet, ensure_ascii=False)
     return f"""MOD UI STRUCTURAT D1B — DETALII
-Activează skill-ul `dezvolta-postarea` și urmează ramura lui pentru UI.
+{use_skill_note("dezvolta-postarea")}
 
 Ideea existentă: {idea_json}
 Format: {request.format}
@@ -408,10 +382,6 @@ Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
 
 {format_brief(request.format)}
-
-{skill_path_note("dezvolta-postarea")}
-
-{SANDBOX_READONLY_NOTE}
 
 Dezvoltă exact ideea primită. Răspunde numai prin contractul structurat cerut de
 aplicație; `idea_ordinal` și `title` rămân identice cu ideea existentă.

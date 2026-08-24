@@ -68,8 +68,11 @@ GENERATION_WORKFLOW = "Generation batch"
 #: every batch to a fresh machine and throw away exactly the half-hour-old warmth
 #: the measurement found.
 #:
-#: One key per phase, because a cache entry belongs to one model's weights and
-#: the two phases run on different models - what nano writes, mini cannot read.
+#: KEYED ON THE MODEL, not on the phase. A cache entry belongs to one model's
+#: weights, so two phases on different models can never share one - but since a
+#: skill became a tool the two phases build the SAME instructions, and on the
+#: same model that is one prefix, written once and read eleven times. Keying by
+#: phase would have split it back in two and paid the cold miss twice.
 #:
 #: THE KNOWN TENSION, so nobody has to rediscover it: the documented guidance is
 #: roughly fifteen requests per minute per key, and a batch does about forty
@@ -79,8 +82,9 @@ GENERATION_WORKFLOW = "Generation batch"
 #: `usage_events.cached_input_tokens` records what actually happened. If the hit
 #: rate falls below the 94.8% measured here, partition: one key per slot index,
 #: still stable across batches.
-TITLE_CACHE_KEY = "content-studio-generation-titles"
-DETAIL_CACHE_KEY = "content-studio-generation-details"
+def cache_key(model: str) -> str:
+    """The prompt-cache routing key for one model's generation calls."""
+    return f"content-studio-generation-{model}"
 
 #: How long a slot waits for the leader to write the prefix before going anyway.
 #: Generous on purpose: the wait is an optimisation, and a batch that stalls
@@ -552,7 +556,7 @@ class GenerationCoordinator:
                     reasoning={"effort": "minimal"},
                     verbosity="low",
                     max_tokens=4_000,
-                    extra_args={"prompt_cache_key": TITLE_CACHE_KEY},
+                    extra_args={"prompt_cache_key": cache_key(GENERATION_TITLE_MODEL)},
                 ),
             )
             detail_agent = self._phase_agent(
@@ -566,7 +570,7 @@ class GenerationCoordinator:
                     reasoning={"effort": "minimal"},
                     verbosity="low",
                     max_tokens=24_000,
-                    extra_args={"prompt_cache_key": DETAIL_CACHE_KEY},
+                    extra_args={"prompt_cache_key": cache_key(GENERATION_DETAIL_MODEL)},
                 ),
             )
             titles = await self._run_isolated(

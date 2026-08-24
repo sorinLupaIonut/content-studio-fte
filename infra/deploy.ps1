@@ -47,8 +47,21 @@ param(
     # subscription id, which keeps it stable across re-runs.
     [string]$AcrName       = '',
 
-    [string]$Tag           = (Get-Date -Format 'yyyyMMdd-HHmm'),
+    # ONE moving tag, not one per deploy. A timestamped tag left a local image and
+    # a registry manifest behind every single time: 26 images and 1.5 GB locally,
+    # 30 tags and 90 manifests in a Basic registry, for nothing anybody reads.
+    #
+    # The revision still changes, because what is deployed is the DIGEST this tag
+    # resolves to, not the tag. Deploying `:current` twice would leave the Bicep
+    # template byte-identical and Container Apps would create no new revision —
+    # the deploy would appear to succeed and change nothing.
+    [string]$Tag           = 'current',
     [string]$EnvFile       = '',
+
+    # Untagged manifests kept in the registry after a deploy. They are what the
+    # older revisions point at, so this is the rollback depth: 0 would make
+    # `az containerapp revision restart` on anything but the newest fail to pull.
+    [int]$KeepImages       = 3,
 
     # The harness refuses every address outside this list. Normally read from
     # AUTH_ALLOWED_EMAILS in .env; this parameter is the override.
@@ -136,11 +149,14 @@ if ($SkipBuild -and -not $PSBoundParameters.ContainsKey('Tag')) {
     if (-not $running -or $running -eq 'None') {
         throw "-SkipBuild has nothing to reuse: $NamePrefix-harness is not deployed in $ResourceGroup. Run without -SkipBuild the first time, or pass -Tag."
     }
-    $Tag = ($running -split ':')[-1]
-    Write-Host ("Reusing      : the running image, tag {0}" -f $Tag)
+    # The whole reference, not a tag split off the end. What is running is now a
+    # digest — `content-studio@sha256:abc…` — and splitting that on ':' yields
+    # the hex, which is not a tag and would deploy nothing that exists.
+    $reused = $running -replace "^$([regex]::Escape($AcrName)).azurecr.io/", ''
+    Write-Host ("Reusing      : the running image, {0}" -f $reused)
 }
 
-$image = "content-studio:$Tag"
+$image = if ($reused) { $reused } else { "content-studio:$Tag" }
 Write-Host ("Registry     : {0}" -f $AcrName)
 Write-Host ("Image        : {0}" -f $image)
 
@@ -280,6 +296,25 @@ if ($SkipBuild) {
     & docker push $reference
     if ($LASTEXITCODE -ne 0) { throw "docker push failed with exit code $LASTEXITCODE" }
     Write-Host "built here and pushed: $reference"
+
+    # Deploy the digest, not the tag. `:current` is the same string on every run,
+    # so Bicep would produce an identical template and Container Apps would make
+    # no revision — a deploy that reports success and ships nothing.
+    $repoDigest = (& docker inspect --format '{{index .RepoDigests 0}}' $reference | Out-String).Trim()
+    if ($repoDigest -match '@(sha256:[0-9a-f]{64})$') {
+        $image = "content-studio@$($Matches[1])"
+        Write-Host ("Deploying    : {0}" -f $image)
+    } else {
+        Write-Warning "No digest on $reference; deploying by tag, which may not create a new revision."
+    }
+
+    # The previous build held this same tag, so retagging left it dangling. This
+    # is the whole cleanup locally: one prune, and only ever untagged layers.
+    & docker image prune -f | Out-Null
+    # The build cache is the real hog — 5.4 GB against 1.5 GB of images when this
+    # was written. Bounded, not emptied: an empty cache makes the next build slow.
+    & docker builder prune -f --max-used-space 2GB 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { & docker builder prune -f --keep-storage 2GB 2>$null | Out-Null }
 } else {
     Write-Host "`n-- az acr build (this takes a few minutes) --" -ForegroundColor Cyan
     Push-Location $repoRoot
@@ -352,6 +387,57 @@ $outputs = $deployment.properties.outputs
 # which is before the new revision has served anything. Without this check a
 # container that crashes on startup is discovered by whoever opens the page
 # next; with it, the deploy that broke it says so.
+# --- Registry housekeeping ------------------------------------------------
+# Retagging `:current` orphans the manifest the previous deploy pushed, and an
+# orphan is invisible but still billed: this registry reached 30 tags and 90
+# manifests before anyone looked. Basic SKU includes 10 GB, and each of these is
+# ~440 MB.
+#
+# DELETE BY TAG, NEVER BY "untagged". buildx pushes an OCI image INDEX under the
+# tag, and that index references two manifests that carry no tag of their own:
+# the linux/amd64 image and an attestation. So "untagged" here does not mean
+# "orphaned" - it means "a child of a tag that is very much in use", and a
+# cleanup that walks `[?tags==null]` deletes the running image out from under
+# production. This registry had 30 tags and exactly 60 untagged manifests, which
+# is what that arithmetic looks like from the outside.
+#
+# The children are collected from each index BEFORE its tag goes, then deleted
+# after. Anything still referenced by a surviving tag is never in that list.
+if (-not $SkipBuild -and $KeepImages -ge 1) {
+    Write-Host "`n-- registry housekeeping --" -ForegroundColor Cyan
+    $tags = @(& az acr repository show-tags --name $AcrName `
+        --repository content-studio --orderby time_desc --output tsv 2>$null)
+    $stale = @($tags | Select-Object -Skip $KeepImages)
+    $orphans = [System.Collections.Generic.List[string]]::new()
+    foreach ($tag in $stale) {
+        $index = & az acr manifest show --registry $AcrName `
+            --name "content-studio:$tag" --output json 2>$null | ConvertFrom-Json
+        foreach ($child in @($index.manifests)) { $orphans.Add($child.digest) }
+        & az acr repository delete --name $AcrName `
+            --image "content-studio:$tag" --yes --output none 2>$null
+    }
+    # A child is only really an orphan once nothing tagged points at it: the same
+    # base layers get re-referenced across builds, and an index that survived
+    # this round may well name a digest an index that did not also named.
+    $kept = @(& az acr repository show-tags --name $AcrName `
+        --repository content-studio --output tsv 2>$null)
+    $alive = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($tag in $kept) {
+        $index = & az acr manifest show --registry $AcrName `
+            --name "content-studio:$tag" --output json 2>$null | ConvertFrom-Json
+        foreach ($child in @($index.manifests)) { [void]$alive.Add($child.digest) }
+    }
+    $removed = 0
+    foreach ($digest in ($orphans | Select-Object -Unique)) {
+        if ($alive.Contains($digest)) { continue }
+        & az acr manifest delete --registry $AcrName `
+            --name "content-studio@$digest" --yes --output none 2>$null
+        if ($LASTEXITCODE -eq 0) { $removed++ }
+    }
+    Write-Host ("taguri: {0} pastrate, {1} sterse; manifeste-copil sterse: {2}" -f `
+        [Math]::Min($tags.Count, $KeepImages), $stale.Count, $removed)
+}
+
 $harnessUrl = $outputs.harnessUrl.value
 Write-Host "`n-- health check --" -ForegroundColor Cyan
 $healthy = $false

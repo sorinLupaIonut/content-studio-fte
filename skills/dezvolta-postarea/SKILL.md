@@ -5,8 +5,9 @@ description: >-
   postare completă: script, caption, hashtaguri, CTA. Folosește-l când Viorela
   a ales dintr-o listă deja arătată: „dezvoltă a treia, cu contrastul",
   „îmi place 7", „scrie-o pe aia cu vinovăția", „hai pe prima". Îl folosești
-  și când cere încă una din aceeași listă. NU-l folosi ca să scoți propuneri noi
-  — aia e faza 1.
+  și când cere încă una din aceeași listă. Îl folosești OBLIGATORIU și în MOD UI
+  STRUCTURAT D1B — DETALII, unde ideea vine ca formular, nu în cuvintele ei.
+  NU-l folosi ca să scoți propuneri noi — aia e faza 1.
 ---
 
 # Faza 2 — postarea întreagă

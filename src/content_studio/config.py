@@ -76,7 +76,17 @@ WEB_SEARCH_MODEL = os.getenv("WEB_SEARCH_MODEL", MODEL)
 
 # D1b deliberately splits the cheap, short title pass from the long structured
 # writing pass. The existing CLI keeps using MODEL unchanged.
-GENERATION_TITLE_MODEL = os.getenv("GENERATION_TITLE_MODEL", "gpt-5-nano")
+# Titles moved off nano on 2026-08-24. Nano was the cheap half of the split and
+# it stopped earning it: measured on batch c82d55fd, the title pass never called
+# `propune-postari` at all - it reached for `list_posts` and `search_books`,
+# got `[]` from both, and wrote ten titles without ever reading the method. The
+# detail pass, on mini, called its tool 11 times out of 11 with the same prompt
+# shape. The titles read generic afterwards, which is the part that matters.
+#
+# The move also stops paying twice for the same prefix. Now that a skill is a
+# tool, both phases build the SAME instructions; on one model that is one cached
+# prefix, and the title call warms it for the ten that follow.
+GENERATION_TITLE_MODEL = os.getenv("GENERATION_TITLE_MODEL", "gpt-5-mini")
 GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-mini")
 GENERATION_CONCURRENCY = int(os.getenv("GENERATION_CONCURRENCY", "5"))
 if not 1 <= GENERATION_CONCURRENCY <= 5:
