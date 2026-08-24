@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from content_studio.config import CLIENT_SLUG, MissingConfig
+from content_studio.config import CLIENT_SLUG, USE_SANDBOX, MissingConfig
 from content_studio.harness.accounts import Account
 from content_studio.harness.auth import AuthSettings, IdentityResolver
 from content_studio.harness.chat import ChatRunAccepted
@@ -519,6 +519,13 @@ class TestSdkContracts(unittest.TestCase):
     def test_harness_never_passes_a_live_sandbox_session(self) -> None:
         config = HarnessService._run_config("s1")
 
+        # Since 2026-08-24 there may be no sandbox at all — see USE_SANDBOX. The
+        # guarantee being held here is unchanged and still worth holding: IF this
+        # path configures one, it hands over options for the SDK to open, never a
+        # session already opened here.
+        if not USE_SANDBOX:
+            self.assertIsNone(config.sandbox)
+            return
         self.assertIsNone(config.sandbox.session)
         self.assertIsNotNone(config.sandbox.client)
         self.assertEqual(config.sandbox.options.sandbox_type, "e2b")

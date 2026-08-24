@@ -14,7 +14,7 @@ from uuid import UUID
 from agents import ModelSettings, Runner
 from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
 from agents.mcp import MCPServerStreamableHttp
-from agents.run_config import RunConfig, SandboxRunConfig
+from agents.run_config import RunConfig
 from pydantic import Field, field_validator, model_validator
 
 from content_studio.audit import Audit
@@ -23,7 +23,13 @@ from content_studio.harness.drafts import GenerationDraftClient
 from content_studio.harness.generation import IdeaVariant, StreamEvent, StrictContract
 from content_studio.harness.posts import SavedPostContent
 from content_studio.language import DEFAULT_LANGUAGE, Language, normalise
-from content_studio.worker import build_sandbox, build_worker, describe_request, read_profile
+from content_studio.worker import (
+    build_worker,
+    describe_request,
+    open_sandbox,
+    read_profile,
+    sandbox_run_kwargs,
+)
 
 ChatTargetKind = Literal[
     "general",
@@ -421,8 +427,7 @@ class ChatCoordinator:
                     max_tokens=12_000,
                 ),
             )
-            client, options = build_sandbox()
-            sandbox = await client.create(options=options)
+            client, sandbox = await open_sandbox()
             session = SQLAlchemySession(
                 state.session_id, engine=engine, create_tables=True, ensure_ascii=False
             )
@@ -431,8 +436,8 @@ class ChatCoordinator:
                 chat_prompt(message, target_context, state.language),
                 session=session,
                 run_config=RunConfig(
-                    sandbox=SandboxRunConfig(client=client, session=sandbox),
                     group_id=state.session_id,
+                    **sandbox_run_kwargs(client, sandbox),
                 ),
                 max_turns=6,
             )

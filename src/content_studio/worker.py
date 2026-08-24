@@ -40,12 +40,14 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
 import uuid
 from datetime import date
+from pathlib import Path
 from typing import Any
 
-from agents import Agent, ModelSettings, Runner
+from agents import Agent, FunctionTool, ModelSettings, Runner
 from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
 from agents.extensions.sandbox.e2b import E2BSandboxClient, E2BSandboxClientOptions
 from agents.mcp import MCPServerStreamableHttp
@@ -69,6 +71,7 @@ from content_studio.config import (
     MCP_URL,
     MODEL,
     SKILLS_DIR,
+    USE_SANDBOX,
     MissingConfig,
     database_url,
     describe_database,
@@ -181,22 +184,26 @@ pilonul sau sursa. Când alege o propunere dintr-o listă existentă, deschizi
 de raport despre postările existente nu activează niciunul dintre aceste skill-uri.
 """.strip()
 
-#: The same instruction for an agent with NO sandbox, where the method is already
-#: in the prompt. Telling a model it has a shell it does not have is worse than
-#: saying nothing: it spends a turn calling `exec_command` and gets an error.
+#: The same instruction for an agent with NO sandbox, where each skill is a tool.
+#: Telling a model it has a shell it does not have is worse than saying nothing:
+#: it spends a turn calling `exec_command` and gets an error back.
 #:
 #: Measured on 2026-08-23, this is why the alternative exists at all: of 148 KB of
 #: skills mounted into the sandbox, a generation run opened exactly one file -
-#: SKILL.md, 1,950 tokens - and never touched `references/`. The sandbox charged
-#: 5,448 tokens of instructions and tool schemas, plus a whole extra turn, to
-#: deliver a file that fits in the prompt.
-INLINE_METHOD_NOTE = """
-Metoda pe care o urmezi este mai jos, în întregime. Nu ai shell și nu ai fișiere:
-nu încerca să deschizi nimic și nu inventa unelte. La date ajungi NUMAI prin
-unelte.
+#: SKILL.md - and never touched `references/`. The sandbox charged 5,448 tokens of
+#: instructions and tool schemas, plus a turn of flailing at a directory, to hand
+#: over a file a single tool call can return.
+#:
+#: Progressive disclosure survives this, which is the point: the skill's own
+#: frontmatter description becomes the tool description, so it is still the
+#: description that decides whether the body is ever paid for.
+SKILL_TOOL_METHOD_NOTE = """
+Metoda ta stă în unelte, câte una pentru fiecare skill, numite exact ca el.
+Chemi unealta potrivită și primești metoda întreagă. Nu ai shell și nu ai
+fișiere: nu încerca să deschizi nimic și nu inventa unelte.
 
-APLICAREA METODEI ESTE OBLIGATORIE. Nu improvizezi fluxul din memorie și nu
-răspunzi înainte s-o citești.
+APLICAREA METODEI ESTE OBLIGATORIE. Chemi unealta ÎNAINTE de primul răspuns,
+citești ce întoarce și abia apoi scrii. Nu improvizezi fluxul din memorie.
 """.strip()
 
 
@@ -275,89 +282,163 @@ def build_worker(
     output_type: type[Any] | None = None,
     model_settings: ModelSettings | None = None,
     language: Language = DEFAULT_LANGUAGE,
-) -> SandboxAgent:
-    """The single agent: skills mounted from `skills/`, data through MCP.
+) -> SandboxAgent | Agent:
+    """The single agent. Skills from `skills/`, data through MCP, either way.
 
-    `Skills(from_=LocalDir(...))` discovers the folders by itself: every `SKILL.md`
-    takes its name and description from the frontmatter, and the description is
-    what decides whether the skill fires. Nothing is declared in Python — skills
-    are folders, which is what makes them editable without code.
+    Two shapes, one flag — see `USE_SANDBOX` in `config.py`:
 
-    The tools are not declared either: they come from the server, descriptions
-    included.
+    · **sandbox** — `Skills(from_=LocalDir(...))` mounts every folder and the model
+      reads `SKILL.md` with a shell. This is what rule 4 described.
+    · **tools** — one `FunctionTool` per skill, described by the skill's own
+      frontmatter. No shell, no `apply_patch`, no `view_image`, and none of the
+      SDK's 3,472-token coding-agent prompt.
+
+    What does NOT change between them: skills are folders on disk, discovered by
+    themselves, named and described by their own frontmatter, and the description
+    is what decides whether the body is ever loaded. That was the point of rule 4,
+    and it survives both shapes. What changes is only the delivery.
+
+    The MCP tools are untouched in both, and so is rule 1.
 
     `language` changes only what comes out, never the method: the skills stay
     Romanian and an override block is appended. See `content_studio.language`.
     """
-    return SandboxAgent(
-        name="Content Worker",
-        model=model or MODEL,
-        instructions=(
-            f"{BASE_INSTRUCTIONS}\n\n{SANDBOX_METHOD_NOTE}"
+    method_note = SANDBOX_METHOD_NOTE if USE_SANDBOX else SKILL_TOOL_METHOD_NOTE
+    common: dict[str, Any] = {
+        "name": "Content Worker",
+        "model": model or MODEL,
+        "instructions": (
+            f"{BASE_INSTRUCTIONS}\n\n{method_note}"
             f"\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
             # The language override goes last, after the profile, because it
             # has to contradict rule 1 above and the closer contradiction wins.
             f"{instruction_suffix(language)}"
         ),
+        "mcp_servers": [data_mcp],
+        "output_type": output_type,
+        "model_settings": model_settings or ModelSettings(),
+    }
+    if not USE_SANDBOX:
+        return Agent(tools=skill_tools(), **common)
+    return SandboxAgent(
         capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS_DIR))],
-        mcp_servers=[data_mcp],
-        output_type=output_type,
-        model_settings=model_settings or ModelSettings(),
+        **common,
     )
 
 
-def read_skill(name: str) -> str:
-    """The body of one `SKILL.md`, for an agent that has no sandbox to read it in.
+#: `name` and `description` out of a SKILL.md frontmatter. Deliberately not a
+#: YAML parser: the frontmatter this project writes is two keys, one of them a
+#: folded block, and a dependency for that would be a dependency to keep.
+_FRONTMATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
+_FIELD = re.compile(r"^(name|description):[ \t]*(>-|>|\|)?[ \t]*(.*)$")
 
-    Same folder, same file, same text the sandbox would have mounted - so the
-    method is still edited without touching code, which was the whole point of
-    rule 4. What changes is only how it reaches the model.
+
+def parse_skill(path: Path) -> tuple[str, str, str]:
+    """(name, description, body) for one `SKILL.md`.
+
+    The description is the one the model sees, so a skill with none is a skill
+    that can never be chosen on purpose - it fails here rather than shipping a
+    tool the model has no reason to call.
     """
-    path = SKILLS_DIR / name / "SKILL.md"
-    if not path.is_file():
-        raise MissingConfig(f"Lipsește {path}")
-    return path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
+    match = _FRONTMATTER.match(text)
+    if match is None:
+        raise MissingConfig(f"{path} nu are frontmatter")
+    fields: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in match.group(1).splitlines():
+        found = _FIELD.match(line)
+        if found:
+            current = found.group(1)
+            fields[current] = [found.group(3)] if found.group(3) else []
+        elif current and line.strip():
+            fields[current].append(line.strip())
+        elif not line.strip():
+            current = None
+    name = " ".join(fields.get("name", [])).strip() or path.parent.name
+    description = " ".join(fields.get("description", [])).strip()
+    if not description:
+        raise MissingConfig(f"{path} nu are description în frontmatter")
+    return name, description, text[match.end() :].lstrip()
 
 
-def build_inline_worker(
-    profile_md: str,
-    data_mcp: MCPServerStreamableHttp,
-    skill: str,
-    *,
-    model: str | None = None,
-    output_type: type[Any] | None = None,
-    model_settings: ModelSettings | None = None,
-    language: Language = DEFAULT_LANGUAGE,
-) -> Agent:
-    """The same worker with the method in the prompt and no sandbox under it.
+#: A tool takes no arguments: it returns one whole method, and there is nothing
+#: to choose. Spelled out because strict mode rejects a bare `{}`.
+_NO_ARGS = {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": False,
+}
 
-    For GENERATION ONLY, where the phase is decided before the run starts and
-    there is therefore nothing to disclose progressively. Chat keeps the sandbox:
-    an open conversation genuinely does not know in advance which skill it needs.
 
-    A plain `Agent`, so none of `Capabilities.default()` is installed - no shell,
-    no `apply_patch`, no `view_image`, and none of the SDK's 3,472-token
-    coding-agent prompt. The MCP tools are untouched, and so is rule 1.
+def skill_tools() -> list[FunctionTool]:
+    """One tool per skill folder, described by the skill's own frontmatter.
+
+    This is what replaces the sandbox mount. The important part is not that it is
+    cheaper - it is that progressive disclosure survives: the description is still
+    what decides whether the body is ever paid for, and it still lives in the
+    skill, so the method is still edited without touching code (rule 4).
+
+    Read at build time, not at import: a skill edited on disk reaches the next
+    conversation without a restart, exactly as the mounted folder did.
     """
-    return Agent(
-        name="Content Worker",
-        model=model or MODEL,
-        instructions=(
-            f"{BASE_INSTRUCTIONS}\n\n{INLINE_METHOD_NOTE}"
-            f"\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
-            f"\n\n--- METODA: {skill} ---\n{read_skill(skill)}"
-            # Last, for the same reason as above.
-            f"{instruction_suffix(language)}"
-        ),
-        mcp_servers=[data_mcp],
-        output_type=output_type,
-        model_settings=model_settings or ModelSettings(),
-    )
+    tools: list[FunctionTool] = []
+    for folder in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
+        skill_md = folder / "SKILL.md"
+        if not skill_md.is_file():
+            continue
+        name, description, body = parse_skill(skill_md)
+
+        async def invoke(_ctx: Any, _args: str, body: str = body) -> str:
+            return body
+
+        tools.append(
+            FunctionTool(
+                name=name,
+                description=description,
+                params_json_schema=_NO_ARGS,
+                on_invoke_tool=invoke,
+            )
+        )
+    if not tools:
+        raise MissingConfig(f"Niciun skill în {SKILLS_DIR}")
+    return tools
 
 
 def build_sandbox() -> tuple[E2BSandboxClient, E2BSandboxClientOptions]:
     """The E2B client and its options. The key is read from `E2B_API_KEY`."""
     return E2BSandboxClient(), E2BSandboxClientOptions(sandbox_type="e2b")
+
+
+async def open_sandbox():
+    """`(client, session)` when the sandbox is on, `(None, None)` when it is not.
+
+    One place decides, so no caller has to branch on the flag before it can start
+    a run - and no caller can forget to.
+    """
+    if not USE_SANDBOX:
+        return None, None
+    client, options = build_sandbox()
+    return client, await client.create(options=options)
+
+
+def sandbox_run_kwargs(client=None, session=None, options=None) -> dict[str, Any]:
+    """The `sandbox=` argument for `RunConfig`, or nothing at all.
+
+    Absent rather than None: passing an empty `SandboxRunConfig` would ask the SDK
+    to prepare a sandbox for an agent that has no capabilities to use it.
+    """
+    if not USE_SANDBOX:
+        return {}
+    if client is None:
+        client, options = build_sandbox()
+    return {
+        "sandbox": SandboxRunConfig(
+            client=client,
+            **({"session": session} if session is not None else {"options": options}),
+        )
+    }
 
 
 def describe_request(request) -> tuple[str, dict, str]:
@@ -434,7 +515,6 @@ async def main() -> int:
 
     try:
         url, connect_args = database_url()
-        client, sandbox_options = build_sandbox()
     except (MissingConfig, RuntimeError) as e:
         print(f"{e}", file=sys.stderr)
         return 1
@@ -489,36 +569,38 @@ async def main() -> int:
     # own connection, outside any transaction that might fail.
     trail = Audit(url, connect_args)
 
-    print(f"Content Worker · {MODEL} · Deciziile 0–10 · sandbox + MCP + audit + poartă")
+    shape = "sandbox" if USE_SANDBOX else "skill-uri ca unelte"
+    print(f"Content Worker · {MODEL} · Deciziile 0–10 · {shape} + MCP + audit + poartă")
     print(f"Bază     : {describe_database(url)}")
     print(f"Clientă  : {name} · profil {len(profile_md):,} caractere în system prompt")
     print(f"Sesiune  : {session_id}{'  (nouă)' if new else '  (reluată)'}")
     print(f"Unelte   : {', '.join(tools)}")
-    print("Sandbox  : pornesc E2B…", end="", flush=True)
-
-    # The sandbox is created ONCE and reused for every turn. Otherwise a new one
-    # would start on every message, skill mounting included — seconds lost for
-    # nothing.
+    # The sandbox, when there is one, is created ONCE and reused for every turn.
+    # Otherwise a new one would start on every message, skill mounting included —
+    # seconds lost for nothing.
     #
     # It is created empty, without a manifest: given a live session, the SDK
     # applies the entries its capabilities ask for, so the skills mount on the
     # first run. Since the session is developer-owned, its full lifecycle ends
     # through `aclose()`; E2BSandboxClient.delete() is intentionally a no-op.
-    try:
-        sandbox_session = await client.create(options=sandbox_options)
-    except Exception as e:  # noqa: BLE001
-        print(" a picat.")
-        print(f"{type(e).__name__}: {e}", file=sys.stderr)
-        await data_mcp.cleanup()
-        await engine.dispose()
-        return 1
-    print(" gata.")
+    client = sandbox_session = None
+    if USE_SANDBOX:
+        print("Sandbox  : pornesc E2B…", end="", flush=True)
+        try:
+            client, sandbox_session = await open_sandbox()
+        except Exception as e:  # noqa: BLE001
+            print(" a picat.")
+            print(f"{type(e).__name__}: {e}", file=sys.stderr)
+            await data_mcp.cleanup()
+            await engine.dispose()
+            return 1
+        print(" gata.")
 
     config = RunConfig(
-        sandbox=SandboxRunConfig(client=client, session=sandbox_session),
         # Every message stays its own trace, but all traces of one conversation can
         # be filtered and seen together in the OpenAI dashboard.
         group_id=session_id,
+        **sandbox_run_kwargs(client, sandbox_session),
     )
 
     session = SQLAlchemySession(
@@ -565,7 +647,8 @@ async def main() -> int:
             print(f"\nworker> {result.final_output}\n")
     finally:
         try:
-            await sandbox_session.aclose()
+            if sandbox_session is not None:
+                await sandbox_session.aclose()
         except Exception:  # noqa: BLE001
             pass
         await data_mcp.cleanup()

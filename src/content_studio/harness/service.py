@@ -20,7 +20,7 @@ from uuid import UUID
 from agents import Runner
 from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
 from agents.mcp import MCPServerStreamableHttp
-from agents.run_config import RunConfig, SandboxRunConfig
+from agents.run_config import RunConfig
 from agents.run_state import RunState
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
@@ -86,11 +86,11 @@ from content_studio.mcp_server.protocol import (
 from content_studio.observability import record_agent_traces
 from content_studio.worker import (
     GATED_TOOLS,
-    build_sandbox,
     build_worker,
     describe_request,
     new_session_id,
     read_profile,
+    sandbox_run_kwargs,
 )
 
 SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,200}$")
@@ -918,11 +918,10 @@ class HarnessService:
 
     @staticmethod
     def _run_config(session_id: str) -> RunConfig:
-        client, options = build_sandbox()
-        return RunConfig(
-            sandbox=SandboxRunConfig(client=client, options=options),
-            group_id=session_id,
-        )
+        # `sandbox_run_kwargs` with no client builds its own and passes `options`
+        # rather than a live session, which is what this path always did: the SDK
+        # opens the sandbox itself for a run it is about to start.
+        return RunConfig(group_id=session_id, **sandbox_run_kwargs())
 
     @staticmethod
     def _identity_session(prefix: str, principal_id: str) -> str:

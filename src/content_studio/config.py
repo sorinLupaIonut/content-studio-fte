@@ -82,15 +82,20 @@ GENERATION_CONCURRENCY = int(os.getenv("GENERATION_CONCURRENCY", "5"))
 if not 1 <= GENERATION_CONCURRENCY <= 5:
     raise RuntimeError("GENERATION_CONCURRENCY must be between 1 and 5")
 
-# Whether the GENERATION agents get a sandbox, or the method inlined into their
-# prompt. Chat is not affected either way: an open conversation does not know in
-# advance which skill it needs, which is the argument rule 4 was written on.
-# Generation does know - the phase is decided before the run starts.
+# Whether the agent gets an E2B sandbox and reads its skills with a shell, or
+# gets one tool per skill instead. EVERYWHERE - chat, generation and the CLI:
+# two shapes of the same agent is already one more than anybody wants, and a
+# third that depends on which surface you came through is not a design.
 #
-# A switch rather than a rewrite, because the point is to MEASURE it. Two batches
-# on one deployment, one flag apart, is a comparison; two deployments is a story.
-# Default keeps today's behaviour, so nothing changes until it is flipped.
-GENERATION_SANDBOX = os.getenv("GENERATION_SANDBOX", "1").strip().lower() not in {
+# Off by default since 2026-08-24. What the sandbox bought, measured: of 148 KB
+# of skills mounted into it, a generation run opened exactly one file and never
+# touched `references/`. What it charged: 5,448 tokens of instructions and tool
+# schemas in every single call, plus a turn spent finding the file.
+#
+# Still a switch rather than a deletion, because the comparison has to be
+# runnable: two batches on one deployment, one variable apart, is a measurement;
+# two deployments is a story. Delete the branch once the numbers are in.
+USE_SANDBOX = os.getenv("USE_SANDBOX", "0").strip().lower() not in {
     "0",
     "false",
     "no",
