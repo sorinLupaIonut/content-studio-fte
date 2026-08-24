@@ -405,37 +405,50 @@ $outputs = $deployment.properties.outputs
 # after. Anything still referenced by a surviving tag is never in that list.
 if (-not $SkipBuild -and $KeepImages -ge 1) {
     Write-Host "`n-- registry housekeeping --" -ForegroundColor Cyan
-    $tags = @(& az acr repository show-tags --name $AcrName `
-        --repository content-studio --orderby time_desc --output tsv 2>$null)
-    $stale = @($tags | Select-Object -Skip $KeepImages)
-    $orphans = [System.Collections.Generic.List[string]]::new()
-    foreach ($tag in $stale) {
-        $index = & az acr manifest show --registry $AcrName `
-            --name "content-studio:$tag" --output json 2>$null | ConvertFrom-Json
-        foreach ($child in @($index.manifests)) { $orphans.Add($child.digest) }
-        & az acr repository delete --name $AcrName `
-            --image "content-studio:$tag" --yes --output none 2>$null
+    # `az acr manifest` is a preview command and prints a WARNING to stderr on
+    # every call. Under $ErrorActionPreference = 'Stop' that warning becomes a
+    # terminating NativeCommandError, which on 2026-08-24 killed the deploy AFTER
+    # the app was already updated - the health check never ran. Housekeeping must
+    # never be able to fail a deployment that has otherwise succeeded.
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $tags = @(& az acr repository show-tags --name $AcrName `
+            --repository content-studio --orderby time_desc --output tsv 2>$null)
+        $stale = @($tags | Select-Object -Skip $KeepImages)
+        $orphans = [System.Collections.Generic.List[string]]::new()
+        foreach ($tag in $stale) {
+            $index = & az acr manifest show --registry $AcrName `
+                --name "content-studio:$tag" --output json 2>$null | ConvertFrom-Json
+            foreach ($child in @($index.manifests)) { $orphans.Add($child.digest) }
+            & az acr repository delete --name $AcrName `
+                --image "content-studio:$tag" --yes --output none 2>$null
+        }
+        # A child is only really an orphan once nothing tagged points at it: the same
+        # base layers get re-referenced across builds, and an index that survived
+        # this round may well name a digest an index that did not also named.
+        $kept = @(& az acr repository show-tags --name $AcrName `
+            --repository content-studio --output tsv 2>$null)
+        $alive = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($tag in $kept) {
+            $index = & az acr manifest show --registry $AcrName `
+                --name "content-studio:$tag" --output json 2>$null | ConvertFrom-Json
+            foreach ($child in @($index.manifests)) { [void]$alive.Add($child.digest) }
+        }
+        $removed = 0
+        foreach ($digest in ($orphans | Select-Object -Unique)) {
+            if ($alive.Contains($digest)) { continue }
+            & az acr manifest delete --registry $AcrName `
+                --name "content-studio@$digest" --yes --output none 2>$null
+            if ($LASTEXITCODE -eq 0) { $removed++ }
+        }
+        Write-Host ("taguri: {0} pastrate, {1} sterse; manifeste-copil sterse: {2}" -f `
+            [Math]::Min($tags.Count, $KeepImages), $stale.Count, $removed)
+    } catch {
+        Write-Warning "curatenia registrului a esuat, deploy-ul e neatins: $_"
+    } finally {
+        $ErrorActionPreference = $previousEap
     }
-    # A child is only really an orphan once nothing tagged points at it: the same
-    # base layers get re-referenced across builds, and an index that survived
-    # this round may well name a digest an index that did not also named.
-    $kept = @(& az acr repository show-tags --name $AcrName `
-        --repository content-studio --output tsv 2>$null)
-    $alive = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($tag in $kept) {
-        $index = & az acr manifest show --registry $AcrName `
-            --name "content-studio:$tag" --output json 2>$null | ConvertFrom-Json
-        foreach ($child in @($index.manifests)) { [void]$alive.Add($child.digest) }
-    }
-    $removed = 0
-    foreach ($digest in ($orphans | Select-Object -Unique)) {
-        if ($alive.Contains($digest)) { continue }
-        & az acr manifest delete --registry $AcrName `
-            --name "content-studio@$digest" --yes --output none 2>$null
-        if ($LASTEXITCODE -eq 0) { $removed++ }
-    }
-    Write-Host ("taguri: {0} pastrate, {1} sterse; manifeste-copil sterse: {2}" -f `
-        [Math]::Min($tags.Count, $KeepImages), $stale.Count, $removed)
 }
 
 $harnessUrl = $outputs.harnessUrl.value

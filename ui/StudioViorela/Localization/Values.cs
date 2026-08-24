@@ -86,9 +86,21 @@ public static class Values
             "generating" => t.Pick(
                 $"{readyIdeas}/10 idei dezvoltate complet.",
                 $"{readyIdeas}/10 ideas fully developed."),
-            "ready" => t.Pick(
+            // `readyIdeas` was passed in and ignored here until 2026-08-24, so a
+            // batch that finished with failures still announced all ten as
+            // complete. Seen twice in one afternoon: idea 5 lost to a rate limit,
+            // idea 9 to a malformed structured output, and both times this line
+            // said everything was fine while the card underneath read
+            // "nefinalizată". A status line that contradicts the thing it is
+            // describing is worse than no status line.
+            "ready" when readyIdeas >= 10 => t.Pick(
                 "Toate cele 10 idei au câte 5 variante complete.",
                 "All 10 ideas have 5 complete variants each."),
+            "ready" => t.Pick(
+                $"{readyIdeas} din 10 idei au câte 5 variante complete. "
+                    + "Restul nu au ieșit — le poți genera din nou.",
+                $"{readyIdeas} of 10 ideas have 5 complete variants each. "
+                    + "The rest did not finish — you can generate them again."),
             "failed" => t.Pick(
                 "Lotul s-a oprit; ideile gata au rămas disponibile.",
                 "The batch stopped; the ideas that were ready are still available."),
