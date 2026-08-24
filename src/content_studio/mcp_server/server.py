@@ -969,6 +969,7 @@ async def ui_record_usage(
     input_tokens: int,
     output_tokens: int,
     cost_micros: int,
+    cached_input_tokens: int = 0,
 ) -> dict:
     """Înregistrează intern consumul unui apel; nu este pentru agent."""
     async with connection() as conn:
@@ -980,6 +981,7 @@ async def ui_record_usage(
             model=model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cached_input_tokens=cached_input_tokens,
             cost_micros=cost_micros,
         )
     return {"id": row_id}

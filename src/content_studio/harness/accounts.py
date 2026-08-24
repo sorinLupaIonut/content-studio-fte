@@ -202,11 +202,18 @@ class AccountDirectory:
         usage = getattr(getattr(result, "context_wrapper", None), "usage", None)
         if usage is None:
             return
+        # The cache read is the single largest number in a generation run - 86%
+        # of the input tokens, measured - and it is a tenth of the price. Read
+        # defensively: a provider that does not report the detail leaves this at
+        # zero, which charges the full rate rather than inventing a discount.
+        details = getattr(usage, "input_tokens_details", None)
+        cached = int(getattr(details, "cached_tokens", 0) or 0)
         await self.record(
             kind=kind,
             model=model,
             input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
             output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+            cached_input_tokens=cached,
         )
 
     async def record(
@@ -216,6 +223,7 @@ class AccountDirectory:
         model: str,
         input_tokens: int,
         output_tokens: int,
+        cached_input_tokens: int = 0,
     ) -> None:
         slug = CURRENT_CLIENT.get() or CLIENT_SLUG
         principal = CURRENT_PRINCIPAL.get() or "unknown"
@@ -231,7 +239,10 @@ class AccountDirectory:
                     "model": model,
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
-                    "cost_micros": cost_micros(model, input_tokens, output_tokens),
+                    "cached_input_tokens": cached_input_tokens,
+                    "cost_micros": cost_micros(
+                        model, input_tokens, output_tokens, cached_input_tokens
+                    ),
                 },
             )
         except Exception:  # noqa: BLE001 - see the docstring above

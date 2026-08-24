@@ -641,3 +641,22 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_documents_client
     ON public.documents (client_id, source);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 12. WHAT THE CACHE COST — 2026-08-24
+--     `usage_events` recorded one figure for input, and `pricing.py` charged all
+--     of it at the fresh rate. Most of it was not fresh: measured over one batch
+--     of ten ideas on 2026-08-23, 826,880 of 963,852 input tokens — 86% — were
+--     prompt-cache reads, which bill at a tenth. That batch was charged $0.249
+--     against an allowance whose real cost was $0.089, so every budget in this
+--     table was draining 2.8x too fast.
+--
+--     Stored, not derived. `cost_micros` is already frozen at what the row cost
+--     on the day; the cached count is the evidence for that figure, and without
+--     it a total can never be re-checked against the provider's own invoice.
+--     Rows written before today keep 0, which is honest: it says "not measured",
+--     and it is also what they were charged at.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.usage_events
+    ADD COLUMN IF NOT EXISTS cached_input_tokens BIGINT NOT NULL DEFAULT 0;

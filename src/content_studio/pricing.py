@@ -22,21 +22,29 @@ class Rate(NamedTuple):
 
     input_micros: int
     output_micros: int
+    cached_input_micros: int = 0
 
 
 #: $0.25 / $2.00 per 1M for mini, $0.05 / $0.40 for nano, $0.02 in for the
-#: embedding model.
+#: embedding model. The third figure is what an input token already in the
+#: provider's prompt cache costs — a tenth of a fresh one, across this family.
+#:
+#: CACHE WRITES ARE NOT PRICED HERE, AND THAT IS NOT AN OMISSION. Verified
+#: against the pricing page on 2026-08-24: the "cache writes" column is `-` for
+#: every gpt-5 model this project uses; only the gpt-5.6-* family charges for
+#: them. If `MODEL` is ever pointed at one of those, this table needs a fourth
+#: figure, or the studio will under-charge.
 PRICES: dict[str, Rate] = {
-    "gpt-5-mini": Rate(250_000, 2_000_000),
-    "gpt-5-nano": Rate(50_000, 400_000),
-    "text-embedding-3-small": Rate(20_000, 0),
+    "gpt-5-mini": Rate(250_000, 2_000_000, 25_000),
+    "gpt-5-nano": Rate(50_000, 400_000, 5_000),
+    "text-embedding-3-small": Rate(20_000, 0, 20_000),
 }
 
 #: What an unrecognised model is charged at. Deliberately the most expensive row
 #: in the table rather than zero: if someone points `MODEL` at something new and
 #: forgets to price it, the budget should over-charge and be noticed, never
 #: under-charge and let a test account run free.
-FALLBACK = Rate(250_000, 2_000_000)
+FALLBACK = Rate(250_000, 2_000_000, 250_000)
 
 
 def rate_for(model: str) -> Rate:
@@ -49,15 +57,43 @@ def is_priced(model: str) -> bool:
     return model in PRICES
 
 
-def cost_micros(model: str, input_tokens: int, output_tokens: int) -> int:
+def cost_micros(
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cached_input_tokens: int = 0,
+) -> int:
     """Integer micro-dollars for one call, rounded up.
+
+    `input_tokens` is the provider's total and ALREADY INCLUDES the cached ones,
+    so the cached share is subtracted before the fresh rate is applied. Getting
+    that backwards double-counts the largest number in the calculation.
+
+    Ignoring the cache was this project's most expensive arithmetic mistake.
+    Measured on 2026-08-23, one batch of ten ideas sent 963,852 input tokens of
+    which 826,880 — 86% — were cache reads. Charged flat, that batch cost the
+    account $0.249; the real bill was $0.089. Every allowance in the database was
+    draining 2.8x faster than the money actually leaving the card.
+
+    `cached_input_tokens` defaults to zero, which reproduces the old, expensive
+    answer. That default is deliberate: a caller that does not know how many
+    tokens were cached should over-charge, never guess a discount.
 
     Rounded up rather than to nearest so that a great many tiny calls cannot sum
     to less than they cost. The error is at most one micro-dollar per call, in
     the safe direction.
     """
     rate = rate_for(model)
-    total = input_tokens * rate.input_micros + output_tokens * rate.output_micros
+    # Clamped rather than trusted. A provider that ever reports more cached
+    # tokens than input tokens would otherwise produce a negative fresh count
+    # and a call that credits the account.
+    cached = max(0, min(int(cached_input_tokens), int(input_tokens)))
+    fresh = int(input_tokens) - cached
+    total = (
+        fresh * rate.input_micros
+        + cached * rate.cached_input_micros
+        + int(output_tokens) * rate.output_micros
+    )
     return -(-total // 1_000_000)  # ceil, without floats
 
 

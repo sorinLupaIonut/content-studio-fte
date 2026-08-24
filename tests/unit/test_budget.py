@@ -48,6 +48,55 @@ class PricingTests(unittest.TestCase):
         for model, rate in PRICES.items():
             self.assertLessEqual(rate.input_micros, FALLBACK.input_micros, model)
             self.assertLessEqual(rate.output_micros, FALLBACK.output_micros, model)
+            self.assertLessEqual(
+                rate.cached_input_micros, FALLBACK.cached_input_micros, model
+            )
+
+    def test_a_cached_input_token_costs_a_tenth_of_a_fresh_one(self) -> None:
+        # gpt-5-mini: $0.25 per 1M fresh, $0.025 per 1M from the prompt cache.
+        self.assertEqual(cost_micros("gpt-5-mini", 1_000_000, 0, 1_000_000), 25_000)
+        self.assertEqual(cost_micros("gpt-5-nano", 1_000_000, 0, 1_000_000), 5_000)
+
+    def test_the_cached_count_is_a_share_of_the_input_not_an_extra(self) -> None:
+        # Half of a million input tokens cached: half at $0.25, half at $0.025.
+        self.assertEqual(
+            cost_micros("gpt-5-mini", 1_000_000, 0, 500_000),
+            125_000 + 12_500,
+        )
+        # Treating the cached count as additional input would charge more than
+        # the uncached call, which is the bug this whole change exists to undo.
+        self.assertLess(
+            cost_micros("gpt-5-mini", 1_000_000, 0, 500_000),
+            cost_micros("gpt-5-mini", 1_000_000, 0),
+        )
+
+    def test_omitting_the_cached_count_charges_the_full_rate(self) -> None:
+        # The default must reproduce the old, expensive answer. A caller that
+        # cannot measure the cache has to over-charge, never guess a discount.
+        self.assertEqual(
+            cost_micros("gpt-5-mini", 1_000_000, 1_000_000),
+            cost_micros("gpt-5-mini", 1_000_000, 1_000_000, 0),
+        )
+
+    def test_a_nonsense_cached_count_can_never_credit_the_account(self) -> None:
+        # A provider reporting more cached tokens than input tokens must not
+        # produce a negative fresh count.
+        self.assertEqual(cost_micros("gpt-5-mini", 1_000, 0, 999_999), 25)
+        self.assertGreaterEqual(cost_micros("gpt-5-mini", 1_000, 0, -5), 0)
+
+    def test_the_measured_batch_costs_what_the_provider_billed(self) -> None:
+        # The real figures from run 548b3354 on 2026-08-23, read out of
+        # public.traces: 963,852 input of which 826,880 were cache reads, and
+        # 16,855 output. Phoenix priced the same batch at $0.08.
+        # Priced here as if the whole batch were mini. It was not quite: the
+        # title pass ran on nano, so the ledger's own flat figure for that batch
+        # was 248_982 micros, not the 274_673 below. The ratio is what this test
+        # is for, and it survives the simplification.
+        charged = cost_micros("gpt-5-mini", 963_852, 16_855, 826_880)
+        self.assertEqual(charged, 88_625)  # $0.0886, against Phoenix's $0.08
+        flat = cost_micros("gpt-5-mini", 963_852, 16_855)
+        self.assertEqual(flat, 274_673)
+        self.assertGreater(flat, charged * 3 - 1)  # 3.1x here, 2.8x on the real mix
 
     def test_no_float_ever_leaves_this_module(self) -> None:
         self.assertIsInstance(cost_micros("gpt-5-mini", 12_345, 6_789), int)

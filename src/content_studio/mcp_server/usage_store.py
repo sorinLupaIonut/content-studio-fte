@@ -12,8 +12,9 @@ from typing import Any
 
 INSERT_USAGE_SQL = """
 INSERT INTO public.usage_events
-    (client_id, principal_id, kind, model, input_tokens, output_tokens, cost_micros)
-SELECT c.id, $2, $3, $4, $5, $6, $7
+    (client_id, principal_id, kind, model, input_tokens, output_tokens,
+     cached_input_tokens, cost_micros)
+SELECT c.id, $2, $3, $4, $5, $6, $7, $8
   FROM public.clients c
  WHERE c.slug = $1
 RETURNING id
@@ -97,6 +98,7 @@ async def record_usage(
     input_tokens: int,
     output_tokens: int,
     cost_micros: int,
+    cached_input_tokens: int = 0,
 ) -> str | None:
     """Append one call. Returns None if the client slug does not exist.
 
@@ -113,6 +115,7 @@ async def record_usage(
         model,
         int(input_tokens),
         int(output_tokens),
+        int(cached_input_tokens),
         int(cost_micros),
     )
     return str(row_id) if row_id is not None else None
