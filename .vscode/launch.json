@@ -84,6 +84,29 @@
       "justMyCode": true
     },
     {
+      // The prompt and the tools, with nothing else running. No database, no MCP
+      // connection, no OpenAI call - the server object is built and never
+      // connected, so this starts in under a second and costs nothing.
+      // Breakpoint on the first line of `build_worker` and step: `references`,
+      // `method_note`, `tool_note`, `common`, `agent.instructions`.
+      //
+      // `-X frozen_modules=off` for the reason in `debug.py`: CPython ships
+      // frozen copies of the import machinery, and a breakpoint in a module
+      // reached through them can silently fail to bind. Here it matters more
+      // than anywhere else, because the breakpoint IS in an imported module.
+      "name": "Prompt (build_worker)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/checks/prompt.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "pythonArgs": ["-X", "frozen_modules=off"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      // False on purpose, and it is the exception in this file: stepping INTO
+      // the SDK is how you see what `Agent(...)` does with the instructions.
+      "justMyCode": false
+    },
+    {
       // The whole free suite under the debugger. Put a breakpoint in a failing
       // test and start here instead of reading the traceback.
       "name": "Unit tests",
