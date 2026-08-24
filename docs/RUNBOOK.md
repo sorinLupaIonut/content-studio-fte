@@ -177,6 +177,117 @@ failure at any step leaves a working system.
 
 ---
 
+## Watching Surface 2 — the traces themselves
+
+The scenarios above are what you do when something is already wrong. This is what
+you look at to find out earlier. Surface 2 owns one question — *how did one
+request flow through the services* — so everything here is about spans, not about
+the model's reasoning (that is Phoenix) or about container health (that is the
+Application Insights infrastructure blades).
+
+Portal: the `studio-viorela` resource group, the Application Insights resource,
+**Logs**. Everything below is a KQL query you paste there. `cloud_RoleName` is
+`studio-harness` or `studio-mcp` — that field exists because `configure` passes an
+explicit `resource`; without it both apps arrive as `unknown_service`.
+
+### The one that has to be green: can you still pivot?
+
+Every other surface is reachable only through `run_id`. If this number falls, the
+join is broken and every runbook scenario above starts failing at step one.
+
+```kusto
+dependencies
+| where timestamp > ago(1d) and cloud_RoleName == "studio-harness"
+| extend run = tostring(customDimensions["studio.run_id"])
+| summarize spans = count(), tagged = countif(isnotempty(run) and run != "-")
+| extend coverage = round(100.0 * tagged / spans, 1)
+```
+
+Expect ~100% for anything inside a run. Spans opened at startup, before any run
+exists, legitimately carry `-`. This was 0% on the generation path until
+2026-08-24 — the server span had already ended when the id was minted — so if it
+drops again, check that `_make_run_id_stamp()` is still registered on the global
+provider and not only on Phoenix's.
+
+### Where the time actually goes
+
+One row per kind of outbound call. This is the question Surface 2 exists for.
+
+```kusto
+dependencies
+| where timestamp > ago(1d) and cloud_RoleName == "studio-harness"
+| summarize calls = count(),
+            p50 = percentile(duration, 50),
+            p95 = percentile(duration, 95),
+            failed = countif(success == false)
+  by type, target
+| order by p95 desc
+```
+
+The OpenAI calls should dominate the p95 and be a small share of `calls`. If Neon
+or the MCP server climbs above them, the problem is not the model.
+
+### Fan-out: how many calls one request becomes
+
+A batch is one request and should now be **one** model call, not five. This is the
+measurement that catches a regression in preloading — the whole reason a Reel
+detail run dropped from 84,269 input tokens to 26,250.
+
+```kusto
+requests
+| where timestamp > ago(1d) and url contains "generation-batches"
+| join kind=leftouter (
+    dependencies
+    | where timestamp > ago(1d)
+    | summarize deps = count(), models = countif(target contains "openai") by operation_Id
+  ) on operation_Id
+| project timestamp, name, duration, deps, models
+| order by models desc
+```
+
+`models` above 1 for a detail run means a retry happened, or a reference was
+fetched at run time that should have been preloaded.
+
+### Retries, which are the expensive failure
+
+They are invisible in `requests` — the HTTP call succeeded, the model call did
+not.
+
+```kusto
+dependencies
+| where timestamp > ago(7d) and target contains "openai"
+| summarize calls = count(), failed = countif(success == false) by bin(timestamp, 1d)
+| extend retry_rate = round(100.0 * failed / calls, 1)
+```
+
+Measured on 2026-08-24 before the hashtag repair landed: 19% of ideas needed a
+second call, and 24% of everything spent went to turns that were thrown away. If
+this climbs back toward 10%, pull one failed response back by `response_id` — it
+is on the `response` span in `public.traces` — and revalidate it against the
+contract. The trace's own error message says only "Invalid JSON provided" and
+carries no detail; the provider still has the answer.
+
+### Is the export still fresh?
+
+Surface 2's own requirement is that a span reaches the portal within about a
+minute. This is what you check before believing an empty result.
+
+```kusto
+union requests, dependencies
+| where cloud_RoleName startswith "studio-"
+| summarize newest = max(timestamp) by cloud_RoleName
+| extend behind = now() - newest
+```
+
+Minutes is normal. Tens of minutes means the batch processor is backed up or the
+container is gone; check the revision list before reading anything else as data.
+
+### What this surface will not tell you
+
+Which tool the agent chose and what it passed, or why the model answered as it
+did. Those spans exist, but they are Surface 3 and 4 — `public.traces` in Neon,
+and Phoenix. Take the `run_id` from here and follow it there.
+
 ## What is deliberately not here
 
 **Phoenix, DeepEval, Ragas and a nightly evaluation job.** Decision 8 wires four
