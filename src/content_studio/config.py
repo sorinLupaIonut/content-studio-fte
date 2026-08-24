@@ -82,6 +82,21 @@ GENERATION_CONCURRENCY = int(os.getenv("GENERATION_CONCURRENCY", "5"))
 if not 1 <= GENERATION_CONCURRENCY <= 5:
     raise RuntimeError("GENERATION_CONCURRENCY must be between 1 and 5")
 
+# Whether the GENERATION agents get a sandbox, or the method inlined into their
+# prompt. Chat is not affected either way: an open conversation does not know in
+# advance which skill it needs, which is the argument rule 4 was written on.
+# Generation does know - the phase is decided before the run starts.
+#
+# A switch rather than a rewrite, because the point is to MEASURE it. Two batches
+# on one deployment, one flag apart, is a comparison; two deployments is a story.
+# Default keeps today's behaviour, so nothing changes until it is flipped.
+GENERATION_SANDBOX = os.getenv("GENERATION_SANDBOX", "1").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
+
 # Chat is separate from bulk generation so its latency/quality can be tuned
 # without silently changing either half of the accepted hybrid topology.
 CHAT_MODEL = os.getenv("CHAT_MODEL", MODEL)

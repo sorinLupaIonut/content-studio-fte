@@ -21,6 +21,7 @@ from content_studio.audit import Audit
 from content_studio.config import (
     GENERATION_CONCURRENCY,
     GENERATION_DETAIL_MODEL,
+    GENERATION_SANDBOX,
     GENERATION_TITLE_MODEL,
     MODEL,
 )
@@ -38,7 +39,12 @@ from content_studio.harness.generation import (
 )
 from content_studio.language import DEFAULT_LANGUAGE, Language
 from content_studio.observability import bind_run
-from content_studio.worker import build_sandbox, build_worker, read_profile
+from content_studio.worker import (
+    build_inline_worker,
+    build_sandbox,
+    build_worker,
+    read_profile,
+)
 
 RUN_TIMEOUT_SECONDS = 600
 
@@ -536,8 +542,11 @@ class GenerationCoordinator:
             drafts = GenerationDraftClient(internal)
             # The title and detail agents are clones of this one, so the
             # language set here reaches both phases.
-            base_agent = build_worker(profile_md, data_mcp, language=language)
-            title_agent = base_agent.clone(
+            title_agent = self._phase_agent(
+                profile_md,
+                data_mcp,
+                "propune-postari",
+                language,
                 model=GENERATION_TITLE_MODEL,
                 output_type=IdeaTitles,
                 model_settings=ModelSettings(
@@ -545,6 +554,20 @@ class GenerationCoordinator:
                     verbosity="low",
                     max_tokens=4_000,
                     extra_args={"prompt_cache_key": TITLE_CACHE_KEY},
+                ),
+            )
+            detail_agent = self._phase_agent(
+                profile_md,
+                data_mcp,
+                "dezvolta-postarea",
+                language,
+                model=GENERATION_DETAIL_MODEL,
+                output_type=detail_output_type(request.format),
+                model_settings=ModelSettings(
+                    reasoning={"effort": "minimal"},
+                    verbosity="low",
+                    max_tokens=24_000,
+                    extra_args={"prompt_cache_key": DETAIL_CACHE_KEY},
                 ),
             )
             titles = await self._run_isolated(
@@ -560,7 +583,7 @@ class GenerationCoordinator:
                 request,
                 source_packet,
                 titles,
-                base_agent,
+                detail_agent,
                 drafts,
                 language,
             )
@@ -598,20 +621,10 @@ class GenerationCoordinator:
         request: GenerationBatchRequest,
         source_packet: dict[str, Any],
         titles: IdeaTitles,
-        base_agent,
+        detail_agent,
         drafts: GenerationDraftClient,
         language: Language = DEFAULT_LANGUAGE,
     ) -> None:
-        detail_agent = base_agent.clone(
-            model=GENERATION_DETAIL_MODEL,
-            output_type=detail_output_type(request.format),
-            model_settings=ModelSettings(
-                reasoning={"effort": "minimal"},
-                verbosity="low",
-                max_tokens=24_000,
-                extra_args={"prompt_cache_key": DETAIL_CACHE_KEY},
-            ),
-        )
         slot_count = min(GENERATION_CONCURRENCY, len(titles.ideas))
         created = await asyncio.gather(
             *(self._create_slot(detail_agent) for _ in range(slot_count)),
@@ -621,7 +634,7 @@ class GenerationCoordinator:
         failures = [item for item in created if isinstance(item, BaseException)]
         if failures:
             await asyncio.gather(
-                *(slot[2].aclose() for slot in slots), return_exceptions=True
+                *(self._close_slot(slot[2]) for slot in slots), return_exceptions=True
             )
             raise RuntimeError(
                 f"only {len(slots)}/{slot_count} sandbox slots were created"
@@ -684,7 +697,7 @@ class GenerationCoordinator:
             )
         finally:
             await asyncio.gather(
-                *(slot[2].aclose() for slot in slots), return_exceptions=True
+                *(self._close_slot(slot[2]) for slot in slots), return_exceptions=True
             )
 
     async def _generate_one_detail(
@@ -733,14 +746,41 @@ class GenerationCoordinator:
                 await asyncio.sleep(2)
 
     @staticmethod
+    def _phase_agent(profile_md, data_mcp, skill: str, language, **kwargs):
+        """The agent for one generation phase, with or without a sandbox under it.
+
+        The skill name is only consulted in the inline branch. In the sandbox
+        branch every skill is mounted and the model picks by description, which
+        is what rule 4 was written for.
+        """
+        if GENERATION_SANDBOX:
+            return build_worker(profile_md, data_mcp, language=language, **kwargs)
+        return build_inline_worker(
+            profile_md, data_mcp, skill, language=language, **kwargs
+        )
+
+    @staticmethod
     async def _create_slot(agent):
+        # A slot without a sandbox is still a slot: it owns one concurrent run
+        # and its place in the queue. Only the two E2B handles go missing.
+        if not GENERATION_SANDBOX:
+            return agent.clone(), None, None
         client, options = build_sandbox()
         sandbox = await client.create(options=options)
         return agent.clone(), client, sandbox
 
+    @staticmethod
+    async def _close_slot(sandbox) -> None:
+        if sandbox is not None:
+            await sandbox.aclose()
+
     async def _run_isolated(
         self, agent, prompt: str, output_type, label: str, group: str
     ):
+        if not GENERATION_SANDBOX:
+            return await self._run_on_sandbox(
+                agent, prompt, output_type, label, None, None, group
+            )
         client, options = build_sandbox()
         sandbox = await client.create(options=options)
         try:
@@ -761,15 +801,22 @@ class GenerationCoordinator:
         group: str,
         hooks: RunHooks | None = None,
     ):
+        run_config = RunConfig(
+            workflow_name=GENERATION_WORKFLOW,
+            group_id=group,
+            # Absent, not None: an inline agent has no sandbox to configure, and
+            # passing an empty SandboxRunConfig would ask the SDK to prepare one.
+            **(
+                {"sandbox": SandboxRunConfig(client=client, session=sandbox)}
+                if sandbox is not None
+                else {}
+            ),
+        )
         result = await asyncio.wait_for(
             Runner.run(
                 agent,
                 prompt,
-                run_config=RunConfig(
-                    sandbox=SandboxRunConfig(client=client, session=sandbox),
-                    workflow_name=GENERATION_WORKFLOW,
-                    group_id=group,
-                ),
+                run_config=run_config,
                 max_turns=6,
                 hooks=hooks,
             ),

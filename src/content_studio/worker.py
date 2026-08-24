@@ -45,7 +45,7 @@ import uuid
 from datetime import date
 from typing import Any
 
-from agents import ModelSettings, Runner
+from agents import Agent, ModelSettings, Runner
 from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
 from agents.extensions.sandbox.e2b import E2BSandboxClient, E2BSandboxClientOptions
 from agents.mcp import MCPServerStreamableHttp
@@ -160,8 +160,16 @@ postării — nu o propoziție declarativă care promite un rezultat. Dacă un b
 trece verificarea, îl rescrii înainte să-l arăți.
 
 Uneltele de scriere se cheamă doar după „da"-ul ei, niciodată din proprie
-inițiativă (regula 10).
+inițiativă (regula 10).\
+"""
 
+#: The two paragraphs that were the tail of BASE_INSTRUCTIONS until 2026-08-24.
+#: They are about HOW the method is reached, not about what comes out, and the
+#: two are now different depending on where the method lives. Split out rather
+#: than duplicated: the ten output rules stay in one place, and only this changes.
+#:
+#: Romanian and untranslated, like everything the model reads.
+SANDBOX_METHOD_NOTE = """
 Ai un sandbox cu shell și fișiere. Îl folosești ca să citești skill-urile, nu ca
 să inventezi unelte. La date ajungi NUMAI prin unelte — nu încerca să te conectezi
 la baza de date din sandbox.
@@ -170,8 +178,27 @@ ACTIVAREA SKILL-URILOR ESTE OBLIGATORIE. La orice cerere de conținut nou, desch
 `propune-postari` ÎNAINTE de primul răspuns — inclusiv dacă ea a dat deja formatul,
 pilonul sau sursa. Când alege o propunere dintr-o listă existentă, deschizi
 `dezvolta-postarea` înainte s-o scrii. Nu improvizezi fluxul din memorie. O cerere
-de raport despre postările existente nu activează niciunul dintre aceste skill-uri.\
-"""
+de raport despre postările existente nu activează niciunul dintre aceste skill-uri.
+""".strip()
+
+#: The same instruction for an agent with NO sandbox, where the method is already
+#: in the prompt. Telling a model it has a shell it does not have is worse than
+#: saying nothing: it spends a turn calling `exec_command` and gets an error.
+#:
+#: Measured on 2026-08-23, this is why the alternative exists at all: of 148 KB of
+#: skills mounted into the sandbox, a generation run opened exactly one file -
+#: SKILL.md, 1,950 tokens - and never touched `references/`. The sandbox charged
+#: 5,448 tokens of instructions and tool schemas, plus a whole extra turn, to
+#: deliver a file that fits in the prompt.
+INLINE_METHOD_NOTE = """
+Metoda pe care o urmezi este mai jos, în întregime. Nu ai shell și nu ai fișiere:
+nu încerca să deschizi nimic și nu inventa unelte. La date ajungi NUMAI prin
+unelte.
+
+APLICAREA METODEI ESTE OBLIGATORIE. Nu improvizezi fluxul din memorie și nu
+răspunzi înainte s-o citești.
+""".strip()
+
 
 #: The last conversation this client touched. Since Decision 11 the answer comes
 #: from the SDK's own session table rather than from a cover sheet of our own —
@@ -266,12 +293,62 @@ def build_worker(
         name="Content Worker",
         model=model or MODEL,
         instructions=(
-            f"{BASE_INSTRUCTIONS}\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
+            f"{BASE_INSTRUCTIONS}\n\n{SANDBOX_METHOD_NOTE}"
+            f"\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
             # The language override goes last, after the profile, because it
             # has to contradict rule 1 above and the closer contradiction wins.
             f"{instruction_suffix(language)}"
         ),
         capabilities=[*Capabilities.default(), Skills(from_=LocalDir(src=SKILLS_DIR))],
+        mcp_servers=[data_mcp],
+        output_type=output_type,
+        model_settings=model_settings or ModelSettings(),
+    )
+
+
+def read_skill(name: str) -> str:
+    """The body of one `SKILL.md`, for an agent that has no sandbox to read it in.
+
+    Same folder, same file, same text the sandbox would have mounted - so the
+    method is still edited without touching code, which was the whole point of
+    rule 4. What changes is only how it reaches the model.
+    """
+    path = SKILLS_DIR / name / "SKILL.md"
+    if not path.is_file():
+        raise MissingConfig(f"Lipsește {path}")
+    return path.read_text(encoding="utf-8")
+
+
+def build_inline_worker(
+    profile_md: str,
+    data_mcp: MCPServerStreamableHttp,
+    skill: str,
+    *,
+    model: str | None = None,
+    output_type: type[Any] | None = None,
+    model_settings: ModelSettings | None = None,
+    language: Language = DEFAULT_LANGUAGE,
+) -> Agent:
+    """The same worker with the method in the prompt and no sandbox under it.
+
+    For GENERATION ONLY, where the phase is decided before the run starts and
+    there is therefore nothing to disclose progressively. Chat keeps the sandbox:
+    an open conversation genuinely does not know in advance which skill it needs.
+
+    A plain `Agent`, so none of `Capabilities.default()` is installed - no shell,
+    no `apply_patch`, no `view_image`, and none of the SDK's 3,472-token
+    coding-agent prompt. The MCP tools are untouched, and so is rule 1.
+    """
+    return Agent(
+        name="Content Worker",
+        model=model or MODEL,
+        instructions=(
+            f"{BASE_INSTRUCTIONS}\n\n{INLINE_METHOD_NOTE}"
+            f"\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
+            f"\n\n--- METODA: {skill} ---\n{read_skill(skill)}"
+            # Last, for the same reason as above.
+            f"{instruction_suffix(language)}"
+        ),
         mcp_servers=[data_mcp],
         output_type=output_type,
         model_settings=model_settings or ModelSettings(),
