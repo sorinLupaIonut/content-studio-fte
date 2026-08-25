@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "name": "studio-viorela-trace-rubric",
+  "what_this_is": [
+    "The specification of good behaviour, written as data rather than as code,",
+    "so it can be edited without a deploy and so the same words are used by",
+    "three readers: `evals/grade.py` locally, the OpenAI Evals API remotely, and",
+    "the Phoenix online evaluators. A rubric that lives in one grader's source is",
+    "a rubric the other two will drift away from."
+  ],
+  "how_it_is_read": [
+    "`deterministic` criteria are decided here, in Python, for free and with no",
+    "model: a caption is 863 characters or it is not. `judge` criteria are sent to",
+    "the OpenAI Evals API as `score_model` testing criteria - LLM-as-judge, the",
+    "grader the course names - because 'does this sound like her' has no",
+    "arithmetic. Deterministic first, always: a rule a number can settle should",
+    "never cost a model call."
+  ],
+  "criteria": [
+    {
+      "id": "tool_correctness",
+      "kind": "deterministic",
+      "question": "Did the run reach for the method the way the method says it should?",
+      "why_two_branches": [
+        "The course assumes the method arrives through tool calls, so",
+        "tool-correctness means 'were the right tools called'. Since 2026-08-24",
+        "the structured generation path does not call tools at all - the method is",
+        "preloaded by `method.py`, and a reference tool call there means the",
+        "preloaded body contradicted itself and bought a wasted turn. So the same",
+        "criterion asks the opposite question on that branch, and asking the",
+        "course's version would fail every healthy generation run."
+      ],
+      "branches": {
+        "generation": {
+          "applies_when": "session_id starts with 'generation'",
+          "expect_no_tools": ["citeste-referinta", "propune-postari", "dezvolta-postarea"],
+          "reason": "The method is already in the prompt. A call here is a contradiction that cost a turn."
+        },
+        "chat": {
+          "applies_when": "anything else",
+          "expect_skill_tool": true,
+          "reason": "In chat nothing is preloaded, so the skill has to fire from its description."
+        }
+      }
+    },
+    {
+      "id": "contract_quality",
+      "kind": "deterministic",
+      "question": "What the schema cannot enforce but the method still demands.",
+      "read_from": "the model's own answer, fetched back by response_id",
+      "why_not_the_stored_variants": [
+        "Because a rejected answer never became a variant. 39 of 44 failed turns",
+        "on 2026-08-24 died on one hashtag, and grading only what was stored would",
+        "have shown a clean report on the day a quarter of the money was wasted."
+      ],
+      "checks": [
+        {
+          "id": "caption_length",
+          "applies_to_format": "Reel",
+          "min": 900,
+          "max": 1400,
+          "floor_enforced_by_schema": 200,
+          "note": "Measured 2026-08-24: mini averaged 668, 0 of 50 in range. This is the open one."
+        },
+        {
+          "id": "distinct_angles",
+          "applies_to": "title runs",
+          "expect": 10,
+          "note": "Ten archetypes for ten slots. Enforced by ANGLE_TYPES since 2026-08-24; this watches that it stays true."
+        },
+        {
+          "id": "hashtags",
+          "min": 3,
+          "max": 5,
+          "pattern": "^#\\S+$",
+          "note": "Repaired rather than refused since 2026-08-24. This counts how often the repair fires."
+        }
+      ]
+    },
+    {
+      "id": "policy",
+      "kind": "judge",
+      "question": "Does the text obey the ten output rules and the brand's refusals?",
+      "model": "gpt-5-mini",
+      "pass_threshold": 0.7,
+      "prompt": [
+        "Ești corector pentru studioul de conținut al Viorelei, coach pentru femei.",
+        "Primești textul unei postări generate. Notează de la 0 la 1 cât de bine",
+        "respectă regulile ei, unde 1 e impecabil.",
+        "",
+        "Ce se penalizează, în ordinea gravității:",
+        "1. Vina pusă pe cititoare — «e vina ta», «dacă nu-ți pui limite ești slabă».",
+        "   Asta singură coboară nota sub 0,3, oricât de bine e scris restul.",
+        "2. Promisiuni de rezultat sau limbaj medical: «vindeci», «garantat»,",
+        "   «tratament», «diagnostic».",
+        "3. Cifre, studii sau citate date ca fapte, fără sursă în text.",
+        "4. Preț, pachet sau ofertă inventate.",
+        "5. Română stricată: fără diacritice, cuvinte englezești puse fără rost,",
+        "   dezacorduri.",
+        "",
+        "Nu penaliza pentru lungime, pentru format, sau pentru că nu-ți place",
+        "unghiul — alea se măsoară în altă parte."
+      ]
+    },
+    {
+      "id": "attribution",
+      "kind": "judge",
+      "applies_when": "the run called search_books and got passages back",
+      "question": "Is every quote and page number in the text actually in a passage the search returned?",
+      "model": "gpt-5-mini",
+      "pass_threshold": 0.8,
+      "prompt": [
+        "Primești pasajele pe care căutarea în cărți le-a întors, și textul scris",
+        "pe baza lor. Notează de la 0 la 1 cât de onestă e atribuirea.",
+        "",
+        "Coboară nota, tare, pentru:",
+        "1. Un citat între ghilimele care nu apare în niciun pasaj.",
+        "2. Un număr de pagină care nu e în pasaje. O pagină inventată e mai rea",
+        "   decât una lipsă: pare verificabilă și nu e.",
+        "3. Un rezumat Bookey prezentat ca fiind cartea autorului.",
+        "4. O afirmație atribuită unei cărți din care nu s-a întors niciun pasaj.",
+        "",
+        "Nu penaliza o parafrază onestă, marcată ca atare."
+      ]
+    }
+  ]
+}

@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -52,6 +53,23 @@ from content_studio.config import MissingConfig, database_url
 #: `retrieved` is what decides whether a run is a RAG run, and Ragas grades only
 #: those - a typo in this string silently empties that half of the report.
 RETRIEVAL_TOOL = "search_books"
+
+#: THE PASSAGES DO NOT ARRIVE AS A SPAN, AND ASSUMING THEY DID COST THIS MODULE
+#: A REWRITE. On the generation path the model never calls `search_books`:
+#: `collect_source_packet` calls it server-side, once per batch, and it runs
+#: BEFORE `Audit.open_run` - so there is no run to hang a span on and no span to
+#: read. Measured on 2026-08-25: a batch with source `Cărți` produced two runs,
+#: both with `unelte: niciuna`, while its `source_packet` held the passages all
+#: along. So retrieval is read from the batch, and a run is tied to its batch
+#: two ways, both of them strings this codebase writes itself:
+#:
+#:   · a title run shares the batch's `session_id`
+#:   · a detail run names the batch in `input_message` - "din lotul 62dfb546"
+#:
+#: Neither is elegant. The alternative was a schema change to hang a batch id on
+#: `runs`, which is the right fix and a bigger one; this is written down so the
+#: next person can make it deliberately rather than discover it.
+BATCH_IN_MESSAGE = re.compile(r"din lotul ([0-9a-f]{8})", re.IGNORECASE)
 
 #: Same unnest `references.py` uses. Restated rather than imported: that module
 #: is a command-line audit of one question, and importing a private SQL constant
@@ -125,6 +143,21 @@ class ToolCall:
             return self.output
 
 
+#: Batches overlapping the window, with the material gathered for them. Wider
+#: than the run window on purpose: she can open an idea days after the batch was
+#: written, and the passages that idea was built from are still that batch's.
+BATCHES_SQL = """
+SELECT b.id,
+       b.session_id,
+       b.source,
+       b.format,
+       b.pillar,
+       b.source_packet
+  FROM public.generation_batches b
+ WHERE b.created_at > now() - ($1 || ' hours')::interval
+"""
+
+
 @dataclass(slots=True)
 class GradedRun:
     """One run, in the shape every grader reads.
@@ -144,6 +177,9 @@ class GradedRun:
     failed_turns: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    #: The batch this run belongs to, when it belongs to one. Carries `source`,
+    #: `format` and the gathered passages - none of which a span knows.
+    batch: dict[str, Any] | None = None
 
     @property
     def tool_names(self) -> list[str]:
@@ -151,13 +187,19 @@ class GradedRun:
 
     @property
     def retrieved(self) -> list[Any]:
-        """The passages the shelf actually returned, flattened across calls.
+        """The passages this run was written from, wherever they came in.
 
-        Empty means this is not a retrieval run - which is a fact Ragas needs,
-        not a failure. A run that searched and found nothing is also empty here,
-        and `searched` is what tells the two apart.
+        Two doors, because the studio has two: the batch's `source_packet`, which
+        is how the generation path gets its material, and a `search_books` span,
+        which is how chat gets it. Empty means this was not a retrieval run -
+        a fact Ragas needs, not a failure. `searched` is what separates "never
+        asked the shelf" from "asked and it was silent".
         """
         passages: list[Any] = []
+        packet = (self.batch or {}).get("source_packet") or {}
+        books = packet.get("books")
+        if isinstance(books, list):
+            passages.extend(books)
         for call in self.tool_calls:
             if call.name != RETRIEVAL_TOOL:
                 continue
@@ -171,7 +213,10 @@ class GradedRun:
     @property
     def searched(self) -> bool:
         """Whether the shelf was consulted at all, found or not."""
-        return RETRIEVAL_TOOL in self.tool_names
+        if RETRIEVAL_TOOL in self.tool_names:
+            return True
+        source = (self.batch or {}).get("source")
+        return source in {"Cărți", "Combinat"}
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -182,6 +227,9 @@ class GradedRun:
             "input_message": self.input_message,
             "output_message": self.output_message,
             "tools": self.tool_names,
+            "batch_id": (self.batch or {}).get("id"),
+            "source": (self.batch or {}).get("source"),
+            "format": (self.batch or {}).get("format"),
             "retrieved": len(self.retrieved),
             "searched": self.searched,
             "response_ids": self.response_ids,
@@ -189,6 +237,51 @@ class GradedRun:
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
         }
+
+
+def attach_batches(runs: list[GradedRun], batches: list[Any]) -> None:
+    """Tie each run to the batch it belongs to. Pure, and tested.
+
+    Two keys, in order of trust: the shared `session_id`, which the harness
+    writes for a title run, and the batch id printed into a detail run's
+    `input_message`. A run that matches neither keeps `batch = None` and is
+    simply not a retrieval run, which is the honest answer for chat.
+    """
+
+    by_session: dict[str, dict[str, Any]] = {}
+    by_prefix: dict[str, dict[str, Any]] = {}
+    for row in batches:
+        record = {
+            "id": str(row["id"]),
+            "session_id": str(row["session_id"]),
+            "source": row["source"],
+            "format": row["format"],
+            "pillar": row["pillar"],
+            "source_packet": _as_dict(row["source_packet"]),
+        }
+        by_session[record["session_id"]] = record
+        by_prefix[record["id"][:8].lower()] = record
+
+    for run in runs:
+        found = by_session.get(run.session_id)
+        if found is None:
+            match = BATCH_IN_MESSAGE.search(run.input_message or "")
+            if match:
+                found = by_prefix.get(match.group(1).lower())
+        run.batch = found
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    """asyncpg gives jsonb back as a dict; a fixture may give a string."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
 
 
 def build_runs(rows: list[Any], spans: list[Any]) -> list[GradedRun]:
@@ -250,9 +343,14 @@ async def read(hours: int = 24, run_id: str | None = None) -> list[GradedRun]:
                 return []
             ids = [str(row["id"]) for row in rows]
             spans = await conn.fetch(SPANS_SQL, ids)
+            # Deliberately wider than the run window: an idea opened days later
+            # was still written from that batch's passages.
+            batches = await conn.fetch(BATCHES_SQL, str(max(hours, 24) * 30))
     finally:
         await engine.dispose()
-    return build_runs(list(rows), list(spans))
+    runs = build_runs(list(rows), list(spans))
+    attach_batches(runs, list(batches))
+    return runs
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -287,8 +385,13 @@ def report(runs: list[GradedRun]) -> None:
             print(f"    unelte : {', '.join(run.tool_names)}")
         else:
             print("    unelte : niciuna")
+        if run.batch:
+            print(
+                f"    lot    : {run.batch['id'][:8]}  "
+                f"{run.batch['format']} · {run.batch['source']}"
+            )
         if run.searched:
-            print(f"    pasaje : {len(run.retrieved)} din {RETRIEVAL_TOOL}")
+            print(f"    pasaje : {len(run.retrieved)} din bibliotecă")
         if run.failed_turns:
             print(f"    ture picate: {run.failed_turns}")
         print(

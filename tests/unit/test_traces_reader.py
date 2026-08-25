@@ -10,13 +10,19 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from evals.traces import RETRIEVAL_TOOL, GradedRun, ToolCall, build_runs
+from evals.traces import (
+    RETRIEVAL_TOOL,
+    GradedRun,
+    ToolCall,
+    attach_batches,
+    build_runs,
+)
 
 NOW = datetime(2026, 8, 24, 17, 0, tzinfo=UTC)
 
 
 def _run_row(run_id: str = "run-1", **over: object) -> dict[str, object]:
-    row = {
+    row: dict[str, object] = {
         "id": run_id,
         "session_id": "sesiune",
         "input_message": "vreau un reel pe educație",
@@ -201,3 +207,81 @@ class WhatTheGradersAreHanded(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RetrievalComesFromTheBatch(unittest.TestCase):
+    """The passages are NOT a span, and assuming they were cost a rewrite.
+
+    `collect_source_packet` calls `search_books` server-side, once per batch, and
+    it runs BEFORE `Audit.open_run` — so there is no run to hang a span on.
+    Measured 2026-08-25: a batch with source `Cărți` produced two runs, both with
+    no tool calls, while its `source_packet` held eight passages all along.
+    """
+
+    @staticmethod
+    def _batch(**over: object) -> dict[str, object]:
+        row = {
+            "id": "62dfb546-79b3-4fdb-8ced-4bf31c6cd2cb",
+            "session_id": "generation-abc",
+            "source": "Cărți",
+            "format": "Reel",
+            "pillar": "Conexiune",
+            "source_packet": {"books": ["pasaj 1", "pasaj 2"]},
+        }
+        row.update(over)
+        return row
+
+    def test_a_title_run_is_matched_by_session(self) -> None:
+        runs = build_runs([_run_row(session_id="generation-abc")], [])
+        attach_batches(runs, [self._batch()])
+        self.assertEqual(runs[0].retrieved, ["pasaj 1", "pasaj 2"])
+        self.assertTrue(runs[0].searched)
+
+    def test_a_detail_run_is_matched_by_the_id_in_its_message(self) -> None:
+        """Its session is `generation-detail-...`, a different one, so the batch
+        id printed into the message is the only link there is."""
+        row = _run_row(
+            session_id="generation-detail-zzz",
+            input_message="Dezvoltă ideea 1 din lotul 62dfb546",
+        )
+        runs = build_runs([row], [])
+        attach_batches(runs, [self._batch()])
+        self.assertEqual(runs[0].batch["id"][:8], "62dfb546")
+        self.assertEqual(len(runs[0].retrieved), 2)
+
+    def test_a_memory_batch_is_not_a_retrieval_run(self) -> None:
+        runs = build_runs([_run_row(session_id="generation-abc")], [])
+        attach_batches(runs, [self._batch(source="Memorie", source_packet={})])
+        self.assertFalse(runs[0].searched)
+        self.assertEqual(runs[0].retrieved, [])
+
+    def test_books_with_no_passages_still_counts_as_searched(self) -> None:
+        """Asked the shelf and it was silent — a different fault from never
+        asking, and the one worth seeing."""
+        runs = build_runs([_run_row(session_id="generation-abc")], [])
+        attach_batches(runs, [self._batch(source_packet={"books": []})])
+        self.assertTrue(runs[0].searched)
+        self.assertEqual(runs[0].retrieved, [])
+
+    def test_a_run_matching_no_batch_keeps_none(self) -> None:
+        runs = build_runs([_run_row(session_id="chat-abc")], [])
+        attach_batches(runs, [self._batch()])
+        self.assertIsNone(runs[0].batch)
+        self.assertFalse(runs[0].searched)
+
+    def test_a_source_packet_arriving_as_a_string_still_parses(self) -> None:
+        import json as _json
+
+        runs = build_runs([_run_row(session_id="generation-abc")], [])
+        attach_batches(
+            runs, [self._batch(source_packet=_json.dumps({"books": ["p"]}))]
+        )
+        self.assertEqual(runs[0].retrieved, ["p"])
+
+    def test_a_chat_search_span_still_counts(self) -> None:
+        """Chat has no batch, so there the span IS the door. Both are read."""
+        spans = [_span(name=RETRIEVAL_TOOL, output='["din chat"]')]
+        runs = build_runs([_run_row(session_id="chat-abc")], spans)
+        attach_batches(runs, [])
+        self.assertEqual(runs[0].retrieved, ["din chat"])
+        self.assertTrue(runs[0].searched)
