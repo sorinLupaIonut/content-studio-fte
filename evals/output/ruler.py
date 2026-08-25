@@ -38,17 +38,47 @@ import hashlib
 import json
 from typing import Any
 
+from deepeval.models.base_model import DeepEvalBaseLLM
+
 from content_studio.config import DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
 from evals.output import material
 from evals.output.metrics import avatar_resonance, brief_compliance, hallucination
 
-#: The three judged metrics are built to be READ here, never called, so the
-#: fingerprint reflects the rubric the suite actually runs rather than a copy of
-#: it kept in step by hand. GEval accepts a model name as a string and resolves
-#: it lazily, so constructing one costs no key and no network - verified
-#: 2026-08-25. If a future DeepEval validates the name at construction, this is
-#: the line that breaks, and the fix is a real judge here, not a copied rubric.
-NEVER_CALLED = "ruler-fingerprint-only"
+
+class NeverCalled(DeepEvalBaseLLM):
+    """A judge that exists only to be read, and refuses to be used.
+
+    The three judged metrics are BUILT here so the fingerprint reflects the
+    rubric the suite actually runs rather than a copy kept in step by hand.
+    Building one needs a model argument, and a plain string was the obvious
+    choice until a clean CI checkout proved otherwise: DeepEval resolves a
+    string through `initialize_model`, which constructs an `OpenAIModel`, which
+    demands `OPENAI_API_KEY` at construction. On a machine with a `.env` that
+    passes; in CI it raised during COLLECTION, so the free deterministic layer
+    never ran either. Measured 2026-08-25 against a bare clone.
+
+    Raising in `generate` rather than returning something is the second half:
+    if a refactor ever routes real grading through this object, it must fail
+    loudly instead of quietly scoring everything the same.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("ruler-fingerprint-only")
+
+    def load_model(self) -> None:
+        return None
+
+    def get_model_name(self) -> str:
+        return "ruler-fingerprint-only"
+
+    def generate(self, *args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("NeverCalled exists for the fingerprint, not for grading")
+
+    async def a_generate(self, *args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("NeverCalled exists for the fingerprint, not for grading")
+
+
+NEVER_CALLED = NeverCalled()
 
 
 def _digest(payload: str) -> str:
@@ -99,7 +129,17 @@ def ruler_parts(gold: dict[str, Any]) -> dict[str, str]:
         # look comparable and are not. Promotion is supposed to trip this.
         "cases": _digest(
             json.dumps(
-                [[c["id"], c["actual_output"], c.get("caption") or ""] for c in cases],
+                [
+                    [
+                        c["id"],
+                        c["actual_output"],
+                        c.get("caption") or "",
+                        # The grounding is part of the subject: the same answer
+                        # judged with passages and without is two measurements.
+                        c.get("context") or [],
+                    ]
+                    for c in cases
+                ],
                 ensure_ascii=False,
                 sort_keys=True,
             )

@@ -1,16 +1,16 @@
 {
   "_": [
-    "Set inghetat pentru output evals (stratul 3). Scris de",
+    "Set înghețat pentru output evals (stratul 3). Scris de",
     "`evals/output/seed_golden.py` din ce a produs deja studioul - nu de",
-    "mana, si niciodata regenerat in timpul unei rulari de teste.",
-    "Aici sta DOAR subiectul: ce s-a cerut si ce a iesit. Rigla - piloni,",
-    "surse, formate, profilul Andreei - se citeste vie din fisierele ei,",
-    "prin evals/output/material.py, si e amprentata de ruler.py."
+    "mână, și niciodată regenerat în timpul unei rulări de teste.",
+    "Aici stă DOAR subiectul: ce s-a cerut și ce a ieșit. Rigla - piloni,",
+    "surse, formate, profilul Andreei - se citește vie din fișierele ei,",
+    "prin evals/output/material.py, și e amprentată de ruler.py."
   ],
   "baseline": {
-    "recorded_at": "2026-08-25-1820",
+    "recorded_at": "2026-08-25-1845",
     "ruler": {
-      "id": "8f1f25fdb8f0",
+      "id": "9536e8dcbf41",
       "parts": {
         "piloni": "084527cec931",
         "avatar": "0a3effe15441",
@@ -21,423 +21,271 @@
         "Hallucination": "d48b23758fab",
         "AvatarResonance": "b05b62e88603",
         "judge": "a6681b2d240f",
-        "cases": "23d31be7ce51"
+        "cases": "be91c06da8ab"
       }
     },
     "metrics": {
       "BriefCompliance": {
-        "mean": 0.613,
-        "n": 15,
-        "passed": 6
+        "mean": 0.562,
+        "n": 8,
+        "passed": 2
       },
       "Hallucination": {
-        "mean": 0.993,
-        "n": 15,
-        "passed": 15
+        "mean": 0.863,
+        "n": 8,
+        "passed": 6
       },
       "AvatarResonance": {
-        "mean": 0.427,
-        "n": 15,
+        "mean": 0.45,
+        "n": 8,
         "passed": 1
       },
       "CaptionLength": {
         "mean": 0.0,
-        "n": 5,
+        "n": 2,
         "passed": 0
       }
     },
     "per_case": {
-      "0e2dbc8c-i05-CIFRA": {
-        "CaptionLength": 0.0
-      },
-      "0e2dbc8c-i05-CONTRAST": {
+      "671f8b87-i01-SECRET": {
         "CaptionLength": 0.0
       },
       "0e2dbc8c-i05-INTREBARE": {
-        "CaptionLength": 0.0
-      },
-      "0e2dbc8c-i05-PROVOCARE": {
-        "CaptionLength": 0.0
-      },
-      "0e2dbc8c-i05-SECRET": {
         "CaptionLength": 0.0
       }
     }
   },
   "open": [
     {
-      "case": "0e2dbc8c-i01",
-      "metric": "BriefCompliance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i01",
-      "metric": "AvatarResonance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i02",
-      "metric": "BriefCompliance",
-      "score": 0.6
-    },
-    {
-      "case": "0e2dbc8c-i02",
-      "metric": "AvatarResonance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i04",
+      "case": "86485908-i02",
       "metric": "BriefCompliance",
       "score": 0.3
     },
     {
-      "case": "0e2dbc8c-i04",
+      "case": "86485908-i02",
       "metric": "AvatarResonance",
       "score": 0.4
     },
     {
-      "case": "0e2dbc8c-i05",
-      "metric": "BriefCompliance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i05",
-      "metric": "AvatarResonance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i05-CIFRA",
-      "metric": "CaptionLength",
-      "score": 0.0
-    },
-    {
-      "case": "0e2dbc8c-i05-CIFRA",
-      "metric": "AvatarResonance",
-      "score": 0.5
-    },
-    {
-      "case": "0e2dbc8c-i05-CONTRAST",
-      "metric": "CaptionLength",
-      "score": 0.0
-    },
-    {
-      "case": "0e2dbc8c-i05-CONTRAST",
-      "metric": "AvatarResonance",
-      "score": 0.5
-    },
-    {
-      "case": "0e2dbc8c-i05-INTREBARE",
-      "metric": "CaptionLength",
-      "score": 0.0
-    },
-    {
-      "case": "0e2dbc8c-i05-INTREBARE",
-      "metric": "AvatarResonance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i05-PROVOCARE",
-      "metric": "CaptionLength",
-      "score": 0.0
-    },
-    {
-      "case": "0e2dbc8c-i05-PROVOCARE",
-      "metric": "AvatarResonance",
-      "score": 0.5
-    },
-    {
-      "case": "0e2dbc8c-i05-SECRET",
-      "metric": "CaptionLength",
-      "score": 0.0
-    },
-    {
-      "case": "0e2dbc8c-i05-SECRET",
+      "case": "86485908-i01-PROVOCARE",
       "metric": "BriefCompliance",
       "score": 0.5
     },
     {
-      "case": "0e2dbc8c-i05-SECRET",
+      "case": "86485908-i01-PROVOCARE",
       "metric": "AvatarResonance",
       "score": 0.5
     },
     {
-      "case": "0e2dbc8c-i06",
-      "metric": "BriefCompliance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i06",
-      "metric": "AvatarResonance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i07",
-      "metric": "BriefCompliance",
-      "score": 0.5
-    },
-    {
-      "case": "0e2dbc8c-i07",
-      "metric": "AvatarResonance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i08",
-      "metric": "BriefCompliance",
-      "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i08",
-      "metric": "AvatarResonance",
-      "score": 0.3
-    },
-    {
-      "case": "0e2dbc8c-i09",
-      "metric": "BriefCompliance",
-      "score": 0.6
-    },
-    {
-      "case": "0e2dbc8c-i09",
+      "case": "893fbdf2-i04",
       "metric": "AvatarResonance",
       "score": 0.2
     },
     {
-      "case": "0e2dbc8c-i10",
+      "case": "893fbdf2-i01-CIFRA",
+      "metric": "BriefCompliance",
+      "score": 0.6
+    },
+    {
+      "case": "893fbdf2-i01-CIFRA",
+      "metric": "Hallucination",
+      "score": 0.4
+    },
+    {
+      "case": "671f8b87-i06",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "671f8b87-i06",
       "metric": "AvatarResonance",
       "score": 0.4
+    },
+    {
+      "case": "671f8b87-i01-SECRET",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "671f8b87-i01-SECRET",
+      "metric": "BriefCompliance",
+      "score": 0.5
+    },
+    {
+      "case": "671f8b87-i01-SECRET",
+      "metric": "Hallucination",
+      "score": 0.5
+    },
+    {
+      "case": "671f8b87-i01-SECRET",
+      "metric": "AvatarResonance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i08",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i08",
+      "metric": "AvatarResonance",
+      "score": 0.3
+    },
+    {
+      "case": "0e2dbc8c-i05-INTREBARE",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "0e2dbc8c-i05-INTREBARE",
+      "metric": "AvatarResonance",
+      "score": 0.5
     }
   ],
   "cases": [
     {
-      "id": "0e2dbc8c-i01",
+      "id": "86485908-i02",
       "category": "idea",
       "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
+        "pilon": "Poziționare",
+        "format": "Stories",
+        "sursa": "Internet",
+        "focus": "de ce nu e nevoie să fii perfectă ca să vorbești"
       },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Când te rătăcești în propriile priorități\n\nSimți că ziua ta se umple cu solicitări care nu-ți aparțin; promisiunea e că înțelegi de ce ți se întâmplă asta și faci primul pas mic ca să-ți recuperezi timpul pentru tine.",
+      "input": "Propune o idee de postare. Pilonul «Poziționare», formatul «Stories», sursa «Internet». Focus: de ce nu e nevoie să fii perfectă ca să vorbești.",
+      "context": [
+        "REGULA SURSEI: Unghiurile spun numai despre ce poți vorbi. Nu afirma cauze, efecte, simptome, prevenție, diagnostice sau reguli. Nu prelua cifre, studii ori citate. Linkurile merg doar la sursa.",
+        "UNGHIURI ȘI SURSE DE PE INTERNET:\nIată cinci unghiuri (syntagme) scurte pentru conținut social în română, pe tema „de ce nu e nevoie să fii perfectă ca să vorbești”:\n\n- vorbire spontană\n- autenticitate fără perfecțiune\n- presiunea perfecțiunii\n- imperfecțiune ca putere creativă\n- comunicare fără filtre\n\nSurse consultate:\n- Imaginea perfectă pe rețelele sociale nu transmite emoție. De ce publicul caută autenticitatea. TVR Info. ([tvrinfo.ro](https://tvrinfo.ro/imaginea-perfecta-pe-retelele-sociale-nu-transmite-emotie-de-ce-publicul-cauta-autenticitatea/?utm_source=openai))\n- Oamenii nu caută perfecțiune pe Social Media, caută ceva în care să se regăsească. Touchofadream. ([touchofadream.ro](https://www.touchofadream.ro/2026/04/oamenii-nu-cauta-perfectiune-pe-social-media-cauta-ceva-in-care-sa-se-regaseasca/?utm_source=openai))\n- Cum să faci content fun fără presiunea perfecțiunii. Fetecool. ([fetecool.ro](https://fetecool.ro/articol/cum-sa-faci-content-fun-fara-presiunea-perfectiunii?utm_source=openai))\n- Autenticitatea și integritatea în comunicare: de la teorie la practică. Dilema Veche. ([dilemaveche.ro](https://dilemaveche.ro/sectiune/tema-saptamanii/autenticitatea-si-integritatea-in-comunicare-de-621201.html?utm_source=openai))\n- Autenticitatea în Comunicarea Nonviolentă. EPALE. ([epale.ec.europa.eu](https://epale.ec.europa.eu/ro/blog/autenticitatea-comunicarea-nonviolenta?utm_source=openai))"
+      ],
+      "actual_output": "Trebuie să fii impecabilă ca să conteze ce spui\n\nAi crescut cu ideea că doar perfecțiunea merită ascultare; realitatea e că oamenii se regăsesc în vulnerabilitate, nu în strălucire imuabilă.",
       "caption": null,
       "expected_behavior": null,
       "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 1
-      }
-    },
-    {
-      "id": "0e2dbc8c-i02",
-      "category": "idea",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Mitul «dacă sunt productivă, merită totul»\n\nCrezi că valoarea ta se măsoară în ce bifezi; aici arătăm cum acest gând te trage înapoi și cum să-l pui sub semnul întrebării ca să-ți regăsești focusul real.",
-      "caption": null,
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "batch_id": "86485908-c137-4485-86a1-27e91dfe8d76",
         "ordinal": 2
       }
     },
     {
-      "id": "0e2dbc8c-i03",
-      "category": "idea",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Ritualul de 3 întrebări înainte de a spune DA\n\nÎnainte să accepți o cerere, trei întrebări simple îți arată dacă e pentru tine sau pentru alții; promisiunea e un filtru practic pe care-l poți folosi azi.",
-      "caption": null,
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 3
-      }
-    },
-    {
-      "id": "0e2dbc8c-i04",
-      "category": "idea",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Ziua în care mi-am dat seama că nu mai știu ce vreau\n\nPovestesc un moment real din viața mea când m-am trezit făcând lucruri automate, și ce mic gest m-a ajutat să-mi recâștig direcția.",
-      "caption": null,
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 4
-      }
-    },
-    {
-      "id": "0e2dbc8c-i05",
-      "category": "idea",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Greșeala de a-ți confunda «urgentul» cu «importantul»\n\nO faci zilnic: răspunzi la focare în loc să protejezi ce contează; arăt cum o schimbare de perspectivă te scapă de epuizare și aduce focus.",
-      "caption": null,
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 5
-      }
-    },
-    {
-      "id": "0e2dbc8c-i05-CIFRA",
+      "id": "86485908-i01-PROVOCARE",
       "category": "variant",
       "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
+        "pilon": "Poziționare",
+        "format": "Stories",
+        "sursa": "Internet",
+        "focus": "de ce nu e nevoie să fii perfectă ca să vorbești"
       },
-      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta CIFRA. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "HOOK (CIFRA): 3 pași ca să nu te mai arzi pe urgent\n\nCAPTION: Te consumă focarele zilnice? Nu e vina ta — sistemul cere reacție imediată. Dar tu poți alege alt ritm. Încercă acești 3 pași simpli: 1) identifică ce produce impact real în viața ta în 3 luni; 2) blochează sloturi în calendar doar pentru acele lucruri; 3) limitează «check»-ul inboxului la 2 ferestre pe zi.\n\nNu e o metodă magică, e o disciplină blândă: la început vei simți FOMO, apoi ușurință. Energia ta se întoarce la lucrurile care te hrănesc, nu la urgențele altora.\n\nCare din cei 3 pași ți se pare cel mai greu de ținut?\n\nCTA: Scrie în comentarii cifra (1/2/3) pe care o începi azi.\n\nHASHTAGS: #gestionaretimp #productivitate #burnoutprevention\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
-      "caption": "Te consumă focarele zilnice? Nu e vina ta — sistemul cere reacție imediată. Dar tu poți alege alt ritm. Încercă acești 3 pași simpli: 1) identifică ce produce impact real în viața ta în 3 luni; 2) blochează sloturi în calendar doar pentru acele lucruri; 3) limitează «check»-ul inboxului la 2 ferestre pe zi.\n\nNu e o metodă magică, e o disciplină blândă: la început vei simți FOMO, apoi ușurință. Energia ta se întoarce la lucrurile care te hrănesc, nu la urgențele altora.\n\nCare din cei 3 pași ți se pare cel mai greu de ținut?",
+      "input": "Dezvoltă ideea «Te temi că nu ești suficient de bine pregătită», varianta PROVOCARE. Pilonul «Poziționare», formatul «Stories», sursa «Internet». Focus: de ce nu e nevoie să fii perfectă ca să vorbești.",
+      "context": [
+        "REGULA SURSEI: Unghiurile spun numai despre ce poți vorbi. Nu afirma cauze, efecte, simptome, prevenție, diagnostice sau reguli. Nu prelua cifre, studii ori citate. Linkurile merg doar la sursa.",
+        "UNGHIURI ȘI SURSE DE PE INTERNET:\nIată cinci unghiuri (syntagme) scurte pentru conținut social în română, pe tema „de ce nu e nevoie să fii perfectă ca să vorbești”:\n\n- vorbire spontană\n- autenticitate fără perfecțiune\n- presiunea perfecțiunii\n- imperfecțiune ca putere creativă\n- comunicare fără filtre\n\nSurse consultate:\n- Imaginea perfectă pe rețelele sociale nu transmite emoție. De ce publicul caută autenticitatea. TVR Info. ([tvrinfo.ro](https://tvrinfo.ro/imaginea-perfecta-pe-retelele-sociale-nu-transmite-emotie-de-ce-publicul-cauta-autenticitatea/?utm_source=openai))\n- Oamenii nu caută perfecțiune pe Social Media, caută ceva în care să se regăsească. Touchofadream. ([touchofadream.ro](https://www.touchofadream.ro/2026/04/oamenii-nu-cauta-perfectiune-pe-social-media-cauta-ceva-in-care-sa-se-regaseasca/?utm_source=openai))\n- Cum să faci content fun fără presiunea perfecțiunii. Fetecool. ([fetecool.ro](https://fetecool.ro/articol/cum-sa-faci-content-fun-fara-presiunea-perfectiunii?utm_source=openai))\n- Autenticitatea și integritatea în comunicare: de la teorie la practică. Dilema Veche. ([dilemaveche.ro](https://dilemaveche.ro/sectiune/tema-saptamanii/autenticitatea-si-integritatea-in-comunicare-de-621201.html?utm_source=openai))\n- Autenticitatea în Comunicarea Nonviolentă. EPALE. ([epale.ec.europa.eu](https://epale.ec.europa.eu/ro/blog/autenticitatea-comunicarea-nonviolenta?utm_source=openai))"
+      ],
+      "actual_output": "HOOK (PROVOCARE): Simți nod în gât înainte să vorbești? Te provoc să spui ceva din ce ai chiar acum.\n\nSCRIPT: Slide 1: Hook vizual — Text pe fundal simplu: „Simți nod în gât înainte să vorbești?”\nSlide 2: Context scurt — Text: „Crezi că totul trebuie să iasă perfect ca să fii auzită.”\nSlide 3: Valoare — Text: „Publicul nu vrea perfecțiune; vrea emoție și autenticitate.”\nSlide 4: Exemplu concret — Text: „Spune azi o idee incompletă. Oamenii reacționează la tine, nu la forma perfectă.”\nSlide 5: Ce poți face — Text: „Întreabă. Roagă feedback. Vorbește din ce ai, nu din ce n-ai.”\nSlide 6: Promisiune/încurajare — Text: „Când vorbești din ce ai, inspiri mai mult decât când taci ca să aștepți perfectul.”\nSlide 7: CTA final — Text + sticker: „Spune o propoziție scurtă acum — posteaz-o sau scrie-mi aici ce ai spus.”\n\nCAPTION: Nu trebuie să aștepți forma perfectă ca să fii auzită. Când vorbești din ce ai, oamenii se regăsesc în tine. Ce te oprește să spui azi o frază sinceră?\n\nCTA: Răspunde în DM cu o propoziție pe care ți-e teamă să o spui — te citesc eu.\n\nHASHTAGS: #autenticitate #vorbeste #limite #curaj\n\nSURSA: internet — Imaginea perfectă pe rețelele sociale nu transmite emoție. De ce publicul caută autenticitatea | Site-ul de stiri al TVR — https://tvrinfo.ro/imaginea-perfecta-pe-retelele-sociale-nu-transmite-emotie-de-ce-publicul-cauta-autenticitatea/?utm_source=openai",
+      "caption": "Nu trebuie să aștepți forma perfectă ca să fii auzită. Când vorbești din ce ai, oamenii se regăsesc în tine. Ce te oprește să spui azi o frază sinceră?",
       "expected_behavior": null,
       "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 5,
-        "hook_type": "CIFRA"
-      }
-    },
-    {
-      "id": "0e2dbc8c-i05-CONTRAST",
-      "category": "variant",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta CONTRAST. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "HOOK (CONTRAST): Zi obosită vs Zi cu sens — diferența e o alegere\n\nCAPTION: Două zile, aceeași listă: una condusă de notificări, alta de intenții. În prima, alergi de la o urgență la alta și termini seara obosită, vinovată și cu senzația că n-ai făcut ce contează. În a doua, ai protejat 2-3 ore pentru lucruri care te scot din loc — și te culci mulțumită.\n\nNu ai nevoie de mai mult timp, ci de mai multă intenție. Începe prin a decide în fiecare dimineață două lucruri care, dacă se întâmplă, fac ziua „câștigată”. Restul sunt bonusuri. Repetă asta o săptămână și observă schimbarea.\n\nCe două lucruri ar face ziua ta «câștigată» azi?\n\nCTA: Scrie cele două lucruri mai jos — eu încep: «30 min jurnal» și «o oră pentru proiectul X».\n\nHASHTAGS: #ziacastigata #intentii #consistenta\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
-      "caption": "Două zile, aceeași listă: una condusă de notificări, alta de intenții. În prima, alergi de la o urgență la alta și termini seara obosită, vinovată și cu senzația că n-ai făcut ce contează. În a doua, ai protejat 2-3 ore pentru lucruri care te scot din loc — și te culci mulțumită.\n\nNu ai nevoie de mai mult timp, ci de mai multă intenție. Începe prin a decide în fiecare dimineață două lucruri care, dacă se întâmplă, fac ziua „câștigată”. Restul sunt bonusuri. Repetă asta o săptămână și observă schimbarea.\n\nCe două lucruri ar face ziua ta «câștigată» azi?",
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 5,
-        "hook_type": "CONTRAST"
-      }
-    },
-    {
-      "id": "0e2dbc8c-i05-INTREBARE",
-      "category": "variant",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta INTREBARE. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "HOOK (INTREBARE): Tu ce aperi: inboxul sau visul tău?\n\nCAPTION: Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?\n\nCTA: Răspunde cu numele visului tău în comentarii — hai să-l vedem clar.\n\nHASHTAGS: #prioritati #focussimplu #limitepractici\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
-      "caption": "Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?",
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 5,
-        "hook_type": "INTREBARE"
-      }
-    },
-    {
-      "id": "0e2dbc8c-i05-PROVOCARE",
-      "category": "variant",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta PROVOCARE. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "HOOK (PROVOCARE): Te storci pe tine pentru incendii care nu îți aparțin?\n\nCAPTION: Faci asta zilnic: sari la primul email, la primul mesaj, la drama din grup — și la finalul zilei te întrebi de ce ești epuizată și nimic din ce contează nu a avansat. Urgentul țipă. Importantul șoptește.\n\nSchimbarea nu e despre a face mai mult, ci despre a alege unde pui «da»-ul tău. Protejezi o oră de lucru concentrat pentru proiectul care te hrănește? Spui „nu” unui task care îți fură energia? Acolo se construiește diferența între a fi ocupată și a fi productivă.\n\nÎncepe cu o regulă simplă: dacă nu e legat de rezultatul pe care îl vrei peste 6 luni, nu merită primul loc azi. Protejează ce contează — calendar, energie, limite. Restul poate aștepta.\n\nCe lucru important ai putea proteja săptămâna asta?\n\nCTA: Comentează cu „PROTEJEZ” dacă vrei un exercițiu scurt ca să începi.\n\nHASHTAGS: #focus #grijadetine #limite\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
-      "caption": "Faci asta zilnic: sari la primul email, la primul mesaj, la drama din grup — și la finalul zilei te întrebi de ce ești epuizată și nimic din ce contează nu a avansat. Urgentul țipă. Importantul șoptește.\n\nSchimbarea nu e despre a face mai mult, ci despre a alege unde pui «da»-ul tău. Protejezi o oră de lucru concentrat pentru proiectul care te hrănește? Spui „nu” unui task care îți fură energia? Acolo se construiește diferența între a fi ocupată și a fi productivă.\n\nÎncepe cu o regulă simplă: dacă nu e legat de rezultatul pe care îl vrei peste 6 luni, nu merită primul loc azi. Protejează ce contează — calendar, energie, limite. Restul poate aștepta.\n\nCe lucru important ai putea proteja săptămâna asta?",
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 5,
+        "batch_id": "86485908-c137-4485-86a1-27e91dfe8d76",
+        "ordinal": 1,
         "hook_type": "PROVOCARE"
       }
     },
     {
-      "id": "0e2dbc8c-i05-SECRET",
-      "category": "variant",
+      "id": "893fbdf2-i04",
+      "category": "idea",
       "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
+        "pilon": "Conexiune",
+        "format": "Carusel",
         "sursa": "Memorie",
-        "focus": "despre focus"
+        "focus": "ce se întâmplă când spui da din vinovăție"
       },
-      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta SECRET. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "HOOK (SECRET): Secretul oamenilor care nu ajung la epuizare\n\nCAPTION: Nu muncesc mai mult — aleg altfel. Secretul lor e că își apără «butoanele de valoare»: indicatorii mici care arată dacă ziua a fost folosită corect (de ex. 1 oră cu proiectul personal, 30 min de reflecție, o limită spusă ferm).\n\nCând înlocuiești satisfacția urgentă (lesne de obținut) cu progresul minor, dar constant, te oprești din a te simți golănea și începi să vezi sens. Nu mai alergi după flacăra momentului, ci plantezi pomii care vor da roade.\n\nCe „buton de valoare” ai vrea să-ți setezi pentru următoarea săptămână?\n\nCTA: Comentează «BUTON» dacă vrei idei pentru al tău.\n\nHASHTAGS: #energie #viataechilibrata #autogrija\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
-      "caption": "Nu muncesc mai mult — aleg altfel. Secretul lor e că își apără «butoanele de valoare»: indicatorii mici care arată dacă ziua a fost folosită corect (de ex. 1 oră cu proiectul personal, 30 min de reflecție, o limită spusă ferm).\n\nCând înlocuiești satisfacția urgentă (lesne de obținut) cu progresul minor, dar constant, te oprești din a te simți golănea și începi să vezi sens. Nu mai alergi după flacăra momentului, ci plantezi pomii care vor da roade.\n\nCe „buton de valoare” ai vrea să-ți setezi pentru următoarea săptămână?",
+      "input": "Propune o idee de postare. Pilonul «Conexiune», formatul «Carusel», sursa «Memorie». Focus: ce se întâmplă când spui da din vinovăție.",
+      "context": [
+        "Sursa a fost memoria clientei — profilul ei și postările anterioare. Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice cifră, studiu sau citat este invenție."
+      ],
+      "actual_output": "Când m-am obosit din a fi disponibilă\n\nÎți povestesc un moment real când am spus da din vinovăție și m-am trezit goală de energie, ca să vezi că nu e vina ta și că există un drum de ieșire.",
+      "caption": null,
       "expected_behavior": null,
       "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 5,
-        "hook_type": "SECRET"
+        "batch_id": "893fbdf2-69ac-4ae3-849f-ab1843bc2ce2",
+        "ordinal": 4
       }
     },
     {
-      "id": "0e2dbc8c-i06",
+      "id": "893fbdf2-i01-CIFRA",
+      "category": "variant",
+      "brief": {
+        "pilon": "Conexiune",
+        "format": "Carusel",
+        "sursa": "Memorie",
+        "focus": "ce se întâmplă când spui da din vinovăție"
+      },
+      "input": "Dezvoltă ideea «Oboseala care nu dispare», varianta CIFRA. Pilonul «Conexiune», formatul «Carusel», sursa «Memorie». Focus: ce se întâmplă când spui da din vinovăție.",
+      "context": [
+        "Sursa a fost memoria clientei — profilul ei și postările anterioare. Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice cifră, studiu sau citat este invenție."
+      ],
+      "actual_output": "HOOK (CIFRA): 3 semne pe care le ignori când spui DA din vinovăție\n\nSCRIPT: Slide 1 (vizual): Text mare: „3 semne pe care le ignori” + imagine: tu privind ceasul.\n\nSlide 2: Text: „1) Oboseală care nu trece după somn” + imagine: pernă neatinsă, tu obosită.\n\nSlide 3: Text: „2) Iritabilitate mică, dar constantă” + imagine: expresie scurtă de frustrare la telefon.\n\nSlide 4: Text: „3) Gânduri de «trebuie» care nu se opresc” + imagine: balon de gânduri.\n\nSlide 5: Text: „De ce contează: vinovăția prelungește epuizarea” + imagine: lanțuri simbolice ușor transparent.\n\nSlide 6: Text: „Ce faci azi: alege 1 sarcină pe care o delegi sau o amâni” + imagine: listă cu o sarcină tăiată.\n\nSlide 7: Text: „Exemplu: «Nu pot prelua asta azi, îți trimit o alternativă»” + imagine: exemplu de mesaj/replică scurtă.\n\nSlide 8: Text final + CTA: „Ai observat unul din aceste semne la tine? Scrie care.” + imagine: tu, calmă.\n\nFormat: carusel 8 slide-uri. Limbaj clar, operabil. Ton empatic, practică imediat aplicabilă.\n\nCAPTION: Vinovăția maschează semnele epuizării și le transformă în normalitate. Alege azi un pas mic: delegă sau refuză o singură sarcină. Tu care semn l-ai avut în ultima vreme?\n\nCTA: Comentează care semn te descrie — vorbim despre el.\n\nHASHTAGS: #limiteleMele #energiaTa #femeisiforta\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Vinovăția maschează semnele epuizării și le transformă în normalitate. Alege azi un pas mic: delegă sau refuză o singură sarcină. Tu care semn l-ai avut în ultima vreme?",
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "893fbdf2-69ac-4ae3-849f-ab1843bc2ce2",
+        "ordinal": 1,
+        "hook_type": "CIFRA"
+      }
+    },
+    {
+      "id": "671f8b87-i06",
       "category": "idea",
       "brief": {
         "pilon": "Educație",
         "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
+        "sursa": "Cărți",
+        "focus": "cum îți aperi timpul când toți cer de la tine"
       },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Cum arată o zi înainte și după un «nu» spus din timp\n\nO zi plină de frustrare versus o zi în care ți-ai apărat o bucată de timp — promisiunea e mai multă liniște și energie pentru tine.",
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Cărți». Focus: cum îți aperi timpul când toți cer de la tine.",
+      "context": [
+        "{'page': '185', 'text': 'lmaginează-ți că te afli sub un cer care se schimbă constant: uneori este senin și albastru, alteori este plin de nori sau brăzdat de tunete. Ai petrecut atât de mult timp și energie încercând să păstrezi cerul senin, dorindu-ți să dispară norii, sperând la un soare fără sfârșit. Dar cerului nu-i pasă de ce vrei tu. Va face ceea ce face, cu sau fără contribuția ta.\\n\\nMomentul revelației vine atunci când realizezi acest lucru: frumusețea cerului nu este diminuată de prezența norilor sau a furtunilor. De fapt, tocmai varietatea și imprevizibilitatea sunt cele care îl fac cu adevărat magnific. Furtunile evidențiază calmul, iar norii fac soarele mai prețios. Același lucru este valabil și pentru viața ta.\\n\\nAi vrut să controlezi incontrolabilul, încercând să forțezi lumea să se conformeze așteptărilor tale. Ce-ar fi dacă, în schimb, te-ai concentra pe propria ta reacție la tot ce ți se ivește în cale? Nu poți schimba vremea. Dar poți schimba dacă și cum te afectează ea.\\n\\nIndiferent de ce se întâmplă în jurul tău, tu decizi cum te va afecta.\\n\\nTu decizi dacă un comentariu din partea unei persoane dragi îți distruge stima de sine sau doar trece pe lângă tine fără să te afecteze. Tu decizi dacă toate întâlnirile nereușite la care ai fost te determină să îți scazi standardele sau să devii și mai exigent. Tu decizi dacă succesul altcuiva te face să renunți sau te inspiră să muncești și mai mult.', 'owner': 'viorela', 'score': 0.499, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '186', 'text': 'ACESTA este costul neutilizării teoriei „Lasă-\\n\\nChiar îți poți permite acest preț? Eu știu că nu pot.\\n\\nTuturor ne place să găsim motive pentru care oamenii care au ceea ce ne dorim sunt cumva diferiți de noi: ei s-au născut cu bani. Sunt mai atrăgători. Viața lor a fost mai ușoară. Au avut Noroc.\\n\\nÎmi pare rău să ți-o spun, dar asta este doar o scuză. Nu există nicio diferență între tine și oamenii pe care îi vezi realizând lucruri extraordinare. Fi nu sunt speciali.\\n\\nDar există un lucru sigur pe care l-au înțeles: ei nu lasă lumea din jurul lor să le submineze visurile. Fi au învățat să se orienteze după cer, să accepte vremea așa cum vine și să continue să se îndrepte spre obiectivele lor, indiferent de situație. La un moment dat, s-au săturat să se preocupe de ce cred ceilalți și și-au impus să se apuce de treabă.\\n\\nFi sunt total angajați să se trezească în fiecare zi și să dovedească mereu, prin acțiunile lor, că\\n\\nsunt demni și merită viziunea pe care o au pentru viața lor.\\n\\nÎn fiecare zi în care te temi de părerea altcuiva, te stresezi din cauza prieteniilor sau te temi de reacția cuiva și refuzi să dai un telefon, să completezi cererea, să lucrezi la planul de afaceri, să începi dieta sau să depui efort, te împiedici să avansezi. Te privezi de potențialul tău. Stai pe loc în timp ce viața se mișcă în jurul tău.', 'owner': 'viorela', 'score': 0.491, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '33', 'text': 'Folosind teoria Let Them, am văzut cât de des am învinuit pe altcineva pentru faptul că stăteam singură pe canapea. Sau pentru că nu câștigam banii pe care mi-i doream. Sau pentru cât de des am acceptat să spun „da“ din cauza sentimentului de culpabilitate. Sau pentru că luam decizii împotriva voinței mele, din simplul fapt că nu voiam să dezamăgesc pe nimeni. Sau pentru cât de des am folosit scuza că sunt prea obosită ca să fac din sănătatea sau distracția mea o prioritate. Când ești adult, viața, sănătatea, fericirea, vindecarea, viața\\n\\nsocială, prieteniile, limitele, nevoile și succesul tău sunt exclusiv responsabilitatea ta. Dacă ai sgerat în secret că va veni cineva să te salveze, să-ți rezolve problemele, să-ți plătească facturile, să-ți creeze o viață socială, să-ți vindece rănile sufletești, să se transforme în partenerul pe care l-ai visat și să te motiveze să fii cea mai bună ființă..., ei bine, asta nu se va întâmpla. Nu va veni nimeni. lar timpul pe care-l petreci dând vina pe alții sau așteptând o permisiune ori o invitație este pierdut. Acele zile sunt duse pentru totdeauna.\\n\\nEpoca „Lasă-mă“ este însă aici.\\n\\nEști capabil să făurești orice își dorești, dacă ești gata să investești timp și energie în a munci pentru asta. lar aceasta înseamnă că trebuie să încetezi să-ți mai pierzi timpul și energia pe lucruri mărunte, superficiale și nesemnificative. De asemenea, înseamnă că trebuie să încetezi a mai încerca să controlezi singurul lucru pe care nu-l poți controla: pe ceilalți oameni.', 'owner': 'viorela', 'score': 0.491, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '185', 'text': 'Este extrem de simplu. Tu deții puterea. Conștientizarea acestui fapt este precum înțelegerea în cele din urmă a adevăratei naturi a cerului. Privești norii care altădată te frustrau ca pe o parte a unei capodopere mai mari, în continuă schimbare. Furtunile care altădată te înspăimântau sunt acum pentru tine momente de forță și frumusețe, care te învață reziliența și puterea. Începi să înțelegi că imprevizibilitatea cerului este ceea ce îl face atât de magnific, atât de fascinant la nesfârșit.\\n\\nGândește-te o clipă la asta. Cerul va face ceea ce face dintotdeauna: norii se vor aduna, furtunile vor Vveni, iar soarele va străluci când va dori. Nu-l poți controla, dar poți controla modul în care mergi sub el. Poți purta o umbrelă, poți dansa în\\n\\nploaie, poți alerga după soare atunci când simți nevoia.\\n\\nOamenii și situațiile din jurul tău sunt precum vremea. Adevărul este că nu-i poți controla niciodată pe ceilalți oameni — cum gândesc, cum se comportă, dacă te iubesc sau nu ori cât de repede îți scanează produsele la magazinul alimentar.\\n\\nAșa că de ce le-ai oferi vreodată controlul asupra ta? De ce ai încredința vreodată ceva atât de prețios — precum încrederea ta, liniștea ta sufletească, fericirea ta și visurile tale — capriciilor și stărilor de spirit ale oamenilor din jurul tău?', 'owner': 'viorela', 'score': 0.478, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '224', 'text': 'Timpul Mulți simt că timpul le-a scăpat de sub control. Ei sunt „oameni ai ceasului al unsprezecelea”, mereu în luptă cu un termen final. Oricât s-ar strădui, ei descoperă că ziua - fiecare zi - le scapă printre degete. Nu sunt suficiente ceasuri ca ei să-si ducă la bun sfârsit toate sarcinile. Cuvân\\xad tul devreme pare a nu face parte din experiența lor personală. Iată câteva dintre problemele legate de administrarea timpului, cu care se frământă persoanele de genul acesta:\\n\\n• întâlniri de afaceri\\n\\n• mese de protocol\\n\\n• termene de y predare y y a proiectelor\\n\\n• activități la scoală si la biserică\\n\\n• corespondența de sărbători Oamenii aceștia ajung val-vârtej la întâlniri cu cincisprezece minute întârziere, își cer scuze cu sufletul la gură, îngăimând ceva despre trafic, despre responsabilitățile copleșitoare de la serviciu sau despre vreo urgență cu copiii.\\n\\nPersoanele care au pierdut controlul asupra timpului lor îi incomodează pe ceilalți, fie că au această intenție, fie că nu. Deseori, problema se trage dintr-una sau mai multe dintre următoarele cauze:\\n\\n1. Omnipotența. Persoanele acestea au așteptări nerealiste, uneori grandioase, cu privire la ceea ce pot ele realiza într-un interval de timp dat. „Nicio problemă - rezolv eu și asta” este motto-ul lor.', 'owner': 'viorela', 'score': 0.47, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '187', 'text': 'Nu-ți mai irosi energia mentală cu milioane de lucruri mărunte care nu contează. E timpul să folosești fiecare secundă a zilei tale pentru toate lucrurile uimitoare de care știi că ești capabil. Nu mai lăsa frica de ceea ce ar putea crede oamenii să te paralizeze. Este timpul să-ți urmezi visurile cu îndrăzneală, neîncetat și fără să te scuzi.\\n\\nNu mai gravita în jurul emoțiilor celorlalți, încercând să-i menajezi. Este timpul să îți protejezi cu înverșunare propria pace sufletească.\\n\\nNu mai lăsa succesul altora să te devasteze. E timpul să treci la treabă.\\n\\nNu mai face din viața ta socială responsabilitatea celorlalți. E timpul să construiești cele mai incredibile prietenii pe care le-ai avut vreodată.\\n\\nNu mai încerca să schimbi oameni care nu vor să se schimbe. E timpul să-i lași pe adulți să fie adulți.\\n\\nNu mai încerca să îi salvezi pe cei care se luptă cu problemele. E timpul să-i lași pe alții să se vindece așa cum au nevoie.\\n\\nNu-ți mai pierde timpul încercând să-i faci pe oameni să te iubească. E timpul să alegi dragostea pe care o meriți.\\n\\nȘi, în cele din urmă, e timpul să îți recâștigi puterea și să îți recâștigi viața.\\n\\nTeoria Let Them este cheia pentru a-ți recăpăta puterea.\\n\\nPoți avea viața pe care ți-ai dorit-o mereu. Poți fi un milionar.', 'owner': 'viorela', 'score': 0.468, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '10', 'text': 'Te-ai oprit vreodată cu adevărat și te-ai gândit la aceste întrebări pe care ți le adresezi? De ce eziți? Ce anume te face să amâni? Sau să te simți atât de obosit? Sau să te gândești prea mult la fiecare decizie? Ce se ascunde sub toate aceste îndoieli? Ce te împiedică să faci ceea ce trebuie\\n\\nsă faci sau să-ți trăiești viața așa cum vrei să o trăiești? De ce te temi?\\n\\nAm fost șocată când am descoperit răspunsul pentru mine însămi: responsabili erau, de fiecare dată, alți oameni. Sau, mai degrabă, responsabil era modul în care îi lăsam pe ceilalți să mă influențeze și să mă afecteze. Petreceam prea mult timp și dedicam prea multă energie gestionând sau făcându-mi griji pentru alți oameni. Ce fac, ce spun, ce gândesc, cum se simt și ce așteaptă ei de la mine. Realitatea este că, indiferent cât de mult încerci sau ce faci, nu îi poți controla pe ceilalți oameni. Totuși, îți trăiești viața de parcă ai putea.\\n\\nTrăiești ca și cum, dacă spui lucrurile potrivite, oamenii te vor plăcea. Ca și cum, dacă vei continua să muncești mai mult, șeful tău te va respecta. Ca și cum, dacă te comporți cum trebuie, răspunzi la toate dorințele mamei tale și îți faci prietenii fericiți, îți vei găsi liniștea. Nu, nu o vei găsi.', 'owner': 'viorela', 'score': 0.465, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '58', 'text': 'De fiecare dată când spui „lasă-i“, elimini tot zgomotul și distragerea de la suprafață și creezi spațiu pentru ceva mai profund: vocea ta, intuiția ta, adevărul tău și calea ta unică în viață.\\n\\nEle au fost întotdeauna acolo. Doar că au fost îngropate sub toată această teamă.\\n\\nPe măsură ce folosești teoria Let Them pentru a te elibera de povara părerilor celorlalți, vei începe să te miști prin viață având ca foaie de parcurs valorile, nevoile și obiectivele tale. În loc să anticipezi ce ar putea crede ceilalți despre tine, îți vei dirija viața într-un mod care te va face mândru de tine.\\n\\nȘi acesta este secretul. Când TU ești mândru de tine, tu deții toată puterea.\\n\\nla decizii care te fac mândru\\n\\nAcum am ajuns la un punct foarte important despre ierarhizarea nevoilor tale, menținând în același timp relații de susținere și iubire cu cei din jur. ldeea aici nu este să treci prin viață ca o\\n\\npersoană egoistă sau narcisică, un om căruia nu li pasă de ceilalți oameni.\\n\\nIdeea este să înveți cum să îți pui nevoile pe primul loc în timp ce echilibrezi ceea ce funcționează pentru tine cu așteptările și sentimentele altor persoane. În viață, nu vrei să fii un preș, dar nici un buldozer nepăsător. Trebuie să menții un echilibru.', 'owner': 'viorela', 'score': 0.463, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}"
+      ],
+      "actual_output": "Ziua în care ai spus NU — ce s-a schimbat\n\nÎnainte erai mereu într-un ropot de solicitări; după, ai făcut loc pentru lucruri care te hrănesc; protejarea timpului e transformare practică, nu sacrificiu.",
       "caption": null,
       "expected_behavior": null,
       "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "batch_id": "671f8b87-a7e2-46c1-b0f0-de64a9f1100b",
         "ordinal": 6
       }
     },
     {
-      "id": "0e2dbc8c-i07",
-      "category": "idea",
+      "id": "671f8b87-i01-SECRET",
+      "category": "variant",
       "brief": {
         "pilon": "Educație",
         "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
+        "sursa": "Cărți",
+        "focus": "cum îți aperi timpul când toți cer de la tine"
       },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Ce se întâmplă în mintea ta când spui «o să vedem»\n\nÎți explic, din culise, mecanismul de amânare emoțională care distrage focusul și cum să-l oprești cu un pas concret.",
-      "caption": null,
+      "input": "Dezvoltă ideea «Sări mereu în ajutor și rămâi fără timp», varianta SECRET. Pilonul «Educație», formatul «Reel», sursa «Cărți». Focus: cum îți aperi timpul când toți cer de la tine.",
+      "context": [
+        "{'page': '185', 'text': 'lmaginează-ți că te afli sub un cer care se schimbă constant: uneori este senin și albastru, alteori este plin de nori sau brăzdat de tunete. Ai petrecut atât de mult timp și energie încercând să păstrezi cerul senin, dorindu-ți să dispară norii, sperând la un soare fără sfârșit. Dar cerului nu-i pasă de ce vrei tu. Va face ceea ce face, cu sau fără contribuția ta.\\n\\nMomentul revelației vine atunci când realizezi acest lucru: frumusețea cerului nu este diminuată de prezența norilor sau a furtunilor. De fapt, tocmai varietatea și imprevizibilitatea sunt cele care îl fac cu adevărat magnific. Furtunile evidențiază calmul, iar norii fac soarele mai prețios. Același lucru este valabil și pentru viața ta.\\n\\nAi vrut să controlezi incontrolabilul, încercând să forțezi lumea să se conformeze așteptărilor tale. Ce-ar fi dacă, în schimb, te-ai concentra pe propria ta reacție la tot ce ți se ivește în cale? Nu poți schimba vremea. Dar poți schimba dacă și cum te afectează ea.\\n\\nIndiferent de ce se întâmplă în jurul tău, tu decizi cum te va afecta.\\n\\nTu decizi dacă un comentariu din partea unei persoane dragi îți distruge stima de sine sau doar trece pe lângă tine fără să te afecteze. Tu decizi dacă toate întâlnirile nereușite la care ai fost te determină să îți scazi standardele sau să devii și mai exigent. Tu decizi dacă succesul altcuiva te face să renunți sau te inspiră să muncești și mai mult.', 'owner': 'viorela', 'score': 0.499, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '186', 'text': 'ACESTA este costul neutilizării teoriei „Lasă-\\n\\nChiar îți poți permite acest preț? Eu știu că nu pot.\\n\\nTuturor ne place să găsim motive pentru care oamenii care au ceea ce ne dorim sunt cumva diferiți de noi: ei s-au născut cu bani. Sunt mai atrăgători. Viața lor a fost mai ușoară. Au avut Noroc.\\n\\nÎmi pare rău să ți-o spun, dar asta este doar o scuză. Nu există nicio diferență între tine și oamenii pe care îi vezi realizând lucruri extraordinare. Fi nu sunt speciali.\\n\\nDar există un lucru sigur pe care l-au înțeles: ei nu lasă lumea din jurul lor să le submineze visurile. Fi au învățat să se orienteze după cer, să accepte vremea așa cum vine și să continue să se îndrepte spre obiectivele lor, indiferent de situație. La un moment dat, s-au săturat să se preocupe de ce cred ceilalți și și-au impus să se apuce de treabă.\\n\\nFi sunt total angajați să se trezească în fiecare zi și să dovedească mereu, prin acțiunile lor, că\\n\\nsunt demni și merită viziunea pe care o au pentru viața lor.\\n\\nÎn fiecare zi în care te temi de părerea altcuiva, te stresezi din cauza prieteniilor sau te temi de reacția cuiva și refuzi să dai un telefon, să completezi cererea, să lucrezi la planul de afaceri, să începi dieta sau să depui efort, te împiedici să avansezi. Te privezi de potențialul tău. Stai pe loc în timp ce viața se mișcă în jurul tău.', 'owner': 'viorela', 'score': 0.491, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '33', 'text': 'Folosind teoria Let Them, am văzut cât de des am învinuit pe altcineva pentru faptul că stăteam singură pe canapea. Sau pentru că nu câștigam banii pe care mi-i doream. Sau pentru cât de des am acceptat să spun „da“ din cauza sentimentului de culpabilitate. Sau pentru că luam decizii împotriva voinței mele, din simplul fapt că nu voiam să dezamăgesc pe nimeni. Sau pentru cât de des am folosit scuza că sunt prea obosită ca să fac din sănătatea sau distracția mea o prioritate. Când ești adult, viața, sănătatea, fericirea, vindecarea, viața\\n\\nsocială, prieteniile, limitele, nevoile și succesul tău sunt exclusiv responsabilitatea ta. Dacă ai sgerat în secret că va veni cineva să te salveze, să-ți rezolve problemele, să-ți plătească facturile, să-ți creeze o viață socială, să-ți vindece rănile sufletești, să se transforme în partenerul pe care l-ai visat și să te motiveze să fii cea mai bună ființă..., ei bine, asta nu se va întâmpla. Nu va veni nimeni. lar timpul pe care-l petreci dând vina pe alții sau așteptând o permisiune ori o invitație este pierdut. Acele zile sunt duse pentru totdeauna.\\n\\nEpoca „Lasă-mă“ este însă aici.\\n\\nEști capabil să făurești orice își dorești, dacă ești gata să investești timp și energie în a munci pentru asta. lar aceasta înseamnă că trebuie să încetezi să-ți mai pierzi timpul și energia pe lucruri mărunte, superficiale și nesemnificative. De asemenea, înseamnă că trebuie să încetezi a mai încerca să controlezi singurul lucru pe care nu-l poți controla: pe ceilalți oameni.', 'owner': 'viorela', 'score': 0.491, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '185', 'text': 'Este extrem de simplu. Tu deții puterea. Conștientizarea acestui fapt este precum înțelegerea în cele din urmă a adevăratei naturi a cerului. Privești norii care altădată te frustrau ca pe o parte a unei capodopere mai mari, în continuă schimbare. Furtunile care altădată te înspăimântau sunt acum pentru tine momente de forță și frumusețe, care te învață reziliența și puterea. Începi să înțelegi că imprevizibilitatea cerului este ceea ce îl face atât de magnific, atât de fascinant la nesfârșit.\\n\\nGândește-te o clipă la asta. Cerul va face ceea ce face dintotdeauna: norii se vor aduna, furtunile vor Vveni, iar soarele va străluci când va dori. Nu-l poți controla, dar poți controla modul în care mergi sub el. Poți purta o umbrelă, poți dansa în\\n\\nploaie, poți alerga după soare atunci când simți nevoia.\\n\\nOamenii și situațiile din jurul tău sunt precum vremea. Adevărul este că nu-i poți controla niciodată pe ceilalți oameni — cum gândesc, cum se comportă, dacă te iubesc sau nu ori cât de repede îți scanează produsele la magazinul alimentar.\\n\\nAșa că de ce le-ai oferi vreodată controlul asupra ta? De ce ai încredința vreodată ceva atât de prețios — precum încrederea ta, liniștea ta sufletească, fericirea ta și visurile tale — capriciilor și stărilor de spirit ale oamenilor din jurul tău?', 'owner': 'viorela', 'score': 0.478, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '224', 'text': 'Timpul Mulți simt că timpul le-a scăpat de sub control. Ei sunt „oameni ai ceasului al unsprezecelea”, mereu în luptă cu un termen final. Oricât s-ar strădui, ei descoperă că ziua - fiecare zi - le scapă printre degete. Nu sunt suficiente ceasuri ca ei să-si ducă la bun sfârsit toate sarcinile. Cuvân\\xad tul devreme pare a nu face parte din experiența lor personală. Iată câteva dintre problemele legate de administrarea timpului, cu care se frământă persoanele de genul acesta:\\n\\n• întâlniri de afaceri\\n\\n• mese de protocol\\n\\n• termene de y predare y y a proiectelor\\n\\n• activități la scoală si la biserică\\n\\n• corespondența de sărbători Oamenii aceștia ajung val-vârtej la întâlniri cu cincisprezece minute întârziere, își cer scuze cu sufletul la gură, îngăimând ceva despre trafic, despre responsabilitățile copleșitoare de la serviciu sau despre vreo urgență cu copiii.\\n\\nPersoanele care au pierdut controlul asupra timpului lor îi incomodează pe ceilalți, fie că au această intenție, fie că nu. Deseori, problema se trage dintr-una sau mai multe dintre următoarele cauze:\\n\\n1. Omnipotența. Persoanele acestea au așteptări nerealiste, uneori grandioase, cu privire la ceea ce pot ele realiza într-un interval de timp dat. „Nicio problemă - rezolv eu și asta” este motto-ul lor.', 'owner': 'viorela', 'score': 0.47, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '187', 'text': 'Nu-ți mai irosi energia mentală cu milioane de lucruri mărunte care nu contează. E timpul să folosești fiecare secundă a zilei tale pentru toate lucrurile uimitoare de care știi că ești capabil. Nu mai lăsa frica de ceea ce ar putea crede oamenii să te paralizeze. Este timpul să-ți urmezi visurile cu îndrăzneală, neîncetat și fără să te scuzi.\\n\\nNu mai gravita în jurul emoțiilor celorlalți, încercând să-i menajezi. Este timpul să îți protejezi cu înverșunare propria pace sufletească.\\n\\nNu mai lăsa succesul altora să te devasteze. E timpul să treci la treabă.\\n\\nNu mai face din viața ta socială responsabilitatea celorlalți. E timpul să construiești cele mai incredibile prietenii pe care le-ai avut vreodată.\\n\\nNu mai încerca să schimbi oameni care nu vor să se schimbe. E timpul să-i lași pe adulți să fie adulți.\\n\\nNu mai încerca să îi salvezi pe cei care se luptă cu problemele. E timpul să-i lași pe alții să se vindece așa cum au nevoie.\\n\\nNu-ți mai pierde timpul încercând să-i faci pe oameni să te iubească. E timpul să alegi dragostea pe care o meriți.\\n\\nȘi, în cele din urmă, e timpul să îți recâștigi puterea și să îți recâștigi viața.\\n\\nTeoria Let Them este cheia pentru a-ți recăpăta puterea.\\n\\nPoți avea viața pe care ți-ai dorit-o mereu. Poți fi un milionar.', 'owner': 'viorela', 'score': 0.468, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '10', 'text': 'Te-ai oprit vreodată cu adevărat și te-ai gândit la aceste întrebări pe care ți le adresezi? De ce eziți? Ce anume te face să amâni? Sau să te simți atât de obosit? Sau să te gândești prea mult la fiecare decizie? Ce se ascunde sub toate aceste îndoieli? Ce te împiedică să faci ceea ce trebuie\\n\\nsă faci sau să-ți trăiești viața așa cum vrei să o trăiești? De ce te temi?\\n\\nAm fost șocată când am descoperit răspunsul pentru mine însămi: responsabili erau, de fiecare dată, alți oameni. Sau, mai degrabă, responsabil era modul în care îi lăsam pe ceilalți să mă influențeze și să mă afecteze. Petreceam prea mult timp și dedicam prea multă energie gestionând sau făcându-mi griji pentru alți oameni. Ce fac, ce spun, ce gândesc, cum se simt și ce așteaptă ei de la mine. Realitatea este că, indiferent cât de mult încerci sau ce faci, nu îi poți controla pe ceilalți oameni. Totuși, îți trăiești viața de parcă ai putea.\\n\\nTrăiești ca și cum, dacă spui lucrurile potrivite, oamenii te vor plăcea. Ca și cum, dacă vei continua să muncești mai mult, șeful tău te va respecta. Ca și cum, dacă te comporți cum trebuie, răspunzi la toate dorințele mamei tale și îți faci prietenii fericiți, îți vei găsi liniștea. Nu, nu o vei găsi.', 'owner': 'viorela', 'score': 0.465, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '58', 'text': 'De fiecare dată când spui „lasă-i“, elimini tot zgomotul și distragerea de la suprafață și creezi spațiu pentru ceva mai profund: vocea ta, intuiția ta, adevărul tău și calea ta unică în viață.\\n\\nEle au fost întotdeauna acolo. Doar că au fost îngropate sub toată această teamă.\\n\\nPe măsură ce folosești teoria Let Them pentru a te elibera de povara părerilor celorlalți, vei începe să te miști prin viață având ca foaie de parcurs valorile, nevoile și obiectivele tale. În loc să anticipezi ce ar putea crede ceilalți despre tine, îți vei dirija viața într-un mod care te va face mândru de tine.\\n\\nȘi acesta este secretul. Când TU ești mândru de tine, tu deții toată puterea.\\n\\nla decizii care te fac mândru\\n\\nAcum am ajuns la un punct foarte important despre ierarhizarea nevoilor tale, menținând în același timp relații de susținere și iubire cu cei din jur. ldeea aici nu este să treci prin viață ca o\\n\\npersoană egoistă sau narcisică, un om căruia nu li pasă de ceilalți oameni.\\n\\nIdeea este să înveți cum să îți pui nevoile pe primul loc în timp ce echilibrezi ceea ce funcționează pentru tine cu așteptările și sentimentele altor persoane. În viață, nu vrei să fii un preș, dar nici un buldozer nepăsător. Trebuie să menții un echilibru.', 'owner': 'viorela', 'score': 0.463, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}"
+      ],
+      "actual_output": "HOOK (SECRET): Secretul celor care nu se mai simt folosiți\n\nCAPTION: Mulți cred că secretul e mai multă muncă sau voință. Nu e. Secretul e o regulă simplă: lasă-i pe alții să fie responsabili pentru viața lor. Când renunți să repari totul, recâștigi timp și demnitate. \n\nMel Robbins numește asta „Let Them”: renunți la nevoia de a controla reacțiile oamenilor și îți pui energia acolo unde contează. Practic: notezi ce merită intervenția ta și ce nu, apoi aplici acea listă cu blândețe, dar fermitate. \n\nCare ar fi primul lucru pe care l-ai lăsa în grija altcuiva?\n\nCTA: Răspunde în comentarii — ce delegi azi?\n\nHASHTAGS: #lasail #autonomie #granițe\n\nSURSA: „Teoria „Let Them” — Mel Robbins, pagina 33",
+      "caption": "Mulți cred că secretul e mai multă muncă sau voință. Nu e. Secretul e o regulă simplă: lasă-i pe alții să fie responsabili pentru viața lor. Când renunți să repari totul, recâștigi timp și demnitate. \n\nMel Robbins numește asta „Let Them”: renunți la nevoia de a controla reacțiile oamenilor și îți pui energia acolo unde contează. Practic: notezi ce merită intervenția ta și ce nu, apoi aplici acea listă cu blândețe, dar fermitate. \n\nCare ar fi primul lucru pe care l-ai lăsa în grija altcuiva?",
       "expected_behavior": null,
       "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 7
+        "batch_id": "671f8b87-a7e2-46c1-b0f0-de64a9f1100b",
+        "ordinal": 1,
+        "hook_type": "SECRET"
       }
     },
     {
@@ -450,7 +298,9 @@
         "focus": "despre focus"
       },
       "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
+      "context": [
+        "Sursa a fost memoria clientei — profilul ei și postările anterioare. Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice cifră, studiu sau citat este invenție."
+      ],
       "actual_output": "O clientă care a câștigat o oră pe zi\n\nPovestesc transformarea unei cliente care, alegând un ritual de revizuire a priorităților, a recăpătat o oră pe zi pentru ea — arată că focusul se exersează.",
       "caption": null,
       "expected_behavior": null,
@@ -460,41 +310,25 @@
       }
     },
     {
-      "id": "0e2dbc8c-i09",
-      "category": "idea",
+      "id": "0e2dbc8c-i05-INTREBARE",
+      "category": "variant",
       "brief": {
         "pilon": "Educație",
         "format": "Reel",
         "sursa": "Memorie",
         "focus": "despre focus"
       },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "«Nu am timp să-mi fac focus» — răspunsul blând\n\nCând crezi că nu poți face altceva decât să alergi, îți arăt o versiune scurtă, realistă, de început care cere doar 5 minute și tot schimbă cursul zilei.",
-      "caption": null,
+      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta INTREBARE. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [
+        "Sursa a fost memoria clientei — profilul ei și postările anterioare. Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice cifră, studiu sau citat este invenție."
+      ],
+      "actual_output": "HOOK (INTREBARE): Tu ce aperi: inboxul sau visul tău?\n\nCAPTION: Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?\n\nCTA: Răspunde cu numele visului tău în comentarii — hai să-l vedem clar.\n\nHASHTAGS: #prioritati #focussimplu #limitepractici\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?",
       "expected_behavior": null,
       "meta": {
         "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 9
-      }
-    },
-    {
-      "id": "0e2dbc8c-i10",
-      "category": "idea",
-      "brief": {
-        "pilon": "Educație",
-        "format": "Reel",
-        "sursa": "Memorie",
-        "focus": "despre focus"
-      },
-      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
-      "context": [],
-      "actual_output": "Exercițiul seral: 5 minute pentru ziua de mâine\n\nUn ritual de seară în care notezi 3 lucruri esențiale pentru mâine îți protejează focusul și te oprește din a trăi comandată de urgențe.",
-      "caption": null,
-      "expected_behavior": null,
-      "meta": {
-        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 10
+        "ordinal": 5,
+        "hook_type": "INTREBARE"
       }
     }
   ]

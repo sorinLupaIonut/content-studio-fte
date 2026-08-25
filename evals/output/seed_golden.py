@@ -44,11 +44,15 @@ from content_studio.config import MissingConfig, database_url
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "evals" / "golden.json"
 
+#: `replaced` is in the list on purpose. It means she started another batch, not
+#: that this one was wrong - the ideas and variants under it are exactly what the
+#: model wrote and are still the best evidence of how it writes. Excluding them
+#: cost the first diverse seed three of its four briefs.
 BATCHES_SQL = """
     SELECT b.id::text AS id, b.source, b.pillar, b.format, b.focus,
            b.source_packet, b.status, b.created_at
       FROM public.generation_batches b
-     WHERE b.status IN ('ready', 'titles_ready', 'generating')
+     WHERE b.status IN ('ready', 'titles_ready', 'generating', 'replaced')
      ORDER BY b.created_at DESC
      LIMIT :limit
 """
@@ -81,13 +85,70 @@ def as_json(value: Any) -> Any:
     return value
 
 
-def passages_of(packet: Any) -> list[str]:
-    """The passages the source brought back, or nothing for a Memorie batch."""
+#: What the run had to stand on when the source brought back no passages. One
+#: line per source, and truthful per source: until 2026-08-25 every empty
+#: context got the Memorie sentence, so an Internet batch was handed
+#: "sursa a fost memoria clientei" and the judge reasoned from that - a penalty
+#: argued from a fact the eval invented. Grounding text that lies about the
+#: grounding is the worst possible input to a hallucination metric.
+NO_MATERIAL = {
+    "Memorie": (
+        "Sursa a fost memoria clientei — profilul ei și postările anterioare. "
+        "Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice "
+        "cifră, studiu sau citat este invenție."
+    ),
+    "Cărți": (
+        "Sursa aleasă a fost biblioteca ei, dar căutarea nu a întors niciun "
+        "pasaj. Un titlu, un autor sau o pagină din text sunt deci invenție."
+    ),
+    "Internet": (
+        "Sursa aleasă a fost internetul, dar căutarea nu a întors nimic. "
+        "Nicio afirmație despre lume nu are temei aici."
+    ),
+    "Combinat": (
+        "Sursele alese nu au întors niciun material. Nimic verificabil nu are "
+        "temei."
+    ),
+}
+
+
+def material_of(packet: Any, source: str) -> list[str]:
+    """What the run was actually given, in the shape that source gives it.
+
+    Books arrive as a list of passages; the web arrives as one dict holding the
+    angles, the sources consulted, and the rule that forbids taking facts from
+    any of them. Both are grounding, and reading only the first is what made an
+    Internet batch look ungrounded when it was not.
+    """
     packet = as_json(packet)
     if not isinstance(packet, dict):
         return []
+
     books = packet.get("books")
-    return [str(p) for p in books] if isinstance(books, list) else []
+    if isinstance(books, list) and books:
+        return [str(p) for p in books]
+
+    web = packet.get("web")
+    if isinstance(web, dict):
+        found = [
+            f"REGULA SURSEI: {web['rule']}" if web.get("rule") else "",
+            f"UNGHIURI ȘI SURSE DE PE INTERNET:\n{web['angles']}"
+            if web.get("angles")
+            else "",
+        ]
+        return [block for block in found if block]
+
+    return []
+
+
+def context_of(packet: Any, source: str) -> list[str]:
+    """Never empty, and never a sentence about a source this was not.
+
+    DeepEval refuses a `context` of None, and an empty list would leave the
+    judge to guess what the text was allowed to stand on.
+    """
+    found = material_of(packet, source)
+    return found or [NO_MATERIAL.get(source, NO_MATERIAL["Memorie"])]
 
 
 def brief_of(batch: dict[str, Any]) -> dict[str, str]:
@@ -206,12 +267,68 @@ async def collect(limit: int, only: str | None) -> dict[str, Any]:
     cases: list[dict[str, Any]] = []
     for idea in ideas:
         batch = by_batch[idea["batch_id"]]
-        passages = passages_of(batch["source_packet"])
+        passages = context_of(batch["source_packet"], batch["source"])
         cases.append(idea_case(batch, idea, passages))
         for variant in by_idea.get(idea["id"], []):
             cases.append(variant_case(batch, idea, variant, passages))
 
     return {"cases": cases, "batches": batches}
+
+
+#: Which idea to freeze from each batch, rotated so no two golden cases sit at
+#: the same position in their list. Ordinal 1 is deliberately absent: it is the
+#: one that gets developed, and its five variants already speak for it.
+IDEA_ORDINALS = (2, 4, 6, 8, 3, 5)
+
+#: One variant per batch, and a different hook each time. The five hooks are
+#: five different jobs - a CIFRA that invents a number and an INTREBARE that
+#: cannot are not the same test - so spreading them across batches buys more
+#: coverage per case than five variants of one idea ever did.
+HOOK_ROTATION = ("PROVOCARE", "CIFRA", "SECRET", "INTREBARE", "CONTRAST")
+
+
+def diverse(cases: list[dict[str, Any]], batches: list[dict[str, Any]]) -> list[dict]:
+    """Two cases per batch: one bare idea, one full variant, never the same shape.
+
+    WHY NOT EVERYTHING. Fifteen cases from a single batch cost fifteen judge
+    calls per metric and answer one question fifteen times - the set was Reel /
+    Educație / Memorie throughout, so nothing in it could show that a Carusel is
+    graded by a Reel's caption window or that a Cărți run cites a page it was
+    given. Eight cases across four briefs cost half as much and cover four
+    formats-and-sources instead of one.
+
+    Deterministic: the same batches in the same order always select the same
+    cases, which is what lets a re-seed be compared with the one before it.
+    """
+    by_batch: dict[str, list[dict[str, Any]]] = {}
+    for case in cases:
+        by_batch.setdefault(case["meta"]["batch_id"], []).append(case)
+
+    picked: list[dict[str, Any]] = []
+    for index, batch in enumerate(batches):
+        mine = by_batch.get(batch["id"], [])
+        if not mine:
+            continue
+
+        ideas = [c for c in mine if c["category"] == "idea"]
+        wanted = IDEA_ORDINALS[index % len(IDEA_ORDINALS)]
+        chosen = next(
+            (c for c in ideas if c["meta"]["ordinal"] == wanted),
+            ideas[0] if ideas else None,
+        )
+        if chosen is not None:
+            picked.append(chosen)
+
+        variants = [c for c in mine if c["category"] == "variant"]
+        hook = HOOK_ROTATION[index % len(HOOK_ROTATION)]
+        chosen = next(
+            (c for c in variants if c["meta"]["hook_type"] == hook),
+            variants[0] if variants else None,
+        )
+        if chosen is not None:
+            picked.append(chosen)
+
+    return picked
 
 
 def main() -> int:
@@ -220,6 +337,11 @@ def main() -> int:
     parser.add_argument("--batches", type=int, default=5, help="how many recent batches")
     parser.add_argument("--batch", help="only this batch, by id or its first 8 chars")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="freeze every idea and variant instead of a diverse sample",
+    )
     args = parser.parse_args()
 
     try:
@@ -232,6 +354,8 @@ def main() -> int:
     if not cases:
         print("Niciun lot de înghețat. Generează unul din interfață întâi.")
         return 1
+    if not args.all:
+        cases = diverse(cases, collected["batches"])
 
     # Re-seeding must not silently discard the two things a person wrote: the
     # expectations, and the baseline CI blocks on. Carried over by case id, so a
@@ -269,9 +393,17 @@ def main() -> int:
 
     ideas = sum(1 for c in cases if c["category"] == "idea")
     with_passages = sum(1 for c in cases if c["context"])
-    print(f"{args.out.relative_to(ROOT)}: {len(cases)} cazuri")
+    shapes = {
+        (c["brief"]["format"], c["brief"]["sursa"], c["brief"]["pilon"]) for c in cases
+    }
+    try:
+        where = args.out.relative_to(ROOT)
+    except ValueError:  # --out pointed somewhere outside the repo
+        where = args.out
+    print(f"{where}: {len(cases)} cazuri")
     print(f"  {ideas} idei, {len(cases) - ideas} variante")
     print(f"  {with_passages} cu pasaje din sursă, {len(cases) - with_passages} fără")
+    print(f"  {len(shapes)} forme distincte (format/sursă/pilon)")
     for batch in collected["batches"]:
         mine = [c for c in cases if c["meta"]["batch_id"] == batch["id"]]
         if mine:
