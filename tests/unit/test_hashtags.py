@@ -127,7 +127,9 @@ class PreventionSitsInTheSchema(unittest.TestCase):
             {
                 "hook_type": "PROVOCARE",
                 "hook": "hook",
-                "caption": "c" * 250,
+                # Above SILENT_REEL_CAPTION_FLOOR; this test is about hashtags,
+                # and a caption that trips the length rule would hide that.
+                "caption": "c" * 950,
                 "hashtags": ["perfecționism", "#grijade tine", "#c"],
                 "cta": "cta",
                 "source": "din memorie",

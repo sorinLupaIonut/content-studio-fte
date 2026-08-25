@@ -354,9 +354,19 @@ class ProducedVariant(StrictContract):
 
 
 #: A silent reel's caption carries the whole idea, so it cannot be two lines.
-#: The floor is a guard against a degenerate answer, not the target — the target
-#: is in `SILENT_REEL_BRIEF`, where the model can actually read it.
-SILENT_REEL_CAPTION_FLOOR = 200
+#: Raised from 200 to 900 on 2026-08-25, and the reason is rule 5: what a prompt
+#: cannot enforce, a schema can. `SILENT_REEL_BRIEF` has asked for 900–1400 all
+#: along and been ignored — measured 2026-08-24, mini averaged 668 and 0 of 50
+#: captions landed in range; the eight frozen cases of 2026-08-25 averaged 333.
+#: A floor of 200 called that compliant, so nothing ever objected.
+#:
+#: This costs no retry. OpenAI enforces `minLength` WHILE the model writes, not
+#: after, so the constraint shapes the answer instead of rejecting it. The
+#: ceiling stays at 8_000 deliberately: `maxLength` is not on the list of
+#: keywords measured to be enforced during decoding, and a rejected run costs
+#: the whole batch, while a caption that runs long is caught by `CaptionLength`
+#: at no risk at all.
+SILENT_REEL_CAPTION_FLOOR = 900
 
 
 class SilentReelVariant(StrictContract):

@@ -112,9 +112,10 @@ def formats() -> str:
 def caption_window() -> tuple[int, int]:
     """The character range, parsed out of the instruction that sets it.
 
-    Raises rather than defaulting. `SILENT_REEL_CAPTION_FLOOR` is 200 today and
-    the prompt asks for 900 - a gap that is on the repair list - so this must
-    read the prompt, which is the number the model was actually given.
+    Raises rather than defaulting. The schema floor and this window agreed only
+    from 2026-08-25, when `SILENT_REEL_CAPTION_FLOOR` was raised 200 -> 900; the
+    prompt is still the right source, because it carries both ends and the
+    schema carries one.
     """
     found = CAPTION_WINDOW.search(SILENT_REEL_BRIEF)
     if found is None:

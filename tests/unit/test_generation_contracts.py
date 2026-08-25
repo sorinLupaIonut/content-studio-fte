@@ -51,13 +51,30 @@ def variant(hook_type: str) -> IdeaVariant:
 
 
 #: Long enough to clear the silent-reel floor, because that is the point of it.
+#: A caption that actually clears `SILENT_REEL_CAPTION_FLOOR`. It was 427
+#: characters until 2026-08-25 - named LONG and under half of what the method
+#: has always asked for, which is the same blindness the floor of 200 had. A
+#: fixture that would be rejected in production is not a fixture for the
+#: production contract.
 LONG_CAPTION = (
     "Ai spus da din nou, deși tot corpul tău spunea altceva. Nu pentru că ești "
     "slabă, ci pentru că ai învățat devreme că e mai sigur să fii de folos "
     "decât să fii tu. Prima limită nu sună a scandal: sună a „am nevoie de o "
-    "zi să mă gândesc”. Atât. Data viitoare când te trezești răspunzând înainte "
-    "să respiri, oprește-te o secundă și întreabă-te ce ai fi vrut să spui de "
-    "fapt. Tu ce ai spus ultima oară doar ca să nu superi pe cineva?"
+    "zi să mă gândesc”. Atât.\n\n"
+    "Se întâmplă înainte să apuci să gândești. Cineva întreabă, gura spune da, "
+    "iar tu abia pe hol simți nodul. Nu e lipsă de caracter, e viteză: ai "
+    "exersat răspunsul ăsta de atâtea ori încât a devenit reflex. Iar un reflex "
+    "nu se repară cu hotărâre, se repară cu o secundă de întârziere pusă "
+    "deliberat între întrebare și răspuns.\n\n"
+    "Nu-ți trebuie un discurs. Îți trebuie o singură propoziție pe care s-o ai "
+    "gata dinainte, ca să nu fii nevoită s-o inventezi tocmai când ești prinsă "
+    "pe picior greșit. „Îți spun mâine dimineață.” „Verific și revin.” „Acum nu "
+    "pot.” Trei cuvinte care nu supără pe nimeni și care îți cumpără exact "
+    "timpul de care ai nevoie ca să știi ce vrei.\n\n"
+    "Data viitoare când te trezești răspunzând înainte să respiri, oprește-te o "
+    "secundă și întreabă-te ce ai fi vrut să spui de fapt. Nu ca să te "
+    "pedepsești — ca să afli. Tu ce ai spus ultima oară doar ca să nu superi pe "
+    "cineva?"
 )
 
 

@@ -55,7 +55,11 @@ evals = [
 # `debugpy` so a process the editor did not launch can still be attached to:
 # a service left running in a terminal, or one inside a container. See
 # `src/content_studio/debug.py`.
-dev = ["debugpy>=1.8.0", "ruff>=0.14.0"]
+dev = [
+    "debugpy>=1.8.0",
+    "pyyaml>=6.0.3",
+    "ruff>=0.14.0",
+]
 
 [build-system]
 requires = ["hatchling"]

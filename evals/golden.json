@@ -8,9 +8,9 @@
     "prin evals/output/material.py, și e amprentată de ruler.py."
   ],
   "baseline": {
-    "recorded_at": "2026-08-25-1845",
+    "recorded_at": "2026-08-25-1929",
     "ruler": {
-      "id": "9536e8dcbf41",
+      "id": "3c85404e2b2c",
       "parts": {
         "piloni": "084527cec931",
         "avatar": "0a3effe15441",
@@ -21,45 +21,68 @@
         "Hallucination": "d48b23758fab",
         "AvatarResonance": "b05b62e88603",
         "judge": "a6681b2d240f",
-        "cases": "be91c06da8ab"
+        "cases": "44131c9bac8c"
       }
     },
     "metrics": {
       "BriefCompliance": {
-        "mean": 0.562,
-        "n": 8,
+        "mean": 0.5,
+        "n": 10,
         "passed": 2
       },
       "Hallucination": {
-        "mean": 0.863,
-        "n": 8,
+        "mean": 0.78,
+        "n": 10,
         "passed": 6
       },
       "AvatarResonance": {
-        "mean": 0.45,
-        "n": 8,
-        "passed": 1
+        "mean": 0.44,
+        "n": 10,
+        "passed": 0
       },
       "CaptionLength": {
-        "mean": 0.0,
-        "n": 2,
-        "passed": 0
+        "mean": 0.333,
+        "n": 3,
+        "passed": 1
       }
     },
     "per_case": {
-      "671f8b87-i01-SECRET": {
+      "679649d6-i01-PROVOCARE": {
+        "CaptionLength": 1.0
+      },
+      "671f8b87-i01-INTREBARE": {
         "CaptionLength": 0.0
       },
-      "0e2dbc8c-i05-INTREBARE": {
+      "0e2dbc8c-i05-SECRET": {
         "CaptionLength": 0.0
       }
     }
   },
   "open": [
     {
+      "case": "679649d6-i02",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "679649d6-i02",
+      "metric": "AvatarResonance",
+      "score": 0.2
+    },
+    {
+      "case": "679649d6-i01-PROVOCARE",
+      "metric": "Hallucination",
+      "score": 0.5
+    },
+    {
+      "case": "679649d6-i01-PROVOCARE",
+      "metric": "AvatarResonance",
+      "score": 0.5
+    },
+    {
       "case": "86485908-i02",
       "metric": "BriefCompliance",
-      "score": 0.3
+      "score": 0.2
     },
     {
       "case": "86485908-i02",
@@ -67,19 +90,24 @@
       "score": 0.4
     },
     {
-      "case": "86485908-i01-PROVOCARE",
+      "case": "86485908-i01-INTREBARE",
       "metric": "BriefCompliance",
       "score": 0.5
     },
     {
-      "case": "86485908-i01-PROVOCARE",
+      "case": "86485908-i01-INTREBARE",
       "metric": "AvatarResonance",
       "score": 0.5
     },
     {
-      "case": "893fbdf2-i04",
+      "case": "893fbdf2-i03",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "893fbdf2-i03",
       "metric": "AvatarResonance",
-      "score": 0.2
+      "score": 0.5
     },
     {
       "case": "893fbdf2-i01-CIFRA",
@@ -89,60 +117,127 @@
     {
       "case": "893fbdf2-i01-CIFRA",
       "metric": "Hallucination",
-      "score": 0.4
+      "score": 0.5
     },
     {
-      "case": "671f8b87-i06",
+      "case": "893fbdf2-i01-CIFRA",
+      "metric": "AvatarResonance",
+      "score": 0.6
+    },
+    {
+      "case": "671f8b87-i08",
       "metric": "BriefCompliance",
-      "score": 0.4
+      "score": 0.2
     },
     {
-      "case": "671f8b87-i06",
+      "case": "671f8b87-i08",
       "metric": "AvatarResonance",
       "score": 0.4
     },
     {
-      "case": "671f8b87-i01-SECRET",
+      "case": "671f8b87-i01-INTREBARE",
       "metric": "CaptionLength",
       "score": 0.0
     },
     {
-      "case": "671f8b87-i01-SECRET",
+      "case": "671f8b87-i01-INTREBARE",
+      "metric": "Hallucination",
+      "score": 0.3
+    },
+    {
+      "case": "671f8b87-i01-INTREBARE",
+      "metric": "AvatarResonance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i02",
       "metric": "BriefCompliance",
       "score": 0.5
     },
     {
-      "case": "671f8b87-i01-SECRET",
+      "case": "0e2dbc8c-i02",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i05-SECRET",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "0e2dbc8c-i05-SECRET",
+      "metric": "BriefCompliance",
+      "score": 0.6
+    },
+    {
+      "case": "0e2dbc8c-i05-SECRET",
       "metric": "Hallucination",
       "score": 0.5
     },
     {
-      "case": "671f8b87-i01-SECRET",
+      "case": "0e2dbc8c-i05-SECRET",
       "metric": "AvatarResonance",
-      "score": 0.5
-    },
-    {
-      "case": "0e2dbc8c-i08",
-      "metric": "BriefCompliance",
       "score": 0.4
-    },
-    {
-      "case": "0e2dbc8c-i08",
-      "metric": "AvatarResonance",
-      "score": 0.3
-    },
-    {
-      "case": "0e2dbc8c-i05-INTREBARE",
-      "metric": "CaptionLength",
-      "score": 0.0
-    },
-    {
-      "case": "0e2dbc8c-i05-INTREBARE",
-      "metric": "AvatarResonance",
-      "score": 0.5
     }
   ],
   "cases": [
+    {
+      "id": "679649d6-i02",
+      "category": "idea",
+      "brief": {
+        "pilon": "Conversie",
+        "format": "Reel",
+        "sursa": "Combinat",
+        "focus": "cum ceri plata fara sa iti ceri scuze"
+      },
+      "input": "Propune o idee de postare. Pilonul «Conversie», formatul «Reel», sursa «Combinat». Focus: cum ceri plata fara sa iti ceri scuze.",
+      "context": [
+        "{'page': '284', 'text': 'Tentativele de recuperare a datoriilor pot îmbrăca multe forme. S-ar putea să încerci să le fii pe plac, ca să-i ajuți să achite ce-ți datorează. Ți se pare că dacă mai faci ceva pentru ei, măcar puțin, ei își vor achita nota de plată și-ți vor dărui iubirea pe care ți-o datorează. Sau te gândești că, da\\xad că-i confrunți îndeajuns de serios, își vor da seama de greșeala pe care au facut-o și vor îndrepta lucrurile. Sau ai impresia că dacă convingi suficient de mulți oameni cât de tare ți-a ajuns cuțitul la os și cât de răi erau părinții tăi, faptul aceasta va regla cumva conturile. Sau poate îți „verși necazul” pe altcineva, repetând față de altul - sau chiar față de persoanele în cauză \\xad păcatul comis asupra ta, pentru a echilibra balanța. Sau continui să încerci să-i convingi de cât de răi sunt. Te gândești că, dacă ar înțelege situația, lucrurile s-ar îmbunătăți cât de cât. S-ar achita de datorie. Nu e greșit să vrei ca lucrurile să se rezolve. Problema e că lucrurile se vor rezolva într-un singur fel: prin har și iertare. Principiul ochi pentru ochi și dinte pentru dinte nu funcționează. Odată ce l-ai făcut, răul nu mai poate fi niciodată des-facut. Dar poate fi iertat și făcut astfel inofensiv.. A ierta înseamnă a șterge datoria. A o lăsa din mână. A rupe creanța, înseamnă ca în dreptul datoriilor să scrii „anulate”. „A șters zapisul cu poruncile lui, care stătea împotriva noastră și ne era potrivnic, și l-a nimicit, pironindu-1 pe cruce” (Col. 2:14) A ierta înseamnă că niciodată nu vom mai primi de la persoana în cauză ceea ce ni se datora. Iată partea care nu ne place, pentru că presupune jale, durerea după ceea ce nu va mai fi: trecutul nu se va schimba. Pentru unii, ar putea însemna jelirea copilăriei de care n-au avut parte. Pentru alții, ar putea însemna altceva, însă a te ține cu dinții de cererea ta echivalează cu rămânerea într-o stare de neiertare si acesta este cel mai distructiv lucru pe care ni-1 putem face nouă înșine. 7 Avertisment: iertarea nu es', 'owner': 'viorela', 'score': 0.456, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '141', 'text': 'Iartă-lpe agresor Nimic nu clarifică granițele mai mult ca iertarea. A ierta pe cineva înseamnă să-i dai drumul din plasă sau să anulezi datoria pe care o are față de tine. Când refuzi să ierți pe cineva, mai vrei ceva de la persoana respectivă și chiar dacă nu ți-ai dori nimic altceva decât răzbunare, ea tot te-ar ține legată de el pentru totdeauna.\\n\\nRefuzul de a-1 ierta pe un membru al familiei este unul dintre principalele motive pentru care oamenii rămân înțepeniți în același loc ani de zile, incapabili să se separe de familiile lor disfuncționale. încă mai vor ceva de la ele. Este mult mai bine să primești har de la Dumnezeu, care chiar are ceva de dăruit, și să-i ierți pe cei care oricum n-au bani să-și plătească datoria. Această atitudine va pune capăt suferinței tale, deoarece pune capăt de fapt dorinței tale de a primi plata datorată, dorință ce\\n\\nnu-și va afla niciodată împlinirea și care-ți va îmbolnăvi inima, pentru că speranța ta va fi mereu amânată (Prov. 13:12).\\n\\nDacă nu ierți, de fapt ceri ceva ce omul care te-a rănit nu este dispus să dăruiască - chiar dacă acel lucru ar fi doar mărturisirea a ceea ce a făcut. Aceasta îl „leagă” de tine și distruge granițele. Rupe-te de familia disfuncțională din care provii! Taie funiile care te țin legat și vei fi liber. Răspunde, nu reacționa Atunci când reacționezi față de un lucru pe care cineva l-a spus sau l-a făcut, s-ar putea ca de fapt să ai o problemă cu granițele. Dacă o persoană poate să provoace adevărate ravagii în tine, făcând sau spunând un anumit lucru, atunci ea deține controlul asupra ta, la momentul respectiv, iar granițele tale s-au disipat. Atunci când răspunzi, rămâi în control și dispui în continuare de opțiuni și alegeri.', 'owner': 'viorela', 'score': 0.428, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '285', 'text': 'Opoziția față de granițe  285\\n\\nsupraviețui problemei. Ei vor să fie mai buni, iar iertarea îi va ajuta. Insă dacă cineva își neagă starea sau doar spune de formă că se va comporta mai frumos, fără a încerca însă să facă vreo schimbare sau să ceară ajutor, atunci trebuie să-mi mențin granițele, chiar dacă l-am iertat. Iertarea îmi dăruiește granițe, pentru că mă scapă din cârligul persoanei care-mi face rău; după care pot să mă port cu responsabilitate și înțelepciune. Dacă nu iert, mă aflu tot într-o relație distructivă cu acel om. Capătă har de la Dumnezeu și nu te mai ține cu dinții de datoriile pe care alții le au față de tine. Nu tot căuta punctul slab al celuilalt. Renunță și du-te să primești ceea ce ai nevoie de la Dumnezeu și de la oameni care pot dărui. Este o viață mai bună. Neiertarea distruge granițele. Iertarea le creează, pentru că înlătură de pe proprietatea ta datoriile dăunătoare. Și un ultim lucru, care nu trebuie uitat: iertarea nu înseamnă negare. Trebuie să numești exact păcatul săvârșit împotriva ta, pentru a putea să-l ierți. Dumnezeu nu a negat ceea ce l-am făcut noi. Ci a lucrat totuși. Le-a spus pe nume. Și-a exprimat sentimentele față de ce I-am făcut. A strigat și S-a mâniat. După care le-a dat drumul din mână. Și a făcut-o în contextul relației. In Treime, El n-a fost niciodată singur. Du-te și fă la fel. Și ferește-te de împotrivire, care va vrea să rămâi în trecut, încercând să încasezi ceva ce nu va exista niciodată.', 'owner': 'viorela', 'score': 0.421, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '271', 'text': 'Opoziția față de granițe 271 nu este obligată să-mi ceară iertare. Aceasta este o lucrare a harului în inima mea.\\n\\nȘi atingem astfel cel de-al doilea principiu: nu întotdeauna ajungem la împăcare. Dumnezeu a iertat lumea, dar nu toată lumea este împăcată cu El. Cu toate că El i-a iertat pe toți oamenii, nu toți și-au recunoscut păcatul și nici nu și-au însușit iertarea Sa. Aceasta ar însemna împăcare. Pentru iertare este nevoie de o singură persoană; pentru împăcare, de două. Nu putem să ne deschidem cu adevărat față de cealaltă parte, până nu vedem că ea și-a asumat cu adevărat partea sa de problemă. De multe ori vorbește Scriptura despre faptul că trebuie să ne menținem granițele față de o anume persoană până când aceasta recunoaște ce a făcut și aduce „roade vrednice de pocăința sa“ (Mat. 3:8). Adevărata pocăință presupune mult mai mult decât să spui „îmi pare rău“; înseamnă o schimbare de direcție.\\n\\nTrebuie să comunici limpede celui de lângă tine că, deși l-ai iertat, încă nu ai încredere în el, pentru că nu s-a dovedit demn de încrederea ta. Nu s-a scurs îndeajuns de mult timp ca să-ți dai seama dacă el are de gând să se schimbe cu adevărat.\\n\\nNu uita, Dumnezeu este modelul y tău. y El nu y a așteptat ca mai întâi oamenii să-și schimbe comportamentul, pentru ca abia apoi să înceteze să-i mai condamne. Din partea Lui nu mai vine nicio acuzație, dar asta nu înseamnă că Dumnezeu are relații cu toti oamenii. Aceștia trebuie să alea\\xad gă să-și recunoască păcatul și să se pocăiască, după care Dumnezeu Se va deschide față de ei. Pentru împăcare e nevoie de două părți. Să nu crezi că dacă ai iertat pe cineva, între voi trebuie neapărat să aibă loc și împăcarea. E drept, poți să oferi împăcarea, însă ea trebuie să fie condiționată de actul celeilalte persoane de a-și lua în stăpânire comportamentul și a de aduce roade demne de încredere.', 'owner': 'viorela', 'score': 0.411, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '270', 'text': 'Amintiți-vă de istorisirea din Exod 18, când Moise era pe punctul de a ceda din cauza extenuării. Socrul său, Ietro, a văzut tot ce făcea Moise pentru popor și i-a spus să delege o parte din treburi, ca să poată întâmpina mai bine nevoile poporului.\\n\\nAflă care-ți sunt limitele, dăruiește „după cum ai hotărât în inima ta”, iar pe ceilalți oameni ce trec prin nevoi, îndreaptă-i către cei care le pot da o mână de ajutor. Empatizează cu situația fiecăruia dintre ei. De multe ori, ei simt nevoia să știe că le consideri nevoile valide si că au cu adevărat nevoie de ajutor. Și roagă-te pentru ei. Este lucrul cel mai plin de iubire pe care-1 poți face pentru durerea și nevoile din jurul tău pe care nu le poți împlini.\\n\\nIertare și împăcare Mulți oameni au dificultăți când vine vorba să înțeleagă deosebirea dintre iertare și împăcare. Ei nu reușesc să facă față împotrivirilor exterioare, deoarece au senzația că trebuie să cedeze din nou în fata celeilalte persoane, altfel nu au iertat-o. Adevărul este că mulți se tem să ierte pentru că pun semnul egalității între acest act și coborârea granițelor din nou, dându-i celeilalte persoane puterea să-i rănească iarăși..\\n\\nBiblia enunță clar două principii: (1) trebuie să iertăm întotdeauna, dar (2) nu ajungem de fiecare dată la împăcare. Iertarea este ceva ce facem în inima noastră; eliberăm pe cineva de datoria pe care. o are față de noi. Anulăm datoria respectivei persoane, iar ea nu ne mai este îndatorată. Noi nu o mai considerăm vinovată. E curată. Pentru actul iertării nu e nevoie decât de o singură parte implicată: eu. Persoana care îmi datorează ceva', 'owner': 'viorela', 'score': 0.392, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '135', 'text': 'comportamentul ei se reflectă negativ asupra ta (sau cel puțin așa crezi tu).\\n\\nDe exemplu, s-ar putea să răspunzi la cele 5 de ce-uri și să ajungi la concluzia că adevăratul motiv pentru care ești supărat pe consumul de alcool al cuiva este pentru că îți este rușine să ai un fiu alcoolic. Sau ți-e rușine să fii căsătorit cu cineva care nu are succes.\\n\\nTot ce vei învăța folosind metoda celor 5 de ce-uri este pentru tine ceva personal și nu trebuie să-i împărtășești ceea ce afli acelei persoane. O poți face totuși, dacă tu crezi că te va ajuta să-ți ceri scuze pentru că ai făcut presiuni asupra ei, dar aici este vorba despre faptul că trebuie să ajungi la cauza principală a frustrării tale, iar aceasta va avea întotdeauna legătură cu comportamentul persoanei, care te face să simți că pierzi controlul.\\n\\nLasă-te să fii sincer cu tine. Când vezi că tot timpul a fost vorba despre TINE și despre nevoia ta de control, este mai ușor să renunți la presiune și să-i lași pe ceilalți să facă lucrurile așa cum vor. Și asta te pune pe un teren solid atunci când intri în discuție prin intermediul buclei ABC.\\n\\nAceastă discuție începe cu:\\n\\n## BUCLA ARC\\n\\n## A;NTREMRI\\n\\nDESCHISE,\\n\\n## B: RETRACE-TE©|\\\\_/: SĂRBĂTOREȘTE\\n\\n## ȘI OBSERVĂ PROGRESUL ÎN', 'owner': 'viorela', 'score': 0.387, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '208', 'text': 'Câțiva dintre traineri s-au supărat pentru că echipamentele lor nu fuseseră instalate, iar clienții s-au supărat pentru că nu li se adusese mâncarea pentru pauza dintre cursuri. însă șeful a dat de urma problemei și a mers pe firul ei până la cel responsabil, adică Jack; i-a spus să intre cât mai repede în ritm, dacă nu, să-și caute altă slujbă. Finalul sună cam așa: lui Susie a început să-i placă din nou munca sa, iar Jack a început să acționeze mai responsabil. Și toate acestea pentru că Susie a stabilit granițe și s-a tinut de ele.\\n\\nDacă porți și tu povara responsabilității altcuiva și te simți plin de resentimente, trebuie să-ți asumi responsabilitatea pentru propriile sentimente și să-ți dai seama că pentru nefericirea ta vina nu o poartă colegul\\n\\n## G R ANIȚELE ȘI MUNCA 209\\n\\ntău, ci tu însuți. In acest conflict al granițelor - la fel ca în oricare altul \\xad trebuie ca mai întâi să-ți asumi responsabilitatea pentru tine însuți. După care trebuie să acționezi în mod responsabil față de colegul tău de serviciu. Mergi la el și explică-i situația. Când îți cere să faci ceva ce nu cade în responsabilitatea ta, spune „nu“ și refuză să faci ceea ce-ți cere, oricare ar fi acel lucru. Dacă se mânie pentru că i-ai spus „nu“, fii ferm cu privire la granițele tale și empatizează cu mânia lui. Nu te mânia și tu. A răspunde la mânie cu mânie înseamnă să te lași prins în jocul lui. Păstrează distanța, din punct de vedere emoțional, și spune-i: „îmi pare rău că asta te supără. însă chestiunea respectivă nu cade în responsabilitatea mea. Sper să reușești s-o duci la bun sfârșit.”', 'owner': 'viorela', 'score': 0.386, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '48', 'text': \"## CE ESTE RUȘINEA ȘI CUM LUPȚI ÎMPOTRIVA EI 95\\n\\nRușinea s-a evaporat în momentul în care mi-am dat seama că nu eram singură, că experiența mea era ceva omenesc.\\n\\nInteresant e că Steve și Karen s-au raportat la problema mea în mod diferit. Steve era mai serios, în genul: „Da, da, îmi dau seama cum a fost, am trecut și eu prin asta“. Iar Karen m-a făcut să râd în jurnătate de minut. Ceea ce au avut în comun cele două abordări a fost mesajul: „Știu despre ce-i vorba“,\\n\\nÎ pe care mi l-au transmis. Empatia este un lucru straniu și\\n\\nf puternic, în același timp. Nu urmează un scenariu. Nu există un mod corect, sau altul greșit, de a-ți manifesta empatia.\\n\\n' E vorba, pur și simplu, să asculți, să fii prezent, alături de celălalt, să te abții să critici, să stabilești o legătură emoțională și să-i transmiți celuilalt mesajul — de o incredibilă forță vindecătoare — că nu e singur.\\n\\n—— Conversațiile cu Steve și Karen m-au ajutat să depășesc rușinea și să-mi revin din punct de vedere emoțional. Am putut astfel să răspund acelui e-mail încărcat de resentimente, având conștiința propriei valori și fiind eu însămi. Mi-am asumat\\n\\n## partea mea de vină pentru schimbul ofensator de e-mail-uri\\n\\nși mi-am cerut scuze pentru limbajul inadecvat. De asemenea, l-am înștiințat pe interlocutor care sunt regulile și așteptările mele, în caz că va dori să mai discutăm. Nu m-a mai căutat niciodată.\", 'owner': 'viorela', 'score': 0.385, 'title': 'Curajul de a fi vulnerabil', 'author': 'Brené Brown', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}"
+      ],
+      "actual_output": "„Dacă sunt blândă, mă vor plăti”\n\nCrezi că mustrările sau lacrimile vor grăbi plata; adevărul e că blândețea nu înlocuiește claritatea unei cereri ferme.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "679649d6-2d9e-45d6-996d-88eaa551b5cd",
+        "ordinal": 2
+      }
+    },
+    {
+      "id": "679649d6-i01-PROVOCARE",
+      "category": "variant",
+      "brief": {
+        "pilon": "Conversie",
+        "format": "Reel",
+        "sursa": "Combinat",
+        "focus": "cum ceri plata fara sa iti ceri scuze"
+      },
+      "input": "Dezvoltă ideea «Te scuzi când ceri banii», varianta PROVOCARE. Pilonul «Conversie», formatul «Reel», sursa «Combinat». Focus: cum ceri plata fara sa iti ceri scuze.",
+      "context": [
+        "{'page': '284', 'text': 'Tentativele de recuperare a datoriilor pot îmbrăca multe forme. S-ar putea să încerci să le fii pe plac, ca să-i ajuți să achite ce-ți datorează. Ți se pare că dacă mai faci ceva pentru ei, măcar puțin, ei își vor achita nota de plată și-ți vor dărui iubirea pe care ți-o datorează. Sau te gândești că, da\\xad că-i confrunți îndeajuns de serios, își vor da seama de greșeala pe care au facut-o și vor îndrepta lucrurile. Sau ai impresia că dacă convingi suficient de mulți oameni cât de tare ți-a ajuns cuțitul la os și cât de răi erau părinții tăi, faptul aceasta va regla cumva conturile. Sau poate îți „verși necazul” pe altcineva, repetând față de altul - sau chiar față de persoanele în cauză \\xad păcatul comis asupra ta, pentru a echilibra balanța. Sau continui să încerci să-i convingi de cât de răi sunt. Te gândești că, dacă ar înțelege situația, lucrurile s-ar îmbunătăți cât de cât. S-ar achita de datorie. Nu e greșit să vrei ca lucrurile să se rezolve. Problema e că lucrurile se vor rezolva într-un singur fel: prin har și iertare. Principiul ochi pentru ochi și dinte pentru dinte nu funcționează. Odată ce l-ai făcut, răul nu mai poate fi niciodată des-facut. Dar poate fi iertat și făcut astfel inofensiv.. A ierta înseamnă a șterge datoria. A o lăsa din mână. A rupe creanța, înseamnă ca în dreptul datoriilor să scrii „anulate”. „A șters zapisul cu poruncile lui, care stătea împotriva noastră și ne era potrivnic, și l-a nimicit, pironindu-1 pe cruce” (Col. 2:14) A ierta înseamnă că niciodată nu vom mai primi de la persoana în cauză ceea ce ni se datora. Iată partea care nu ne place, pentru că presupune jale, durerea după ceea ce nu va mai fi: trecutul nu se va schimba. Pentru unii, ar putea însemna jelirea copilăriei de care n-au avut parte. Pentru alții, ar putea însemna altceva, însă a te ține cu dinții de cererea ta echivalează cu rămânerea într-o stare de neiertare si acesta este cel mai distructiv lucru pe care ni-1 putem face nouă înșine. 7 Avertisment: iertarea nu es', 'owner': 'viorela', 'score': 0.456, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '141', 'text': 'Iartă-lpe agresor Nimic nu clarifică granițele mai mult ca iertarea. A ierta pe cineva înseamnă să-i dai drumul din plasă sau să anulezi datoria pe care o are față de tine. Când refuzi să ierți pe cineva, mai vrei ceva de la persoana respectivă și chiar dacă nu ți-ai dori nimic altceva decât răzbunare, ea tot te-ar ține legată de el pentru totdeauna.\\n\\nRefuzul de a-1 ierta pe un membru al familiei este unul dintre principalele motive pentru care oamenii rămân înțepeniți în același loc ani de zile, incapabili să se separe de familiile lor disfuncționale. încă mai vor ceva de la ele. Este mult mai bine să primești har de la Dumnezeu, care chiar are ceva de dăruit, și să-i ierți pe cei care oricum n-au bani să-și plătească datoria. Această atitudine va pune capăt suferinței tale, deoarece pune capăt de fapt dorinței tale de a primi plata datorată, dorință ce\\n\\nnu-și va afla niciodată împlinirea și care-ți va îmbolnăvi inima, pentru că speranța ta va fi mereu amânată (Prov. 13:12).\\n\\nDacă nu ierți, de fapt ceri ceva ce omul care te-a rănit nu este dispus să dăruiască - chiar dacă acel lucru ar fi doar mărturisirea a ceea ce a făcut. Aceasta îl „leagă” de tine și distruge granițele. Rupe-te de familia disfuncțională din care provii! Taie funiile care te țin legat și vei fi liber. Răspunde, nu reacționa Atunci când reacționezi față de un lucru pe care cineva l-a spus sau l-a făcut, s-ar putea ca de fapt să ai o problemă cu granițele. Dacă o persoană poate să provoace adevărate ravagii în tine, făcând sau spunând un anumit lucru, atunci ea deține controlul asupra ta, la momentul respectiv, iar granițele tale s-au disipat. Atunci când răspunzi, rămâi în control și dispui în continuare de opțiuni și alegeri.', 'owner': 'viorela', 'score': 0.428, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '285', 'text': 'Opoziția față de granițe  285\\n\\nsupraviețui problemei. Ei vor să fie mai buni, iar iertarea îi va ajuta. Insă dacă cineva își neagă starea sau doar spune de formă că se va comporta mai frumos, fără a încerca însă să facă vreo schimbare sau să ceară ajutor, atunci trebuie să-mi mențin granițele, chiar dacă l-am iertat. Iertarea îmi dăruiește granițe, pentru că mă scapă din cârligul persoanei care-mi face rău; după care pot să mă port cu responsabilitate și înțelepciune. Dacă nu iert, mă aflu tot într-o relație distructivă cu acel om. Capătă har de la Dumnezeu și nu te mai ține cu dinții de datoriile pe care alții le au față de tine. Nu tot căuta punctul slab al celuilalt. Renunță și du-te să primești ceea ce ai nevoie de la Dumnezeu și de la oameni care pot dărui. Este o viață mai bună. Neiertarea distruge granițele. Iertarea le creează, pentru că înlătură de pe proprietatea ta datoriile dăunătoare. Și un ultim lucru, care nu trebuie uitat: iertarea nu înseamnă negare. Trebuie să numești exact păcatul săvârșit împotriva ta, pentru a putea să-l ierți. Dumnezeu nu a negat ceea ce l-am făcut noi. Ci a lucrat totuși. Le-a spus pe nume. Și-a exprimat sentimentele față de ce I-am făcut. A strigat și S-a mâniat. După care le-a dat drumul din mână. Și a făcut-o în contextul relației. In Treime, El n-a fost niciodată singur. Du-te și fă la fel. Și ferește-te de împotrivire, care va vrea să rămâi în trecut, încercând să încasezi ceva ce nu va exista niciodată.', 'owner': 'viorela', 'score': 0.421, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '271', 'text': 'Opoziția față de granițe 271 nu este obligată să-mi ceară iertare. Aceasta este o lucrare a harului în inima mea.\\n\\nȘi atingem astfel cel de-al doilea principiu: nu întotdeauna ajungem la împăcare. Dumnezeu a iertat lumea, dar nu toată lumea este împăcată cu El. Cu toate că El i-a iertat pe toți oamenii, nu toți și-au recunoscut păcatul și nici nu și-au însușit iertarea Sa. Aceasta ar însemna împăcare. Pentru iertare este nevoie de o singură persoană; pentru împăcare, de două. Nu putem să ne deschidem cu adevărat față de cealaltă parte, până nu vedem că ea și-a asumat cu adevărat partea sa de problemă. De multe ori vorbește Scriptura despre faptul că trebuie să ne menținem granițele față de o anume persoană până când aceasta recunoaște ce a făcut și aduce „roade vrednice de pocăința sa“ (Mat. 3:8). Adevărata pocăință presupune mult mai mult decât să spui „îmi pare rău“; înseamnă o schimbare de direcție.\\n\\nTrebuie să comunici limpede celui de lângă tine că, deși l-ai iertat, încă nu ai încredere în el, pentru că nu s-a dovedit demn de încrederea ta. Nu s-a scurs îndeajuns de mult timp ca să-ți dai seama dacă el are de gând să se schimbe cu adevărat.\\n\\nNu uita, Dumnezeu este modelul y tău. y El nu y a așteptat ca mai întâi oamenii să-și schimbe comportamentul, pentru ca abia apoi să înceteze să-i mai condamne. Din partea Lui nu mai vine nicio acuzație, dar asta nu înseamnă că Dumnezeu are relații cu toti oamenii. Aceștia trebuie să alea\\xad gă să-și recunoască păcatul și să se pocăiască, după care Dumnezeu Se va deschide față de ei. Pentru împăcare e nevoie de două părți. Să nu crezi că dacă ai iertat pe cineva, între voi trebuie neapărat să aibă loc și împăcarea. E drept, poți să oferi împăcarea, însă ea trebuie să fie condiționată de actul celeilalte persoane de a-și lua în stăpânire comportamentul și a de aduce roade demne de încredere.', 'owner': 'viorela', 'score': 0.411, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '270', 'text': 'Amintiți-vă de istorisirea din Exod 18, când Moise era pe punctul de a ceda din cauza extenuării. Socrul său, Ietro, a văzut tot ce făcea Moise pentru popor și i-a spus să delege o parte din treburi, ca să poată întâmpina mai bine nevoile poporului.\\n\\nAflă care-ți sunt limitele, dăruiește „după cum ai hotărât în inima ta”, iar pe ceilalți oameni ce trec prin nevoi, îndreaptă-i către cei care le pot da o mână de ajutor. Empatizează cu situația fiecăruia dintre ei. De multe ori, ei simt nevoia să știe că le consideri nevoile valide si că au cu adevărat nevoie de ajutor. Și roagă-te pentru ei. Este lucrul cel mai plin de iubire pe care-1 poți face pentru durerea și nevoile din jurul tău pe care nu le poți împlini.\\n\\nIertare și împăcare Mulți oameni au dificultăți când vine vorba să înțeleagă deosebirea dintre iertare și împăcare. Ei nu reușesc să facă față împotrivirilor exterioare, deoarece au senzația că trebuie să cedeze din nou în fata celeilalte persoane, altfel nu au iertat-o. Adevărul este că mulți se tem să ierte pentru că pun semnul egalității între acest act și coborârea granițelor din nou, dându-i celeilalte persoane puterea să-i rănească iarăși..\\n\\nBiblia enunță clar două principii: (1) trebuie să iertăm întotdeauna, dar (2) nu ajungem de fiecare dată la împăcare. Iertarea este ceva ce facem în inima noastră; eliberăm pe cineva de datoria pe care. o are față de noi. Anulăm datoria respectivei persoane, iar ea nu ne mai este îndatorată. Noi nu o mai considerăm vinovată. E curată. Pentru actul iertării nu e nevoie decât de o singură parte implicată: eu. Persoana care îmi datorează ceva', 'owner': 'viorela', 'score': 0.392, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '135', 'text': 'comportamentul ei se reflectă negativ asupra ta (sau cel puțin așa crezi tu).\\n\\nDe exemplu, s-ar putea să răspunzi la cele 5 de ce-uri și să ajungi la concluzia că adevăratul motiv pentru care ești supărat pe consumul de alcool al cuiva este pentru că îți este rușine să ai un fiu alcoolic. Sau ți-e rușine să fii căsătorit cu cineva care nu are succes.\\n\\nTot ce vei învăța folosind metoda celor 5 de ce-uri este pentru tine ceva personal și nu trebuie să-i împărtășești ceea ce afli acelei persoane. O poți face totuși, dacă tu crezi că te va ajuta să-ți ceri scuze pentru că ai făcut presiuni asupra ei, dar aici este vorba despre faptul că trebuie să ajungi la cauza principală a frustrării tale, iar aceasta va avea întotdeauna legătură cu comportamentul persoanei, care te face să simți că pierzi controlul.\\n\\nLasă-te să fii sincer cu tine. Când vezi că tot timpul a fost vorba despre TINE și despre nevoia ta de control, este mai ușor să renunți la presiune și să-i lași pe ceilalți să facă lucrurile așa cum vor. Și asta te pune pe un teren solid atunci când intri în discuție prin intermediul buclei ABC.\\n\\nAceastă discuție începe cu:\\n\\n## BUCLA ARC\\n\\n## A;NTREMRI\\n\\nDESCHISE,\\n\\n## B: RETRACE-TE©|\\\\_/: SĂRBĂTOREȘTE\\n\\n## ȘI OBSERVĂ PROGRESUL ÎN', 'owner': 'viorela', 'score': 0.387, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '208', 'text': 'Câțiva dintre traineri s-au supărat pentru că echipamentele lor nu fuseseră instalate, iar clienții s-au supărat pentru că nu li se adusese mâncarea pentru pauza dintre cursuri. însă șeful a dat de urma problemei și a mers pe firul ei până la cel responsabil, adică Jack; i-a spus să intre cât mai repede în ritm, dacă nu, să-și caute altă slujbă. Finalul sună cam așa: lui Susie a început să-i placă din nou munca sa, iar Jack a început să acționeze mai responsabil. Și toate acestea pentru că Susie a stabilit granițe și s-a tinut de ele.\\n\\nDacă porți și tu povara responsabilității altcuiva și te simți plin de resentimente, trebuie să-ți asumi responsabilitatea pentru propriile sentimente și să-ți dai seama că pentru nefericirea ta vina nu o poartă colegul\\n\\n## G R ANIȚELE ȘI MUNCA 209\\n\\ntău, ci tu însuți. In acest conflict al granițelor - la fel ca în oricare altul \\xad trebuie ca mai întâi să-ți asumi responsabilitatea pentru tine însuți. După care trebuie să acționezi în mod responsabil față de colegul tău de serviciu. Mergi la el și explică-i situația. Când îți cere să faci ceva ce nu cade în responsabilitatea ta, spune „nu“ și refuză să faci ceea ce-ți cere, oricare ar fi acel lucru. Dacă se mânie pentru că i-ai spus „nu“, fii ferm cu privire la granițele tale și empatizează cu mânia lui. Nu te mânia și tu. A răspunde la mânie cu mânie înseamnă să te lași prins în jocul lui. Păstrează distanța, din punct de vedere emoțional, și spune-i: „îmi pare rău că asta te supără. însă chestiunea respectivă nu cade în responsabilitatea mea. Sper să reușești s-o duci la bun sfârșit.”', 'owner': 'viorela', 'score': 0.386, 'title': 'Granițe în relații', 'author': 'Henry Cloud & John Townsend', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
+        "{'page': '48', 'text': \"## CE ESTE RUȘINEA ȘI CUM LUPȚI ÎMPOTRIVA EI 95\\n\\nRușinea s-a evaporat în momentul în care mi-am dat seama că nu eram singură, că experiența mea era ceva omenesc.\\n\\nInteresant e că Steve și Karen s-au raportat la problema mea în mod diferit. Steve era mai serios, în genul: „Da, da, îmi dau seama cum a fost, am trecut și eu prin asta“. Iar Karen m-a făcut să râd în jurnătate de minut. Ceea ce au avut în comun cele două abordări a fost mesajul: „Știu despre ce-i vorba“,\\n\\nÎ pe care mi l-au transmis. Empatia este un lucru straniu și\\n\\nf puternic, în același timp. Nu urmează un scenariu. Nu există un mod corect, sau altul greșit, de a-ți manifesta empatia.\\n\\n' E vorba, pur și simplu, să asculți, să fii prezent, alături de celălalt, să te abții să critici, să stabilești o legătură emoțională și să-i transmiți celuilalt mesajul — de o incredibilă forță vindecătoare — că nu e singur.\\n\\n—— Conversațiile cu Steve și Karen m-au ajutat să depășesc rușinea și să-mi revin din punct de vedere emoțional. Am putut astfel să răspund acelui e-mail încărcat de resentimente, având conștiința propriei valori și fiind eu însămi. Mi-am asumat\\n\\n## partea mea de vină pentru schimbul ofensator de e-mail-uri\\n\\nși mi-am cerut scuze pentru limbajul inadecvat. De asemenea, l-am înștiințat pe interlocutor care sunt regulile și așteptările mele, în caz că va dori să mai discutăm. Nu m-a mai căutat niciodată.\", 'owner': 'viorela', 'score': 0.385, 'title': 'Curajul de a fi vulnerabil', 'author': 'Brené Brown', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}"
+      ],
+      "actual_output": "HOOK (PROVOCARE): Te scuzi când trimiți factura? Oprește asta.\n\nCAPTION: E obositor să trimiți o cerere de plată și să simți că trebuie să explici sau să te scuzi. Ceea ce faci acolo nu e profesional — e neatitudine la granițe. Trimite o cerere clară, cu data, suma și metoda de plată. Fără „scuze că deranjez” sau povești personale.\n\nExemplu simplu: „Bună, atașez factura X pentru serviciul Y — scadență 10 mai. Mulțumesc dacă o poți achita până atunci. Dacă ai nevoie de detalii, îți trimit.” Pune limite: nu cere aprobare pentru propriul tău drept de a fi plătită.\n\nTu ce text folosești acum când trimiți o factură? Vrei să-ți scriu o variantă scurtă, directă, pe care s-o folosești imediat în inboxul tău? 👇🏻\n\n#calcul #plati #limitedelegale #antreprenoriat #femeiincareledeschid\n\n*source: combinat — internet (ghiduri de reminder și comunicare fermă) + cărți (Granițe în relații — Henry Cloud & John Townsend, pasaje selectate).*  \n\n(Întreabă-mă și îți redactez textul tău.)\n\nCTA: Vrei modelul personalizat? Scrie: TEXT\n\nHASHTAGS: #plati #limite #antreprenoare #femeiconsciente\n\nSURSA: combinat — https://icoserv.ro/cum-creez-un-reminder-de-plata-prietenos/; https://syndicatecrm.ro/blog/cum-recuperezi-o-factura-neincasata-ghid-pas-cu-pas?utm_source=openai; „Granițe în relații\" — Henry Cloud & John Townsend, pag. 284",
+      "caption": "E obositor să trimiți o cerere de plată și să simți că trebuie să explici sau să te scuzi. Ceea ce faci acolo nu e profesional — e neatitudine la granițe. Trimite o cerere clară, cu data, suma și metoda de plată. Fără „scuze că deranjez” sau povești personale.\n\nExemplu simplu: „Bună, atașez factura X pentru serviciul Y — scadență 10 mai. Mulțumesc dacă o poți achita până atunci. Dacă ai nevoie de detalii, îți trimit.” Pune limite: nu cere aprobare pentru propriul tău drept de a fi plătită.\n\nTu ce text folosești acum când trimiți o factură? Vrei să-ți scriu o variantă scurtă, directă, pe care s-o folosești imediat în inboxul tău? 👇🏻\n\n#calcul #plati #limitedelegale #antreprenoriat #femeiincareledeschid\n\n*source: combinat — internet (ghiduri de reminder și comunicare fermă) + cărți (Granițe în relații — Henry Cloud & John Townsend, pasaje selectate).*  \n\n(Întreabă-mă și îți redactez textul tău.)",
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "679649d6-2d9e-45d6-996d-88eaa551b5cd",
+        "ordinal": 1,
+        "hook_type": "PROVOCARE"
+      }
+    },
     {
       "id": "86485908-i02",
       "category": "idea",
@@ -166,7 +261,7 @@
       }
     },
     {
-      "id": "86485908-i01-PROVOCARE",
+      "id": "86485908-i01-INTREBARE",
       "category": "variant",
       "brief": {
         "pilon": "Poziționare",
@@ -174,22 +269,22 @@
         "sursa": "Internet",
         "focus": "de ce nu e nevoie să fii perfectă ca să vorbești"
       },
-      "input": "Dezvoltă ideea «Te temi că nu ești suficient de bine pregătită», varianta PROVOCARE. Pilonul «Poziționare», formatul «Stories», sursa «Internet». Focus: de ce nu e nevoie să fii perfectă ca să vorbești.",
+      "input": "Dezvoltă ideea «Te temi că nu ești suficient de bine pregătită», varianta INTREBARE. Pilonul «Poziționare», formatul «Stories», sursa «Internet». Focus: de ce nu e nevoie să fii perfectă ca să vorbești.",
       "context": [
         "REGULA SURSEI: Unghiurile spun numai despre ce poți vorbi. Nu afirma cauze, efecte, simptome, prevenție, diagnostice sau reguli. Nu prelua cifre, studii ori citate. Linkurile merg doar la sursa.",
         "UNGHIURI ȘI SURSE DE PE INTERNET:\nIată cinci unghiuri (syntagme) scurte pentru conținut social în română, pe tema „de ce nu e nevoie să fii perfectă ca să vorbești”:\n\n- vorbire spontană\n- autenticitate fără perfecțiune\n- presiunea perfecțiunii\n- imperfecțiune ca putere creativă\n- comunicare fără filtre\n\nSurse consultate:\n- Imaginea perfectă pe rețelele sociale nu transmite emoție. De ce publicul caută autenticitatea. TVR Info. ([tvrinfo.ro](https://tvrinfo.ro/imaginea-perfecta-pe-retelele-sociale-nu-transmite-emotie-de-ce-publicul-cauta-autenticitatea/?utm_source=openai))\n- Oamenii nu caută perfecțiune pe Social Media, caută ceva în care să se regăsească. Touchofadream. ([touchofadream.ro](https://www.touchofadream.ro/2026/04/oamenii-nu-cauta-perfectiune-pe-social-media-cauta-ceva-in-care-sa-se-regaseasca/?utm_source=openai))\n- Cum să faci content fun fără presiunea perfecțiunii. Fetecool. ([fetecool.ro](https://fetecool.ro/articol/cum-sa-faci-content-fun-fara-presiunea-perfectiunii?utm_source=openai))\n- Autenticitatea și integritatea în comunicare: de la teorie la practică. Dilema Veche. ([dilemaveche.ro](https://dilemaveche.ro/sectiune/tema-saptamanii/autenticitatea-si-integritatea-in-comunicare-de-621201.html?utm_source=openai))\n- Autenticitatea în Comunicarea Nonviolentă. EPALE. ([epale.ec.europa.eu](https://epale.ec.europa.eu/ro/blog/autenticitatea-comunicarea-nonviolenta?utm_source=openai))"
       ],
-      "actual_output": "HOOK (PROVOCARE): Simți nod în gât înainte să vorbești? Te provoc să spui ceva din ce ai chiar acum.\n\nSCRIPT: Slide 1: Hook vizual — Text pe fundal simplu: „Simți nod în gât înainte să vorbești?”\nSlide 2: Context scurt — Text: „Crezi că totul trebuie să iasă perfect ca să fii auzită.”\nSlide 3: Valoare — Text: „Publicul nu vrea perfecțiune; vrea emoție și autenticitate.”\nSlide 4: Exemplu concret — Text: „Spune azi o idee incompletă. Oamenii reacționează la tine, nu la forma perfectă.”\nSlide 5: Ce poți face — Text: „Întreabă. Roagă feedback. Vorbește din ce ai, nu din ce n-ai.”\nSlide 6: Promisiune/încurajare — Text: „Când vorbești din ce ai, inspiri mai mult decât când taci ca să aștepți perfectul.”\nSlide 7: CTA final — Text + sticker: „Spune o propoziție scurtă acum — posteaz-o sau scrie-mi aici ce ai spus.”\n\nCAPTION: Nu trebuie să aștepți forma perfectă ca să fii auzită. Când vorbești din ce ai, oamenii se regăsesc în tine. Ce te oprește să spui azi o frază sinceră?\n\nCTA: Răspunde în DM cu o propoziție pe care ți-e teamă să o spui — te citesc eu.\n\nHASHTAGS: #autenticitate #vorbeste #limite #curaj\n\nSURSA: internet — Imaginea perfectă pe rețelele sociale nu transmite emoție. De ce publicul caută autenticitatea | Site-ul de stiri al TVR — https://tvrinfo.ro/imaginea-perfecta-pe-retelele-sociale-nu-transmite-emotie-de-ce-publicul-cauta-autenticitatea/?utm_source=openai",
-      "caption": "Nu trebuie să aștepți forma perfectă ca să fii auzită. Când vorbești din ce ai, oamenii se regăsesc în tine. Ce te oprește să spui azi o frază sinceră?",
+      "actual_output": "HOOK (INTREBARE): Te întrebi dacă trebuie să fii perfectă ca să fii luată în serios?\n\nSCRIPT: Slide 1: Hook — Text: „Te întrebi dacă trebuie să fii perfectă ca să fii luată în serios?”\nSlide 2: Reflectare — Text: „Mulți cred asta și se blochează.”\nSlide 3: Reîncadrare — Text: „Ceea ce te face luată în serios e claritatea și curajul, nu perfecțiunea.”\nSlide 4: Exemplu — Text: „Spune: «Am o variantă — vreau părerea voastră».”\nSlide 5: Ce poți face azi — Text: „Alege o întâlnire sau conversație și spune din ce ai.”\nSlide 6: CTA — Text + sticker: „Care conversație ți-e teamă? Scrie-mi.”\n\nCAPTION: Nu seriozitatea vine din impecabil, ci din curaj și claritate. Ce conversație ți-e teamă să porți?\n\nCTA: Răspunde aici: ce conversație amâni din cauza fricii de a nu fi perfectă?\n\nHASHTAGS: #intrebare #curaj #claritate #vorbesteacum\n\nSURSA: internet — Autenticitatea şi integritatea în comunicare: de la teorie la practică | Dilema Veche — https://dilemaveche.ro/sectiune/tema-saptamanii/autenticitatea-si-integritatea-in-comunicare-de-621201.html?utm_source=openai",
+      "caption": "Nu seriozitatea vine din impecabil, ci din curaj și claritate. Ce conversație ți-e teamă să porți?",
       "expected_behavior": null,
       "meta": {
         "batch_id": "86485908-c137-4485-86a1-27e91dfe8d76",
         "ordinal": 1,
-        "hook_type": "PROVOCARE"
+        "hook_type": "INTREBARE"
       }
     },
     {
-      "id": "893fbdf2-i04",
+      "id": "893fbdf2-i03",
       "category": "idea",
       "brief": {
         "pilon": "Conexiune",
@@ -201,12 +296,12 @@
       "context": [
         "Sursa a fost memoria clientei — profilul ei și postările anterioare. Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice cifră, studiu sau citat este invenție."
       ],
-      "actual_output": "Când m-am obosit din a fi disponibilă\n\nÎți povestesc un moment real când am spus da din vinovăție și m-am trezit goală de energie, ca să vezi că nu e vina ta și că există un drum de ieșire.",
+      "actual_output": "3 pași când te prinzi că ai zis da din vinovăție\n\nAi spus da și te simți rău; promisiunea e un mini-protocol practic, în trei pași, ca să repari situația fără dramatism și fără vină prelungită.",
       "caption": null,
       "expected_behavior": null,
       "meta": {
         "batch_id": "893fbdf2-69ac-4ae3-849f-ab1843bc2ce2",
-        "ordinal": 4
+        "ordinal": 3
       }
     },
     {
@@ -232,7 +327,7 @@
       }
     },
     {
-      "id": "671f8b87-i06",
+      "id": "671f8b87-i08",
       "category": "idea",
       "brief": {
         "pilon": "Educație",
@@ -251,16 +346,16 @@
         "{'page': '10', 'text': 'Te-ai oprit vreodată cu adevărat și te-ai gândit la aceste întrebări pe care ți le adresezi? De ce eziți? Ce anume te face să amâni? Sau să te simți atât de obosit? Sau să te gândești prea mult la fiecare decizie? Ce se ascunde sub toate aceste îndoieli? Ce te împiedică să faci ceea ce trebuie\\n\\nsă faci sau să-ți trăiești viața așa cum vrei să o trăiești? De ce te temi?\\n\\nAm fost șocată când am descoperit răspunsul pentru mine însămi: responsabili erau, de fiecare dată, alți oameni. Sau, mai degrabă, responsabil era modul în care îi lăsam pe ceilalți să mă influențeze și să mă afecteze. Petreceam prea mult timp și dedicam prea multă energie gestionând sau făcându-mi griji pentru alți oameni. Ce fac, ce spun, ce gândesc, cum se simt și ce așteaptă ei de la mine. Realitatea este că, indiferent cât de mult încerci sau ce faci, nu îi poți controla pe ceilalți oameni. Totuși, îți trăiești viața de parcă ai putea.\\n\\nTrăiești ca și cum, dacă spui lucrurile potrivite, oamenii te vor plăcea. Ca și cum, dacă vei continua să muncești mai mult, șeful tău te va respecta. Ca și cum, dacă te comporți cum trebuie, răspunzi la toate dorințele mamei tale și îți faci prietenii fericiți, îți vei găsi liniștea. Nu, nu o vei găsi.', 'owner': 'viorela', 'score': 0.465, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
         "{'page': '58', 'text': 'De fiecare dată când spui „lasă-i“, elimini tot zgomotul și distragerea de la suprafață și creezi spațiu pentru ceva mai profund: vocea ta, intuiția ta, adevărul tău și calea ta unică în viață.\\n\\nEle au fost întotdeauna acolo. Doar că au fost îngropate sub toată această teamă.\\n\\nPe măsură ce folosești teoria Let Them pentru a te elibera de povara părerilor celorlalți, vei începe să te miști prin viață având ca foaie de parcurs valorile, nevoile și obiectivele tale. În loc să anticipezi ce ar putea crede ceilalți despre tine, îți vei dirija viața într-un mod care te va face mândru de tine.\\n\\nȘi acesta este secretul. Când TU ești mândru de tine, tu deții toată puterea.\\n\\nla decizii care te fac mândru\\n\\nAcum am ajuns la un punct foarte important despre ierarhizarea nevoilor tale, menținând în același timp relații de susținere și iubire cu cei din jur. ldeea aici nu este să treci prin viață ca o\\n\\npersoană egoistă sau narcisică, un om căruia nu li pasă de ceilalți oameni.\\n\\nIdeea este să înveți cum să îți pui nevoile pe primul loc în timp ce echilibrezi ceea ce funcționează pentru tine cu așteptările și sentimentele altor persoane. În viață, nu vrei să fii un preș, dar nici un buldozer nepăsător. Trebuie să menții un echilibru.', 'owner': 'viorela', 'score': 0.463, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}"
       ],
-      "actual_output": "Ziua în care ai spus NU — ce s-a schimbat\n\nÎnainte erai mereu într-un ropot de solicitări; după, ai făcut loc pentru lucruri care te hrănesc; protejarea timpului e transformare practică, nu sacrificiu.",
+      "actual_output": "Femeia care și-a recăpătat serile\n\nO clientă a încetat să accepte cereri după ora 18:00 și a redobândit timp pentru odihnă și proiecte personale — protejarea timpului i-a restaurat energia.",
       "caption": null,
       "expected_behavior": null,
       "meta": {
         "batch_id": "671f8b87-a7e2-46c1-b0f0-de64a9f1100b",
-        "ordinal": 6
+        "ordinal": 8
       }
     },
     {
-      "id": "671f8b87-i01-SECRET",
+      "id": "671f8b87-i01-INTREBARE",
       "category": "variant",
       "brief": {
         "pilon": "Educație",
@@ -268,7 +363,7 @@
         "sursa": "Cărți",
         "focus": "cum îți aperi timpul când toți cer de la tine"
       },
-      "input": "Dezvoltă ideea «Sări mereu în ajutor și rămâi fără timp», varianta SECRET. Pilonul «Educație», formatul «Reel», sursa «Cărți». Focus: cum îți aperi timpul când toți cer de la tine.",
+      "input": "Dezvoltă ideea «Sări mereu în ajutor și rămâi fără timp», varianta INTREBARE. Pilonul «Educație», formatul «Reel», sursa «Cărți». Focus: cum îți aperi timpul când toți cer de la tine.",
       "context": [
         "{'page': '185', 'text': 'lmaginează-ți că te afli sub un cer care se schimbă constant: uneori este senin și albastru, alteori este plin de nori sau brăzdat de tunete. Ai petrecut atât de mult timp și energie încercând să păstrezi cerul senin, dorindu-ți să dispară norii, sperând la un soare fără sfârșit. Dar cerului nu-i pasă de ce vrei tu. Va face ceea ce face, cu sau fără contribuția ta.\\n\\nMomentul revelației vine atunci când realizezi acest lucru: frumusețea cerului nu este diminuată de prezența norilor sau a furtunilor. De fapt, tocmai varietatea și imprevizibilitatea sunt cele care îl fac cu adevărat magnific. Furtunile evidențiază calmul, iar norii fac soarele mai prețios. Același lucru este valabil și pentru viața ta.\\n\\nAi vrut să controlezi incontrolabilul, încercând să forțezi lumea să se conformeze așteptărilor tale. Ce-ar fi dacă, în schimb, te-ai concentra pe propria ta reacție la tot ce ți se ivește în cale? Nu poți schimba vremea. Dar poți schimba dacă și cum te afectează ea.\\n\\nIndiferent de ce se întâmplă în jurul tău, tu decizi cum te va afecta.\\n\\nTu decizi dacă un comentariu din partea unei persoane dragi îți distruge stima de sine sau doar trece pe lângă tine fără să te afecteze. Tu decizi dacă toate întâlnirile nereușite la care ai fost te determină să îți scazi standardele sau să devii și mai exigent. Tu decizi dacă succesul altcuiva te face să renunți sau te inspiră să muncești și mai mult.', 'owner': 'viorela', 'score': 0.499, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
         "{'page': '186', 'text': 'ACESTA este costul neutilizării teoriei „Lasă-\\n\\nChiar îți poți permite acest preț? Eu știu că nu pot.\\n\\nTuturor ne place să găsim motive pentru care oamenii care au ceea ce ne dorim sunt cumva diferiți de noi: ei s-au născut cu bani. Sunt mai atrăgători. Viața lor a fost mai ușoară. Au avut Noroc.\\n\\nÎmi pare rău să ți-o spun, dar asta este doar o scuză. Nu există nicio diferență între tine și oamenii pe care îi vezi realizând lucruri extraordinare. Fi nu sunt speciali.\\n\\nDar există un lucru sigur pe care l-au înțeles: ei nu lasă lumea din jurul lor să le submineze visurile. Fi au învățat să se orienteze după cer, să accepte vremea așa cum vine și să continue să se îndrepte spre obiectivele lor, indiferent de situație. La un moment dat, s-au săturat să se preocupe de ce cred ceilalți și și-au impus să se apuce de treabă.\\n\\nFi sunt total angajați să se trezească în fiecare zi și să dovedească mereu, prin acțiunile lor, că\\n\\nsunt demni și merită viziunea pe care o au pentru viața lor.\\n\\nÎn fiecare zi în care te temi de părerea altcuiva, te stresezi din cauza prieteniilor sau te temi de reacția cuiva și refuzi să dai un telefon, să completezi cererea, să lucrezi la planul de afaceri, să începi dieta sau să depui efort, te împiedici să avansezi. Te privezi de potențialul tău. Stai pe loc în timp ce viața se mișcă în jurul tău.', 'owner': 'viorela', 'score': 0.491, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
@@ -279,17 +374,17 @@
         "{'page': '10', 'text': 'Te-ai oprit vreodată cu adevărat și te-ai gândit la aceste întrebări pe care ți le adresezi? De ce eziți? Ce anume te face să amâni? Sau să te simți atât de obosit? Sau să te gândești prea mult la fiecare decizie? Ce se ascunde sub toate aceste îndoieli? Ce te împiedică să faci ceea ce trebuie\\n\\nsă faci sau să-ți trăiești viața așa cum vrei să o trăiești? De ce te temi?\\n\\nAm fost șocată când am descoperit răspunsul pentru mine însămi: responsabili erau, de fiecare dată, alți oameni. Sau, mai degrabă, responsabil era modul în care îi lăsam pe ceilalți să mă influențeze și să mă afecteze. Petreceam prea mult timp și dedicam prea multă energie gestionând sau făcându-mi griji pentru alți oameni. Ce fac, ce spun, ce gândesc, cum se simt și ce așteaptă ei de la mine. Realitatea este că, indiferent cât de mult încerci sau ce faci, nu îi poți controla pe ceilalți oameni. Totuși, îți trăiești viața de parcă ai putea.\\n\\nTrăiești ca și cum, dacă spui lucrurile potrivite, oamenii te vor plăcea. Ca și cum, dacă vei continua să muncești mai mult, șeful tău te va respecta. Ca și cum, dacă te comporți cum trebuie, răspunzi la toate dorințele mamei tale și îți faci prietenii fericiți, îți vei găsi liniștea. Nu, nu o vei găsi.', 'owner': 'viorela', 'score': 0.465, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}",
         "{'page': '58', 'text': 'De fiecare dată când spui „lasă-i“, elimini tot zgomotul și distragerea de la suprafață și creezi spațiu pentru ceva mai profund: vocea ta, intuiția ta, adevărul tău și calea ta unică în viață.\\n\\nEle au fost întotdeauna acolo. Doar că au fost îngropate sub toată această teamă.\\n\\nPe măsură ce folosești teoria Let Them pentru a te elibera de povara părerilor celorlalți, vei începe să te miști prin viață având ca foaie de parcurs valorile, nevoile și obiectivele tale. În loc să anticipezi ce ar putea crede ceilalți despre tine, îți vei dirija viața într-un mod care te va face mândru de tine.\\n\\nȘi acesta este secretul. Când TU ești mândru de tine, tu deții toată puterea.\\n\\nla decizii care te fac mândru\\n\\nAcum am ajuns la un punct foarte important despre ierarhizarea nevoilor tale, menținând în același timp relații de susținere și iubire cu cei din jur. ldeea aici nu este să treci prin viață ca o\\n\\npersoană egoistă sau narcisică, un om căruia nu li pasă de ceilalți oameni.\\n\\nIdeea este să înveți cum să îți pui nevoile pe primul loc în timp ce echilibrezi ceea ce funcționează pentru tine cu așteptările și sentimentele altor persoane. În viață, nu vrei să fii un preș, dar nici un buldozer nepăsător. Trebuie să menții un echilibru.', 'owner': 'viorela', 'score': 0.463, 'title': 'Teoria „Let Them”', 'author': 'Mel Robbins', 'chapter': None, 'version': 'ediție neînregistrată', 'is_summary': False, 'rights_basis': 'copie personală, uz privat', 'authority_class': 'context de lucru — inspirație', 'embedding_model': 'text-embedding-3-small', 'has_page_markers': True}"
       ],
-      "actual_output": "HOOK (SECRET): Secretul celor care nu se mai simt folosiți\n\nCAPTION: Mulți cred că secretul e mai multă muncă sau voință. Nu e. Secretul e o regulă simplă: lasă-i pe alții să fie responsabili pentru viața lor. Când renunți să repari totul, recâștigi timp și demnitate. \n\nMel Robbins numește asta „Let Them”: renunți la nevoia de a controla reacțiile oamenilor și îți pui energia acolo unde contează. Practic: notezi ce merită intervenția ta și ce nu, apoi aplici acea listă cu blândețe, dar fermitate. \n\nCare ar fi primul lucru pe care l-ai lăsa în grija altcuiva?\n\nCTA: Răspunde în comentarii — ce delegi azi?\n\nHASHTAGS: #lasail #autonomie #granițe\n\nSURSA: „Teoria „Let Them” — Mel Robbins, pagina 33",
-      "caption": "Mulți cred că secretul e mai multă muncă sau voință. Nu e. Secretul e o regulă simplă: lasă-i pe alții să fie responsabili pentru viața lor. Când renunți să repari totul, recâștigi timp și demnitate. \n\nMel Robbins numește asta „Let Them”: renunți la nevoia de a controla reacțiile oamenilor și îți pui energia acolo unde contează. Practic: notezi ce merită intervenția ta și ce nu, apoi aplici acea listă cu blândețe, dar fermitate. \n\nCare ar fi primul lucru pe care l-ai lăsa în grija altcuiva?",
+      "actual_output": "HOOK (INTREBARE): Cât valorează o oră din ziua ta?\n\nCAPTION: Răspunsul la asta îți schimbă alegerile. Dacă o oră înseamnă timp pentru tine sau pentru un proiect important, atunci merită apărată. Dacă o oră e vândută repede pentru o urgență care nu era a ta, pierzi mult mai mult decât minute — pierzi momentum și liniște. \n\nCărțile spun același lucru: nu-i poți controla pe ceilalți, dar poți să nu le dai controlul asupra timpului tău. Începe cu o regulă mică: păstrează 60 de minute neîntrerupte pe zi. Vezi ce se întâmplă. \n\nDacă ai avea 60 de minute libere azi, ce ai face cu ele?\n\nCTA: Scrie ce-ai face cu 60 min libere\n\nHASHTAGS: #valoreetimpului #protectiatimpului #timppentruproiecte\n\nSURSA: „Teoria „Let Them” — Mel Robbins, pagina 10",
+      "caption": "Răspunsul la asta îți schimbă alegerile. Dacă o oră înseamnă timp pentru tine sau pentru un proiect important, atunci merită apărată. Dacă o oră e vândută repede pentru o urgență care nu era a ta, pierzi mult mai mult decât minute — pierzi momentum și liniște. \n\nCărțile spun același lucru: nu-i poți controla pe ceilalți, dar poți să nu le dai controlul asupra timpului tău. Începe cu o regulă mică: păstrează 60 de minute neîntrerupte pe zi. Vezi ce se întâmplă. \n\nDacă ai avea 60 de minute libere azi, ce ai face cu ele?",
       "expected_behavior": null,
       "meta": {
         "batch_id": "671f8b87-a7e2-46c1-b0f0-de64a9f1100b",
         "ordinal": 1,
-        "hook_type": "SECRET"
+        "hook_type": "INTREBARE"
       }
     },
     {
-      "id": "0e2dbc8c-i08",
+      "id": "0e2dbc8c-i02",
       "category": "idea",
       "brief": {
         "pilon": "Educație",
@@ -301,16 +396,16 @@
       "context": [
         "Sursa a fost memoria clientei — profilul ei și postările anterioare. Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice cifră, studiu sau citat este invenție."
       ],
-      "actual_output": "O clientă care a câștigat o oră pe zi\n\nPovestesc transformarea unei cliente care, alegând un ritual de revizuire a priorităților, a recăpătat o oră pe zi pentru ea — arată că focusul se exersează.",
+      "actual_output": "Mitul «dacă sunt productivă, merită totul»\n\nCrezi că valoarea ta se măsoară în ce bifezi; aici arătăm cum acest gând te trage înapoi și cum să-l pui sub semnul întrebării ca să-ți regăsești focusul real.",
       "caption": null,
       "expected_behavior": null,
       "meta": {
         "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
-        "ordinal": 8
+        "ordinal": 2
       }
     },
     {
-      "id": "0e2dbc8c-i05-INTREBARE",
+      "id": "0e2dbc8c-i05-SECRET",
       "category": "variant",
       "brief": {
         "pilon": "Educație",
@@ -318,17 +413,17 @@
         "sursa": "Memorie",
         "focus": "despre focus"
       },
-      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta INTREBARE. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta SECRET. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
       "context": [
         "Sursa a fost memoria clientei — profilul ei și postările anterioare. Nicio căutare nu a rulat, deci nu există pasaj de verificat: orice cifră, studiu sau citat este invenție."
       ],
-      "actual_output": "HOOK (INTREBARE): Tu ce aperi: inboxul sau visul tău?\n\nCAPTION: Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?\n\nCTA: Răspunde cu numele visului tău în comentarii — hai să-l vedem clar.\n\nHASHTAGS: #prioritati #focussimplu #limitepractici\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
-      "caption": "Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?",
+      "actual_output": "HOOK (SECRET): Secretul oamenilor care nu ajung la epuizare\n\nCAPTION: Nu muncesc mai mult — aleg altfel. Secretul lor e că își apără «butoanele de valoare»: indicatorii mici care arată dacă ziua a fost folosită corect (de ex. 1 oră cu proiectul personal, 30 min de reflecție, o limită spusă ferm).\n\nCând înlocuiești satisfacția urgentă (lesne de obținut) cu progresul minor, dar constant, te oprești din a te simți golănea și începi să vezi sens. Nu mai alergi după flacăra momentului, ci plantezi pomii care vor da roade.\n\nCe „buton de valoare” ai vrea să-ți setezi pentru următoarea săptămână?\n\nCTA: Comentează «BUTON» dacă vrei idei pentru al tău.\n\nHASHTAGS: #energie #viataechilibrata #autogrija\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Nu muncesc mai mult — aleg altfel. Secretul lor e că își apără «butoanele de valoare»: indicatorii mici care arată dacă ziua a fost folosită corect (de ex. 1 oră cu proiectul personal, 30 min de reflecție, o limită spusă ferm).\n\nCând înlocuiești satisfacția urgentă (lesne de obținut) cu progresul minor, dar constant, te oprești din a te simți golănea și începi să vezi sens. Nu mai alergi după flacăra momentului, ci plantezi pomii care vor da roade.\n\nCe „buton de valoare” ai vrea să-ți setezi pentru următoarea săptămână?",
       "expected_behavior": null,
       "meta": {
         "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
         "ordinal": 5,
-        "hook_type": "INTREBARE"
+        "hook_type": "SECRET"
       }
     }
   ]

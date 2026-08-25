@@ -24,7 +24,7 @@ Plus one that is not a metric and blocks harder than any of them:
 ## What "blocks" means here, precisely
 
 **Not** "the score is below its threshold". If that were the rule the build
-would be red today — `AvatarResonance` averages 0.45 with one case in eight over
+would be red today — `AvatarResonance` averages 0.44 with no case in ten over
 its own threshold — and a permanently red gate is one people learn to ignore.
 
 The rule is **no worse than the recorded baseline**:
@@ -41,7 +41,7 @@ The rule is **no worse than the recorded baseline**:
 
 | what | where | why it does not block |
 |---|---|---|
-| the `open` list | `evals/golden.json` → `open` | 17 (case, metric) pairs are under threshold today. That is the work, deliberately recorded, and shrinking it is the evidence that a repair landed |
+| the `open` list | `evals/golden.json` → `open` | 24 (case, metric) pairs are under threshold today. That is the work, deliberately recorded, and shrinking it is the evidence that a repair landed |
 | absolute quality | — | nothing asserts "the writing is good". No CI can, without a person |
 | `expected_behavior` | `evals/golden.json` | null on every case. Only she can write those lines, and only for the cases that fail |
 
@@ -92,6 +92,20 @@ uv run python -m evals.output.report --update-baseline --accept-worse
 The refusal uses the same tolerance CI blocks on — two numbers would eventually
 disagree. Held by `tests/unit/test_output_baseline.py`.
 
+## What triggers the gate, and why nothing more
+
+The workflow's `paths` are the files `ruler.watched_files()` derives, and
+`tests/unit/test_eval_trigger.py` fails if the two ever disagree — in BOTH
+directions, so a path that watches nothing is as much a failure as a file that
+nothing watches.
+
+`worker.py`, `method.py` and the `SKILL.md` bodies are deliberately absent. The
+answers in `golden.json` are frozen, so changing how FUTURE text is written
+leaves every number identical: re-running the gate there spends judge calls to
+prove nothing, and a check that always passes is one people stop reading.
+`config.py` IS watched, because it holds `DEEPSEEK_MODEL` — an edit there
+changes the judge, and the first hand-written path list missed it entirely.
+
 | you edited | what moves |
 |---|---|
 | `skills/propune-postari/references/piloni.md` | `BriefCompliance` |
@@ -104,6 +118,6 @@ disagree. Held by `tests/unit/test_output_baseline.py`.
 
 ## Cost
 
-Eight cases across four briefs, three judged metrics: about 24 DeepSeek calls
+Ten cases across five briefs, three judged metrics: about 30 DeepSeek calls
 per full run, cents. The free layer is 0.12 s and costs nothing, which is why it
 runs on every matching push whether the secret exists or not.

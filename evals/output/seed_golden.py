@@ -305,7 +305,13 @@ def diverse(cases: list[dict[str, Any]], batches: list[dict[str, Any]]) -> list[
         by_batch.setdefault(case["meta"]["batch_id"], []).append(case)
 
     picked: list[dict[str, Any]] = []
-    for index, batch in enumerate(batches):
+    for batch in batches:
+        # Rotated by the batch's OWN id, not by its position in the list. With
+        # `enumerate` the batches are ordered by recency, so adding one shifted
+        # every other batch's ordinal and hook - a new brief would silently
+        # re-pick the whole set, and the cases you had been watching would
+        # vanish from the file that exists to keep watching them.
+        index = int(batch["id"][:8], 16)
         mine = by_batch.get(batch["id"], [])
         if not mine:
             continue

@@ -34,8 +34,10 @@ alongside the first.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
+from pathlib import Path
 from typing import Any
 
 from deepeval.models.base_model import DeepEvalBaseLLM
@@ -79,6 +81,8 @@ class NeverCalled(DeepEvalBaseLLM):
 
 
 NEVER_CALLED = NeverCalled()
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _digest(payload: str) -> str:
@@ -168,6 +172,55 @@ WHY = {
     "judge": "judecătorul (model sau endpoint)",
     "cases": "setul de cazuri — text înghețat adăugat, scos sau re-sămânțat",
 }
+
+
+#: The eval stack itself, and the frozen set it grades.
+OWN_FILES = ("evals/output/*.py", "evals/golden.json")
+
+
+def watched_files() -> list[str]:
+    """Every file whose edit can move a score, repo-relative and DERIVED.
+
+    Not a list somebody maintains. The material files come from `material.py`'s
+    own constants, and the modules come from `sys.modules` after importing this
+    one - so `SILENT_REEL_BRIEF` living in `generation.py` and `DEEPSEEK_MODEL`
+    living in `config.py` are found rather than remembered.
+
+    This is what CI triggers on. A hand-written path list drifts from the ruler
+    the first time a reference moves, and drifts SILENTLY: the gate simply stops
+    running on the change that needed it most. `tests/unit/test_eval_trigger.py`
+    holds the workflow against this function.
+    """
+    found = {
+        material.PILLARS_FILE,
+        material.SOURCES_FILE,
+        material.PROFILE_FILE,
+    }
+    # DIRECT imports only, read out of the source with `ast`. `sys.modules`
+    # was the first attempt and over-approximated badly - it returned
+    # `language.py` and two `__init__.py` files, none of which can move a score
+    # on frozen text, and CI that fires when nothing could have changed teaches
+    # people to ignore it as surely as CI that never fires.
+    src = ROOT / "src"
+    for source in sorted((ROOT / "evals" / "output").glob("*.py")):
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or not node.module:
+                continue
+            if not node.module.split(".")[0] == "content_studio":
+                continue
+            module = src / Path(*node.module.split("."))
+            for candidate in (module.with_suffix(".py"), module / "__init__.py"):
+                if candidate.is_file():
+                    found.add(candidate)
+                    break
+
+    relative = {p.relative_to(ROOT).as_posix() for p in found}
+    for pattern in OWN_FILES:
+        relative.update(
+            p.relative_to(ROOT).as_posix() for p in ROOT.glob(pattern)
+        )
+    return sorted(relative)
 
 
 def drift(recorded: dict[str, Any] | None, gold: dict[str, Any]) -> list[str]:

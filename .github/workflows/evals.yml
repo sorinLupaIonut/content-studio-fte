@@ -5,34 +5,46 @@ name: Output evals
 # so it needs no OpenAI key, no database, no MCP server and no browser. That is
 # what lets it run here at all.
 #
-# WHY THESE PATHS. Only four things can change the writing: the method
-# (`skills/`), the prompts that carry it (`generation.py`, `worker.py`,
-# `method.py`), the profile the avatar metric grades against, and the eval
-# stack itself. A change anywhere else cannot move a score, and running the
-# gate on it would teach everyone to ignore the result.
+# WHY THESE PATHS, AND NOT ONE MORE. They are exactly the files the RULER
+# reads - `ruler.watched_files()` derives them, and
+# `tests/unit/test_eval_trigger.py` fails if this list and that function ever
+# disagree. Editing the list by hand is therefore a test failure, not a silent
+# drift, which is the only way a trigger stays honest.
+#
+# What is deliberately ABSENT is as important. `worker.py`, `method.py` and the
+# `SKILL.md` bodies used to be here, and they cannot move a score: the answers
+# in `golden.json` are frozen, so a change to how FUTURE text is written leaves
+# every number identical. Re-running the gate there costs judge calls to prove
+# nothing, and a check that always passes is a check people stop reading.
+# `config.py` is present for the opposite reason - it holds `DEEPSEEK_MODEL`,
+# so an edit there changes the judge, and the old list missed it entirely.
 #
 # The two path lists are duplicated on purpose: GitHub Actions does not resolve
 # YAML anchors, so `&name` / `*name` fails to parse rather than deduplicating.
 on:
   pull_request:
     paths:
-      - 'skills/**'
-      - 'content/profile.md'
-      - 'src/content_studio/worker.py'
-      - 'src/content_studio/method.py'
-      - 'src/content_studio/harness/generation.py'
-      - 'evals/**'
       - '.github/workflows/evals.yml'
+      - 'content/profile.md'
+      - 'evals/golden.json'
+      - 'evals/output/**'
+      - 'skills/propune-postari/references/piloni.md'
+      - 'skills/propune-postari/references/surse.md'
+      - 'src/content_studio/__init__.py'
+      - 'src/content_studio/config.py'
+      - 'src/content_studio/harness/generation.py'
   push:
     branches: [main, english, deploy]
     paths:
-      - 'skills/**'
-      - 'content/profile.md'
-      - 'src/content_studio/worker.py'
-      - 'src/content_studio/method.py'
-      - 'src/content_studio/harness/generation.py'
-      - 'evals/**'
       - '.github/workflows/evals.yml'
+      - 'content/profile.md'
+      - 'evals/golden.json'
+      - 'evals/output/**'
+      - 'skills/propune-postari/references/piloni.md'
+      - 'skills/propune-postari/references/surse.md'
+      - 'src/content_studio/__init__.py'
+      - 'src/content_studio/config.py'
+      - 'src/content_studio/harness/generation.py'
   workflow_dispatch:
 
 jobs:
