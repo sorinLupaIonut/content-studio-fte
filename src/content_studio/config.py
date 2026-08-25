@@ -186,6 +186,16 @@ PHOENIX_API_KEY = os.getenv("PHOENIX_API_KEY", "").strip()
 #: not sit in the same list as what the client actually ran.
 PHOENIX_PROJECT_NAME = os.getenv("PHOENIX_PROJECT_NAME", "studio-viorela").strip()
 
+# The judge for the output evals, and deliberately NOT the family that writes
+# the posts. A grader from the same lineage as the author marks its own work -
+# the bias the eval course names first. DeepSeek shares no training lineage with
+# gpt-5, which is the whole reason it is here; the price is a side benefit.
+# Read only by `evals/output/`, never by the worker: nothing the client runs
+# depends on it, and empty simply means the judged metrics are skipped.
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
+DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip()
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat").strip()
+
 # Per principal, per minute. A ceiling on accidents - a page stuck in a retry
 # loop, a held-down button - not a security boundary; the budget gate is what
 # bounds deliberate spending. 0 turns it off.

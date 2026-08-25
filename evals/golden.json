@@ -1,0 +1,501 @@
+{
+  "_": [
+    "Set inghetat pentru output evals (stratul 3). Scris de",
+    "`evals/output/seed_golden.py` din ce a produs deja studioul - nu de",
+    "mana, si niciodata regenerat in timpul unei rulari de teste.",
+    "Aici sta DOAR subiectul: ce s-a cerut si ce a iesit. Rigla - piloni,",
+    "surse, formate, profilul Andreei - se citeste vie din fisierele ei,",
+    "prin evals/output/material.py, si e amprentata de ruler.py."
+  ],
+  "baseline": {
+    "recorded_at": "2026-08-25-1820",
+    "ruler": {
+      "id": "8f1f25fdb8f0",
+      "parts": {
+        "piloni": "084527cec931",
+        "avatar": "0a3effe15441",
+        "surse": "9616c8b86517",
+        "formate": "2ba8edc04328",
+        "caption_window": "52194db11a19",
+        "BriefCompliance": "2718c69389ac",
+        "Hallucination": "d48b23758fab",
+        "AvatarResonance": "b05b62e88603",
+        "judge": "a6681b2d240f",
+        "cases": "23d31be7ce51"
+      }
+    },
+    "metrics": {
+      "BriefCompliance": {
+        "mean": 0.613,
+        "n": 15,
+        "passed": 6
+      },
+      "Hallucination": {
+        "mean": 0.993,
+        "n": 15,
+        "passed": 15
+      },
+      "AvatarResonance": {
+        "mean": 0.427,
+        "n": 15,
+        "passed": 1
+      },
+      "CaptionLength": {
+        "mean": 0.0,
+        "n": 5,
+        "passed": 0
+      }
+    },
+    "per_case": {
+      "0e2dbc8c-i05-CIFRA": {
+        "CaptionLength": 0.0
+      },
+      "0e2dbc8c-i05-CONTRAST": {
+        "CaptionLength": 0.0
+      },
+      "0e2dbc8c-i05-INTREBARE": {
+        "CaptionLength": 0.0
+      },
+      "0e2dbc8c-i05-PROVOCARE": {
+        "CaptionLength": 0.0
+      },
+      "0e2dbc8c-i05-SECRET": {
+        "CaptionLength": 0.0
+      }
+    }
+  },
+  "open": [
+    {
+      "case": "0e2dbc8c-i01",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i01",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i02",
+      "metric": "BriefCompliance",
+      "score": 0.6
+    },
+    {
+      "case": "0e2dbc8c-i02",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i04",
+      "metric": "BriefCompliance",
+      "score": 0.3
+    },
+    {
+      "case": "0e2dbc8c-i04",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i05",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i05",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i05-CIFRA",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "0e2dbc8c-i05-CIFRA",
+      "metric": "AvatarResonance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i05-CONTRAST",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "0e2dbc8c-i05-CONTRAST",
+      "metric": "AvatarResonance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i05-INTREBARE",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "0e2dbc8c-i05-INTREBARE",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i05-PROVOCARE",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "0e2dbc8c-i05-PROVOCARE",
+      "metric": "AvatarResonance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i05-SECRET",
+      "metric": "CaptionLength",
+      "score": 0.0
+    },
+    {
+      "case": "0e2dbc8c-i05-SECRET",
+      "metric": "BriefCompliance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i05-SECRET",
+      "metric": "AvatarResonance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i06",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i06",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i07",
+      "metric": "BriefCompliance",
+      "score": 0.5
+    },
+    {
+      "case": "0e2dbc8c-i07",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i08",
+      "metric": "BriefCompliance",
+      "score": 0.4
+    },
+    {
+      "case": "0e2dbc8c-i08",
+      "metric": "AvatarResonance",
+      "score": 0.3
+    },
+    {
+      "case": "0e2dbc8c-i09",
+      "metric": "BriefCompliance",
+      "score": 0.6
+    },
+    {
+      "case": "0e2dbc8c-i09",
+      "metric": "AvatarResonance",
+      "score": 0.2
+    },
+    {
+      "case": "0e2dbc8c-i10",
+      "metric": "AvatarResonance",
+      "score": 0.4
+    }
+  ],
+  "cases": [
+    {
+      "id": "0e2dbc8c-i01",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Când te rătăcești în propriile priorități\n\nSimți că ziua ta se umple cu solicitări care nu-ți aparțin; promisiunea e că înțelegi de ce ți se întâmplă asta și faci primul pas mic ca să-ți recuperezi timpul pentru tine.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 1
+      }
+    },
+    {
+      "id": "0e2dbc8c-i02",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Mitul «dacă sunt productivă, merită totul»\n\nCrezi că valoarea ta se măsoară în ce bifezi; aici arătăm cum acest gând te trage înapoi și cum să-l pui sub semnul întrebării ca să-ți regăsești focusul real.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 2
+      }
+    },
+    {
+      "id": "0e2dbc8c-i03",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Ritualul de 3 întrebări înainte de a spune DA\n\nÎnainte să accepți o cerere, trei întrebări simple îți arată dacă e pentru tine sau pentru alții; promisiunea e un filtru practic pe care-l poți folosi azi.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 3
+      }
+    },
+    {
+      "id": "0e2dbc8c-i04",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Ziua în care mi-am dat seama că nu mai știu ce vreau\n\nPovestesc un moment real din viața mea când m-am trezit făcând lucruri automate, și ce mic gest m-a ajutat să-mi recâștig direcția.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 4
+      }
+    },
+    {
+      "id": "0e2dbc8c-i05",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Greșeala de a-ți confunda «urgentul» cu «importantul»\n\nO faci zilnic: răspunzi la focare în loc să protejezi ce contează; arăt cum o schimbare de perspectivă te scapă de epuizare și aduce focus.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 5
+      }
+    },
+    {
+      "id": "0e2dbc8c-i05-CIFRA",
+      "category": "variant",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta CIFRA. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "HOOK (CIFRA): 3 pași ca să nu te mai arzi pe urgent\n\nCAPTION: Te consumă focarele zilnice? Nu e vina ta — sistemul cere reacție imediată. Dar tu poți alege alt ritm. Încercă acești 3 pași simpli: 1) identifică ce produce impact real în viața ta în 3 luni; 2) blochează sloturi în calendar doar pentru acele lucruri; 3) limitează «check»-ul inboxului la 2 ferestre pe zi.\n\nNu e o metodă magică, e o disciplină blândă: la început vei simți FOMO, apoi ușurință. Energia ta se întoarce la lucrurile care te hrănesc, nu la urgențele altora.\n\nCare din cei 3 pași ți se pare cel mai greu de ținut?\n\nCTA: Scrie în comentarii cifra (1/2/3) pe care o începi azi.\n\nHASHTAGS: #gestionaretimp #productivitate #burnoutprevention\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Te consumă focarele zilnice? Nu e vina ta — sistemul cere reacție imediată. Dar tu poți alege alt ritm. Încercă acești 3 pași simpli: 1) identifică ce produce impact real în viața ta în 3 luni; 2) blochează sloturi în calendar doar pentru acele lucruri; 3) limitează «check»-ul inboxului la 2 ferestre pe zi.\n\nNu e o metodă magică, e o disciplină blândă: la început vei simți FOMO, apoi ușurință. Energia ta se întoarce la lucrurile care te hrănesc, nu la urgențele altora.\n\nCare din cei 3 pași ți se pare cel mai greu de ținut?",
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 5,
+        "hook_type": "CIFRA"
+      }
+    },
+    {
+      "id": "0e2dbc8c-i05-CONTRAST",
+      "category": "variant",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta CONTRAST. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "HOOK (CONTRAST): Zi obosită vs Zi cu sens — diferența e o alegere\n\nCAPTION: Două zile, aceeași listă: una condusă de notificări, alta de intenții. În prima, alergi de la o urgență la alta și termini seara obosită, vinovată și cu senzația că n-ai făcut ce contează. În a doua, ai protejat 2-3 ore pentru lucruri care te scot din loc — și te culci mulțumită.\n\nNu ai nevoie de mai mult timp, ci de mai multă intenție. Începe prin a decide în fiecare dimineață două lucruri care, dacă se întâmplă, fac ziua „câștigată”. Restul sunt bonusuri. Repetă asta o săptămână și observă schimbarea.\n\nCe două lucruri ar face ziua ta «câștigată» azi?\n\nCTA: Scrie cele două lucruri mai jos — eu încep: «30 min jurnal» și «o oră pentru proiectul X».\n\nHASHTAGS: #ziacastigata #intentii #consistenta\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Două zile, aceeași listă: una condusă de notificări, alta de intenții. În prima, alergi de la o urgență la alta și termini seara obosită, vinovată și cu senzația că n-ai făcut ce contează. În a doua, ai protejat 2-3 ore pentru lucruri care te scot din loc — și te culci mulțumită.\n\nNu ai nevoie de mai mult timp, ci de mai multă intenție. Începe prin a decide în fiecare dimineață două lucruri care, dacă se întâmplă, fac ziua „câștigată”. Restul sunt bonusuri. Repetă asta o săptămână și observă schimbarea.\n\nCe două lucruri ar face ziua ta «câștigată» azi?",
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 5,
+        "hook_type": "CONTRAST"
+      }
+    },
+    {
+      "id": "0e2dbc8c-i05-INTREBARE",
+      "category": "variant",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta INTREBARE. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "HOOK (INTREBARE): Tu ce aperi: inboxul sau visul tău?\n\nCAPTION: Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?\n\nCTA: Răspunde cu numele visului tău în comentarii — hai să-l vedem clar.\n\nHASHTAGS: #prioritati #focussimplu #limitepractici\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Răspunsul tău e oglinda priorităților. Dacă la finalul zilei ai bifat zeci de taskuri mici, dar nu ai mișcat nimic din ce te definește, e timpul să rearanjezi. Nu e despre ego — e despre responsabilitate: cine plătește prețul dacă tu nu investești în ce contează?\n\nÎnvață să pui un „gard” pentru proiectele tale: un interval liber, o zi fără întâlniri sau un ritual care semnalează începutul muncii profunde. Și învață să spui „pas” fără explicații prea lungi.\n\nCare vis vrei să protejezi în următoarele 30 de zile?",
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 5,
+        "hook_type": "INTREBARE"
+      }
+    },
+    {
+      "id": "0e2dbc8c-i05-PROVOCARE",
+      "category": "variant",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta PROVOCARE. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "HOOK (PROVOCARE): Te storci pe tine pentru incendii care nu îți aparțin?\n\nCAPTION: Faci asta zilnic: sari la primul email, la primul mesaj, la drama din grup — și la finalul zilei te întrebi de ce ești epuizată și nimic din ce contează nu a avansat. Urgentul țipă. Importantul șoptește.\n\nSchimbarea nu e despre a face mai mult, ci despre a alege unde pui «da»-ul tău. Protejezi o oră de lucru concentrat pentru proiectul care te hrănește? Spui „nu” unui task care îți fură energia? Acolo se construiește diferența între a fi ocupată și a fi productivă.\n\nÎncepe cu o regulă simplă: dacă nu e legat de rezultatul pe care îl vrei peste 6 luni, nu merită primul loc azi. Protejează ce contează — calendar, energie, limite. Restul poate aștepta.\n\nCe lucru important ai putea proteja săptămâna asta?\n\nCTA: Comentează cu „PROTEJEZ” dacă vrei un exercițiu scurt ca să începi.\n\nHASHTAGS: #focus #grijadetine #limite\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Faci asta zilnic: sari la primul email, la primul mesaj, la drama din grup — și la finalul zilei te întrebi de ce ești epuizată și nimic din ce contează nu a avansat. Urgentul țipă. Importantul șoptește.\n\nSchimbarea nu e despre a face mai mult, ci despre a alege unde pui «da»-ul tău. Protejezi o oră de lucru concentrat pentru proiectul care te hrănește? Spui „nu” unui task care îți fură energia? Acolo se construiește diferența între a fi ocupată și a fi productivă.\n\nÎncepe cu o regulă simplă: dacă nu e legat de rezultatul pe care îl vrei peste 6 luni, nu merită primul loc azi. Protejează ce contează — calendar, energie, limite. Restul poate aștepta.\n\nCe lucru important ai putea proteja săptămâna asta?",
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 5,
+        "hook_type": "PROVOCARE"
+      }
+    },
+    {
+      "id": "0e2dbc8c-i05-SECRET",
+      "category": "variant",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Dezvoltă ideea «Greșeala de a-ți confunda «urgentul» cu «importantul»», varianta SECRET. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "HOOK (SECRET): Secretul oamenilor care nu ajung la epuizare\n\nCAPTION: Nu muncesc mai mult — aleg altfel. Secretul lor e că își apără «butoanele de valoare»: indicatorii mici care arată dacă ziua a fost folosită corect (de ex. 1 oră cu proiectul personal, 30 min de reflecție, o limită spusă ferm).\n\nCând înlocuiești satisfacția urgentă (lesne de obținut) cu progresul minor, dar constant, te oprești din a te simți golănea și începi să vezi sens. Nu mai alergi după flacăra momentului, ci plantezi pomii care vor da roade.\n\nCe „buton de valoare” ai vrea să-ți setezi pentru următoarea săptămână?\n\nCTA: Comentează «BUTON» dacă vrei idei pentru al tău.\n\nHASHTAGS: #energie #viataechilibrata #autogrija\n\nSURSA: din memorie 🧠 (profil + avatar), fără sursă externă",
+      "caption": "Nu muncesc mai mult — aleg altfel. Secretul lor e că își apără «butoanele de valoare»: indicatorii mici care arată dacă ziua a fost folosită corect (de ex. 1 oră cu proiectul personal, 30 min de reflecție, o limită spusă ferm).\n\nCând înlocuiești satisfacția urgentă (lesne de obținut) cu progresul minor, dar constant, te oprești din a te simți golănea și începi să vezi sens. Nu mai alergi după flacăra momentului, ci plantezi pomii care vor da roade.\n\nCe „buton de valoare” ai vrea să-ți setezi pentru următoarea săptămână?",
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 5,
+        "hook_type": "SECRET"
+      }
+    },
+    {
+      "id": "0e2dbc8c-i06",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Cum arată o zi înainte și după un «nu» spus din timp\n\nO zi plină de frustrare versus o zi în care ți-ai apărat o bucată de timp — promisiunea e mai multă liniște și energie pentru tine.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 6
+      }
+    },
+    {
+      "id": "0e2dbc8c-i07",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Ce se întâmplă în mintea ta când spui «o să vedem»\n\nÎți explic, din culise, mecanismul de amânare emoțională care distrage focusul și cum să-l oprești cu un pas concret.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 7
+      }
+    },
+    {
+      "id": "0e2dbc8c-i08",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "O clientă care a câștigat o oră pe zi\n\nPovestesc transformarea unei cliente care, alegând un ritual de revizuire a priorităților, a recăpătat o oră pe zi pentru ea — arată că focusul se exersează.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 8
+      }
+    },
+    {
+      "id": "0e2dbc8c-i09",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "«Nu am timp să-mi fac focus» — răspunsul blând\n\nCând crezi că nu poți face altceva decât să alergi, îți arăt o versiune scurtă, realistă, de început care cere doar 5 minute și tot schimbă cursul zilei.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 9
+      }
+    },
+    {
+      "id": "0e2dbc8c-i10",
+      "category": "idea",
+      "brief": {
+        "pilon": "Educație",
+        "format": "Reel",
+        "sursa": "Memorie",
+        "focus": "despre focus"
+      },
+      "input": "Propune o idee de postare. Pilonul «Educație», formatul «Reel», sursa «Memorie». Focus: despre focus.",
+      "context": [],
+      "actual_output": "Exercițiul seral: 5 minute pentru ziua de mâine\n\nUn ritual de seară în care notezi 3 lucruri esențiale pentru mâine îți protejează focusul și te oprește din a trăi comandată de urgențe.",
+      "caption": null,
+      "expected_behavior": null,
+      "meta": {
+        "batch_id": "0e2dbc8c-55e3-4324-96c8-cabc0ea1afcf",
+        "ordinal": 10
+      }
+    }
+  ]
+}
