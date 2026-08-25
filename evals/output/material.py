@@ -35,6 +35,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from content_studio.avatar import AVATAR_SECTIONS, excerpt
 from content_studio.harness.generation import PRODUCED_BRIEF, SILENT_REEL_BRIEF
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,17 +43,11 @@ PILLARS_FILE = ROOT / "skills" / "propune-postari" / "references" / "piloni.md"
 SOURCES_FILE = ROOT / "skills" / "propune-postari" / "references" / "surse.md"
 PROFILE_FILE = ROOT / "content" / "profile.md"
 
-#: The sections of the profile that `AvatarResonance` grades against. Named
-#: rather than "the whole profile" because the metric asks the judge to point at
-#: a LINE - her fears, her limiting beliefs, what she wants - and handing it the
-#: voice guide and the pricing as well only widens what it may point at.
-AVATAR_SECTIONS = (
-    "Ce își dorește cel mai mult acum?",
-    "Ce probleme are în acest moment?",
-    "Ce dureri simte?",
-    "Fricile ei cele mai puternice",
-    "Credințele ei limitative (în cuvintele ei)",
-)
+#: Re-exported, never redefined. `content_studio.avatar` owns the list, because
+#: since 2026-08-25 the WRITER is shown these same sections in its prompt - and a
+#: judge hunting for a line in one set of sections while the writer was handed
+#: another is the quietest possible way to make a metric unwinnable.
+__all__ = ["AVATAR_SECTIONS"]
 
 #: `surse.md` is 4 KB, most of it instructions for calling `search_web` and
 #: `search_books` - which a judge reading a finished text cannot use and should
@@ -130,11 +125,7 @@ def caption_window() -> tuple[int, int]:
 def avatar() -> str:
     """Her pains, fears and beliefs, pulled out of the profile by heading.
 
-    Parsed rather than copied so that editing the profile edits the metric - she
-    owns that file, and a copy here would drift the first time she adds a fear.
+    Extracted by the app's own function, not by a second parser here: the writer
+    is handed exactly this text, so the judge must be handed exactly this text.
     """
-    profile = PROFILE_FILE.read_text(encoding="utf-8")
-    blocks = [
-        f"### {title}\n{_section(profile, title, '###')}" for title in AVATAR_SECTIONS
-    ]
-    return "\n\n".join(blocks)
+    return excerpt(PROFILE_FILE.read_text(encoding="utf-8"))

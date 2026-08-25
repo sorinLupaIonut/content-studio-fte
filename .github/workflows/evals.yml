@@ -31,6 +31,7 @@ on:
       - 'skills/propune-postari/references/piloni.md'
       - 'skills/propune-postari/references/surse.md'
       - 'src/content_studio/__init__.py'
+      - 'src/content_studio/avatar.py'
       - 'src/content_studio/config.py'
       - 'src/content_studio/harness/generation.py'
   push:
@@ -43,6 +44,7 @@ on:
       - 'skills/propune-postari/references/piloni.md'
       - 'skills/propune-postari/references/surse.md'
       - 'src/content_studio/__init__.py'
+      - 'src/content_studio/avatar.py'
       - 'src/content_studio/config.py'
       - 'src/content_studio/harness/generation.py'
   workflow_dispatch:

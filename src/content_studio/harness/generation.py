@@ -9,6 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from content_studio import avatar
 from content_studio.language import DEFAULT_LANGUAGE, Language, task_note
 
 FormatChoice = Literal["Reel", "Carusel", "Stories"]
@@ -570,6 +571,8 @@ Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
 
+{avatar_brief(source_packet)}
+
 Cele zece propuneri stau în același focus, dar fiecare pornește din alt loc:
 contractul îți cere un `angle_type` diferit la fiecare, iar tiparul îl alegi
 înainte de titlu, nu după. Două propuneri care spun același lucru cu alte
@@ -596,6 +599,19 @@ Nu e un rezumat de două fraze și nu repetă hook-ul cuvânt cu cuvânt.
 #: The produced formats keep the method they already had.
 PRODUCED_BRIEF = """Varianta are `script` și `format_details` complete, potrivite formatului ales.
 Captionul rămâne scurt, 2–4 fraze, cu întrebarea de engagement la final."""
+
+
+def avatar_brief(source_packet: dict[str, Any]) -> str:
+    """Her pains, lifted out of the packet and given their own block.
+
+    The profile is already inside `packet` above, JSON-encoded among the topic,
+    the recent posts and everything else. Repeating it is deliberate and it is
+    the same trade the caption floor made: what an instruction cannot achieve by
+    being present, a shape can achieve by being unmissable. Roughly 9 KB, once
+    per run, against ten proposals that were all interchangeable without it.
+    """
+    profile = source_packet.get("profile")
+    return avatar.brief(profile) if isinstance(profile, str) else ""
 
 
 def format_brief(format: FormatChoice) -> str:
@@ -628,6 +644,8 @@ Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 Material-sursă colectat o singură dată: {packet}
+
+{avatar_brief(source_packet)}
 
 {format_brief(request.format)}
 
