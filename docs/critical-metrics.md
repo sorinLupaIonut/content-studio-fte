@@ -79,6 +79,19 @@ then read the printed before → after, then commit `evals/golden.json`. The rul
 change becomes a line in a diff instead of a silent shift under a number nobody
 re-read.
 
+**The re-record refuses to swallow a regression.** If the new measurement is
+worse than the current baseline past tolerance, `--update-baseline` writes
+nothing and prints what dropped. That is deliberate: without it, the command
+named in the failure message would be the way to make the failure go away. When
+the drop is the intended price of a better method, say so:
+
+```bash
+uv run python -m evals.output.report --update-baseline --accept-worse
+```
+
+The refusal uses the same tolerance CI blocks on — two numbers would eventually
+disagree. Held by `tests/unit/test_output_baseline.py`.
+
 | you edited | what moves |
 |---|---|
 | `skills/propune-postari/references/piloni.md` | `BriefCompliance` |

@@ -90,6 +90,37 @@ def open_work(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def worse_than(
+    baseline: dict[str, Any], findings: list[dict[str, Any]]
+) -> list[str]:
+    """Metrics this run measured below the recorded line, one line each.
+
+    THE HOLE THIS CLOSES. Every real edit to the method moves the ruler, so the
+    gate refuses to compare and tells you to re-record - and a re-record that
+    swallows whatever it measured turns that instruction into a way of laundering
+    a regression. A change that improved the pillars and quietly cost 0.15 of
+    BriefCompliance would have been written in as the new normal by the very
+    command the failure message named.
+
+    Same tolerance as `regressions`, and deliberately so: what CI refuses to
+    merge and what a person may not record without saying so are the same
+    quantity, and two numbers here would eventually disagree.
+    """
+    current = summarise(findings)["metrics"]
+    faults: list[str] = []
+    for name, before in (baseline.get("metrics") or {}).items():
+        now = current.get(name)
+        if now is None:
+            continue
+        allowed = 0.0 if name in DETERMINISTIC else TOLERANCE
+        if now["mean"] < before["mean"] - allowed:
+            faults.append(
+                f"  {name:<18}{before['mean']:.2f} → {now['mean']:.2f}"
+                f"   (toleranță {allowed:.2f})"
+            )
+    return faults
+
+
 def regressions(
     baseline: dict[str, Any], findings: list[dict[str, Any]]
 ) -> list[str]:

@@ -28,7 +28,7 @@ from typing import Any
 from deepeval.test_case import LLMTestCase
 
 from content_studio import enable_utf8_output
-from evals.output.baseline import open_work, summarise
+from evals.output.baseline import open_work, summarise, worse_than
 from evals.output.judge import judge_or_none
 from evals.output.metrics import (
     CaptionLength,
@@ -68,6 +68,11 @@ def main() -> int:
         "--update-baseline",
         action="store_true",
         help="record this run as the line CI blocks below",
+    )
+    parser.add_argument(
+        "--accept-worse",
+        action="store_true",
+        help="record a baseline that is worse than the current one, on purpose",
     )
     args = parser.parse_args()
 
@@ -172,6 +177,27 @@ def main() -> int:
             )
             return 2
         was = gold.get("baseline") or {}
+
+        # A re-record must not launder a regression. Every real edit to the
+        # method moves the ruler, which sends you here - and until this refused,
+        # the command the failure message named would quietly write a worse
+        # measurement in as the new normal.
+        dropped = worse_than(was, findings)
+        if dropped and not args.accept_worse:
+            print(
+                "\n! măsurătoarea e mai proastă decât referința actuală:",
+                file=sys.stderr,
+            )
+            for line in dropped:
+                print(line, file=sys.stderr)
+            print(
+                "\n  Referința NU a fost schimbată. Dacă scăderea e intenționată"
+                " — ai schimbat metoda și accepți costul — repetă cu"
+                " --accept-worse.\n  Dacă nu, ai găsit o regresie: repar-o întâi.",
+                file=sys.stderr,
+            )
+            return 1
+
         gold["baseline"] = {
             "recorded_at": stamp,
             # Recorded WITH the measurement, never separately: a fingerprint
