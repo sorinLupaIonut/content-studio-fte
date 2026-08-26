@@ -257,7 +257,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 
 | Thing | Owner | Do not duplicate it |
 |---|---|---|
-| The ten output rules | `worker.py` → `BASE_INSTRUCTIONS` | docs paraphrase, never restate |
+| The output contract | the skills + the generation schemas (`harness/generation.py`) | the ten-rule string was cut from the prompt on 2026-08-24 and deleted on 2026-08-26; `worker.py` → `BASE_INSTRUCTIONS` keeps only identity and voice |
 | The two-phase flow | `skills/*/SKILL.md` | |
 | Pillars, hooks, sources | `skills/propune-postari/references/` | the method travels with the skill |
 | Database shape | `db/schema.sql` | |

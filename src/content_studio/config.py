@@ -108,9 +108,6 @@ GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-nano")
 #: number in it. Mini is one click away in the interface for exactly that
 #: reason, and it is the right click for anything that gets published.
 GENERATION_MODELS: tuple[str, ...] = ("gpt-5-nano", "gpt-5-mini")
-GENERATION_CONCURRENCY = int(os.getenv("GENERATION_CONCURRENCY", "5"))
-if not 1 <= GENERATION_CONCURRENCY <= 5:
-    raise RuntimeError("GENERATION_CONCURRENCY must be between 1 and 5")
 
 # Chat is separate from bulk generation so its latency/quality can be tuned
 # without silently changing either half of the accepted hybrid topology.

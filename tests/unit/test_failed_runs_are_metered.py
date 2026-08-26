@@ -63,7 +63,7 @@ def failing_run(exc: BaseException, context):
 
 
 class TestFailedRunsAreMetered(unittest.TestCase):
-    def _run(self, exc: BaseException, hooks=None) -> RecordingAccounts:
+    def _run(self, exc: BaseException) -> RecordingAccounts:
         accounts = RecordingAccounts()
         coord = coordinator(accounts)
         context = SimpleNamespace(usage=usage())
@@ -73,7 +73,7 @@ class TestFailedRunsAreMetered(unittest.TestCase):
             with patch.object(G.Runner, "run", failing_run(exc, context)):
                 with self.assertRaises(type(exc)):
                     await coord._run_agent(
-                        agent, "p", dict, "lot-idea-3-attempt-1", "lot", hooks
+                        agent, "p", dict, "lot-idea-3-attempt-1", "lot"
                     )
 
         asyncio.run(go())
@@ -95,17 +95,6 @@ class TestFailedRunsAreMetered(unittest.TestCase):
     def test_cancellation_is_metered(self) -> None:
         # BaseException, not Exception - a cancelled batch spent its tokens too.
         self.assertEqual(len(self._run(asyncio.CancelledError()).rows), 1)
-
-    def test_metering_composes_with_the_prefix_hook(self) -> None:
-        # The leader slot passes `_PrefixWarmed`, and wrapping it must not
-        # swallow it: without the event the other four slots wait out the full
-        # warm-up timeout on every batch.
-        warmed = asyncio.Event()
-        exc = ModelBehaviorError("Invalid JSON when parsing model output")
-        exc.run_data = None
-        rows = self._run(exc, G._PrefixWarmed(warmed)).rows
-        self.assertEqual(len(rows), 1)
-        self.assertTrue(warmed.is_set())
 
     def test_nothing_is_charged_when_no_model_call_happened(self) -> None:
         # An exception before the first response has nothing to charge, and

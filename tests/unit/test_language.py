@@ -122,9 +122,10 @@ class TestTheAgentActuallyGetsIt(unittest.TestCase):
         self.assertIn("OUTPUT LANGUAGE: ENGLISH", agent.instructions)
         # The Romanian prompt is still there - the override adds, never replaces.
         # It used to check for "REGULI OBLIGATORII"; those moved out of the prompt
-        # into OUTPUT_RULES on 2026-08-24 and are not attached yet. What the test
-        # is really about is that the method note survives the override, so that
-        # is what it asks for now.
+        # on 2026-08-24 (the orphaned OUTPUT_RULES constant was deleted on
+        # 2026-08-26 - the contract lives in the skills and the generation
+        # schemas now). What the test is really about is that the method note
+        # survives the override, so that is what it asks for now.
         self.assertIn("APLICAREA METODEI ESTE OBLIGATORIE", agent.instructions)
         self.assertIn("CU CINE VORBE", agent.instructions)
         self.assertIn("PROFILUL", agent.instructions)

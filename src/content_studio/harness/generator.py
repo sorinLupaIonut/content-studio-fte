@@ -20,7 +20,6 @@ from agents.run_config import RunConfig
 
 from content_studio.audit import Audit
 from content_studio.config import (
-    GENERATION_CONCURRENCY,
     GENERATION_TITLE_MODEL,
     MODEL,
 )
@@ -29,7 +28,6 @@ from content_studio.harness.generation import (
     GenerationBatchRequest,
     GenerationStartRequest,
     IdeaTitle,
-    IdeaTitles,
     ProposedIdeas,
     StreamEvent,
     detail_output_type,
@@ -111,11 +109,6 @@ def cache_key(model: str, shape: str = "") -> str:
     suffix = f"-{shape}" if shape else ""
     return f"content-studio-generation-{model}{suffix}"
 
-#: How long a slot waits for the leader to write the prefix before going anyway.
-#: Generous on purpose: the wait is an optimisation, and a batch that stalls
-#: because an optimisation did not fire is a far worse outcome than a batch that
-#: pays full price for four calls.
-WARMUP_TIMEOUT_SECONDS = 45
 SOURCE_TEXT_LIMIT = 2_000
 
 
@@ -244,21 +237,6 @@ def describe_batch(request: GenerationBatchRequest) -> str:
     return " — ".join(parts)
 
 
-class _PrefixWarmed(RunHooks):
-    """Sets an event the moment the first model response comes back.
-
-    The cached prefix exists from that instant - not from when the whole idea is
-    finished. Waiting for the finished idea would spend fifteen seconds of the
-    batch's ninety to save two seconds' worth of tokens.
-    """
-
-    def __init__(self, warmed: asyncio.Event) -> None:
-        self._warmed = warmed
-
-    async def on_llm_end(self, context, agent, response) -> None:  # noqa: ARG002
-        self._warmed.set()
-
-
 class _MeteredRun(RunHooks):
     """Keep hold of the run context so a FAILED run can still be metered.
 
@@ -275,33 +253,22 @@ class _MeteredRun(RunHooks):
     off. So this holds the object rather than a copy of the numbers, and
     whatever the run managed to spend before it broke is on it.
 
-    Composes with another hooks object instead of replacing it, because the
-    leader slot already passes `_PrefixWarmed` and both have to happen.
     """
 
-    def __init__(self, inner: RunHooks | None = None) -> None:
-        self._inner = inner
+    def __init__(self) -> None:
         self.context: Any | None = None
 
-    async def on_llm_start(self, context, agent, *args, **kwargs) -> None:
+    async def on_llm_start(self, context, agent, *args, **kwargs) -> None:  # noqa: ARG002
         self.context = context
-        if self._inner is not None:
-            await self._inner.on_llm_start(context, agent, *args, **kwargs)
 
-    async def on_llm_end(self, context, agent, response) -> None:
+    async def on_llm_end(self, context, agent, response) -> None:  # noqa: ARG002
         self.context = context
-        if self._inner is not None:
-            await self._inner.on_llm_end(context, agent, response)
 
-    async def on_agent_start(self, context, agent) -> None:
+    async def on_agent_start(self, context, agent) -> None:  # noqa: ARG002
         self.context = context
-        if self._inner is not None:
-            await self._inner.on_agent_start(context, agent)
 
-    async def on_agent_end(self, context, agent, output) -> None:
+    async def on_agent_end(self, context, agent, output) -> None:  # noqa: ARG002
         self.context = context
-        if self._inner is not None:
-            await self._inner.on_agent_end(context, agent, output)
 
     def spent(self) -> Any | None:
         """Something shaped like a run result, for `Accounts.record_run`.
@@ -905,80 +872,6 @@ class GenerationCoordinator:
             ),
         )
 
-    async def _generate_details(
-        self,
-        batch_id: UUID,
-        request: GenerationBatchRequest,
-        source_packet: dict[str, Any],
-        titles: IdeaTitles,
-        detail_agent,
-        drafts: GenerationDraftClient,
-        language: Language = DEFAULT_LANGUAGE,
-    ) -> None:
-        slot_count = min(GENERATION_CONCURRENCY, len(titles.ideas))
-        created = await asyncio.gather(
-            *(self._create_slot(detail_agent) for _ in range(slot_count)),
-            return_exceptions=True,
-        )
-        slots = [item for item in created if not isinstance(item, BaseException)]
-        failures = [item for item in created if isinstance(item, BaseException)]
-        if failures:
-            raise RuntimeError(
-                f"only {len(slots)}/{slot_count} slots were created"
-            ) from failures[0]
-        queue: asyncio.Queue[IdeaTitle] = asyncio.Queue()
-        for idea in titles.ideas:
-            queue.put_nowait(idea)
-
-        # Slot zero writes the cache prefix; the rest read it. Without this the
-        # five slots all ask "is the prefix cached?" inside the same 175ms,
-        # before any of them has written it, and four pay the fresh rate for
-        # ~18k tokens apiece - two thirds of the batch's entire fresh input,
-        # bought in a fifth of its calls.
-        warmed = asyncio.Event()
-
-        async def consume(agent, leader: bool) -> None:
-            first = True
-            while True:
-                try:
-                    idea = queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    return
-                if first and not leader:
-                    # Bounded, and it gives up rather than raising: the wait is
-                    # an optimisation, and a batch stalled by an optimisation is
-                    # a far worse outcome than four calls at full price.
-                    with suppress(TimeoutError):
-                        await asyncio.wait_for(warmed.wait(), WARMUP_TIMEOUT_SECONDS)
-                # Checked per idea, not only per batch: without this, an account
-                # at 95% would spend a whole batch of ten detail calls. Stopping
-                # here leaves the ideas already written, and the batch reports
-                # the rest as failed rather than pretending they succeeded.
-                if self._accounts is not None:
-                    await self._accounts.require_budget()
-                try:
-                    await self._generate_one_detail(
-                        batch_id,
-                        request,
-                        source_packet,
-                        idea,
-                        agent,
-                        drafts,
-                        language,
-                        _PrefixWarmed(warmed) if leader and first else None,
-                    )
-                finally:
-                    if leader and first:
-                        # Set even when the leader's first idea FAILED. Four
-                        # slots are blocked on this event; a failure that leaves
-                        # it unset trades one lost idea for a stalled batch.
-                        warmed.set()
-                first = False
-
-        await asyncio.gather(
-            *(consume(slot, index == 0) for index, slot in enumerate(slots))
-        )
-
     async def _generate_one_detail(
         self,
         batch_id: UUID,
@@ -988,7 +881,6 @@ class GenerationCoordinator:
         agent,
         drafts: GenerationDraftClient,
         language: Language = DEFAULT_LANGUAGE,
-        hooks: RunHooks | None = None,
     ) -> None:
         for attempt in (1, 2):
             await drafts.start_idea(batch_id, idea.ordinal)
@@ -999,7 +891,6 @@ class GenerationCoordinator:
                     detail_output_type(request.format),
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     str(batch_id),
-                    hooks,
                 )
                 if value.idea_ordinal != idea.ordinal or value.title != idea.title:
                     raise ValueError("detail output changed the persisted idea identity")
@@ -1031,17 +922,6 @@ class GenerationCoordinator:
         """
         return build_worker(profile_md, data_mcp, language=language, **kwargs)
 
-    @staticmethod
-    async def _create_slot(agent):
-        """One slot: a clone of the agent, owning one concurrent run and its
-        place in the queue.
-
-        It used to also carry an E2B client and session, opened here and closed
-        in `finally`. Both went with the sandbox on 2026-08-24; the clone is what
-        the slot always actually was.
-        """
-        return agent.clone()
-
     async def _run_isolated(
         self, agent, prompt: str, output_type, label: str, group: str
     ):
@@ -1054,7 +934,6 @@ class GenerationCoordinator:
         output_type,
         label: str,
         group: str,
-        hooks: RunHooks | None = None,
     ):
         run_config = RunConfig(
             workflow_name=workflow_name(group),
@@ -1069,7 +948,7 @@ class GenerationCoordinator:
         # $0.1019 and recorded $0.0770. The gap scales with the failure rate,
         # which is exactly backwards for a budget meant to stop runaway
         # spending: the worse an account behaves, the less of it the gate sees.
-        metered = _MeteredRun(hooks)
+        metered = _MeteredRun()
         try:
             result = await asyncio.wait_for(
                 Runner.run(
