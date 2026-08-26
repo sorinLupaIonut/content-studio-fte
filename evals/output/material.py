@@ -14,8 +14,13 @@ So every piece is read from the one place that owns it:
     the sources        skills/propune-postari/references/surse.md
     what a Reel is     generation.SILENT_REEL_BRIEF   <- the prompt itself
     other formats      generation.PRODUCED_BRIEF      <- the prompt itself
-    900-1400           parsed OUT of SILENT_REEL_BRIEF
     her pains          content/profile.md, by heading
+
+The caption window used to be parsed out of `SILENT_REEL_BRIEF` here, for a
+fourth metric that counted characters. That metric was removed on 2026-08-25 -
+the schema's `minLength` enforces the floor during decoding, so the judge had
+nothing left to discover. The brief still states the window; nothing here reads
+it any more.
 
 READ LIVE, NOT FROZEN, and that is the point. Edit `piloni.md` and the metric
 follows on the next run; the fingerprint in `ruler.py` notices and makes the
@@ -101,24 +106,6 @@ def formats() -> str:
         f"— Reel (mut, cum filmează ea):\n{SILENT_REEL_BRIEF.strip()}\n\n"
         f"— Carusel și Stories (produse, cu script):\n{PRODUCED_BRIEF.strip()}"
     )
-
-
-@lru_cache(maxsize=1)
-def caption_window() -> tuple[int, int]:
-    """The character range, parsed out of the instruction that sets it.
-
-    Raises rather than defaulting. The schema floor and this window agreed only
-    from 2026-08-25, when `SILENT_REEL_CAPTION_FLOOR` was raised 200 -> 900; the
-    prompt is still the right source, because it carries both ends and the
-    schema carries one.
-    """
-    found = CAPTION_WINDOW.search(SILENT_REEL_BRIEF)
-    if found is None:
-        raise MaterialMissing(
-            "fereastra captionului nu mai e în SILENT_REEL_BRIEF — "
-            "CaptionLength nu are ce măsura"
-        )
-    return int(found.group(1)), int(found.group(2))
 
 
 @lru_cache(maxsize=1)

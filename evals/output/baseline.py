@@ -4,7 +4,6 @@ MEASURED 2026-08-25, two identical runs of the same fifteen frozen answers, same
 judge, same prompts, temperature 0:
 
     metric              identical    largest single-case swing
-    CaptionLength           5/5                        0.00
     AvatarResonance        12/15                       0.10
     Hallucination          14/15                       0.50
     BriefCompliance         9/15                       0.30
@@ -22,8 +21,12 @@ mean is the stable quantity and the mean is what CI may block on. `TOLERANCE` is
 three times the largest drift observed - room for a slower day, not for a real
 regression.
 
-CaptionLength is exempt and gated per case, because it is arithmetic: five out of
-five identical is not luck, it is what a character count does.
+`DETERMINISTIC` is empty, and deliberately kept. `CaptionLength` lived there
+until 2026-08-25 - arithmetic, five out of five identical, gated per case
+because a character count cannot flake. It was removed as a metric once the
+schema's `minLength` proved it enforced the floor during decoding. The mechanism
+stays because the next metric that needs no model will need exactly it, and
+rebuilding it later means re-deriving the reason it is not the default.
 
 WHAT THIS GATE IS NOT. It does not say the writing is good. Today's baseline
 records AvatarResonance at 0.40 with every case below its own threshold - the
@@ -39,8 +42,9 @@ from typing import Any
 #: Three times the largest mean-drift seen between two identical runs.
 TOLERANCE = 0.10
 
-#: Metrics that need no tolerance because they involve no model.
-DETERMINISTIC = frozenset({"CaptionLength"})
+#: Metrics that need no tolerance because they involve no model. Empty since
+#: `CaptionLength` was removed; see the module docstring for why it is kept.
+DETERMINISTIC: frozenset[str] = frozenset()
 
 
 def summarise(findings: list[dict[str, Any]]) -> dict[str, Any]:

@@ -80,8 +80,8 @@ class DeepSeekJudge(DeepEvalBaseLLM):
     ) -> None:
         if not api_key:
             raise NoJudge(
-                "DEEPSEEK_API_KEY lipsește din .env. Metricile cu judecător se "
-                "sar; CaptionLength rulează oricum."
+                "DEEPSEEK_API_KEY lipsește din .env. Toate metricile au nevoie "
+                "de judecător, deci se sar toate."
             )
         # NOT `self.model`: the base class sets that to `load_model()`, which by
         # its own convention returns the loaded client - here, this object. A
@@ -144,9 +144,11 @@ class DeepSeekJudge(DeepEvalBaseLLM):
 def judge_or_none() -> DeepSeekJudge | None:
     """The judge if one is configured, otherwise nothing.
 
-    Returning None rather than raising is what lets `CaptionLength` - the metric
-    that needs no model and already fails today - run on a machine with no judge
-    key at all.
+    Returning None rather than raising is what lets the suite SKIP on a machine
+    with no judge key - a clean clone, a fork's CI - instead of erroring at
+    collection. Skipped is honest; a suite that cannot run and says nothing is
+    the failure this avoids. Since `CaptionLength` was removed on 2026-08-25
+    nothing runs without a key, so the whole file skips rather than part of it.
     """
     try:
         return DeepSeekJudge()

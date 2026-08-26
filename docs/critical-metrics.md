@@ -6,11 +6,10 @@ about `evals/output/`, the layer that grades **what the studio writes**; the
 layer that grades whether the code runs is `tests/unit` and all of it is
 critical by definition.
 
-## The four metrics
+## The three metrics
 
 | metric | judge | threshold | blocks a merge |
 |---|---|---|---|
-| `CaptionLength` | none — arithmetic | in range → 1.0 | ✅ **per case, exactly** |
 | `Hallucination` | DeepSeek | 0.7 | ✅ mean, tolerance 0.10 |
 | `BriefCompliance` | DeepSeek | 0.7 | ✅ mean, tolerance 0.10 |
 | `AvatarResonance` | DeepSeek | 0.7 | ✅ mean, tolerance 0.10 |
@@ -19,19 +18,17 @@ Plus one that is not a metric and blocks harder than any of them:
 
 | check | blocks | why |
 |---|---|---|
-| the ruler fingerprint | ✅ **refuses to compare at all** | a baseline measured with a different pillar file, rubric, caption window, judge or case set is not a baseline for this run |
+| the ruler fingerprint | ✅ **refuses to compare at all** | a baseline measured with a different pillar file, rubric, format brief, judge or case set is not a baseline for this run |
 
 ## What "blocks" means here, precisely
 
 **Not** "the score is below its threshold". If that were the rule the build
-would be red today — `AvatarResonance` averages 0.44 with no case in ten over
-its own threshold — and a permanently red gate is one people learn to ignore.
+would be red today — `AvatarResonance` averages 0.46 with two cases in fifteen
+over their own threshold — and a permanently red gate is one people learn to ignore.
 
 The rule is **no worse than the recorded baseline**:
 
-- **`CaptionLength`** is compared per case and exactly. It involves no model, so
-  a case that scored 1.00 and now scores 0.00 is a regression, full stop.
-- **The three judged metrics** are compared on the MEAN, with a tolerance of
+- **All three** are compared on the MEAN, with a tolerance of
   0.10. Measured 2026-08-25 across two identical runs of the same frozen text:
   a single case swung as much as 0.50, while the means moved by at most 0.03.
   A per-case gate on a judge would need a tolerance of half the scale, and a
@@ -41,20 +38,21 @@ The rule is **no worse than the recorded baseline**:
 
 | what | where | why it does not block |
 |---|---|---|
-| the `open` list | `evals/golden.json` → `open` | 24 (case, metric) pairs are under threshold today. That is the work, deliberately recorded, and shrinking it is the evidence that a repair landed |
+| the `open` list | `evals/golden.json` → `open` | 28 (case, metric) pairs are under threshold today. That is the work, deliberately recorded, and shrinking it is the evidence that a repair landed |
 | absolute quality | — | nothing asserts "the writing is good". No CI can, without a person |
 | `expected_behavior` | `evals/golden.json` | null on every case. Only she can write those lines, and only for the cases that fail |
 
 ## The judged layer is optional in CI, and skips rather than passes
 
 `DEEPSEEK_API_KEY` is a repository secret. If it is absent the three judged
-tests **skip**; the fingerprint check, the caption arithmetic and the structural
-tests still run and can still fail the build. Measured on a bare clone with
-every key unset: 4 passed, 3 skipped, 0.12 s.
+tests **skip**; the fingerprint check and the structural tests still run and can
+still fail the build. Every metric needs a judge since `CaptionLength` was
+removed, so on a bare clone nothing is measured — and the suite says so instead
+of going green.
 
 A skip is not a pass. `test_the_baseline_covers_every_metric` exists precisely
 to stop an expired key reading as "nothing got worse" — it fails if the recorded
-baseline does not cover all four metrics.
+baseline does not cover all three metrics.
 
 To light up the judged layer:
 
@@ -110,14 +108,44 @@ changes the judge, and the first hand-written path list missed it entirely.
 |---|---|
 | `skills/propune-postari/references/piloni.md` | `BriefCompliance` |
 | `skills/propune-postari/references/surse.md` | `BriefCompliance`, `Hallucination` |
-| `SILENT_REEL_BRIEF` in `generation.py` | `CaptionLength`, `BriefCompliance` |
+| `SILENT_REEL_BRIEF` in `generation.py` | `BriefCompliance` |
 | `content/profile.md` (the avatar sections) | `AvatarResonance` |
 | any rubric or threshold in `evals/output/metrics.py` | that metric |
-| `DEEPSEEK_MODEL` | all three judged |
-| the case set — a re-seed, or a promotion | all four |
+| `DEEPSEEK_MODEL` | all three |
+| the case set — a re-seed, or a promotion | all three |
 
 ## Cost
 
-Ten cases across five briefs, three judged metrics: about 30 DeepSeek calls
-per full run, cents. The free layer is 0.12 s and costs nothing, which is why it
-runs on every matching push whether the secret exists or not.
+Fifteen cases across six briefs, three metrics: 45 DeepSeek calls per full run,
+about two minutes, cents. There is no free layer left to run without the secret
+— since `CaptionLength` was removed every metric needs a judge — so a run
+without the key skips the measurements and still fails on the fingerprint and
+the structural checks.
+
+## Two controls, neither of them a gate
+
+A metric can be wrong in two directions and the frozen set cannot see either,
+because every case in it was written by the model being judged.
+
+```bash
+uv run python -m evals.output.control --metric Hallucination
+```
+
+scores the client's own published posts. If her writing scores low, the metric
+is broken. Measured 2026-08-25: `Hallucination` gave her 0.72 — *below* the
+model's 0.78 — on four false positives (a hook counting its own list, her own
+biography, a CTA in quotation marks, a book she had read). After the rubric was
+repaired: **1.00, ten out of ten.**
+
+```bash
+uv run python -m evals.output.negative
+```
+
+is the other half, and it exists because 1.00 is also what a metric that stopped
+measuring would score. Nine fragments — five carrying a planted violation, four
+written to sit as close to an exception as possible without being one. **9/9**
+after the repair: it still catches the invented statistic, the invented study,
+the invented Maté quote, the invented price and the invented clinical figure.
+
+Run both after editing a rubric. Neither belongs in CI: they need a judge, and
+gating a merge on the client's own writing would be a category error.

@@ -217,8 +217,9 @@ def variant_case(
         ),
         "context": passages,
         "actual_output": "\n\n".join(p for p in parts if p),
-        # The caption on its own, because `CaptionLength` counts characters and
-        # must not count the hook and the script it is packaged with above.
+        # The caption on its own as well as inside `actual_output`: the reports
+        # print its length beside the scores. `CaptionLength` used to gate on it
+        # and was removed on 2026-08-25; the number is still worth seeing.
         "caption": variant["caption"],
         "expected_behavior": None,
         "meta": {

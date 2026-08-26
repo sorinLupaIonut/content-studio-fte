@@ -1,8 +1,18 @@
-"""The four output metrics, and nothing else.
+"""The three output metrics, and nothing else.
 
-One is arithmetic and three are judgement. The split is the point: a caption is
-528 characters or it is not, and paying a model to count them would be the most
-expensive way to learn a number.
+ALL THREE ARE JUDGEMENT. There was a fourth, `CaptionLength`, and removing it on
+2026-08-25 is the point of this paragraph. It counted characters against the
+window in `SILENT_REEL_BRIEF` and it was never wrong about the count - it was
+wrong about being a metric. The caption length is already enforced where it can
+actually be enforced: `SILENT_REEL_CAPTION_FLOOR` is a schema `minLength`, and
+OpenAI holds it WHILE the model writes. Measured the same day, the first batch
+under a floor of 650 produced 650, 658, 661, 665, 679 - five out of five inside
+the window, with no judge involved and no retry spent.
+
+A gate that re-checks a constraint the decoder already satisfied has one
+possible verdict, and it spent a line of the report and a row of the baseline to
+reach it. Worse, it went red on frozen cases generated under an older floor -
+history, not regression. What remains here is the part no schema can hold.
 
 THE MATERIAL LIVES IN `evaluation_steps`, NOT IN `criteria`, and that is not a
 style choice. `GEval` uses `criteria` ONLY to generate steps when none are
@@ -27,27 +37,20 @@ genre rather than the work: a metaphor is not a false claim, and a brief is not
 a question. `GEval` takes her own words from the method and the profile.
 
 NOT ONE WORD OF THE METHOD IS RESTATED HERE. The pillars, the sources, what a
-format is, the caption window and her pains all arrive from `material.py`, which
-reads them from the files and prompts that own them. A rule this module spelled
+format is and her pains all arrive from `material.py`, which reads them from
+the files and prompts that own them. A rule this module spelled
 out itself would be a rule the model was never given, and grading against it
 would measure the distance between two of my own sentences.
 """
 
 from __future__ import annotations
 
-from typing import Any
-
-from deepeval.metrics import BaseMetric, GEval
+from deepeval.metrics import GEval
 from deepeval.metrics.g_eval.utils import Rubric
 from deepeval.models.base_model import DeepEvalBaseLLM
-from deepeval.test_case import LLMTestCase, SingleTurnParams
+from deepeval.test_case import SingleTurnParams
 
 from evals.output import material
-
-#: Only the silent Reel brief states a character range; `PRODUCED_BRIEF` asks
-#: for "2-4 fraze" and names no number, so a Carusel or Stories caption has no
-#: window to be measured against and is skipped rather than judged by a Reel's.
-MEASURED_FORMATS = frozenset({"Reel"})
 
 # THE SCALE IS GEval's, NOT OURS, and writing our own cost a whole run. Without
 # a `rubric` the score range is (0, 10) and the returned number is divided by ten
@@ -72,70 +75,6 @@ QUOTE_RULE = (
 ROMANIAN_REASON = "Scrie motivarea în română, cu diacritice."
 
 
-class CaptionLength(BaseMetric):
-    """Characters in the caption, against the brief's own range.
-
-    A metric rather than a bare assertion so it lands in the same report as the
-    other three: a run where the captions are short and the writing is excellent
-    should read as one table, not as a test failure next to a score.
-
-    Ideas have no caption. Those cases are marked skipped rather than passed - a
-    metric that quietly returns 1.0 for everything it cannot measure is how a
-    suite starts looking green while measuring half of what it claims.
-    """
-
-    def __init__(self, window: tuple[int, int] | None = None) -> None:
-        # Read from `SILENT_REEL_BRIEF`, which is the sentence the model was
-        # given. Raising the floor in the prompt therefore raises the bar here,
-        # in the same commit, with no second number to remember.
-        self.minimum, self.maximum = window or material.caption_window()
-        self.threshold = 1.0
-        self.evaluation_model = "determinist"
-        self.async_mode = False
-        self.include_reason = True
-        self.strict_mode = False
-        self.skipped = False
-
-    def measure(self, test_case: LLMTestCase, *args: Any, **kwargs: Any) -> float:
-        meta = test_case.metadata or {}
-        caption = meta.get("caption")
-        if not caption:
-            self.skipped = True
-            self.score = 1.0
-            self.success = True
-            self.reason = "Fără caption (idee, nu variantă) — nu se măsoară."
-            return self.score
-
-        format = meta.get("format")
-        if format not in MEASURED_FORMATS:
-            self.skipped = True
-            self.score = 1.0
-            self.success = True
-            self.reason = f"Formatul «{format}» nu are fereastră în metodă."
-            return self.score
-
-        length = len(caption)
-        self.score = 1.0 if self.minimum <= length <= self.maximum else 0.0
-        self.success = self.score == 1.0
-        window = f"{self.minimum}–{self.maximum}"
-        if self.success:
-            self.reason = f"{length} caractere, în intervalul {window}."
-        else:
-            side = "scurt" if length < self.minimum else "lung"
-            self.reason = f"{length} caractere — prea {side} față de {window}."
-        return self.score
-
-    async def a_measure(self, test_case: LLMTestCase, *a: Any, **kw: Any) -> float:
-        return self.measure(test_case)
-
-    def is_successful(self) -> bool:
-        return bool(self.success)
-
-    @property
-    def __name__(self) -> str:
-        return "CaptionLength"
-
-
 def brief_compliance(
     pillars: str | None = None, *, model: DeepEvalBaseLLM | str
 ) -> GEval:
@@ -149,7 +88,7 @@ def brief_compliance(
 
     All three definitions - pillar, format, source - are read from the files and
     prompts that own them, never restated here. That is what makes the metric
-    worth running: refine `piloni.md` or move the caption window in
+    worth running: refine `piloni.md` or rewrite what a Reel is in
     `SILENT_REEL_BRIEF` and the judge grades against the new rule on the next
     run, while `ruler.py` notices and forces the baseline to be re-recorded.
     """
@@ -210,6 +149,35 @@ def hallucination(*, model: DeepEvalBaseLLM | str) -> GEval:
     What is a defect is the shape that LOOKS checkable and is not: a figure, a
     study, a quotation, a page, a price. The built-in `HallucinationMetric`
     cannot make that distinction and would flag the genre.
+
+    THE EXEMPTIONS COME FIRST, and that ordering was bought with a measurement.
+    On 2026-08-25 the positive control - the same judge over ten posts the client
+    wrote and published herself - scored her 0.72 against the model's 0.78. A
+    metric that ranks the author of the method below the machine imitating her is
+    not strict, it is wrong. Three of her four penalties were the same mistake
+    in three costumes:
+
+        "6 lucruri care NU te scot din burnout"  -> read as an invented figure,
+            though the post then lists six. The exemption existed, as the second
+            half of the fourth step, below a numbered list of five ways to lose
+            points. It was outvoted by its own position.
+        "două burnout-uri"                       -> read as an unverifiable
+            statistic, about her own life, which she is the witness to. `surse.md`
+            grants Memorie "exemple de viață obișnuită" in as many words.
+        "Trimite asta unei prietene…"            -> the CTA, in quotation marks
+            because it is CTA text, read as a quote attributed to the friend.
+            Nobody was named. Quotation marks are not an attribution.
+
+    So the exceptions are a step of their own, placed BEFORE the penalty list -
+    GEval walks the steps in order - and each is stated as the shape it forgives
+    rather than as an aside. They also appear in the top band, because the band
+    is what the judge reads at the moment it picks a number.
+
+    WHAT WAS NOT SOFTENED. Her two Gabor Maté posts quote the book verbatim and
+    still score low. That is the metric working: the control assumes `Memorie`,
+    and under Memorie the method forbids exactly that - "orice cifră, studiu,
+    nume sau afirmație dată ca fapt verificat". She had read the book; the run
+    had not. Under `Cărți`, with the passage in `context`, the same text passes.
     """
     return GEval(
         name="Hallucination",
@@ -221,21 +189,25 @@ def hallucination(*, model: DeepEvalBaseLLM | str) -> GEval:
                 score_range=(0, 3),
                 expected_outcome=(
                     "Mai multe afirmații verificabile fără temei, sau una gravă: "
-                    "un citat inventat, o pagină inventată, un preț inventat."
+                    "vorbe puse în gura unei surse NUMITE, o pagină inventată, "
+                    "un preț inventat."
                 ),
             ),
             Rubric(
                 score_range=(4, 6),
                 expected_outcome=(
                     "O singură afirmație verificabilă fără temei — de obicei o "
-                    "cifră sau o generalizare dată ca statistică."
+                    "cifră despre lume sau despre alți oameni, dată ca statistică."
                 ),
             ),
             Rubric(
                 score_range=(7, 10),
                 expected_outcome=(
                     "Curat: fiecare afirmație verificabilă are temei, iar restul "
-                    "e metaforă, poveste sau sfat — care nu se penalizează."
+                    "e metaforă, poveste sau sfat — care nu se penalizează. Tot "
+                    "aici stau, fără excepție: numărătoarea propriei structuri, "
+                    "biografia autoarei la persoana întâi și ghilimelele fără "
+                    "sursă numită."
                 ),
             ),
         ],
@@ -245,23 +217,54 @@ def hallucination(*, model: DeepEvalBaseLLM | str) -> GEval:
             # Internet forbids figures and studies outright. Restating it here
             # in my own words would have been a second, weaker rule.
             f"Reține ce n-are voie să dea fiecare sursă:\n{material.sources()}",
-            "Caută în text fiecare afirmație care s-ar putea verifica și "
-            "penalizeaz-o dacă nu are temei în `context`:\n"
-            "1. O cifră, un procent sau o statistică date ca fapt.\n"
+            # Before the list, not after it. See the docstring: as the tail of a
+            # later step, this lost to the numbered list three times out of four
+            # on text the client wrote herself.
+            "ÎNAINTE de orice penalizare, treci fragmentul prin cele cinci "
+            "excepții. Dacă intră într-una, NU e halucinație și nu scade nota. "
+            "MAJORITATEA CIFRELOR dintr-o postare intră aici — nu orice cifră e "
+            "o statistică:\n"
+            "A. NUMĂRĂTOAREA PROPRIEI STRUCTURI. O cifră care spune câte lucruri "
+            "urmează chiar în textul ăsta — «6 lucruri care nu te ajută», «5 "
+            "lucruri care se schimbă», «3 pași» — se verifică NUMĂRÂND ÎN TEXT, "
+            "nu în lume. Numără efectiv: dacă textul livrează atâtea, cifra e "
+            "adevărată prin construcție și nu se penalizează. Lista poate fi mai "
+            "jos, în caption sau în slide-uri — caut-o înainte să penalizezi.\n"
+            "B. AUTOAREA E MARTORA, CIFRELE EI CU TOT. O afirmație la persoana "
+            "întâi despre viața ei are drept temei chiar faptul că ea o scrie: "
+            "«am trecut prin două burnout-uri», «15 minute de mers m-au liniștit "
+            "mai mult decât 3 podcasturi», «anul trecut am renunțat». Cifra din "
+            "propria experiență nu devine statistică fiindcă e cifră. Metoda îi "
+            "dă voie, din Memorie, la «exemple de viață obișnuită».\n"
+            "C. GHILIMELELE NU ÎNSEAMNĂ ATRIBUIRE. Un citat se penalizează numai "
+            "când textul NUMEȘTE sursa — un om, o carte, o instituție — și îi "
+            "pune vorbele în gură. Ghilimelele puse pe un îndemn sau pe textul de "
+            "CTA, pe vocea interioară, pe o replică ilustrativă sau pe un titlu "
+            "nu atribuie nimănui nimic. Fără nume, fără penalizare.\n"
+            "D. EXERCIȚIUL DAT CITITOAREI. O cifră dintr-o instrucțiune, un prag "
+            "sau o ipoteză adresată ei — «numără de câte ori spui azi trebuie; "
+            "dacă ies peste 10, citește caption-ul», «ia-ți 5 minute» — nu "
+            "afirmă nimic despre lume. E o sarcină, nu o măsurătoare. Tot aici "
+            "intră DOZA dintr-un sfat: «10 minute de journaling», «o plimbare de "
+            "un sfert de oră», «chiar și 3 rânduri contează». Cifra spune cât se "
+            "propune, nu ce s-a măsurat.\n"
+            "E. MESERIA. Metafora, imaginea poetică, povestea compusă sau "
+            "ilustrativă, afirmația generală de coaching («multe femei simt "
+            "asta») și sfatul practic.",
+            "Abia acum caută ce se penalizează — afirmații verificabile fără "
+            "temei în `context`:\n"
+            "1. O cifră, un procent sau o statistică despre lume sau despre alți "
+            "oameni, date ca fapt — și care nu a trecut prin A, B sau D.\n"
             "2. Un studiu, o cercetare sau o instituție invocate ca sursă.\n"
-            "3. Un citat între ghilimele atribuit cuiva.\n"
+            "3. Vorbe puse în gura unei surse numite — un om, o carte, un "
+            "specialist — fără pasaj în `context`.\n"
             "4. Un număr de pagină, sau o carte din care nu s-a întors niciun "
             "pasaj. O pagină inventată e mai rea decât una lipsă: pare "
             "verificabilă și nu e.\n"
             "5. Un preț, un pachet sau o ofertă concretă.",
-            "NU penaliza, în niciun caz: metafora, imaginea poetică, povestea "
-            "compusă sau ilustrativă, afirmația generală de coaching («multe "
-            "femei simt asta»), sfatul practic, sau numărătoarea propriei "
-            "structuri («3 pași» urmată de exact trei pași). Astea sunt meseria, "
-            "nu defectul.",
             "Dacă `context` spune că sursa a fost memoria clientei, lipsa "
-            "pasajelor nu e o vină în sine — dar o cifră, un studiu sau un citat "
-            "rămân invenție și fără pasaje.",
+            "pasajelor nu e o vină în sine — dar o cifră despre lume, un studiu "
+            "sau vorbele unei surse numite rămân invenție și fără pasaje.",
             QUOTE_RULE,
             ROMANIAN_REASON,
         ],

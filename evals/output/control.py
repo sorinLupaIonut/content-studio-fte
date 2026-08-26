@@ -42,7 +42,6 @@ from deepeval.test_case import LLMTestCase
 from content_studio import enable_utf8_output
 from evals.output.judge import judge_or_none
 from evals.output.metrics import (
-    CaptionLength,
     avatar_resonance,
     brief_compliance,
     hallucination,
@@ -70,13 +69,20 @@ NO_PASSAGES = (
 )
 
 
-def section(text: str, title: str) -> str | None:
-    found = re.search(
-        rf"^##\s+{re.escape(title)}\s*$(.*?)(?=^##\s|\Z)",
-        text,
-        re.MULTILINE | re.DOTALL,
-    )
-    return found.group(1).strip() if found else None
+#: Matched as a PREFIX, and case-blind, because twenty-seven posts written by
+#: hand over months carry twenty-seven headings: "## Caption", "## CAPTION",
+#: "## Caption (lung — povestea ta, Conexiune)". Exact titles found 21 captions
+#: out of 25 and no script at all, which is how the judge came to be shown a
+#: hook promising six things and never the six things.
+def section(text: str, *titles: str) -> str | None:
+    """The first section whose heading starts with any of `titles`."""
+    for block in re.finditer(
+        r"^##\s+(.+?)\s*$(.*?)(?=^##\s|\Z)", text, re.MULTILINE | re.DOTALL
+    ):
+        heading = block.group(1).casefold()
+        if any(heading.startswith(t.casefold()) for t in titles):
+            return block.group(2).strip()
+    return None
 
 
 def as_case(path: Path) -> dict[str, Any] | None:
@@ -95,12 +101,18 @@ def as_case(path: Path) -> dict[str, Any] | None:
         "sursa": ASSUMED_SOURCE,
         "focus": (idea.group(1).strip() if idea else ""),
     }
-    # The whole post minus the production notes: the judges read hook, script
-    # and caption together, exactly as they do for a generated variant.
+    # Hook, script, caption, CTA - the same four parts, in the same order, that
+    # `seed_golden.py` packs into `actual_output` for a generated variant. The
+    # script is not optional decoration: a hook that promises "6 lucruri" is
+    # grounded by the six slides that follow it, and a judge shown the promise
+    # without the delivery is right to call it an invented figure.
     body = "\n\n".join(
         block
-        for name in ("Hook ales", "Caption", "CTA")
-        if (block := section(text, name))
+        for name in (("Hook ales", "HOOK", "Textul de pe ecran", "Slide 1"),
+                     ("Script", "Scriptul", "SCRIPT", "Video"),
+                     ("Caption", "CAPTION"),
+                     ("CTA",))
+        if (block := section(text, *name))
     )
     return {
         "id": path.stem,
@@ -120,6 +132,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Score her published posts.")
     parser.add_argument("--limit", type=int, default=10, help="how many posts")
     parser.add_argument("--quiet", action="store_true")
+    # Repairing one rubric should cost one rubric's worth of judge calls, not
+    # four. Without this, re-running the control after every wording change
+    # re-scores three metrics nobody touched.
+    parser.add_argument(
+        "--metric", action="append", default=None,
+        help="run only this metric (repeatable)",
+    )
     args = parser.parse_args()
 
     cases = [c for p in sorted(POSTS.glob("*.md")) if (c := as_case(p))]
@@ -135,11 +154,17 @@ def main() -> int:
         return 2
 
     builders = {
-        "CaptionLength": lambda: CaptionLength(),
         "BriefCompliance": lambda: brief_compliance(model=judge),
         "Hallucination": lambda: hallucination(model=judge),
         "AvatarResonance": lambda: avatar_resonance(model=judge),
     }
+    if args.metric:
+        wanted = set(args.metric)
+        unknown = wanted - set(builders)
+        if unknown:
+            print(f"Metrici necunoscute: {sorted(unknown)}", file=sys.stderr)
+            return 2
+        builders = {k: v for k, v in builders.items() if k in wanted}
 
     findings: list[dict[str, Any]] = []
     for case in cases:

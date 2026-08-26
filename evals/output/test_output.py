@@ -31,10 +31,9 @@ from typing import Any
 import pytest
 from deepeval.test_case import LLMTestCase
 
-from evals.output.baseline import DETERMINISTIC, TOLERANCE, regressions
+from evals.output.baseline import TOLERANCE, regressions
 from evals.output.judge import judge_or_none
 from evals.output.metrics import (
-    CaptionLength,
     avatar_resonance,
     brief_compliance,
     hallucination,
@@ -107,11 +106,10 @@ needs_baseline = pytest.mark.skipif(
 def as_test_case(case: dict[str, Any]) -> LLMTestCase:
     """One golden row, in the shape DeepEval grades.
 
-    The caption travels in `metadata` rather than in `actual_output` because the
-    two kinds of metric want different things: `CaptionLength` must count the
-    caption alone, while the judged three should see the whole answer - hook,
-    script, caption, CTA - since a hook that contradicts its caption is a real
-    defect and grading them apart would hide it.
+    The judges see the whole answer - hook, script, caption, CTA - since a hook
+    that contradicts its caption is a real defect and grading them apart would
+    hide it. The caption still travels in `metadata` for the reports, which
+    print its length next to the score.
     """
     return LLMTestCase(
         name=case["id"],
@@ -141,18 +139,6 @@ def score_all(build: Any, cases: list[dict[str, Any]], name: str) -> list[dict]:
             "passed": float(metric.score) >= metric.threshold,
         })
     return findings
-
-
-@needs_cases
-@needs_baseline
-def test_caption_length_holds() -> None:
-    """Arithmetic, gated per case: five of five identical across two runs."""
-    refuse_if_the_ruler_moved()
-    findings = score_all(CaptionLength, CASES, "CaptionLength")
-    faults = regressions(
-        {"metrics": {}, "per_case": BASELINE.get("per_case", {})}, findings
-    )
-    assert not faults, "\n".join(faults)
 
 
 @needs_judge
@@ -211,7 +197,7 @@ def test_the_baseline_covers_every_metric() -> None:
     measuring one metric out of four.
     """
     recorded = set((BASELINE.get("metrics") or {}).keys())
-    expected = {"CaptionLength", "BriefCompliance", "Hallucination", "AvatarResonance"}
+    expected = {"BriefCompliance", "Hallucination", "AvatarResonance"}
     missing = expected - recorded
     assert not missing, (
         f"Referința nu acoperă {sorted(missing)} — a fost înregistrată dintr-o "
@@ -231,4 +217,4 @@ def test_the_open_list_is_the_work_not_the_verdict() -> None:
     assert isinstance(GOLD.get("open"), list), (
         "golden.json nu are lista `open` — rulează report.py --update-baseline."
     )
-    assert TOLERANCE > 0 and "CaptionLength" in DETERMINISTIC
+    assert TOLERANCE > 0

@@ -57,10 +57,10 @@
         {
           "id": "caption_length",
           "applies_to_format": "Reel",
-          "min": 900,
-          "max": 1400,
-          "floor_enforced_by_schema": 200,
-          "note": "Measured 2026-08-24: mini averaged 668, 0 of 50 in range. This is the open one."
+          "min": 650,
+          "max": 1200,
+          "floor_enforced_by_schema": 650,
+          "note": "Window set from her own 21 published captions: median 772, middle half 498-890. Owned by SILENT_REEL_BRIEF in harness/generation.py; this copy must follow it."
         },
         {
           "id": "distinct_angles",

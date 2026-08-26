@@ -1,7 +1,6 @@
-"""The same four metrics, read as numbers instead of as pass/fail.
+"""The same three metrics, read as numbers instead of as pass/fail.
 
     uv run python -m evals.output.report
-    uv run python -m evals.output.report --only CaptionLength   # gratis
     uv run python -m evals.output.report --case 0e2dbc8c-i05-CIFRA
 
 `pytest` answers "may this merge". This answers "what is the state of the
@@ -31,7 +30,6 @@ from content_studio import enable_utf8_output
 from evals.output.baseline import open_work, summarise, worse_than
 from evals.output.judge import judge_or_none
 from evals.output.metrics import (
-    CaptionLength,
     avatar_resonance,
     brief_compliance,
     hallucination,
@@ -99,7 +97,7 @@ def main() -> int:
         print()
 
     judge = judge_or_none()
-    builders: dict[str, Any] = {"CaptionLength": lambda: CaptionLength()}
+    builders: dict[str, Any] = {}
     if judge is not None:
         builders["BriefCompliance"] = lambda: brief_compliance(model=judge)
         builders["Hallucination"] = lambda: hallucination(model=judge)

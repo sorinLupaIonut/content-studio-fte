@@ -114,7 +114,6 @@ def ruler_parts(gold: dict[str, Any]) -> dict[str, str]:
     changed" is not actionable and "piloni changed" is.
     """
     cases = gold.get("cases") or []
-    low, high = material.caption_window()
     return {
         # Digested from `material`, which reads the live files - so this fires
         # the moment `piloni.md` or the profile is edited, without waiting for a
@@ -123,7 +122,6 @@ def ruler_parts(gold: dict[str, Any]) -> dict[str, str]:
         "avatar": _digest(material.avatar()),
         "surse": _digest(material.sources()),
         "formate": _digest(material.formats()),
-        "caption_window": _digest(f"{low}-{high}"),
         "BriefCompliance": _digest(_spec(brief_compliance(model=NEVER_CALLED))),
         "Hallucination": _digest(_spec(hallucination(model=NEVER_CALLED))),
         "AvatarResonance": _digest(_spec(avatar_resonance(model=NEVER_CALLED))),
@@ -165,7 +163,6 @@ WHY = {
     "avatar": "durerile din profil (content/profile.md, secțiunile pentru avatar)",
     "surse": "ce are și ce n-are voie fiecare sursă (skills/.../surse.md)",
     "formate": "ce i se spune modelului despre format (generation.py)",
-    "caption_window": "fereastra captionului (SILENT_REEL_BRIEF)",
     "BriefCompliance": "rubrica sau pragul BriefCompliance",
     "Hallucination": "rubrica sau pragul Hallucination",
     "AvatarResonance": "rubrica sau pragul AvatarResonance",

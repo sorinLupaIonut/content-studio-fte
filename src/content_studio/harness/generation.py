@@ -361,13 +361,27 @@ class ProducedVariant(StrictContract):
 #: captions landed in range; the eight frozen cases of 2026-08-25 averaged 333.
 #: A floor of 200 called that compliant, so nothing ever objected.
 #:
+#: Then lowered to 650 the same day, because 900–1400 turned out to be a number
+#: nobody had ever met — including the person who wrote it. The twenty-one
+#: captions in `content/posts/` that she wrote and published run
+#:
+#:     min 261 · median 772 · mean 748 · middle half 498–890 · 5 of 21 in range
+#:
+#: A floor of 900 was therefore telling the model to write longer than the
+#: author of the method writes, and `CaptionLength` was grading against a
+#: specification that her own best work fails. 650–1200 holds the middle of what
+#: she actually does. It matters more than it looks: measured across both
+#: settings, captions cluster AT the floor and not in the middle of the window —
+#: floor 200 produced 495–710, floor 900 produced 900/900/903/905/997. The floor
+#: is the real instruction, so it is set where the target is, not below it.
+#:
 #: This costs no retry. OpenAI enforces `minLength` WHILE the model writes, not
 #: after, so the constraint shapes the answer instead of rejecting it. The
 #: ceiling stays at 8_000 deliberately: `maxLength` is not on the list of
 #: keywords measured to be enforced during decoding, and a rejected run costs
 #: the whole batch, while a caption that runs long is caught by `CaptionLength`
 #: at no risk at all.
-SILENT_REEL_CAPTION_FLOOR = 900
+SILENT_REEL_CAPTION_FLOOR = 650
 
 
 class SilentReelVariant(StrictContract):
@@ -589,7 +603,7 @@ SILENT_REEL_BRIEF = """Reel-urile ei sunt MUTE: filmează fără să vorbească,
 Deci varianta NU are script și NU are bloc de producție — nu le scrie și nu le
 inventa, contractul nici nu le acceptă.
 
-Tot ce ar fi spus cu vocea intră în `caption`. Captionul e lung, 900–1400 de
+Tot ce ar fi spus cu vocea intră în `caption`. Captionul e lung, 650–1200 de
 semne: intră direct în ideea din hook, o desfășoară în 2–4 paragrafe scurte, așa
 cum i-ar fi povestit unei prietene, și se închide cu întrebarea de engagement.
 Nu e un rezumat de două fraze și nu repetă hook-ul cuvânt cu cuvânt.

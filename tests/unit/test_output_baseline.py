@@ -16,9 +16,10 @@ failure would be the way to make the failure go away.
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
+from evals.output import baseline
 from evals.output.baseline import (
-    DETERMINISTIC,
     TOLERANCE,
     open_work,
     regressions,
@@ -58,11 +59,16 @@ class TheSummary(unittest.TestCase):
 
         A single judged case swung 0.50 between two identical runs, so a
         per-case judge gate would need a tolerance of half the scale.
+
+        `DETERMINISTIC` is empty in the shipped code - `CaptionLength` was
+        removed on 2026-08-25 - so the mechanism is exercised with a fabricated
+        name. That is the right way round: this file tests the gate, and naming
+        a live metric here is what made it fail on the day one was deleted.
         """
-        got = summarise(findings(CaptionLength=1.0, AvatarResonance=0.4))
-        for case in got["per_case"].values():
-            self.assertEqual(set(case), {"CaptionLength"})
-        self.assertIn("CaptionLength", DETERMINISTIC)
+        with mock.patch.object(baseline, "DETERMINISTIC", frozenset({"Arithmetic"})):
+            got = summarise(findings(Arithmetic=1.0, AvatarResonance=0.4))
+            for case in got["per_case"].values():
+                self.assertEqual(set(case), {"Arithmetic"})
 
     def test_a_score_that_never_arrived_is_not_averaged_in(self) -> None:
         rows = findings(Hallucination=1.0)
@@ -83,14 +89,14 @@ class TheRegressionGate(unittest.TestCase):
 
     def test_the_deterministic_metric_gets_no_tolerance(self) -> None:
         """It involves no model, so any drop at all is a real one."""
-        was = baseline_of(CaptionLength=1.0)
-        now = findings(CaptionLength=0.5)
-        self.assertTrue(regressions(was, now))
+        with mock.patch.object(baseline, "DETERMINISTIC", frozenset({"Arithmetic"})):
+            was = baseline_of(Arithmetic=1.0)
+            self.assertTrue(regressions(was, findings(Arithmetic=0.5)))
 
     def test_a_metric_that_stopped_running_is_a_regression(self) -> None:
         """An expired judge key must not read as "nothing got worse"."""
         was = baseline_of(AvatarResonance=0.45)
-        faults = regressions(was, findings(CaptionLength=1.0))
+        faults = regressions(was, findings(Hallucination=1.0))
         self.assertEqual(len(faults), 1)
         self.assertIn("AvatarResonance", faults[0])
 
@@ -124,7 +130,7 @@ class ARerecordMayNotLaunderARegression(unittest.TestCase):
         exactly what the suite tells them they may.
         """
         was = baseline_of(Hallucination=0.86)
-        self.assertEqual(worse_than(was, findings(CaptionLength=1.0)), [])
+        self.assertEqual(worse_than(was, findings(BriefCompliance=1.0)), [])
 
     def test_the_first_ever_baseline_has_nothing_to_be_worse_than(self) -> None:
         self.assertEqual(worse_than({}, findings(BriefCompliance=0.10)), [])

@@ -111,11 +111,14 @@ class ToolCorrectnessHasTwoBranches(unittest.TestCase):
 
 
 class CaptionLength(unittest.TestCase):
-    """The open one. Measured 2026-08-24: mini averaged 668 against 900–1400,
-    0 of 50 in range. This criterion exists to keep that number in view."""
+    """Was the open one. Measured 2026-08-24: mini averaged 668 against
+    900–1400, 0 of 50 in range. The window moved to 650–1200 on 2026-08-25 —
+    set from the client's own twenty-one published captions, median 772 — and
+    the schema floor with it; the next batch landed 5 of 5 inside. The fixtures
+    below are the window's numbers, so moving it again fails here first."""
 
     def test_all_in_range_scores_one(self) -> None:
-        findings = grade_contract_quality([_detail([950, 1100, 1399])], RUBRIC)
+        findings = grade_contract_quality([_detail([700, 950, 1199])], RUBRIC)
         caption = next(f for f in findings if f.criterion == "caption_length")
         self.assertEqual(caption.score, 1.0)
 
@@ -126,8 +129,8 @@ class CaptionLength(unittest.TestCase):
         self.assertIn("0/5", caption.detail)
 
     def test_too_long_counts_against_it_too(self) -> None:
-        """1400 is a ceiling, not a suggestion — a caption nobody reads to the
-        end is as much a failure as one that says nothing."""
+        """The ceiling is not a suggestion — a caption nobody reads to the end
+        is as much a failure as one that says nothing."""
         findings = grade_contract_quality([_detail([2000])], RUBRIC)
         caption = next(f for f in findings if f.criterion == "caption_length")
         self.assertEqual(caption.score, 0.0)
