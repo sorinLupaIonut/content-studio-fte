@@ -283,7 +283,15 @@ async def main() -> int:
         rule("3. WHAT CAME BACK")
         payload = result.model_dump() if hasattr(result, "model_dump") else result
         text = json.dumps(payload, ensure_ascii=False, indent=2)
-        print(text[:2000] + ("\n  …" if len(text) > 2000 else ""))
+        # WHOLE, not a preview. A cap here hid proposals 8, 9 and 10 - the
+        # tail of a batch is where sameness shows, so truncating the output
+        # truncates the evidence. Redirect the run if the terminal is small.
+        if isinstance(payload, dict) and isinstance(payload.get("ideas"), list):
+            for idea in payload["ideas"]:
+                print(f"  {idea['ordinal']:>2}. [{idea['angle_type']}] {idea['title']}")
+                print(f"      {idea['angle']}\n")
+        else:
+            print(text)
         await trail.close_run(run_id, text[:400])
     except Exception as e:  # noqa: BLE001
         print(f"\n✗ {type(e).__name__}: {e}", file=sys.stderr)
