@@ -251,3 +251,50 @@ class TestEveryMentionIsOpenable(unittest.TestCase):
                     mention.startswith("references/"),
                     f"{path.name}: `{mention}` is not a path the model can open",
                 )
+
+
+class TestBothParsersReadTheSameFrontmatter(unittest.TestCase):
+    """The index the model sees is built by the SDK's parser, not by ours.
+
+    This is the test that was missing while the bug shipped. `parse_skill`
+    understands YAML block scalars; the SDK's `_parse_frontmatter` does not,
+    and it is the one whose answer reaches the prompt. Between 2026-08-27 and
+    the fix both skills were indexed with the description `>-`, which is the
+    first step of progressive disclosure failing silently: the model cannot
+    match a task to a skill it has no description for.
+    """
+
+    @staticmethod
+    def sdk_parse(path: Path) -> dict[str, str]:
+        from agents.sandbox.capabilities.skills import _parse_frontmatter
+
+        return _parse_frontmatter(path.read_text(encoding="utf-8"))
+
+    def skills(self) -> list[Path]:
+        found = sorted(SKILLS_DIR.glob("*/SKILL.md"))
+        self.assertTrue(found, "no skills on disk")
+        return found
+
+    def test_the_sdk_reads_the_same_name_and_description_we_do(self) -> None:
+        for path in self.skills():
+            name, description, _ = parse_skill(path)
+            sdk = self.sdk_parse(path)
+            self.assertEqual(sdk.get("name"), name, f"{path}: names disagree")
+            self.assertEqual(
+                sdk.get("description"),
+                description,
+                f"{path}: the index would describe this skill differently",
+            )
+
+    def test_no_description_survives_as_a_yaml_indicator(self) -> None:
+        # The exact shape of the failure: `description: >-` parsed line by line.
+        for path in self.skills():
+            description = self.sdk_parse(path).get("description", "")
+            self.assertNotIn(description, {">-", ">", "|", "|-", ""})
+            self.assertGreater(len(description), 200, f"{path}: description truncated")
+
+    def test_the_frontmatter_has_no_keys_but_name_and_description(self) -> None:
+        # A wrapped line containing a colon becomes a key of its own in the
+        # SDK's reader, which is how one description turned into four keys.
+        for path in self.skills():
+            self.assertEqual(set(self.sdk_parse(path)), {"name", "description"}, str(path))

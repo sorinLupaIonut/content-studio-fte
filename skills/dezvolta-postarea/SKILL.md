@@ -1,17 +1,6 @@
 ---
 name: dezvolta-postarea
-description: >-
-  Faza 2 — dezvoltă UNA din cele zece propuneri până la postare completă: hook,
-  caption, hashtaguri, CTA, iar la Carusel și Stories și scriptul. Îl folosești
-  OBLIGATORIU când ideea îți este dată întreagă în mesaj, ca formular, cu
-  formatul, pilonul, sursa și focusul ei. Când ea alege dintr-o listă — „îmi
-  place 7", „hai pe prima" — verifică ÎNTÂI etapa: propunerea aleasă trebuie să
-  existe deja, scrisă în conversație. Tot aici intri și DUPĂ ce variantele unei
-  idei au apărut, când ea alege una — „a doua", „cea cu CIFRA" — sau cere
-  modificări pe ea. Dacă lista de propuneri NU e în conversație, nu deschide
-  nimic — nici acest skill, nici Faza 1: spui că nu ai lista de idei, o întrebi
-  dacă vrea să o generați întâi, și te oprești acolo. NU-l folosi ca să scoți
-  propuneri noi: aia e Faza 1.
+description: 'Faza 2 — dezvoltă UNA din cele zece propuneri până la postare completă: hook, caption, hashtaguri, CTA, iar la Carusel și Stories și scriptul. Îl folosești OBLIGATORIU când ideea îți este dată întreagă în mesaj, ca formular, cu formatul, pilonul, sursa și focusul ei. Când ea alege dintr-o listă — „îmi place 7", „hai pe prima" — verifică ÎNTÂI etapa: propunerea aleasă trebuie să existe deja, scrisă în conversație. Tot aici intri și DUPĂ ce variantele unei idei au apărut, când ea alege una — „a doua", „cea cu CIFRA" — sau cere modificări pe ea. Dacă lista de propuneri NU e în conversație, nu deschide nimic — nici acest skill, nici Faza 1: spui că nu ai lista de idei, o întrebi dacă vrea să o generați întâi, și te oprești acolo. NU-l folosi ca să scoți propuneri noi: aia e Faza 1.'
 ---
 
 # Faza 2 — postarea întreagă

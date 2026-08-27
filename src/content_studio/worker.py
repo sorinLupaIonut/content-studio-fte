@@ -279,12 +279,36 @@ _FRONTMATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
 _FIELD = re.compile(r"^(name|description):[ \t]*(>-|>|\|)?[ \t]*(.*)$")
 
 
+def _unquote(value: str) -> str:
+    """Strip one pair of matching outer quotes, the way the SDK's parser does.
+
+    It has to be the SAME rule, because two parsers read this frontmatter and
+    only one of them writes the index the model sees. See `parse_skill`.
+    """
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
 def parse_skill(path: Path) -> tuple[str, str, str]:
     """(name, description, body) for one `SKILL.md`.
 
     The description is the one the model sees, so a skill with none is a skill
     that can never be chosen on purpose - it fails here rather than shipping a
     tool the model has no reason to call.
+
+    TWO PARSERS READ THIS FILE AND THE OTHER ONE IS NOT OURS. The SDK's
+    `Skills` capability builds the index from its own line-based reader
+    (`agents/sandbox/capabilities/skills.py`, `_parse_frontmatter`), which does
+    not understand YAML block scalars: given `description: >-` it takes the
+    description to be the two characters `>-` and turns each wrapped line that
+    happens to contain a colon into a key of its own. That is exactly what
+    shipped between 2026-08-27 and the fix - both skills reached the model
+    described as `>-`, so the first step of progressive disclosure, the one
+    that decides whether the body is ever opened, was running blind.
+    Discovered by assembling the prompt with `tests/checks/show_agent_input.py`
+    and reading it. The frontmatter is one quoted line now, which both readers
+    agree on, and `test_skill_references.py` holds them to the same answer.
     """
     text = path.read_text(encoding="utf-8")
     match = _FRONTMATTER.match(text)
@@ -301,8 +325,8 @@ def parse_skill(path: Path) -> tuple[str, str, str]:
             fields[current].append(line.strip())
         elif not line.strip():
             current = None
-    name = " ".join(fields.get("name", [])).strip() or path.parent.name
-    description = " ".join(fields.get("description", [])).strip()
+    name = _unquote(" ".join(fields.get("name", [])).strip()) or path.parent.name
+    description = _unquote(" ".join(fields.get("description", [])).strip())
     if not description:
         raise MissingConfig(f"{path} nu are description în frontmatter")
     return name, description, text[match.end() :].lstrip()

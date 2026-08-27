@@ -73,6 +73,18 @@ Six rules a new session must respect without asking again.
    container comes up empty, the skills index never reaches the prompt, and the
    model answers from memory after running `find` over nothing.
 
+   **The frontmatter is read by two parsers and only one of them is ours.**
+   The SDK builds the index with its own line-based reader, which does not
+   understand YAML block scalars: `description: >-` is taken to be the two
+   characters `>-`, and every wrapped line containing a colon becomes a key of
+   its own. That shipped from 2026-08-27 until the same day — both skills were
+   indexed as `>-`, so step 1 above, the step that decides whether the body is
+   ever opened, was running blind. Descriptions are one quoted line now;
+   `tests/unit/test_skill_references.py` holds both readers to the same answer.
+   Found by assembling the prompt and reading it —
+   `uv run python tests/checks/show_agent_input.py --live`, which is the only
+   way to see the whole input without paying for a run.
+
    **THE FAILURE MODE IS NOW A MODEL THAT NEVER OPENS THE FILE**, and it does
    not raise. Measured on the first live run, 2026-08-27: `gpt-5-nano` called
    `exec_command` twice with the command `bash`, read nothing, and produced ten

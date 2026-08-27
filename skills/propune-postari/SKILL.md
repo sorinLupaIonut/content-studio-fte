@@ -1,16 +1,6 @@
 ---
 name: propune-postari
-description: >-
-  Faza 1 a producției de conținut — zece propuneri de postare, unghiuri
-  diferite pe aceeași temă, din care Viorela alege una singură. Îl folosești
-  OBLIGATORIU ori de câte ori EA cere conținut nou. Cererea vine fie ca
-  formular, cu formatul, pilonul, sursa și focusul deja alese, fie în
-  conversație — atunci întrebi ce lipsește și pornești generarea cu unealta
-  aplicației, nu scrii tu lista. NU-l porni din proprie inițiativă: dacă
-  mesajul ei se referă la o propunere dintr-o listă care nu există în
-  conversație, spui că nu ai lista și aștepți să o ceară — nu o generezi tu în
-  locul ei. NU-l folosi pentru editarea unei postări existente, pentru o
-  întrebare despre profil, sau pentru o cerere de raport.
+description: 'Faza 1 a producției de conținut — zece propuneri de postare, unghiuri diferite pe aceeași temă, din care Viorela alege una singură. Îl folosești OBLIGATORIU ori de câte ori EA cere conținut nou. Cererea vine fie ca formular, cu formatul, pilonul, sursa și focusul deja alese, fie în conversație — atunci întrebi ce lipsește și pornești generarea cu unealta aplicației, nu scrii tu lista. NU-l porni din proprie inițiativă: dacă mesajul ei se referă la o propunere dintr-o listă care nu există în conversație, spui că nu ai lista și aștepți să o ceară — nu o generezi tu în locul ei. NU-l folosi pentru editarea unei postări existente, pentru o întrebare despre profil, sau pentru o cerere de raport.'
 ---
 
 # Faza 1 — cele zece propuneri
