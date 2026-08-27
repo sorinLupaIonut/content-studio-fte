@@ -371,6 +371,19 @@ def _traces_endpoint(base: str) -> str:
     return base if base.endswith("/v1/traces") else f"{base}/v1/traces"
 
 
+def phoenix_api_base(base: str = PHOENIX_COLLECTOR_ENDPOINT) -> str:
+    """The space URL, for the REST client, whichever shape `.env` carries.
+
+    The inverse of `_traces_endpoint`, and it lives beside it on purpose: the
+    same setting feeds two clients that want two different paths. Reading spans
+    back with the OTLP URL as a base produces `/v1/traces/v1/projects/...`,
+    which Phoenix Cloud answers with its own HTML index and a 200 - so the
+    failure arrives as a JSON decode error pointing at the client library.
+    """
+    base = base.rstrip("/")
+    return base[: -len("/v1/traces")] if base.endswith("/v1/traces") else base
+
+
 def _make_run_id_stamp() -> Any:
     """A span processor that stamps `run_id` on every span, from the ContextVar.
 
