@@ -31,15 +31,21 @@ import asyncio
 import json
 import sys
 from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
 from content_studio.config import SKILLS_DIR, MissingConfig, database_url
-from content_studio.worker import REFERENCE_TOOL_NAME, reference_index
+from content_studio.worker import reference_index
 
 MANIFEST = Path(__file__).with_name("references.json")
+
+#: The SDK's shell tool. Since the method moved into the sandbox this is the
+#: only way a `references/` file reaches the model, so it is the only span name
+#: worth counting.
+SHELL_TOOL_NAME = "exec_command"
 
 #: `public.traces` holds two kinds of row per run, and only one of them is ours:
 #: `close_run` writes `{"output": reply}`, and `RunTraceProcessor.on_trace_end`
@@ -52,9 +58,19 @@ SPANS = """
  WHERE t.payload ? 'spans'
 """
 
-#: Every call to the reference tool, newest first. `span_data` carries the
-#: arguments, which is the difference between knowing the tool was used and
-#: knowing WHICH file it fetched.
+#: Every shell call, newest first. `span_data` carries the arguments, which is
+#: the difference between knowing the shell was used and knowing WHICH file it
+#: opened.
+#:
+#: IT USED TO BE ONE TOOL PER FILE. Until 2026-08-27 a reference was fetched by
+#: `citeste-referinta("skill/file.md")`, so the span named the file in a JSON
+#: field and counting was a `json.loads`. Since the method moved into a sandbox
+#: the model opens files with `exec_command`, so the file name is somewhere
+#: inside a shell command - `sed -n '1,200p' .agents/x/references/y.md`, or a
+#: `cat`, or an `rg`. There is no field to read; the filenames are matched
+#: against the command text instead. That is looser on purpose: a query that
+#: only understood `sed` would report zero for a run that used `cat` and look
+#: exactly like a run that never opened the method.
 CALLS_SQL = f"""
 SELECT t.run_id,
        span->'span_data'->>'input' AS input,
@@ -95,6 +111,26 @@ def named_in_skill(reference: str) -> bool:
     skill, _, filename = reference.partition("/")
     body = SKILLS_DIR / skill / "SKILL.md"
     return body.is_file() and filename in body.read_text(encoding="utf-8")
+
+
+def shell_reads(inputs: Iterable[str | None]) -> Counter[str]:
+    """Which references these shell commands opened, counted once per command.
+
+    Once per command, not once per mention: a model that writes
+    `cat a.md b.md` opened two files, but one that writes
+    `sed -n '1,200p' a.md; sed -n '200,400p' a.md` opened one file twice and
+    should not read as two references. The key is the manifest key, so the
+    output lines up with `references.json` without a second mapping.
+    """
+
+    by_filename = {key.split("/", 1)[1]: key for key in reference_index()}
+    found: Counter[str] = Counter()
+    for raw in inputs:
+        command = raw or ""
+        for filename, key in by_filename.items():
+            if filename in command:
+                found[key] += 1
+    return found
 
 
 def audit() -> int:
@@ -156,7 +192,7 @@ async def traces(run: str | None, minutes: int) -> int:
     try:
         async with engine.begin() as sa_conn:
             conn = (await sa_conn.get_raw_connection()).driver_connection
-            rows = await conn.fetch(CALLS_SQL, REFERENCE_TOOL_NAME, run, str(minutes))
+            rows = await conn.fetch(CALLS_SQL, SHELL_TOOL_NAME, run, str(minutes))
             turns = await conn.fetchval(RUNS_SQL, run, str(minutes))
     finally:
         await engine.dispose()
@@ -166,12 +202,7 @@ async def traces(run: str | None, minutes: int) -> int:
         print(f"No model turns in {window}. Nothing to judge.")
         return 1
 
-    asked: Counter[str] = Counter()
-    for row in rows:
-        try:
-            asked[json.loads(row["input"] or "{}").get("fisier", "?")] += 1
-        except json.JSONDecodeError:
-            asked["<unparsable arguments>"] += 1
+    asked = shell_reads(row["input"] for row in rows)
 
     declared = {entry["file"]: entry for entry in manifest()}
     print(f"{turns} model turns in {window}, {sum(asked.values())} reference reads.\n")

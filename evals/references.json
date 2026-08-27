@@ -28,35 +28,6 @@
   ],
   "references": [
     {
-      "file": "propune-postari/piloni.md",
-      "when": "Faza 1, Pasul 1 — înainte de a întreba pilonul, ca să oferi exact vocabularul închis al celor cinci.",
-      "expect": {
-        "titluri": "required",
-        "chat-faza1": "required"
-      }
-    },
-    {
-      "file": "propune-postari/surse.md",
-      "when": "Ambele faze — ce are voie să dea fiecare sursă și ce unealtă i se potrivește. În Faza 1 înainte de a aduna materialul; în Faza 2 înainte de a mai căuta în aceeași sursă pentru unghiul ideii.",
-      "expect": {
-        "titluri": "required",
-        "chat-faza1": "required",
-        "detalii-reel": "optional",
-        "detalii-carusel": "optional",
-        "detalii-stories": "optional",
-        "chat-productie": "optional"
-      }
-    },
-    {
-      "file": "propune-postari/hookuri.md",
-      "when": "Faza 1, Pasul 3 — cele cinci tipuri de hook și ordinea lor.",
-      "expect": {
-        "chat-faza1": "required",
-        "titluri": "forbidden"
-      },
-      "note": "Forbidden in `titluri` on purpose: that mode writes no hooks at all, so paying for the file would be pure loss."
-    },
-    {
       "file": "propune-postari/carti.md",
       "when": "Faza 1, Pasul 2 — numai când sursa aleasă de ea este Cărți.",
       "expect": {
@@ -101,72 +72,33 @@
       }
     },
     {
-      "file": "dezvolta-postarea/piloni-si-cont.md",
-      "when": "Faza 2 — ce înseamnă pilonul ales, dincolo de eticheta primită din formular.",
+      "file": "dezvolta-postarea/idei-reel.md",
+      "when": "Format Reel — sugestiile și reelurile lucrate din manual, cerute când vrei un exemplu întreg, nu o regulă. Sunt din alt cont: structura se ia, scriptul vorbit nu.",
       "expect": {
-        "detalii-reel": "optional",
-        "detalii-carusel": "optional",
-        "detalii-stories": "optional"
-      },
-      "proposed": true
-    },
-    {
-      "file": "dezvolta-postarea/tipuri-de-reels.md",
-      "when": "Faza 2, format Reel — alegerea tipului de reel potrivit unghiului.",
-      "expect": {
-        "detalii-reel": "optional"
-      },
-      "proposed": true
-    },
-    {
-      "file": "dezvolta-postarea/idei.md",
-      "when": "NEDECIS — banca ei de idei. Stă la `dezvolta-postarea`, dar conținutul e material pentru Faza 1.",
-      "expect": {},
-      "proposed": true,
-      "note": "40 KB, the largest file in the repo's method, and possibly in the wrong skill. Decide what it is before deciding when it fires."
-    },
-    {
-      "file": "dezvolta-postarea/intrebari-frecvente.md",
-      "when": "Numai când ea întreabă despre producție — cameră, lumină, microfon, fundal, ritm de postare.",
-      "expect": {
-        "chat-productie": "optional",
-        "detalii-reel": "forbidden",
+        "titluri": "forbidden",
+        "detalii-reel": "required",
         "detalii-carusel": "forbidden",
         "detalii-stories": "forbidden"
-      },
-      "proposed": true
-    },
-    {
-      "file": "dezvolta-postarea/filmare.md",
-      "when": "Numai dacă ea întreabă despre filmare.",
-      "expect": {
-        "chat-productie": "optional",
-        "detalii-reel": "forbidden",
-        "detalii-carusel": "forbidden",
-        "detalii-stories": "forbidden",
-        "titluri": "forbidden"
       }
     },
     {
-      "file": "dezvolta-postarea/editare.md",
-      "when": "Numai dacă ea întreabă despre montaj.",
+      "file": "dezvolta-postarea/idei-carusel.md",
+      "when": "Format Carusel — cele patru caruseluri lucrate slide cu slide, singurul loc din metodă unde caruselul e arătat, nu descris. Se cere de fiecare dată la Carusel.",
       "expect": {
-        "chat-productie": "optional",
+        "titluri": "forbidden",
         "detalii-reel": "forbidden",
-        "detalii-carusel": "forbidden",
-        "detalii-stories": "forbidden",
-        "titluri": "forbidden"
+        "detalii-carusel": "required",
+        "detalii-stories": "forbidden"
       }
     },
     {
-      "file": "dezvolta-postarea/distribuire.md",
-      "when": "Numai dacă ea întreabă despre postare și distribuție.",
+      "file": "dezvolta-postarea/idei-stories.md",
+      "when": "Format Stories — tiparele de idee și exemplele de storytelling din manual.",
       "expect": {
-        "chat-productie": "optional",
+        "titluri": "forbidden",
         "detalii-reel": "forbidden",
         "detalii-carusel": "forbidden",
-        "detalii-stories": "forbidden",
-        "titluri": "forbidden"
+        "detalii-stories": "required"
       }
     }
   ]

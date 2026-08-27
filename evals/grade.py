@@ -58,15 +58,21 @@ HERE = Path(__file__).parent
 RUBRIC_FILE = HERE / "trace-rubric.json"
 REPORTS_DIR = HERE / "reports"
 
-#: A run whose `session_id` starts with this had its method preloaded, so the
-#: tool-correctness question flips. See the rubric's `why_two_branches`.
+#: A run whose `session_id` starts with this came from the structured
+#: generation path rather than from chat. Both open their method the same way
+#: since 2026-08-27; the prefix still separates them because everything else in
+#: this report - captions, angles, hashtags - only exists on one of them.
 GENERATION_PREFIX = "generation"
 
-#: The tools that must NOT be called on the preloaded path. A call is not a
-#: crime - it is evidence that the preloaded body still tells the model to fetch
-#: something it was already given, which is the one failure mode `method.py`
-#: exists to prevent.
-PRELOADED_FORBIDDEN = ("citeste-referinta", "propune-postari", "dezvolta-postarea")
+#: The shell tool. Since the method moved into the sandbox, a file reaches the
+#: model only through this, so its arguments are where "did it read the method"
+#: is answered. There is no field naming the file - it is a command string - so
+#: the check is a substring one. See `evals/references.py`, which does the same
+#: thing for the same reason.
+SHELL_TOOL_NAME = "exec_command"
+
+#: What a command has to mention to count as opening the method.
+METHOD_MARKERS = ("SKILL.md", "references/")
 
 HASHTAG_OK = re.compile(r"^#\S+$")
 
@@ -119,24 +125,29 @@ def run_kind(run: GradedRun) -> str:
 
 
 def grade_tool_correctness(run: GradedRun, kind: str) -> Finding:
-    if kind.startswith("generation"):
-        offenders = [n for n in run.tool_names if n in PRELOADED_FORBIDDEN]
-        if not offenders:
-            return Finding(
-                "tool_correctness",
-                1.0,
-                "metoda preîncărcată, niciun apel irosit",
-            )
-        return Finding(
-            "tool_correctness",
-            0.0,
-            f"a cerut ce avea deja: {', '.join(sorted(set(offenders)))}",
-        )
+    """One question on both doors: was the method opened before anything was written?
 
-    skills = [n for n in run.tool_names if n in ("propune-postari", "dezvolta-postarea")]
-    if skills:
-        return Finding("tool_correctness", 1.0, f"skill pornit: {skills[0]}")
-    return Finding("tool_correctness", 0.0, "niciun skill nu a pornit")
+    THE ANSWER USED TO BE READ OFF A TOOL NAME, and that is what changed. Until
+    2026-08-27 a skill was a tool called `propune-postari` and a reference came
+    from `citeste-referinta`, so "did it read the method" was `name in
+    tool_names`. Now every file goes through one shell tool and the file name is
+    somewhere in a command string - which is looser, and deliberately so: a
+    check that only understood `sed` would score zero for a run that used `cat`
+    and look exactly like a run that never opened anything.
+    """
+
+    _ = kind  # one branch since 2026-08-27; kept so callers need not change
+    opened = [
+        call
+        for call in run.tool_calls
+        if call.name == SHELL_TOOL_NAME
+        and any(marker in (call.input or "") for marker in METHOD_MARKERS)
+    ]
+    if not opened:
+        return Finding("tool_correctness", 0.0, "nu a deschis metoda deloc")
+    return Finding(
+        "tool_correctness", 1.0, f"metoda deschisă în {len(opened)} comenzi"
+    )
 
 
 def _captions(answers: list[dict[str, Any]]) -> list[str]:

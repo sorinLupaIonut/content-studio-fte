@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "name": "convergence",
+  "what_this_is": [
+    "The dataset for metric 2, `convergenta` - the course's Trajectory lab,",
+    "verbatim: ONE intent, many phrasings, and the score is how efficiently",
+    "the agent reaches the same destination each time. Score per run =",
+    "optimal_path / observed path_length, capped at 1.0. `optimal_path` is",
+    "the labelled healthy minimum for this intent - message, one skill",
+    "call, the method text coming back, the answer: 6 history entries -",
+    "and the report also prints the empirical minimum, the way the course",
+    "computes it, so the label can be corrected from evidence.",
+    "The phrasings are Romanian because they are what the client types,",
+    "and they vary the way real dictation varies: with and without",
+    "diacritics, terse and chatty, formal and shorthand.",
+    "This metric owns `nothing superfluous` - a call repeated six times,",
+    "a reference fetched twice - while tool_use (metric 1) owns `nothing",
+    "required is missing`. Same intent, opposite blind sides."
+  ],
+  "intent": "Faza 1: propuneri de postări pe stresul care se adună în corp",
+  "optimal_path": 6,
+  "formulari": [
+    "vreau propuneri de postări pe stresul care se adună în corp",
+    "dă-mi idei de reel despre stresul ținut în corp",
+    "zece propuneri pe tema: corpul acumulează stres",
+    "ce postări aș putea face despre stresul somatizat?",
+    "idei noi pt sapt asta, tema stres in corp",
+    "propune-mi postări despre cum se depune stresul în corp",
+    "hai cu niste propuneri pe stres si corp",
+    "am nevoie de conținut despre stresul care rămâne în corp"
+  ]
+}

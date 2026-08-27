@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "name": "citation",
+  "what_this_is": [
+    "The dataset for `citare` - Citation Correctness, the code half of the",
+    "RAG family (layer 6): what the post's `source` field claims must exist",
+    "in what the tools actually returned during THAT run. Three cases, one",
+    "per source mode, all through the real phase-2 generation path",
+    "(method preloaded, detail_prompt, the production output contract):",
+    "`carti`: a book title cited on `source` must be one search_books",
+    "returned, and a cited page must be among that book's returned pages -",
+    "a page number invented for a book whose passages carry none is the",
+    "exact fraud this metric hunts. `internet`: any URL on `source` must",
+    "be one search_web returned. `memorie`: no search at all, and `source`",
+    "says so - the negative control of citation.",
+    "The judge half of the family (Faithfulness) reads the same runs later;",
+    "this file only checks what `==` can check."
+  ],
+  "cazuri": [
+    {
+      "id": "carti-pagina-reala",
+      "sursa": "Cărți",
+      "format": "Reel",
+      "pilon": "Conexiune",
+      "focus": "stresul care se adună în corp",
+      "idee": {
+        "ordinal": 3,
+        "title": "Corpul ține scorul zilelor în care taci",
+        "angle": "stresul reprimat se depune în corp și iese ca simptom"
+      }
+    },
+    {
+      "id": "internet-link-real",
+      "sursa": "Internet",
+      "format": "Reel",
+      "pilon": "Educație",
+      "focus": "burnout la femei în corporații",
+      "idee": {
+        "ordinal": 1,
+        "title": "Burnoutul nu e oboseală, e deconectare",
+        "angle": "diferența dintre a fi obosită și a fi golită"
+      }
+    },
+    {
+      "id": "memorie-fara-sursa-externa",
+      "sursa": "Memorie",
+      "format": "Reel",
+      "pilon": "Conexiune",
+      "focus": "stresul care se adună în corp",
+      "idee": {
+        "ordinal": 2,
+        "title": "Unde ține corpul tău scorul",
+        "angle": "fiecare corp are locul lui în care adună ce nu se spune"
+      }
+    }
+  ]
+}

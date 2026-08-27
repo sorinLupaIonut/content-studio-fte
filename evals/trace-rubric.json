@@ -20,27 +20,21 @@
     {
       "id": "tool_correctness",
       "kind": "deterministic",
-      "question": "Did the run reach for the method the way the method says it should?",
-      "why_two_branches": [
-        "The course assumes the method arrives through tool calls, so",
-        "tool-correctness means 'were the right tools called'. Since 2026-08-24",
-        "the structured generation path does not call tools at all - the method is",
-        "preloaded by `method.py`, and a reference tool call there means the",
-        "preloaded body contradicted itself and bought a wasted turn. So the same",
-        "criterion asks the opposite question on that branch, and asking the",
-        "course's version would fail every healthy generation run."
+      "question": "Did the run open the method before it wrote, the way the method says it should?",
+      "why_one_branch": [
+        "It had two branches between 2026-08-24 and 2026-08-27, because the",
+        "generation path was handed its method preloaded and a reference call",
+        "there meant the prompt contradicted itself. Since the method moved into",
+        "a sandbox both doors take the same three steps, so the criterion asks",
+        "one question again: did the run open SKILL.md before writing, and did it",
+        "open the references that skill names for the chosen format?",
+        "A run that wrote without opening anything answered from memory - which",
+        "is the failure this whole rubric exists to catch, and it is silent."
       ],
-      "branches": {
-        "generation": {
-          "applies_when": "session_id starts with 'generation'",
-          "expect_no_tools": ["citeste-referinta", "propune-postari", "dezvolta-postarea"],
-          "reason": "The method is already in the prompt. A call here is a contradiction that cost a turn."
-        },
-        "chat": {
-          "applies_when": "anything else",
-          "expect_skill_tool": true,
-          "reason": "In chat nothing is preloaded, so the skill has to fire from its description."
-        }
+      "expect": {
+        "opened_skill": true,
+        "reason": "The method is files now. Opening them is the only way it reaches the model.",
+        "how": "An `exec_command` span whose command names a SKILL.md or a references/ file."
       }
     },
     {
