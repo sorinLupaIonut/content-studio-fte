@@ -55,16 +55,6 @@
                 }
             </select>
         </label>
-        <label>
-            <span>@T[Copy.FieldModel]</span>
-            <select @bind="_model" disabled="@_busy">
-                @foreach (var value in Values.Models)
-                {
-                    <option value="@value">@Values.ModelLabel(T, value)</option>
-                }
-            </select>
-            <small class="field-hint">@T[Copy.ModelHint]</small>
-        </label>
     </div>
 
     @if (UsesBooks)
@@ -339,10 +329,6 @@ else if (_batch is not null)
     private string _source = "Memorie";
     private string _pillar = "Educație";
     private string _format = "Reel";
-    // Matches `Values.Models[0]` and the server's fallback. Nano writes plainly
-    // and gets Romanian wrong more often; "Îngrijit" is one click away, and the
-    // hint under the picker says so.
-    private string _model = "gpt-5-nano";
     private string? _focus;
     private string? _error;
     private bool _busy;
@@ -384,6 +370,7 @@ else if (_batch is not null)
         Events.EventReceived += OnGenerationEventAsync;
         Events.ConnectionInterrupted += OnConnectionInterruptedAsync;
         ContextState.GenerationPatched += OnGenerationPatchedAsync;
+        ContextState.ConversationReset += OnConversationResetAsync;
         await Task.WhenAll(LoadLibraryAsync(), LoadCurrentAsync());
     }
 
@@ -443,7 +430,6 @@ else if (_batch is not null)
                 Source = _source,
                 Focus = _focus,
                 MaterialIds = UsesBooks ? _selectedBooks.ToList() : [],
-                Model = _model,
                 ReplaceCurrent = replace
             });
             _batch = envelope.Batch;
@@ -453,6 +439,9 @@ else if (_batch is not null)
             {
                 await Events.ConnectAsync(Api.GenerationEventsUrl(_batch.Id));
             }
+            // The press was dictated into the conversation; an open drawer
+            // should show the sentence now, not at its next opening.
+            await ContextState.NotifyConversationChangedAsync();
         }
         catch (StudioApiException ex) when (ex.StatusCode == 409)
         {
@@ -500,11 +489,41 @@ else if (_batch is not null)
                         SetChatTarget(firstReady);
                     }
                 }
+                if (eventType is "titles.ready" or "idea.ready" or "idea.failed"
+                    or "completed" or "error")
+                {
+                    await ContextState.NotifyConversationChangedAsync();
+                }
             }
             catch (Exception ex)
             {
                 _error = ex.Message;
             }
+            StateHasChanged();
+        });
+    }
+
+    private Task OnConversationResetAsync()
+    {
+        if (_disposed)
+        {
+            return Task.CompletedTask;
+        }
+        return InvokeAsync(async () =>
+        {
+            // A fresh conversation retired the lot on the server; the page
+            // follows. `LoadCurrentAsync` confirms there is nothing current.
+            await Events.DisconnectAsync();
+            if (_batch is not null)
+            {
+                ContextState.ClearGenerationVariant(_batch.Id);
+            }
+            _batch = null;
+            _expandedIdeas.Clear();
+            _activeHooks.Clear();
+            _toSave.Clear();
+            _error = null;
+            await LoadCurrentAsync();
             StateHasChanged();
         });
     }
@@ -554,6 +573,8 @@ else if (_batch is not null)
             await RefreshBatchAsync();
             _toSave.Add(variant.Id);
             _saveMessage = null;
+            // The click was dictated into the conversation as her sentence.
+            await ContextState.NotifyConversationChangedAsync();
         }
         catch (Exception ex)
         {
@@ -685,6 +706,8 @@ else if (_batch is not null)
             // corrects this within a second either way.
             idea.Status = "generating";
             await Api.DevelopGenerationIdeaAsync(_batch.Id, idea.Ordinal);
+            // The click was dictated into the conversation as her sentence.
+            await ContextState.NotifyConversationChangedAsync();
         }
         catch (Exception ex)
         {
@@ -778,6 +801,7 @@ else if (_batch is not null)
         Events.EventReceived -= OnGenerationEventAsync;
         Events.ConnectionInterrupted -= OnConnectionInterruptedAsync;
         ContextState.GenerationPatched -= OnGenerationPatchedAsync;
+        ContextState.ConversationReset -= OnConversationResetAsync;
         if (_batch is not null)
         {
             ContextState.ClearGenerationVariant(_batch.Id);

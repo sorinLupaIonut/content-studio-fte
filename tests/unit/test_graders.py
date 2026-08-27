@@ -27,7 +27,21 @@ RUBRIC = load_rubric()
 NOW = datetime(2026, 8, 25, 6, 0, tzinfo=UTC)
 
 
-def _run(session: str = "generation-abc", tools: list[str] | None = None) -> GradedRun:
+def _run(
+    session: str = "generation-abc",
+    tools: list[str] | None = None,
+    commands: list[str] | None = None,
+) -> GradedRun:
+    """A graded run. `tools` are bare names; `commands` are shell calls.
+
+    Two parameters because the method and the data are reached differently now:
+    data still goes through named MCP tools, the method goes through one shell
+    tool whose argument is a command string.
+    """
+    calls = [ToolCall(name=n, input="{}", output="") for n in (tools or [])]
+    calls += [
+        ToolCall(name="exec_command", input=c, output="") for c in (commands or [])
+    ]
     return GradedRun(
         run_id="run-1",
         session_id=session,
@@ -35,7 +49,7 @@ def _run(session: str = "generation-abc", tools: list[str] | None = None) -> Gra
         status="completed",
         input_message="cerere",
         output_message="răspuns",
-        tool_calls=[ToolCall(name=n, input="{}", output="") for n in (tools or [])],
+        tool_calls=calls,
     )
 
 
@@ -78,36 +92,59 @@ class WhichBranchApplies(unittest.TestCase):
         self.assertEqual(run_kind(run), "chat")
 
 
-class ToolCorrectnessHasTwoBranches(unittest.TestCase):
-    """The course's version assumes the method arrives through tools. Ours does
-    not, on the generation path, so the same criterion asks the opposite."""
+class ToolCorrectnessAsksOneQuestion(unittest.TestCase):
+    """Did the run open the method before it wrote?
 
-    def test_generation_with_no_tool_calls_is_perfect(self) -> None:
+    It had two branches while the generation path was handed its method
+    preloaded. Since the method moved into the sandbox on 2026-08-27 both doors
+    take the same three steps, so there is one question again - and the answer
+    is read off a shell command rather than off a tool name.
+    """
+
+    def test_a_run_that_opened_nothing_fails(self) -> None:
+        """The silent failure this whole rubric exists for: no error, no log,
+        and an answer written from memory."""
         finding = grade_tool_correctness(_run("generation-abc"), "generation-title")
-        self.assertEqual(finding.score, 1.0)
-
-    def test_generation_that_fetched_a_preloaded_reference_fails(self) -> None:
-        """A call here means the preloaded body still told the model to fetch
-        what it had already been given — one wasted turn, every time."""
-        run = _run("generation-abc", tools=["citeste-referinta"])
-        finding = grade_tool_correctness(run, "generation-title")
         self.assertEqual(finding.score, 0.0)
-        self.assertIn("citeste-referinta", finding.detail)
+        self.assertIn("nu a deschis metoda", finding.detail)
 
-    def test_generation_calling_a_data_tool_is_fine(self) -> None:
-        """`search_books` is data, not method. Only the method tools are wrong
-        on the preloaded path."""
-        run = _run("generation-abc", tools=["search_books"])
+    def test_opening_the_skill_body_is_enough_to_pass(self) -> None:
+        run = _run(
+            "generation-abc",
+            commands=["{\"cmd\": \"sed -n '1,200p' .agents/propune-postari/SKILL.md\"}"],
+        )
         self.assertEqual(grade_tool_correctness(run, "generation-title").score, 1.0)
 
-    def test_chat_needs_the_skill_to_fire(self) -> None:
-        run = _run("chat-abc", tools=["propune-postari"])
+    def test_cat_counts_the_same_as_sed(self) -> None:
+        """The check is deliberately loose about HOW the file was opened.
+
+        A check that only understood `sed` would score zero for a run that used
+        `cat` - and read exactly like a run that never opened the method.
+        """
+        run = _run(
+            "chat-abc",
+            commands=['{"cmd": "cat .agents/dezvolta-postarea/references/b-roll.md"}'],
+        )
         self.assertEqual(grade_tool_correctness(run, "chat").score, 1.0)
 
-    def test_chat_with_no_skill_fails(self) -> None:
-        finding = grade_tool_correctness(_run("chat-abc"), "chat")
-        self.assertEqual(finding.score, 0.0)
-        self.assertIn("niciun skill", finding.detail)
+    def test_a_data_tool_is_not_the_method(self) -> None:
+        """`search_books` is data. Calling it says nothing about the method."""
+        run = _run("generation-abc", tools=["search_books"])
+        self.assertEqual(grade_tool_correctness(run, "generation-title").score, 0.0)
+
+    def test_a_shell_call_that_is_not_about_the_method_does_not_count(self) -> None:
+        run = _run("chat-abc", commands=['{"cmd": "ls -la /workspace"}'])
+        self.assertEqual(grade_tool_correctness(run, "chat").score, 0.0)
+
+    def test_it_counts_how_many_commands_opened_the_method(self) -> None:
+        run = _run(
+            "generation-abc",
+            commands=[
+                '{"cmd": "cat .agents/dezvolta-postarea/SKILL.md"}',
+                '{"cmd": "cat .agents/dezvolta-postarea/references/b-roll.md"}',
+            ],
+        )
+        self.assertIn("2", grade_tool_correctness(run, "generation-detail").detail)
 
 
 class CaptionLength(unittest.TestCase):

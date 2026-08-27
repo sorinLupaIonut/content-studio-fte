@@ -38,11 +38,11 @@ async def main() -> int:
         checks = [
             (
                 tools == MODEL_VISIBLE_TOOLS | INTERNAL_UI_TOOLS,
-                f"raw server has 7 agent + 14 internal tools: {len(tools)} total",
+                f"raw server has {len(MODEL_VISIBLE_TOOLS)} agent + {len(INTERNAL_UI_TOOLS)} internal tools: {len(tools)} total",
             ),
             (
                 agent_tools == MODEL_VISIBLE_TOOLS,
-                f"agent allowlist is exactly the seven tools: {sorted(agent_tools)}",
+                f"agent allowlist matches MODEL_VISIBLE_TOOLS exactly: {sorted(agent_tools)}",
             ),
             (not any("sql" in t.lower() for t in tools), "no SQL tool"),
             (bool(name.strip()), "the profile carries the client's name"),

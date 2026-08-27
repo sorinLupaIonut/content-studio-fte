@@ -52,6 +52,13 @@ MODEL_VISIBLE_TOOLS = frozenset(
         "save_posts_batch",
         "update_post",
         "update_profile",
+        # The chat trigger tools (2026-08-27): the conversation agent records
+        # the intent, the harness runs the same pipeline the buttons use. None
+        # of the three writes her content, so none is gated; the one
+        # confirmation stays on saving a post.
+        "start_generation",
+        "develop_idea",
+        "select_variant",
     }
 )
 
@@ -83,6 +90,9 @@ INTERNAL_UI_TOOLS = frozenset(
         "ui_cancel_generation_batch",
         "ui_get_generation_batch",
         "ui_get_current_generation_batch",
+        "ui_current_conversation",
+        "ui_new_conversation",
+        "ui_bind_conversation_batch",
         "ui_list_library",
         "ui_list_saved_posts",
         "ui_get_saved_post",

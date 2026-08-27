@@ -134,6 +134,15 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
             $"api/generation-batches/{Uri.EscapeDataString(batchId)}/events")
         .ToString();
 
+    public Task<ConversationTranscriptDto> GetConversationAsync() =>
+        GetAsync<ConversationTranscriptDto>("api/conversation");
+
+    public async Task<NewConversationDto> NewConversationAsync()
+    {
+        using var response = await http.PostAsync("api/conversation/new", null);
+        return await ReadAsync<NewConversationDto>(response);
+    }
+
     public Task<ChatAcceptedDto> StartChatAsync(ChatStartDto request)
     {
         request.Language = language.Code;

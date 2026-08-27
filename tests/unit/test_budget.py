@@ -30,12 +30,25 @@ class PricingTests(unittest.TestCase):
         # gpt-5-mini: $0.25 per 1M in, $2.00 per 1M out.
         self.assertEqual(cost_micros("gpt-5-mini", 1_000_000, 0), 250_000)
         self.assertEqual(cost_micros("gpt-5-mini", 0, 1_000_000), 2_000_000)
-        self.assertEqual(cost_micros("gpt-5-nano", 1_000_000, 1_000_000), 450_000)
+        self.assertEqual(cost_micros("gpt-5-mini", 1_000_000, 1_000_000), 2_250_000)
 
     def test_rounding_is_up_so_many_small_calls_cannot_add_up_to_nothing(self) -> None:
-        # One token of nano input is a small fraction of a micro-dollar.
-        self.assertEqual(cost_micros("gpt-5-nano", 1, 0), 1)
-        self.assertEqual(cost_micros("gpt-5-nano", 0, 0), 0)
+        # One embedding token is a small fraction of a micro-dollar, and a
+        # library import makes thousands of them.
+        self.assertEqual(cost_micros("text-embedding-3-small", 1, 0), 1)
+        self.assertEqual(cost_micros("text-embedding-3-small", 0, 0), 0)
+
+    def test_a_retired_model_keeps_its_price(self) -> None:
+        """`gpt-5-nano` left the allowlist on 2026-08-27 and stays priced.
+
+        `usage_events` holds rows that were charged at its rate, and an unpriced
+        model falls through to `FALLBACK` - the most expensive row in the table.
+        Deleting the entry would therefore not remove nano from the studio; it
+        would silently re-price every batch anybody ever ran on it, upward, in
+        the ledger the budget gate reads.
+        """
+        self.assertTrue(is_priced("gpt-5-nano"))
+        self.assertNotEqual(rate_for("gpt-5-nano"), FALLBACK)
 
     def test_an_unknown_model_is_charged_expensively_never_free(self) -> None:
         # A new MODEL nobody priced must over-charge and be noticed, not run free.
@@ -55,7 +68,6 @@ class PricingTests(unittest.TestCase):
     def test_a_cached_input_token_costs_a_tenth_of_a_fresh_one(self) -> None:
         # gpt-5-mini: $0.25 per 1M fresh, $0.025 per 1M from the prompt cache.
         self.assertEqual(cost_micros("gpt-5-mini", 1_000_000, 0, 1_000_000), 25_000)
-        self.assertEqual(cost_micros("gpt-5-nano", 1_000_000, 0, 1_000_000), 5_000)
 
     def test_the_cached_count_is_a_share_of_the_input_not_an_extra(self) -> None:
         # Half of a million input tokens cached: half at $0.25, half at $0.025.

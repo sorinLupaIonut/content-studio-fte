@@ -32,40 +32,61 @@ Six rules a new session must respect without asking again.
 3. **Embeddings use the same model to store and to search** — `text-embedding-3-small`.
    Different models at the two ends means a search that returns garbage without
    complaining.
-4. **Folder-shaped skills, delivered as tools — except where the form already
-   answered.** The method lives in `skills/<name>/SKILL.md` plus `references/`,
-   and it is edited without touching code. There is **no sandbox and no shell**
-   — an E2B sandbox delivered these same folders until 2026-08-24, and was
-   removed after measurement: of 148 KB mounted, a generation run opened one
-   file and never touched `references/`, while the sandbox charged 5,448 tokens
-   of instructions and tool schemas on every call. Never tell the model it has
-   files or a shell; `worker.py` builds that sentence from the tools actually
-   attached.
+4. **Folder-shaped skills, read from a sandbox.** The method lives in
+   `skills/<name>/SKILL.md` plus `references/`, and it is edited without touching
+   code. Since 2026-08-27 it is *delivered* by the SDK's own `Skills` capability:
+   the folders are mounted into an E2B container under `.agents/`, and the model
+   opens them itself with the shell. Nothing in this project builds a tool for
+   it. See [sandbox.py](src/content_studio/sandbox.py).
 
-   **In chat, disclosure has three steps**, because the next question is
-   unknown: the frontmatter `description` is always in context and decides
-   whether the body is ever paid for; the body arrives when the model calls the
-   skill's tool; a `references/` file arrives only when the body asks for it by
-   name, through `citeste-referinta`.
+   **The three steps are the platform's**, on both doors, and they are the same
+   three they always were: `Skills.instructions` renders name + description +
+   path into the system prompt off the frontmatter, so the description still
+   decides whether the body is ever paid for; the model opens `SKILL.md` when
+   the task matches; the body names a `references/` file and it opens that too.
+   The skill is the one that decides which references a format needs — that
+   table is prose in the body ("o ceri de fiecare dată la Reel"), never a
+   dictionary in Python.
 
-   **On the structured generation path the method is preloaded**, since
-   2026-08-24, by `method.py`. Format, source and pillar are chosen in the
-   interface before a token is sent, so which references the run needs is known
-   in advance — fetching them costs turns and buys nothing. Measured: a Reel
-   detail run took five model turns, four of which produced 143 output tokens
-   between them (each one the name of the next file), and each re-sent
-   everything accumulated so far — 84,269 input tokens to write 1,537. Preloaded,
-   the same run is one turn and 26,250 input. `citeste-referinta` stays attached
-   for the production references, which depend on what she asks rather than on
-   what she picked; the skill tools come off, because a tool that returns text
-   already in the prompt can only cost a turn.
+   **This shape has been in and out twice, and the numbers are why.** An E2B
+   sandbox delivered these same folders until 2026-08-24 and was removed after
+   measurement: of 148 KB mounted, a generation run opened one file and never
+   touched `references/`, while the SDK's default prompt and tool schemas
+   charged 5,448 tokens per call. Tools replaced it, then `method.py` preloaded
+   the whole method on the generation path — one turn and 26,250 input tokens
+   for a Reel detail run, against five turns and 84,269 fetching it. What that
+   bought was a duplicate of the format→references table, in Python, that had to
+   keep agreeing with the skill body. Sorin chose the standard shape back on
+   2026-08-27 with those numbers on the table.
 
-   **Preloading's failure mode is contradiction, not size.** A body that says
-   "cere structura-reel.md" printed above the contents of `structura-reel.md` is
-   the 2026-08-23 fault pointing the other way. Every preloaded call block is
-   rewritten — in the skill body *and inside the inlined references*, because
-   `surse.md` sends the model at `carti.md`. `tests/unit/test_method.py` walks
-   every format/source shape and holds it.
+   **Two things stop it costing what it cost the first time.**
+   `base_instructions` is overridden — the SDK's default is Codex's 16.9 KB
+   coding-agent prompt, which tells the model to write preambles and structure a
+   final answer, the opposite of both `BASE_INSTRUCTIONS` and the generation
+   schemas. And the capabilities are Shell + Skills only: `Capabilities.default()`
+   adds `apply_patch`, a tool for editing the method the agent is meant to be
+   reading.
+
+   **The manifest is load-bearing and its absence is silent.** The runtime only
+   processes capabilities into a filesystem when a manifest exists, so
+   `SandboxAgent(default_manifest=Manifest())` is not decoration: without it the
+   container comes up empty, the skills index never reaches the prompt, and the
+   model answers from memory after running `find` over nothing.
+
+   **THE FAILURE MODE IS NOW A MODEL THAT NEVER OPENS THE FILE**, and it does
+   not raise. Measured on the first live run, 2026-08-27: `gpt-5-nano` called
+   `exec_command` twice with the command `bash`, read nothing, and produced ten
+   plausible titles. `gpt-5-mini`, same request minutes later, ran
+   `sed -n '1,200p'` over the whole `SKILL.md`. **Nano cannot drive this shape.**
+   `generator.py` logs a warning when a run wrote without opening the method,
+   and `evals/grade.py` scores the same question off `public.traces`;
+   `evals/fidelity.py` opens a real container and compares every file byte for
+   byte, which is what catches a mount that arrives truncated or re-encoded.
+
+   The five production references (filmare, editare, distribuire,
+   întrebări-frecvente, tipuri-de-reels) left the tree on 2026-08-27, moved to
+   `nefolosite/` — the skill declines production questions rather than
+   answering them from a file.
 5. **What a `SKILL.md` cannot enforce, a schema can — and the schema is where
    it goes.** Rule 5 below accepts that a skill body cannot demand "exactly ten
    proposals, really different from each other". Measured on 2026-08-24 with
@@ -90,6 +111,40 @@ Six rules a new session must respect without asking again.
    model can get wrong. `client_of(ctx)` reads a header, falls back to the
    principal in `app_users`, then to `CLIENT_SLUG` — see §Multi-user below.
 
+## One conversation, two doors (2026-08-27)
+
+The studio has ONE conversation, and the buttons are a way of speaking into it.
+Decided with Sorin on 2026-08-27; the rules that hold it together:
+
+- **The chat window IS the agent's session.** `GET /api/conversation` reads the
+  SDK's own session storage verbatim — dialogue whole, tool calls as collapsed
+  rows, plumbing absent. There is no separate rendering that could drift from
+  the model's input, which is what makes copy-paste testing possible: the
+  sentence a button dictates, typed by hand, must behave identically.
+- **A button press is dictation.** `harness/conversations.py` owns the exact
+  sentences („Vreau 10 idei de postare: format Reel, pilon Educație, sursă
+  Memorie.") and they are asserted whole in `tests/unit/test_conversations.py`.
+  Changing a word there changes the conversation everywhere — treat those
+  strings as contract.
+- **One conversation carries at most one lot.** `public.conversations` holds
+  the active pointer per account (NOT the messages — that near-duplicate is
+  what Decision 11 removed; this table stores what `agent_sessions` cannot:
+  which session is active, and the batch born in it). A new lot archives the
+  conversation and retires its batch in the same transaction; saved posts are
+  untouched. This is also the cost story: history cannot grow unbounded.
+- **The chat agent never writes her content.** Three model-visible tools —
+  `start_generation`, `develop_idea` (intent recorders) and `select_variant`
+  (a data write) — close the loop. The MCP tool validates and audits; the
+  harness executes the same pipeline the buttons use (`ChatCoordinator` scans
+  the finished run in `trigger_calls`, `service._execute_chat_trigger` runs
+  it). A tool that refused is never executed: the scan reads the tool's own
+  output. None of the three is gated — they make drafts; rule 6's one
+  confirmation stays on saving a post.
+- **The engine runs stay stateless.** A generation run carries no conversation
+  history; its result is *witnessed* into the conversation afterwards
+  (`ConversationLog.witness`, best-effort by contract — a failed witness is a
+  display gap, never a failed batch). The 2026-08-24 cost work survives intact.
+
 ## Multi-user, budgets and the admin page
 
 Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
@@ -105,8 +160,10 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
   again inside the task that writes it.
 - **The user is shown a percentage and nothing else.** The split is server-side,
   in `/api/me/usage`; hiding a figure in the interface would not hide it. The
-  model picker follows the same rule: its labels are „Rapid" and „Îngrijit",
-  never a price. See `Values.ModelLabel`.
+  model picker used to follow the same rule — its labels said how carefully the
+  thing was written, never what it cost — and it came down on 2026-08-27 when
+  nano was removed and it was left offering one option. The rule is written
+  where the picker was, in `Values.cs`, for whoever brings a second model.
 - **A run that fails still spent the money, and the meter has to see it.** Until
   2026-08-24 metering happened only after `Runner.run` returned, so a missed
   structured contract or a turn limit left no `usage_events` row. Measured
@@ -259,15 +316,17 @@ shown to someone who does not read Romanian. This does not weaken anything above
 |---|---|---|
 | The output contract | the skills + the generation schemas (`harness/generation.py`) | the ten-rule string was cut from the prompt on 2026-08-24 and deleted on 2026-08-26; `worker.py` → `BASE_INSTRUCTIONS` keeps only identity and voice |
 | The two-phase flow | `skills/*/SKILL.md` | |
-| Pillars, hooks, sources | `skills/propune-postari/references/` | the method travels with the skill |
+| Pillars, sources | the two `SKILL.md` bodies | always-required method is body, not reference — folded in on 2026-08-27 |
+| Hooks, the shelf, per-format detail | `skills/*/references/` | conditional method travels as references |
 | Database shape | `db/schema.sql` | |
 | Environment and paths | `config.py` | no other module calls `os.getenv` |
 | Tool contract | `mcp_server/server.py` | |
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
 | Output-language override | `language.py` | the skills stay Romanian |
 | Model prices | `pricing.py` | one table; a copy drifts silently |
-| Which model wrote a batch | `generation_batches.model` | chosen in the UI, both phases |
-| What gets preloaded, and when | `method.py` | the tables, not the call site |
+| Which model wrote a batch | `generation_batches.model` | resolved in `generator.py` before the row is written, so both doors record a name |
+| Which references a format needs | the `SKILL.md` body | prose in the skill, never a table in Python |
+| How the method reaches the model | `sandbox.py` | one container per run; the manifest is not optional |
 | That the ten proposals differ | `generation.py` → `ANGLE_TYPES` | ten archetypes, ten slots |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
@@ -304,11 +363,20 @@ and:
 uv run python tests/checks/bootstrap.py
 ```
 
-Changing a skill, a tool description or the system prompt means the evals are the
-only real proof. Run at least the affected case:
+Changing a skill, a tool description or the system prompt means the evals are
+the only real proof. `evals/cases.json` and `evals/run.py` were removed while the
+suite migrates to Phoenix; what stands today is one cheap check and one live one.
+
+The method reaches the container whole - one container, no model, no cost:
 
 ```bash
-uv run python evals/run.py --id 13
+uv run python evals/fidelity.py
+```
+
+What a real run actually opened, off `public.traces`:
+
+```bash
+uv run python evals/references.py --traces --minutes 15
 ```
 
 Do not commit or push unless asked. The client's books stay out of git.

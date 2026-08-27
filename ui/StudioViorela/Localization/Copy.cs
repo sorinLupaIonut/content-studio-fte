@@ -117,16 +117,12 @@ public static class Copy
         "10 titles first · details on demand");
 
     public static readonly Phrase FieldSource = new("Sursa ideilor", "Idea source");
-    public static readonly Phrase FieldModel = new("Cum scrie", "How it writes");
     public static readonly Phrase DevelopHint = new(
         "Apasă ca să scriu cele 5 variante pentru ideea asta.",
         "Tap to have me write the 5 variants for this idea.");
     public static readonly Phrase DevelopWorking = new(
         "Scriu cele 5 variante…", "Writing the 5 variants…");
     public static readonly Phrase DevelopRetry = new("Încearcă din nou", "Try again");
-    public static readonly Phrase ModelHint = new(
-        "„Rapid\" scrie mai simplu și greșește româna mai des. Pentru ce publici, alege „Îngrijit\".",
-        "\"Fast\" writes more plainly and makes more language mistakes. For anything you publish, pick \"Polished\".");
     public static readonly Phrase FieldPillar = new("Pilon", "Pillar");
     public static readonly Phrase FieldFormat = new("Format", "Format");
 
@@ -174,7 +170,7 @@ public static class Copy
     public static readonly Phrase PreparingTitle =
         new("Se pregătește titlul…", "Preparing the title…");
     public static readonly Phrase NanoWorking = new(
-        "nano lucrează la prima listă", "nano is working on the first list");
+        "modelul lucrează la prima listă", "the model is working on the first list");
     public static readonly Phrase HookTypesAria = new("Tipuri de hook", "Hook types");
     public static readonly Phrase ChosenVariantTitle =
         new("Variantă aleasă", "Chosen variant");
@@ -346,6 +342,15 @@ public static class Copy
     public static readonly Phrase ChatReconnecting = new(
         "Conexiunea live se reface automat; răspunsul continuă pe server.",
         "The live connection restores itself; the answer continues on the server.");
+    public static readonly Phrase ChatNewConversation =
+        new("Conversație nouă", "New conversation");
+    public static readonly Phrase ChatNewConversationHint = new(
+        "Începe o conversație nouă; lotul curent iese din interfață.",
+        "Start a fresh conversation; the current batch leaves the interface.");
+    public static readonly Phrase ChatHistoryError = new(
+        "Conversația nu a putut fi încărcată.", "The conversation could not be loaded.");
+    public static readonly Phrase ChatToolRow =
+        new("unealtă", "tool");
 
     // ---- not found ----------------------------------------------------------
     public static readonly Phrase NotFoundTab = new("Pagină negăsită", "Page not found");

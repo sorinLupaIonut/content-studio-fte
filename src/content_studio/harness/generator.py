@@ -18,10 +18,17 @@ from agents import ModelSettings, RunHooks, Runner
 from agents.mcp import MCPServerStreamableHttp
 from agents.run_config import RunConfig
 
-from content_studio.audit import Audit
+from content_studio.audit import Audit, calls_in
 from content_studio.config import (
     GENERATION_TITLE_MODEL,
     MODEL,
+)
+from content_studio.harness.conversations import (
+    ConversationLog,
+    dictated_develop,
+    dictated_select,
+    rendered_titles,
+    rendered_variants,
 )
 from content_studio.harness.drafts import GenerationDraftClient, tool_payload
 from content_studio.harness.generation import (
@@ -36,14 +43,23 @@ from content_studio.harness.generation import (
     title_prompt,
 )
 from content_studio.language import DEFAULT_LANGUAGE, Language
-from content_studio.method import method_block
 from content_studio.observability import bind_run
+from content_studio.sandbox import sandbox_run_config
 from content_studio.worker import (
     build_worker,
     read_profile,
 )
 
-RUN_TIMEOUT_SECONDS = 600
+#: How long one generation run may take before it is abandoned.
+#:
+#: Ten minutes was right when the method arrived preloaded and the run was a
+#: single call. It is not right now: a Reel detail run opens SKILL.md and the
+#: four references the body names, reads them in chunks, and only then writes
+#: five variants with 900-1400 character captions. Measured 2026-08-27, the
+#: first live one on this shape hit 600s, was abandoned, and succeeded on the
+#: retry - so the timeout was costing a whole run's tokens and then paying for
+#: a second one. Twenty minutes is above what was measured and still bounded.
+RUN_TIMEOUT_SECONDS = 1_200
 
 #: Every run in a batch - the title pass, the ten detail passes and any retry -
 #: carries this workflow name and the batch id as its group. The runs already
@@ -101,15 +117,34 @@ def workflow_name(batch_id: str) -> str:
 def cache_key(model: str, shape: str = "") -> str:
     """The prompt-cache routing key for one model's generation calls.
 
-    `shape` names what else the prefix depends on. Since the method is preloaded
-    the prefix differs by format and source, and two batches on different formats
-    routed to one key would each evict the other's prefix - the exact cold-miss
-    cost this key exists to avoid. Empty for the shapes that carry no method.
+    `shape` names what else the prefix depends on, and since 2026-08-27 nothing
+    does: the method is read from files inside the sandbox, so the system prompt
+    is identity + notes + skills index + profile, byte-identical for both phases
+    and all three formats. One key per model is therefore the widest prefix that
+    can be shared - the opposite of the preloaded shape, where a Reel batch and
+    a Carusel batch on one key each evicted the other. The parameter stays
+    because the callers know which phase they are, and a key that silently
+    ignored a shape would be worse than one that never took it.
     """
     suffix = f"-{shape}" if shape else ""
     return f"content-studio-generation-{model}{suffix}"
 
 SOURCE_TEXT_LIMIT = 2_000
+
+#: How many times the model may go round before it has to answer.
+#:
+#: Six was right when the method arrived preloaded: read the prompt, write. It
+#: is not right now. A Reel detail run opens `SKILL.md` and then the four
+#: references the body names, and it reads them in chunks - measured 2026-08-27,
+#: ten `exec_command` calls before the first line of a caption. A limit that
+#: cuts the run off mid-method turns a cost into a failure, which is the worst
+#: of both. Twenty is above anything measured and still bounded.
+GENERATION_MAX_TURNS = 20
+
+#: What a shell command has to mention for the method to count as opened.
+#: `evals/grade.py` scores the same two markers off `public.traces`; this is the
+#: live half of that question, asked while the run is still in hand.
+METHOD_MARKERS = ("SKILL.md", "references/")
 
 
 # `safe_generation_error` deliberately hands the client a short Romanian sentence
@@ -290,11 +325,17 @@ class GenerationCoordinator:
         data_mcp_factory: Callable[[str], MCPServerStreamableHttp],
         internal_mcp_factory: Callable[[str], MCPServerStreamableHttp],
         accounts: Any | None = None,
+        conversations: ConversationLog | None = None,
     ) -> None:
         self._data_mcp_factory = data_mcp_factory
         self._internal_mcp_factory = internal_mcp_factory
         # Optional so a test can build a coordinator without a meter behind it.
         self._accounts = accounts
+        # Optional for the same reason. When present, every step of a batch is
+        # spoken into the conversation the lot belongs to — the dictated user
+        # sentence and the rendered result — so the chat window shows exactly
+        # what the buttons did. Best-effort by contract: see `ConversationLog.witness`.
+        self._conversations = conversations
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
         self._principal_tasks: dict[str, UUID] = {}
         # One in-flight detail run per idea. A double click on a card is the
@@ -322,10 +363,18 @@ class GenerationCoordinator:
         principal_id: str,
         start_request: GenerationStartRequest,
         trail: Audit | None = None,
+        conversation_session_id: str | None = None,
     ) -> dict[str, Any]:
         request = GenerationBatchRequest.model_validate(
             start_request.model_dump(exclude={"replace_current", "language"})
         )
+        # Resolved BEFORE the row is written, because the row is the record of
+        # which model wrote the batch and neither door names one any more: the
+        # chat agent never could, and the interface stopped choosing when the
+        # picker came down. An unresolved `None` would reach
+        # `generation_batches.model` and leave the batch attributable only to
+        # whatever the deployment happened to default to that day.
+        request = request.model_copy(update={"model": self._batch_model(request)})
         current = await self.current(principal_id, public=False)
         if current is not None and not start_request.replace_current:
             raise ActiveBatchError(
@@ -378,6 +427,7 @@ class GenerationCoordinator:
                 start_request.language,
                 trail,
                 run_id,
+                conversation_session_id,
             ),
             name=f"generation-{batch_id}",
         )
@@ -422,11 +472,36 @@ class GenerationCoordinator:
         internal = self._internal_mcp_factory(session_id)
         try:
             await internal.connect()
-            return await GenerationDraftClient(internal).select(
+            result = await GenerationDraftClient(internal).select(
                 variant_id, principal_id
             )
         finally:
             await internal.cleanup()
+
+        # Her click, spoken into the conversation as the sentence she would
+        # have typed. The store returns the idea's place and the hook's name
+        # for exactly this line.
+        if self._conversations is not None:
+            batch_id = None
+            with suppress(Exception):
+                current = await self.current(principal_id, public=False)
+                batch_id = None if current is None else str(current["id"])
+            if batch_id is not None:
+                conversation_session = None
+                with suppress(Exception):
+                    conversation_session = (
+                        await self._conversations.session_for_batch(
+                            principal_id, batch_id
+                        )
+                    )
+                await self._conversations.witness(
+                    conversation_session,
+                    "user",
+                    dictated_select(
+                        int(result["idea_ordinal"]), str(result["hook_type"])
+                    ),
+                )
+        return result
 
     async def variant_context(
         self, principal_id: str, variant_id: UUID
@@ -477,6 +552,7 @@ class GenerationCoordinator:
         ordinal: int,
         language: Language = DEFAULT_LANGUAGE,
         trail: Audit | None = None,
+        dictate: bool = True,
     ) -> dict[str, Any]:
         """Write the five variants for ONE idea, because she asked for it.
 
@@ -537,6 +613,24 @@ class GenerationCoordinator:
                 f"Dezvoltă ideea {ordinal} din lotul {str(batch_id)[:8]}",
             )
 
+        # The click becomes a sentence in the conversation, before the work
+        # starts, exactly as if she had typed it. Only into the conversation
+        # this batch was born in — an old batch developed late stays silent —
+        # and only when a click asked (`dictate`): a chat request already put
+        # her own words in the session.
+        conversation_session = None
+        if self._conversations is not None:
+            with suppress(Exception):
+                conversation_session = await self._conversations.session_for_batch(
+                    principal_id, str(batch_id)
+                )
+            if dictate:
+                await self._conversations.witness(
+                    conversation_session,
+                    "user",
+                    dictated_develop(ordinal, title.title),
+                )
+
         task = asyncio.create_task(
             self._develop_one(
                 batch_id,
@@ -547,6 +641,7 @@ class GenerationCoordinator:
                 language,
                 trail,
                 run_id,
+                conversation_session,
             ),
             name=f"generation-{batch_id}-idea-{ordinal}",
         )
@@ -564,6 +659,7 @@ class GenerationCoordinator:
         language: Language,
         trail: Audit | None,
         run_id: str | None,
+        conversation_session: str | None = None,
     ) -> None:
         if run_id is not None:
             bind_run(run_id)
@@ -589,6 +685,7 @@ class GenerationCoordinator:
                 agent,
                 GenerationDraftClient(internal),
                 language,
+                conversation_session,
             )
             if trail is not None:
                 with suppress(Exception):
@@ -731,6 +828,7 @@ class GenerationCoordinator:
         language: Language = DEFAULT_LANGUAGE,
         trail: Audit | None = None,
         run_id: str | None = None,
+        conversation_session_id: str | None = None,
     ) -> None:
         # Redundant with the context this task inherited, and kept anyway: the
         # guarantee is then local to the task that actually runs the agent,
@@ -748,7 +846,7 @@ class GenerationCoordinator:
             )
             proposed = await self._run_isolated(
                 title_agent,
-                title_prompt(request, source_packet, language, preloaded=True),
+                title_prompt(request, source_packet, language),
                 ProposedIdeas,
                 f"{batch_id}-titles",
                 str(batch_id),
@@ -758,6 +856,22 @@ class GenerationCoordinator:
             # is dropped here rather than carried through the store, the DTOs
             # and the interface for no reader.
             await drafts.put_titles(batch_id, proposed.to_titles())
+            if self._conversations is not None:
+                titles = proposed.to_titles().ideas
+                await self._conversations.witness(
+                    conversation_session_id,
+                    "assistant",
+                    rendered_titles(
+                        [
+                            {
+                                "ordinal": idea.ordinal,
+                                "title": idea.title,
+                                "angle": idea.angle,
+                            }
+                            for idea in titles
+                        ]
+                    ),
+                )
             # AND THAT IS THE WHOLE BATCH. The ten details used to be written
             # here, eagerly, and they are the entire cost of a run: measured on
             # 2026-08-24, titles were $0.0037 of a $0.0770 batch and the ten
@@ -791,6 +905,12 @@ class GenerationCoordinator:
                 await GenerationDraftClient(internal).fail_batch(
                     batch_id, safe_generation_error(exc)
                 )
+            # The conversation reflects the failure too: a chat that shows the
+            # request and then silence would read as an agent that ignored her.
+            if self._conversations is not None:
+                await self._conversations.witness(
+                    conversation_session_id, "assistant", safe_generation_error(exc)
+                )
         finally:
             await asyncio.gather(
                 data_mcp.cleanup(), internal.cleanup(), return_exceptions=True
@@ -816,10 +936,7 @@ class GenerationCoordinator:
 
     def _title_agent(self, profile_md, data_mcp, request, language, batch_id):
         model = self._batch_model(request)
-        method, keys = method_block("propune-postari", request.format, request.source)
-        logger.info(
-            "batch %s titles: model=%s, metoda preincarcata=%s", batch_id, model, keys
-        )
+        logger.info("batch %s titles: model=%s", batch_id, model)
         return self._phase_agent(
             profile_md,
             data_mcp,
@@ -831,27 +948,19 @@ class GenerationCoordinator:
             # afterwards, so leaving `IdeaTitles` here would send a schema with
             # no `angle_type` and then demand one back.
             output_type=ProposedIdeas,
-            method=method,
             model_settings=ModelSettings(
                 reasoning={"effort": "minimal"},
                 verbosity="low",
                 max_tokens=4_000,
                 extra_args={
-                    "prompt_cache_key": cache_key(
-                        model, f"titluri-{request.format}-{request.source}"
-                    )
+                    "prompt_cache_key": cache_key(model)
                 },
             ),
         )
 
     def _detail_agent(self, profile_md, data_mcp, request, language, batch_id):
         model = self._batch_model(request)
-        method, keys = method_block(
-            "dezvolta-postarea", request.format, request.source
-        )
-        logger.info(
-            "batch %s detail: model=%s, metoda preincarcata=%s", batch_id, model, keys
-        )
+        logger.info("batch %s detail: model=%s", batch_id, model)
         return self._phase_agent(
             profile_md,
             data_mcp,
@@ -859,15 +968,12 @@ class GenerationCoordinator:
             language,
             model=model,
             output_type=detail_output_type(request.format),
-            method=method,
             model_settings=ModelSettings(
                 reasoning={"effort": "minimal"},
                 verbosity="low",
                 max_tokens=24_000,
                 extra_args={
-                    "prompt_cache_key": cache_key(
-                        model, f"detalii-{request.format}-{request.source}"
-                    )
+                    "prompt_cache_key": cache_key(model)
                 },
             ),
         )
@@ -881,13 +987,14 @@ class GenerationCoordinator:
         agent,
         drafts: GenerationDraftClient,
         language: Language = DEFAULT_LANGUAGE,
+        conversation_session: str | None = None,
     ) -> None:
         for attempt in (1, 2):
             await drafts.start_idea(batch_id, idea.ordinal)
             try:
                 value = await self._run_agent(
                     agent,
-                    detail_prompt(request, idea, source_packet, language, preloaded=True),
+                    detail_prompt(request, idea, source_packet, language),
                     detail_output_type(request.format),
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     str(batch_id),
@@ -895,6 +1002,19 @@ class GenerationCoordinator:
                 if value.idea_ordinal != idea.ordinal or value.title != idea.title:
                     raise ValueError("detail output changed the persisted idea identity")
                 await drafts.complete_idea(batch_id, value)
+                if self._conversations is not None:
+                    await self._conversations.witness(
+                        conversation_session,
+                        "assistant",
+                        rendered_variants(
+                            idea.ordinal,
+                            idea.title,
+                            [
+                                variant.model_dump(mode="json")
+                                for variant in value.variants
+                            ],
+                        ),
+                    )
                 return
             except asyncio.CancelledError:
                 raise
@@ -908,6 +1028,12 @@ class GenerationCoordinator:
                     retryable=retryable,
                 )
                 if not retryable:
+                    if self._conversations is not None:
+                        await self._conversations.witness(
+                            conversation_session,
+                            "assistant",
+                            safe_generation_error(exc),
+                        )
                     return
                 await asyncio.sleep(2)
 
@@ -935,9 +1061,35 @@ class GenerationCoordinator:
         label: str,
         group: str,
     ):
+        # ONE CONTAINER PER RUN, opened here rather than by the callers, because
+        # this is the only place a generation run reaches the model. A
+        # `SandboxAgent` without one does not answer from memory - the runtime
+        # refuses the run - but the caller who forgets is then a caller whose
+        # feature is dead, and there are three of them. Opened here, there is
+        # nothing to forget.
+        #
+        # Per run, not per batch, and that is not a compromise: since the ten
+        # details became lazy the batch IS one run, and the details are separate
+        # runs minutes or days apart. Measured 2026-08-27: a container comes up
+        # in 0.35-1.17s and closes in 0.25s, which is cheap next to the model.
+        async with sandbox_run_config(label) as sandbox:
+            return await self._run_in_sandbox(
+                agent, prompt, output_type, label, group, sandbox
+            )
+
+    async def _run_in_sandbox(
+        self,
+        agent,
+        prompt: str,
+        output_type,
+        label: str,
+        group: str,
+        sandbox,
+    ):
         run_config = RunConfig(
             workflow_name=workflow_name(group),
             group_id=group,
+            sandbox=sandbox,
         )
         # A RUN THAT FAILED STILL SPENT THE MONEY. Metering used to live only
         # after this call returned, so every run that raised - a missed
@@ -955,7 +1107,7 @@ class GenerationCoordinator:
                     agent,
                     prompt,
                     run_config=run_config,
-                    max_turns=6,
+                    max_turns=GENERATION_MAX_TURNS,
                     hooks=metered,
                 ),
                 timeout=RUN_TIMEOUT_SECONDS,
@@ -994,7 +1146,43 @@ class GenerationCoordinator:
                 f"structured generation unexpectedly requested approval for: "
                 f"{', '.join(requested)}"
             )
+        self._warn_if_the_method_was_never_opened(agent, label, result)
         return result.final_output_as(output_type, raise_if_incorrect_type=True)
+
+    @staticmethod
+    def _warn_if_the_method_was_never_opened(agent, label: str, result) -> None:
+        """Say so when a run wrote without reading the method.
+
+        BECAUSE THIS FAILURE IS SILENT, and became more likely when the method
+        moved into the sandbox. The model has to decide to open a file; if it
+        does not, nothing raises - it writes ten plausible titles from memory
+        and the batch looks healthy. Measured 2026-08-27 on the first live run
+        of this shape: gpt-5-nano called `exec_command` twice with the command
+        `bash`, read nothing, and produced a full set of titles. gpt-5-mini, the
+        same request minutes later, ran `sed -n '1,200p'` over the whole
+        SKILL.md.
+
+        A warning rather than a failure. The titles were still written, and
+        throwing them away would turn a quality problem into a lost batch for
+        the client - but nobody should have to read a trace to find out which
+        kind of batch this was.
+        """
+        opened = [
+            call
+            for call in calls_in(result)
+            if any(
+                marker in json.dumps(call.get("arguments") or {}, ensure_ascii=False)
+                for marker in METHOD_MARKERS
+            )
+        ]
+        if opened:
+            return
+        logger.warning(
+            "run %s (%s): a scris FARA sa deschida metoda - niciun fisier din"
+            " skills/ nu a fost citit",
+            label,
+            getattr(agent, "model", "?"),
+        )
 
     async def _get_raw(
         self, principal_id: str, batch_id: UUID

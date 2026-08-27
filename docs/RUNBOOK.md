@@ -229,9 +229,16 @@ or the MCP server climbs above them, the problem is not the model.
 
 ### Fan-out: how many calls one request becomes
 
-A batch is one request and should now be **one** model call, not five. This is the
-measurement that catches a regression in preloading — the whole reason a Reel
-detail run dropped from 84,269 input tokens to 26,250.
+A batch is one request and is several model calls again, on purpose. Between
+2026-08-24 and 2026-08-27 it was exactly one, because the method arrived
+preloaded; since the method moved into a sandbox the model opens `SKILL.md` and
+its references itself, and each of those is a call. Measured 2026-08-27 on
+gpt-5-mini: a title run is three or four, a Reel detail run about eleven.
+
+So the number to watch is not "more than one" any more — it is **zero and one**.
+A run with no shell calls at all wrote from memory without ever opening its
+method, which is the silent failure of this shape and the reason
+`generator.py` logs a warning for it.
 
 ```kusto
 requests
@@ -245,8 +252,11 @@ requests
 | order by models desc
 ```
 
-`models` above 1 for a detail run means a retry happened, or a reference was
-fetched at run time that should have been preloaded.
+`models` far above the numbers up there means a retry happened, or the model is
+reading its references in small chunks. `models` at 1 for a detail run means it
+never opened the method — check the harness log for the warning, and check which
+model the batch ran on: gpt-5-nano does not drive this shape (2026-08-27, it
+called `exec_command` twice with the command `bash` and wrote ten titles anyway).
 
 ### Retries, which are the expensive failure
 

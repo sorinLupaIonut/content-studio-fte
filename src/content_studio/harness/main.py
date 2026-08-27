@@ -606,6 +606,29 @@ def create_app(
             identity.principal_id, variant_id
         )
 
+    @app.get("/api/conversation")
+    async def conversation_transcript(
+        request: Request,
+        identity: Identity = identity_dependency,
+    ) -> dict:
+        """The active conversation, verbatim from the agent's session storage.
+
+        Dialogue whole, tool calls collapsed, plumbing absent — the window IS
+        the model's input, which is what makes copy-paste testing possible.
+        """
+        return await request.app.state.harness.conversation_transcript(
+            identity.principal_id
+        )
+
+    @app.post("/api/conversation/new")
+    async def new_conversation(
+        request: Request,
+        identity: Identity = identity_dependency,
+    ) -> dict:
+        return await request.app.state.harness.new_conversation(
+            identity.principal_id
+        )
+
     @app.post("/api/chat/runs", response_model=ChatRunAccepted, status_code=202)
     async def start_chat(
         body: ChatRunRequest,

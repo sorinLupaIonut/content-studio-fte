@@ -367,16 +367,12 @@ public sealed class GenerationStartDto
     [JsonPropertyName("replace_current")]
     public bool ReplaceCurrent { get; set; }
 
-    /// <summary>
-    /// Which model writes this batch — both phases, titles and details.
-    ///
-    /// One per batch and stored with it: details are generated when she opens
-    /// an idea, long after this request is gone, and they have to come from the
-    /// model she picked rather than from the deployment default of the day.
-    /// The server validates it against the same two values.
-    /// </summary>
-    [JsonPropertyName("model")]
-    public string Model { get; set; } = "gpt-5-nano";
+    // No `model` here since 2026-08-27. The request may still carry one — the
+    // server field is optional and one per batch, because details are written
+    // when she opens an idea, long after this request is gone — but the
+    // interface has nothing to say about it: there is one model that can drive
+    // the sandbox, and a picker with one option is a control that does nothing.
+    // The server resolves the name and stores it on the batch row.
 
     /// <summary>Interface language, which the agent answers and writes in.</summary>
     [JsonPropertyName("language")]
@@ -438,6 +434,44 @@ public sealed class ChatAcceptedDto
 
     [JsonPropertyName("target")]
     public ChatTargetDto Target { get; set; } = ChatTargetDto.General();
+}
+
+public sealed class ConversationTranscriptDto
+{
+    [JsonPropertyName("session_id")]
+    public string SessionId { get; set; } = "";
+
+    [JsonPropertyName("batch_id")]
+    public string? BatchId { get; set; }
+
+    [JsonPropertyName("items")]
+    public List<TranscriptItemDto> Items { get; set; } = [];
+}
+
+/// <summary>
+/// One row of the real conversation: dialogue verbatim, tool calls collapsed.
+/// `Text` is exactly what the agent's session holds — the drawer never
+/// paraphrases it, which is what makes copy-paste testing possible.
+/// </summary>
+public sealed class TranscriptItemDto
+{
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "";
+
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("detail")]
+    public string? Detail { get; set; }
+}
+
+public sealed class NewConversationDto
+{
+    [JsonPropertyName("session_id")]
+    public string SessionId { get; set; } = "";
 }
 
 public sealed class StudioStreamEventDto

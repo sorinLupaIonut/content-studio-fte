@@ -4,7 +4,7 @@
 @inject ChatEventStream Events
 @inject StudioContextState ContextState
 
-<button class="chat-launcher" type="button" @onclick="Toggle" aria-expanded="@_open" aria-label="@T[Copy.ChatLauncher]" title="@T[Copy.ChatLauncher]">
+<button class="chat-launcher" type="button" @onclick="ToggleAsync" aria-expanded="@_open" aria-label="@T[Copy.ChatLauncher]" title="@T[Copy.ChatLauncher]">
     <span aria-hidden="true">✦</span>
     <span>@T[Copy.ChatLauncher]</span>
 </button>
@@ -17,7 +17,12 @@
                 <span class="eyebrow">@T[Copy.ChatEyebrow]</span>
                 <h2>@T[Copy.ChatHeading]</h2>
             </div>
-            <button class="icon-button" type="button" @onclick="Toggle" aria-label="@T[Copy.ChatClose]">×</button>
+            <div class="chat-header-actions">
+                <button class="button button-quiet" type="button" disabled="@_busy"
+                        title="@T[Copy.ChatNewConversationHint]"
+                        @onclick="NewConversationAsync">@T[Copy.ChatNewConversation]</button>
+                <button class="icon-button" type="button" @onclick="ToggleAsync" aria-label="@T[Copy.ChatClose]">×</button>
+            </div>
         </header>
         <div class="chat-context" title="@ContextState.Target.Label">
             <span class="status-dot"></span>
@@ -35,6 +40,15 @@
             }
             @foreach (var message in _messages)
             {
+                @if (message.Role == "tool")
+                {
+                    <details class="chat-tool">
+                        <summary>🔧 @message.ToolName</summary>
+                        <pre>@message.Text@(string.IsNullOrEmpty(message.Detail) ? "" : "\n→ " + message.Detail)</pre>
+                    </details>
+                }
+                else
+                {
                 <article class="chat-message chat-@message.Role @(message.Error ? "chat-error" : null)">
                     <span>@(message.Role == "user" ? T[Copy.ChatYou] : T[Copy.ChatAgent])</span>
                     <p class="preserve-lines">
@@ -57,6 +71,7 @@
                         </small>
                     }
                 </article>
+                }
             }
         </div>
 
@@ -81,7 +96,7 @@
             </div>
         </footer>
     </aside>
-    <button class="drawer-scrim" type="button" @onclick="Toggle" aria-label="@T[Copy.ChatClose]"></button>
+    <button class="drawer-scrim" type="button" @onclick="ToggleAsync" aria-label="@T[Copy.ChatClose]"></button>
 }
 
 @code {
@@ -100,9 +115,80 @@
         Events.EventReceived += OnEventAsync;
         Events.ConnectionInterrupted += OnInterruptedAsync;
         ContextState.Changed += OnContextChanged;
+        ContextState.ConversationChanged += OnConversationChangedAsync;
     }
 
-    private void Toggle() => _open = !_open;
+    private async Task ToggleAsync()
+    {
+        _open = !_open;
+        if (_open)
+        {
+            await LoadTranscriptAsync();
+        }
+    }
+
+    // The window IS the agent's session: the drawer shows what the server
+    // stored, verbatim, so what you read here is what the model received.
+    private async Task LoadTranscriptAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+        try
+        {
+            var transcript = await Api.GetConversationAsync();
+            _messages.Clear();
+            foreach (var item in transcript.Items)
+            {
+                _messages.Add(item.Kind == "tool"
+                    ? new ChatMessageView("tool", item.Text)
+                    {
+                        ToolName = item.Name ?? "?",
+                        Detail = item.Detail
+                    }
+                    : new ChatMessageView(item.Kind, item.Text)
+                    {
+                        Detail = item.Detail
+                    });
+            }
+            _connectionNote = null;
+        }
+        catch (Exception)
+        {
+            _connectionNote = T[Copy.ChatHistoryError];
+        }
+        StateHasChanged();
+    }
+
+    private async Task NewConversationAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+        try
+        {
+            await Api.NewConversationAsync();
+            _messages.Clear();
+            _connectionNote = null;
+            await ContextState.NotifyConversationResetAsync();
+        }
+        catch (Exception ex)
+        {
+            _connectionNote = ex.Message;
+        }
+        StateHasChanged();
+    }
+
+    private Task OnConversationChangedAsync()
+    {
+        if (_disposed || !_open)
+        {
+            return Task.CompletedTask;
+        }
+        return InvokeAsync(LoadTranscriptAsync);
+    }
 
     private async Task SendAsync()
     {
@@ -270,6 +356,7 @@
         Events.EventReceived -= OnEventAsync;
         Events.ConnectionInterrupted -= OnInterruptedAsync;
         ContextState.Changed -= OnContextChanged;
+        ContextState.ConversationChanged -= OnConversationChangedAsync;
         await Events.DisconnectAsync();
     }
 
@@ -277,6 +364,8 @@
     {
         public string Role { get; } = role;
         public string Text { get; set; } = text;
+        public string ToolName { get; set; } = "";
+        public string? Detail { get; set; }
         public bool Streaming { get; set; }
         public bool Stopped { get; set; }
         public bool Patched { get; set; }

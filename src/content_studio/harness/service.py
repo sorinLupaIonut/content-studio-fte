@@ -12,6 +12,7 @@ import json
 import logging
 import re
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -43,6 +44,11 @@ from content_studio.harness.chat import (
     ChatCoordinator,
     ChatRunAccepted,
     ChatRunRequest,
+)
+from content_studio.harness.conversations import (
+    ConversationLog,
+    dictated_batch_request,
+    render_transcript,
 )
 from content_studio.harness.drafts import SavedPostClient
 from content_studio.harness.errors import CodedError
@@ -82,6 +88,7 @@ from content_studio.mcp_server.protocol import (
     OWNER_HEADER,
 )
 from content_studio.observability import record_agent_traces
+from content_studio.sandbox import sandbox_run_config
 from content_studio.worker import (
     GATED_TOOLS,
     build_worker,
@@ -170,11 +177,24 @@ class HarnessService:
         self._trace_writes: set[asyncio.Task] = set()
         # Built before the coordinators because both take it.
         self.accounts = AccountDirectory(self._internal_data_mcp)
+        # The one-conversation-per-lot ledger (2026-08-27). Built before the
+        # generator because the generator speaks every batch step into it.
+        # The engine getter is a lambda because `start()` creates the engine
+        # after this constructor has already run.
+        self.conversations = ConversationLog(
+            self._internal_data_mcp, lambda: self.engine
+        )
         self.generator = GenerationCoordinator(
-            self._generation_data_mcp, self._internal_data_mcp, self.accounts
+            self._generation_data_mcp,
+            self._internal_data_mcp,
+            self.accounts,
+            conversations=self.conversations,
         )
         self.chat = ChatCoordinator(
-            self._data_mcp, self._internal_data_mcp, self.accounts
+            self._data_mcp,
+            self._internal_data_mcp,
+            self.accounts,
+            orchestrator=self._execute_chat_trigger,
         )
 
     async def start(self) -> None:
@@ -426,15 +446,17 @@ class HarnessService:
             await data_mcp.connect()
             _, profile_md = await read_profile(data_mcp)
             worker = build_worker(profile_md, data_mcp, language=language)
+            sandbox_cm = sandbox_run_config(f"run-{run_id[:8]}")
             session = SQLAlchemySession(
                 session_id, engine=engine, create_tables=True, ensure_ascii=False
             )
-            result = await Runner.run(
-                worker,
-                message,
-                session=session,
-                run_config=self._run_config(session_id),
-            )
+            async with sandbox_cm as sandbox:
+                result = await Runner.run(
+                    worker,
+                    message,
+                    session=session,
+                    run_config=self._run_config(session_id, sandbox),
+                )
             return await self._finish(run_id, session_id, result, trail)
         except HarnessError:
             raise
@@ -685,15 +707,58 @@ class HarnessService:
         return None
 
     async def start_generation(
-        self, principal_id: str, request: GenerationStartRequest
+        self,
+        principal_id: str,
+        request: GenerationStartRequest,
+        *,
+        dictate: bool = True,
     ) -> dict[str, Any]:
+        """Launch a batch into the active conversation.
+
+        `dictate` is True on the buttons door, where the press becomes her
+        sentence in the transcript. The chat door passes False — her actual
+        words are already in the session — except when the conversation rolls,
+        because the words then sit in the archived one.
+        """
         self._require_ready()
         # Before the batch, not during: one batch is a title call plus ten detail
         # calls, and an account already at its limit should be told so now rather
         # than eleven calls later. The generator checks again between ideas.
         await self.accounts.require_budget()
         try:
-            return await self.generator.start(principal_id, request, self.trail)
+            # One conversation carries at most one lot (2026-08-27). A second
+            # lot rolls the conversation automatically — no confirmation, per
+            # the product decision — and the old lot leaves the interface in
+            # the same transaction.
+            conversation = await self.conversations.active(principal_id)
+            rolled = False
+            if conversation.get("batch_id") is not None:
+                conversation = await self.conversations.begin_new(principal_id)
+                rolled = True
+            session_id = str(conversation["session_id"])
+            if dictate or rolled:
+                await self.conversations.witness(
+                    session_id,
+                    "user",
+                    dictated_batch_request(
+                        request.format,
+                        request.pillar,
+                        request.source,
+                        request.focus,
+                        len(request.material_ids or []),
+                    ),
+                )
+            batch = await self.generator.start(
+                principal_id,
+                request,
+                self.trail,
+                conversation_session_id=session_id,
+            )
+            with suppress(Exception):
+                await self.conversations.bind_batch(
+                    principal_id, str(batch["id"])
+                )
+            return batch
         except ActiveBatchError as exc:
             raise HarnessError(409, str(exc)) from exc
         except ValueError as exc:
@@ -708,11 +773,63 @@ class HarnessService:
         self, principal_id: str
     ) -> dict[str, Any] | None:
         try:
-            return await self.generator.current(principal_id)
+            current = await self.generator.current(principal_id)
+            if current is not None:
+                # A batch created before the conversations ledger existed is
+                # adopted into the active conversation on first read, so the
+                # two pointers cannot stay in disagreement.
+                with suppress(Exception):
+                    conversation = await self.conversations.active(principal_id)
+                    if conversation.get("batch_id") is None:
+                        await self.conversations.bind_batch(
+                            principal_id, str(current["id"])
+                        )
+            return current
         except Exception as exc:  # noqa: BLE001
             raise HarnessError(
                 502, f"Lotul curent nu poate fi citit ({type(exc).__name__})."
             ) from exc
+
+    async def conversation_transcript(self, principal_id: str) -> dict[str, Any]:
+        """The active conversation, verbatim: what the agent's session holds.
+
+        Dialogue items come back whole, tool calls as collapsed rows — the
+        three-tier display decision of 2026-08-27. Read straight off the SDK's
+        session storage so the window cannot drift from the model's input.
+        """
+        self._require_ready()
+        try:
+            conversation = await self.conversations.active(principal_id)
+            items = await self.conversations.items(
+                str(conversation["session_id"])
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise HarnessError(
+                502, f"Conversația nu poate fi citită ({type(exc).__name__})."
+            ) from exc
+        return {
+            "session_id": str(conversation["session_id"]),
+            "batch_id": conversation.get("batch_id"),
+            "items": render_transcript(items),
+        }
+
+    async def new_conversation(self, principal_id: str) -> dict[str, Any]:
+        """Archive the conversation and start fresh; the old lot goes with it."""
+        self._require_ready()
+        try:
+            conversation = await self.conversations.active(principal_id)
+            batch_id = conversation.get("batch_id")
+            if batch_id is not None:
+                # A lot still generating is stopped before its conversation is
+                # archived; a finished one simply leaves the interface.
+                with suppress(Exception):
+                    await self.generator.cancel(principal_id, UUID(str(batch_id)))
+            fresh = await self.conversations.begin_new(principal_id)
+        except Exception as exc:  # noqa: BLE001
+            raise HarnessError(
+                502, f"Conversația nouă nu a putut porni ({type(exc).__name__})."
+            ) from exc
+        return {"session_id": str(fresh["session_id"])}
 
     async def generation_batch(
         self, principal_id: str, batch_id: UUID
@@ -733,20 +850,26 @@ class HarnessService:
         return self.generator.events(principal_id, batch_id, sequence)
 
     async def develop_generation_idea(
-        self, principal_id: str, batch_id: UUID, ordinal: int
+        self,
+        principal_id: str,
+        batch_id: UUID,
+        ordinal: int,
+        *,
+        dictate: bool = True,
     ) -> dict[str, Any]:
         """Start the five variants for one idea. Returns immediately, 202.
 
         The budget is checked here AND again inside the task, for the same
         reason `start_generation` checks before a batch: this endpoint is the
         moment a person decides to spend, and it should refuse then rather than
-        after the money is gone.
+        after the money is gone. `dictate` follows the same rule as on
+        `start_generation`: the click speaks, the chat already spoke.
         """
         self._require_ready()
         await self.accounts.require_budget()
         try:
             return await self.generator.develop(
-                principal_id, batch_id, ordinal, trail=self.trail
+                principal_id, batch_id, ordinal, trail=self.trail, dictate=dictate
             )
         except GenerationAccessError as exc:
             raise HarnessError(404, str(exc)) from exc
@@ -789,6 +912,61 @@ class HarnessService:
                 502, f"Biblioteca nu poate fi citită ({type(exc).__name__})."
             ) from exc
 
+    async def _execute_chat_trigger(
+        self,
+        principal_id: str,
+        name: str,
+        arguments: dict[str, Any],
+        language: Language,
+    ) -> None:
+        """Execute one accepted trigger intent through the buttons' pipeline.
+
+        Called by the chat coordinator after a run in which the model called
+        `start_generation` or `develop_idea` and the tool accepted. The tool
+        only recorded and validated; the model work happens here, under the
+        authenticated principal — never one the model named.
+        """
+        if name == "start_generation":
+            material_ids: list[str] = []
+            titles = [
+                str(item).strip()
+                for item in (arguments.get("book_titles") or [])
+                if str(item).strip()
+            ]
+            if titles:
+                library = await self.generator.library(principal_id)
+                by_title = {
+                    str(item["title"]).casefold(): str(item["id"])
+                    for item in library
+                }
+                material_ids = [
+                    by_title[title.casefold()]
+                    for title in titles
+                    if title.casefold() in by_title
+                ]
+            request = GenerationStartRequest.model_validate(
+                {
+                    "format": arguments.get("format"),
+                    "pillar": arguments.get("pillar"),
+                    "source": arguments.get("source"),
+                    "focus": arguments.get("focus"),
+                    "material_ids": material_ids,
+                    "replace_current": True,
+                    "language": language,
+                }
+            )
+            await self.start_generation(principal_id, request, dictate=False)
+        elif name == "develop_idea":
+            current = await self.generator.current(principal_id, public=False)
+            if current is None:
+                return
+            await self.develop_generation_idea(
+                principal_id,
+                UUID(str(current["id"])),
+                int(arguments.get("idea", 0)),
+                dictate=False,
+            )
+
     async def start_chat(
         self, principal_id: str, request: ChatRunRequest
     ) -> ChatRunAccepted:
@@ -806,8 +984,16 @@ class HarnessService:
                 )
             elif request.target.kind != "general":
                 raise ValueError("Această țintă de chat intră într-un pas ulterior.")
+            # The chat writes into the SAME session the buttons dictate into:
+            # one conversation, two ways of speaking (2026-08-27).
+            conversation = await self.conversations.active(principal_id)
             return await self.chat.start(
-                principal_id, request, target_context, engine, trail
+                principal_id,
+                request,
+                target_context,
+                engine,
+                trail,
+                session_id=str(conversation["session_id"]),
             )
         except ActiveChatError as exc:
             raise HarnessError(409, str(exc)) from exc
@@ -880,6 +1066,7 @@ class HarnessService:
             # which is the same one it was started in unless she switched
             # mid-run - in which case following the screen is the right call.
             worker = build_worker(profile_md, data_mcp, language=language)
+            sandbox_cm = sandbox_run_config(f"resume-{run_id[:8]}")
             state = await RunState.from_string(worker, str(pending["state"]))
 
             runtime_requests = {
@@ -919,12 +1106,13 @@ class HarnessService:
             session = SQLAlchemySession(
                 session_id, engine=engine, create_tables=True, ensure_ascii=False
             )
-            result = await Runner.run(
-                worker,
-                state,
-                session=session,
-                run_config=self._run_config(session_id),
-            )
+            async with sandbox_cm as sandbox:
+                result = await Runner.run(
+                    worker,
+                    state,
+                    session=session,
+                    run_config=self._run_config(session_id, sandbox),
+                )
             return await self._finish(run_id, session_id, result, trail)
         except HarnessError:
             raise
@@ -936,11 +1124,19 @@ class HarnessService:
             await data_mcp.cleanup()
 
     @staticmethod
-    def _run_config(session_id: str) -> RunConfig:
+    def _run_config(session_id: str, sandbox) -> RunConfig:
         # Named, so Phoenix can tell one conversation from another; see the note
         # on `workflow_name` in generator.py.
+        #
+        # `sandbox` is required rather than optional: the worker is a
+        # `SandboxAgent` and its method lives in a container, so a run config
+        # built without one is a run that cannot start. Making it a parameter
+        # with no default is what stops the next caller from finding that out
+        # in production.
         return RunConfig(
-            workflow_name=f"Conversation {session_id[:16]}", group_id=session_id
+            workflow_name=f"Conversation {session_id[:16]}",
+            group_id=session_id,
+            sandbox=sandbox,
         )
 
     @staticmethod

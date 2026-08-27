@@ -103,6 +103,16 @@ GENERATION_VARIANT_SELECTED = "generation_variant_selected"
 GENERATION_VARIANT_PATCHED = "generation_variant_patched"
 GENERATION_CANCELLED = "generation_cancelled"
 
+#: The one-conversation-per-lot lifecycle (2026-08-27). `started` covers both
+#: doors — the first request of an account and every explicit "conversație
+#: nouă" — because the row is written the same way in both.
+CONVERSATION_STARTED = "conversation_started"
+
+#: The chat trigger tools (2026-08-27): the model recorded an intent, the
+#: harness executes it. Requested, not created — creation has its own event.
+GENERATION_REQUESTED = "generation_requested"
+IDEA_DEVELOPMENT_REQUESTED = "idea_development_requested"
+
 #: A studio written for a principal that signed in with no account. Unattended -
 #: nobody clicked anything - which is exactly why it is worth a row: it is the
 #: only write in the system that happens without a person asking for it.

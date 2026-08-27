@@ -64,6 +64,18 @@ if not load_dotenv(PROJECT_ROOT / ".env"):
 #: touching code. Override with SKILLS_DIR when running from somewhere else.
 SKILLS_DIR = Path(os.getenv("SKILLS_DIR", PROJECT_ROOT / "skills"))
 
+#: The sandbox the method is read from. E2B, because it is the one backend that
+#: works from here: the SDK's local Unix client is `sys.platform != "win32"`
+#: only, and Docker Desktop is not running on the development machine. The key
+#: is read here and nowhere else - `config.py` is the only module that calls
+#: `os.getenv` (see AGENTS.md, Conventions).
+E2B_API_KEY = os.getenv("E2B_API_KEY", "")
+
+#: How long a sandbox may live with nobody talking to it, in seconds. A batch is
+#: eleven runs sharing one sandbox, and the longest one measured took about four
+#: minutes, so ten leaves room without paying for an hour of idle container.
+SANDBOX_TIMEOUT_SECONDS = int(os.getenv("SANDBOX_TIMEOUT_SECONDS", "600"))
+
 #: Raw material before it reaches Postgres: profile, books, published posts.
 CONTENT_DIR = Path(os.getenv("CONTENT_DIR", PROJECT_ROOT / "content"))
 
@@ -74,40 +86,36 @@ CLIENT_SLUG = os.getenv("CLIENT_SLUG", "viorela")
 MODEL = os.getenv("MODEL", "gpt-5-mini")
 WEB_SEARCH_MODEL = os.getenv("WEB_SEARCH_MODEL", MODEL)
 
-# D1b deliberately splits the cheap, short title pass from the long structured
-# writing pass. The existing CLI keeps using MODEL unchanged.
-# Titles moved off nano on 2026-08-24. Nano was the cheap half of the split and
-# it stopped earning it: measured on batch c82d55fd, the title pass never called
-# `propune-postari` at all - it reached for `list_posts` and `search_books`,
-# got `[]` from both, and wrote ten titles without ever reading the method. The
-# detail pass, on mini, called its tool 11 times out of 11 with the same prompt
-# shape. The titles read generic afterwards, which is the part that matters.
+# D1b deliberately split the cheap, short title pass from the long structured
+# writing pass. Both are `gpt-5-mini` now, and these two names stay only as the
+# fallback for a request that chooses no model.
 #
-# The move also stops paying twice for the same prefix. Now that a skill is a
-# tool, both phases build the SAME instructions; on one model that is one cached
-# prefix, and the title call warms it for the ten that follow.
+# NANO IS GONE, 2026-08-27, by Sorin's decision, and it is the second time it
+# failed the same way. On 2026-08-24 it finished 3 detail runs out of 10 - four
+# missed the structured contract, three ran out of turns - and its Romanian was
+# wrong in ways nothing can be prompted out of ("Încerc-o azi" for "Încearcă-o",
+# a CIFRĂ hook with no number in it). It survived that because preloading the
+# method removed the failures that were about fetching.
 #
-# Since 2026-08-24 the model is a choice in the interface, one per batch, and it
-# reaches both phases - see `GENERATION_MODELS`. These two stay as the fallback
-# for a request that names none, and they are read only there.
-GENERATION_TITLE_MODEL = os.getenv("GENERATION_TITLE_MODEL", "gpt-5-nano")
-GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-nano")
+# The method moved into a sandbox on 2026-08-27 and nano failed the new shape on
+# the first live run: it called `exec_command` twice with the command `bash`,
+# read nothing, and wrote ten plausible titles from memory. Nobody would have
+# noticed from the output. Driving a shell to open a file is the job now, and
+# nano cannot do it - so it is not on the allowlist, not in the interface, and
+# not in the tests. Its price stays in `pricing.py` because `usage_events` still
+# holds rows that were charged at it.
+GENERATION_TITLE_MODEL = os.getenv("GENERATION_TITLE_MODEL", "gpt-5-mini")
+GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-mini")
 
 #: What the interface may ask for. An allowlist, not a free string: the value
 #: arrives from a browser, and `pricing.py` charges an unrecognised model at the
 #: most expensive rate in its table - so an unchecked one would be a typo that
 #: silently drains an allowance. First entry is the default.
 #:
-#: NANO IS THE DEFAULT, AND IT IS A MEASURED TRADE. On 2026-08-24, with the
-#: method still fetched turn by turn, nano finished 3 detail runs out of 10:
-#: four missed the structured contract and three ran out of turns. Three of
-#: those seven are the failure mode `content_studio.method` removes outright,
-#: which is why the preloading landed first and the default moved after. What
-#: nano cannot be talked out of is its Romanian - measured in the same run:
-#: "Încerc-o azi" for "Încearcă-o", "se brăzdează drumul", a CIFRĂ hook with no
-#: number in it. Mini is one click away in the interface for exactly that
-#: reason, and it is the right click for anything that gets published.
-GENERATION_MODELS: tuple[str, ...] = ("gpt-5-nano", "gpt-5-mini")
+#: One entry since nano was removed. That is deliberate rather than temporary:
+#: the picker offers what can actually do the work, and a second name would have
+#: to earn its place by driving the sandbox shell, not by being cheaper.
+GENERATION_MODELS: tuple[str, ...] = ("gpt-5-mini",)
 
 # Chat is separate from bulk generation so its latency/quality can be tuned
 # without silently changing either half of the accepted hybrid topology.

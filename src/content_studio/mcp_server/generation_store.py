@@ -161,7 +161,7 @@ UPDATE public.generation_variants v
 """
 
 FIND_SELECTABLE_SQL = """
-SELECT v.id, v.idea_id
+SELECT v.id, v.idea_id, v.hook_type, i.ordinal, i.title
   FROM public.generation_variants v
   JOIN public.generation_ideas i ON i.id = v.idea_id
   JOIN public.generation_batches b ON b.id = i.batch_id
@@ -413,7 +413,15 @@ async def select_variant(
         raise ValueError("the variant is not ready or does not belong to this identity")
     await conn.execute(UNSELECT_IDEA_SQL, row["idea_id"])
     await conn.execute(SELECT_VARIANT_SQL, row["id"])
-    return {"variant_id": str(row["id"]), "idea_id": str(row["idea_id"])}
+    # The idea's place and the hook's name ride back so the caller can speak
+    # the choice into the conversation without a second read.
+    return {
+        "variant_id": str(row["id"]),
+        "idea_id": str(row["idea_id"]),
+        "idea_ordinal": int(row["ordinal"]),
+        "idea_title": str(row["title"]),
+        "hook_type": str(row["hook_type"]),
+    }
 
 
 async def patch_variant(

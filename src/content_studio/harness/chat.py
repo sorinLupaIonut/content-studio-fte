@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import re
 from collections.abc import AsyncIterator, Callable
+from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from typing import Any, Literal
 from uuid import UUID
@@ -19,15 +21,19 @@ from pydantic import Field, field_validator, model_validator
 
 from content_studio.audit import Audit
 from content_studio.config import CHAT_MODEL
+from content_studio.harness.conversations import USER_MESSAGE_MARKER
 from content_studio.harness.drafts import GenerationDraftClient
 from content_studio.harness.generation import IdeaVariant, StreamEvent, StrictContract
 from content_studio.harness.posts import SavedPostContent
 from content_studio.language import DEFAULT_LANGUAGE, Language, normalise
+from content_studio.sandbox import sandbox_run_config
 from content_studio.worker import (
     build_worker,
     describe_request,
     read_profile,
 )
+
+logger = logging.getLogger("content_studio.harness.chat")
 
 ChatTargetKind = Literal[
     "general",
@@ -203,8 +209,13 @@ def chat_prompt(
 
     if target_context is None:
         target = (
-            "Nu există o țintă activă. Dacă mesajul cere o rescriere sau o "
-            "modificare, cere-i să aleagă întâi o variantă; nu ghici."
+            "Nu există o țintă selectată în interfață. Fluxul de producție "
+            "trece prin unelte, nu prin scrisul tău: idei noi → "
+            "`start_generation`; „dezvoltă a treia” → `develop_idea`; „aleg "
+            "varianta cu CIFRA” / „a doua” → `select_variant`. Nu scrie tu "
+            "liste, variante sau postări în locul lor — aplicația le "
+            "generează și le arată. Dacă cere modificarea unei postări deja "
+            "salvate, cere-i să o deschidă întâi în aplicație; nu ghici."
         )
     elif target_context.get("kind") == "saved_post":
         target = (
@@ -246,7 +257,7 @@ Textul pentru utilizatoare stă în `reply`. `patch` este null dacă nu rescrii
 CONTEXT ȚINTĂ:
 {target}
 
-MESAJUL UTILIZATOAREI:
+{USER_MESSAGE_MARKER}
 {message}
 """
 
@@ -290,19 +301,82 @@ class ActiveChatError(RuntimeError):
     """One identity already has a response streaming."""
 
 
+#: The model-visible tools that record an intent the harness must execute. The
+#: tool answers "accepted" inside the run; the actual model work — the same
+#: pipeline the buttons use — starts here, after the reply, in the background.
+#: How many times the chat agent may go round before it has to answer.
+#:
+#: Six was enough when the method came back from one tool call. Since the method
+#: moved into the sandbox it is opened file by file with the shell, and a Reel
+#: question took ten `exec_command` calls before the first written line - so six
+#: would cut her off mid-method and report a broken chat. Twenty is above
+#: anything measured on 2026-08-27 and still bounded.
+CHAT_MAX_TURNS = 20
+
+#: How long one chat turn may take before it is abandoned. Shorter than the
+#: generation ceiling on purpose: somebody is sitting in front of this one, and
+#: a reply that takes five minutes has already failed even if it arrives.
+CHAT_TIMEOUT_SECONDS = 300
+
+TRIGGER_TOOLS = frozenset({"start_generation", "develop_idea"})
+
+
+def trigger_calls(result: Any) -> list[tuple[str, dict[str, Any], str]]:
+    """(name, arguments, output_text) for every trigger tool call of a run.
+
+    The output text rides along because it is how a rejected call is told from
+    an accepted one: a tool that raised put its refusal there, and executing a
+    refused intent would do exactly what the refusal prevented.
+    """
+
+    calls: list[tuple[str, dict[str, Any], str | None]] = []
+    outputs: dict[str, str] = {}
+    for item in getattr(result, "new_items", []) or []:
+        raw = getattr(item, "raw_item", None)
+        kind = getattr(item, "type", "")
+        if kind == "tool_call_item":
+            name = str(getattr(raw, "name", "") or "")
+            if name not in TRIGGER_TOOLS:
+                continue
+            arguments = getattr(raw, "arguments", None)
+            try:
+                parsed = json.loads(arguments) if isinstance(arguments, str) else {}
+            except json.JSONDecodeError:
+                parsed = {}
+            call_id = getattr(raw, "call_id", None)
+            calls.append((name, parsed, call_id))
+        elif kind == "tool_call_output_item":
+            if isinstance(raw, dict):
+                call_id, output = raw.get("call_id"), raw.get("output")
+            else:
+                call_id = getattr(raw, "call_id", None)
+                output = getattr(raw, "output", None)
+            if isinstance(call_id, str):
+                outputs[call_id] = str(output)
+    return [
+        (name, parsed, outputs.get(call_id, "") if call_id else "")
+        for name, parsed, call_id in calls
+    ]
+
+
 class ChatCoordinator:
     """Run one streamed response per identity and apply only validated patches."""
 
     def __init__(
         self,
-        data_mcp_factory: Callable[[str], MCPServerStreamableHttp],
+        data_mcp_factory: Callable[..., MCPServerStreamableHttp],
         internal_mcp_factory: Callable[[str], MCPServerStreamableHttp],
         accounts: Any | None = None,
+        orchestrator: Callable[..., Any] | None = None,
     ) -> None:
         self._data_mcp_factory = data_mcp_factory
         self._internal_mcp_factory = internal_mcp_factory
         # Optional so a test can build a coordinator without a meter behind it.
         self._accounts = accounts
+        # `async (principal_id, name, arguments, language) -> None`, provided by
+        # the service. Executes an accepted trigger through the same pipeline
+        # the buttons use. Optional for the same testability reason.
+        self._orchestrator = orchestrator
         self._runs: dict[str, _LiveChatRun] = {}
         self._active: dict[str, str] = {}
 
@@ -325,13 +399,17 @@ class ChatCoordinator:
         target_context: dict[str, Any] | None,
         engine,
         trail: Audit,
+        session_id: str | None = None,
     ) -> ChatRunAccepted:
         active_id = self._active.get(principal_id)
         active = self._runs.get(active_id) if active_id else None
         if active is not None and not active.terminal:
             raise ActiveChatError("Există deja un răspuns în curs. Oprește-l înainte.")
 
-        session_id = self.session_id(principal_id)
+        # Since 2026-08-27 the harness passes the active conversation's session,
+        # so chat and buttons share one thread. The per-principal digest stays
+        # as the fallback for callers that predate the conversations ledger.
+        session_id = session_id or self.session_id(principal_id)
         run_id = await trail.open_run(session_id, request.message)
         if run_id is None:
             raise RuntimeError("run-ul de chat nu a putut primi un ID durabil")
@@ -403,12 +481,53 @@ class ChatCoordinator:
         engine,
         trail: Audit,
     ) -> None:
-        data_mcp = self._data_mcp_factory(state.session_id)
+        """One turn, inside one container.
+
+        The container is this turn's, not this conversation's. A conversation
+        can sit open for a day between two questions, and an E2B sandbox left
+        running is billed for that day; the method inside it is read-only and
+        identical every time, so there is nothing in it worth keeping warm.
+        Measured 2026-08-27: it comes up in about a second.
+
+        THE CONTAINER IS OPENED INSIDE THE ERROR BOUNDARY, not around it. The
+        first version of this wrapped `_run_in_sandbox` in the context manager
+        from out here, and that put the one thing most likely to fail - talking
+        to a third-party API over the network - outside the only code that turns
+        a failure into a message. A sandbox that refused would then leave the
+        audit row `running` for ever and the browser waiting on a stream that
+        was never going to arrive.
+        """
+
+        await self._run_in_sandbox(
+            state,
+            message,
+            target_context,
+            engine,
+            trail,
+            sandbox_run_config(f"chat-{state.run_id[:8]}"),
+        )
+
+    async def _run_in_sandbox(
+        self,
+        state: _LiveChatRun,
+        message: str,
+        target_context: dict[str, Any] | None,
+        engine,
+        trail: Audit,
+        sandbox_cm,
+    ) -> None:
+        # The principal rides the connection so the trigger tools can verify an
+        # identity exists (`owner_of`); the tools never take it as an argument.
+        data_mcp = self._data_mcp_factory(state.session_id, state.principal_id)
         internal_mcp = self._internal_mcp_factory(state.session_id)
         decoder = ReplyJsonStream()
         visible_reply = ""
+        # The container joins the same stack the connections are cleaned up on,
+        # so it is opened under the `except` below and closed by the `finally`.
+        stack = AsyncExitStack()
         try:
             await asyncio.gather(data_mcp.connect(), internal_mcp.connect())
+            sandbox = await stack.enter_async_context(sandbox_cm)
             _, profile_md = await read_profile(data_mcp)
             output_type = CHAT_OUTPUTS.get(state.target.kind, ChatTurnOutput)
             worker = build_worker(
@@ -436,23 +555,37 @@ class ChatCoordinator:
                     # other unnamed run anybody has ever made.
                     workflow_name=f"Chat {state.session_id[:16]}",
                     group_id=state.session_id,
+                    sandbox=sandbox,
                 ),
-                max_turns=6,
+                max_turns=CHAT_MAX_TURNS,
             )
             state.result = result
             await state.publish("status", {"status": "streaming"})
-            async for event in result.stream_events():
-                if state.cancel_requested:
-                    result.cancel()
-                if event.type != "raw_response_event":
-                    continue
-                data = event.data
-                if getattr(data, "type", None) != "response.output_text.delta":
-                    continue
-                delta = decoder.feed(str(getattr(data, "delta", "")))
-                if delta:
-                    visible_reply += delta
-                    await state.publish("text.delta", {"delta": delta})
+
+            async def pump() -> None:
+                nonlocal visible_reply
+                async for event in result.stream_events():
+                    if state.cancel_requested:
+                        result.cancel()
+                    if event.type != "raw_response_event":
+                        continue
+                    data = event.data
+                    if getattr(data, "type", None) != "response.output_text.delta":
+                        continue
+                    delta = decoder.feed(str(getattr(data, "delta", "")))
+                    if delta:
+                        visible_reply += delta
+                        await state.publish("text.delta", {"delta": delta})
+
+            # A CEILING, WHICH THIS PATH DID NOT HAVE. Generation has always
+            # wrapped its run in `wait_for`; chat did not, because six turns
+            # against one tool call could not run long. Since the method moved
+            # into the sandbox a turn can be a file read, twenty of them are
+            # allowed, and a run that stalls now leaves the audit row `running`
+            # and the browser waiting on a stream that never ends. Measured
+            # 2026-08-27: a method question took over twelve minutes with no
+            # ceiling at all.
+            await asyncio.wait_for(pump(), timeout=CHAT_TIMEOUT_SECONDS)
 
             if state.cancel_requested:
                 await trail.failed(state.run_id, RuntimeError("chat cancelled"))
@@ -495,6 +628,22 @@ class ChatCoordinator:
             if self._accounts is not None:
                 await self._accounts.record_run("chat", CHAT_MODEL, result)
             await trail.close_run(state.run_id, output.reply)
+
+            # Accepted trigger intents start their pipelines now, after the
+            # reply. A refusal in the tool's own output is honoured, and a
+            # failure here is logged, never surfaced as a broken chat: the
+            # generation pipeline reports its own failures into the batch.
+            if self._orchestrator is not None:
+                for name, arguments, tool_output in trigger_calls(result):
+                    if '"accepted"' not in tool_output:
+                        continue
+                    try:
+                        await self._orchestrator(
+                            state.principal_id, name, arguments, state.language
+                        )
+                    except Exception:  # noqa: BLE001 - background boundary
+                        logger.exception("chat trigger %s failed", name)
+
             await state.publish(
                 "completed", {"output": output.reply, "patch": patch_payload}
             )
@@ -510,6 +659,7 @@ class ChatCoordinator:
             )
         finally:
             state.result = None
+            await stack.aclose()
             await asyncio.gather(
                 data_mcp.cleanup(), internal_mcp.cleanup(), return_exceptions=True
             )

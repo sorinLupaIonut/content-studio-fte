@@ -1,7 +1,7 @@
 [project]
 name = "content-studio-fte"
 version = "0.1.0"
-description = "A Digital FTE content worker: one agent with folder-based skills as tools, a purpose-built MCP server, Neon Postgres + pgvector, an audit trail you can replay, and an approval gate on every write."
+description = "A Digital FTE content worker: one agent whose method is folder-based skills read from a sandbox, a purpose-built MCP server, Neon Postgres + pgvector, an audit trail you can replay, and an approval gate on every write."
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MIT" }
@@ -23,11 +23,16 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
+    "arize-phoenix-client>=3.3.0",
+    "arize-phoenix-evals>=3.5.1",
     "asyncpg>=0.31.0",
     "azure-monitor-opentelemetry>=1.8.9",
     "fastapi>=0.116.0",
     "mcp>=2.0.0",
-    "openai-agents[sqlalchemy]>=0.20.0",
+    # `e2b` is not optional here despite being an extra: since 2026-08-27 the
+    # method is read from files inside a sandbox, so an image built without it
+    # ships an agent that cannot reach its own method.
+    "openai-agents[sqlalchemy,e2b]>=0.20.0",
     "openinference-instrumentation-openai-agents>=2.0.0",
     "opentelemetry-exporter-otlp-proto-http>=1.43.0",
     "opentelemetry-instrumentation-asyncpg>=0.64b0",

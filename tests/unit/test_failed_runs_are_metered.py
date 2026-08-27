@@ -67,7 +67,7 @@ class TestFailedRunsAreMetered(unittest.TestCase):
         accounts = RecordingAccounts()
         coord = coordinator(accounts)
         context = SimpleNamespace(usage=usage())
-        agent = SimpleNamespace(model="gpt-5-nano")
+        agent = SimpleNamespace(model="gpt-5-mini")
 
         async def go() -> None:
             with patch.object(G.Runner, "run", failing_run(exc, context)):
@@ -85,7 +85,7 @@ class TestFailedRunsAreMetered(unittest.TestCase):
         exc = ModelBehaviorError("Invalid JSON when parsing model output")
         exc.run_data = None
         rows = self._run(exc).rows
-        self.assertEqual(rows, [("lot-idea-3-attempt-1", "gpt-5-nano", 26_000)])
+        self.assertEqual(rows, [("lot-idea-3-attempt-1", "gpt-5-mini", 26_000)])
 
     def test_turn_limit_is_metered(self) -> None:
         exc = MaxTurnsExceeded("Max turns exceeded")
@@ -109,7 +109,7 @@ class TestFailedRunsAreMetered(unittest.TestCase):
             with patch.object(G.Runner, "run", run):
                 with self.assertRaises(ModelBehaviorError):
                     await coord._run_agent(
-                        SimpleNamespace(model="gpt-5-nano"), "p", dict, "l", "g"
+                        SimpleNamespace(model="gpt-5-mini"), "p", dict, "l", "g"
                     )
 
         asyncio.run(go())

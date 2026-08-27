@@ -1,17 +1,19 @@
-"""The reference tool: the third step of progressive disclosure.
+"""References: the third step of progressive disclosure, and whether it can fire.
 
-The fault these tests exist for is not a crash. It is a system prompt that
-described tools the agent did not have: it said "nu ai fișiere: nu încerca să
-deschizi nimic" while every SKILL.md still told the model to open
-`references/...`. Nothing failed, nothing logged, and 126 KB of method was
-simply never read. So what is asserted here is agreement between three things
-that can drift apart silently - the note, the attached tools, and the files on
-disk.
+The fault these tests exist for is not a crash. It is a prompt that describes a
+way of reaching the method which does not match the way the method is actually
+reachable. This project has shipped that fault twice, in both directions: a
+prompt saying "nu ai fisiere" over skills that said "open `references/...`",
+and later skill bodies calling `citeste-referinta(...)` after that tool had been
+detached. Nothing failed, nothing logged, and the method was simply not read.
+
+Since 2026-08-27 the method is files in a sandbox, opened by the model with the
+shell. So the agreement that has to hold is between the files on disk, the
+pointers the skill bodies write, and the manifest that says when each one should
+fire. There is no tool of ours in that chain any more, which is the point.
 """
 
-import asyncio
 import importlib.util
-import json
 import re
 import unittest
 from pathlib import Path
@@ -19,13 +21,8 @@ from pathlib import Path
 from agents.mcp import MCPServerStreamableHttp
 
 from content_studio.config import SKILLS_DIR
-from content_studio.worker import (
-    REFERENCE_TOOL_NAME,
-    build_worker,
-    reference_index,
-    reference_tool,
-    skill_tools,
-)
+from content_studio.sandbox import SANDBOX_INSTRUCTIONS, SKILLS_PATH, sandbox_manifest
+from content_studio.worker import build_worker, parse_skill, reference_index
 
 
 def load_audit():
@@ -41,12 +38,6 @@ def load_audit():
 AUDIT = load_audit()
 manifest = AUDIT.manifest
 named_in_skill = AUDIT.named_in_skill
-
-
-def call(tool, payload: str) -> str:
-    """Invoke a FunctionTool the way the SDK does, with a JSON argument string."""
-
-    return asyncio.run(tool.on_invoke_tool(None, payload))
 
 
 class TestReferenceIndex(unittest.TestCase):
@@ -71,40 +62,36 @@ class TestReferenceIndex(unittest.TestCase):
         self.assertEqual(list(reference_index()), sorted(reference_index()))
 
 
-class TestReferenceTool(unittest.TestCase):
-    def setUp(self):
-        self.tool = reference_tool()
-        self.assertIsNotNone(self.tool, "no reference tool built from skills/")
+class TestTheSandboxCarriesTheMethod(unittest.TestCase):
+    """The manifest is what puts `skills/` inside the container.
 
-    def test_it_is_named_the_way_the_prompt_names_it(self):
-        self.assertEqual(self.tool.name, REFERENCE_TOOL_NAME)
+    And its absence is silent: with no manifest the runtime never runs the
+    capabilities, the container comes up empty, the skills index never reaches
+    the prompt, and the model answers from memory after running `find` over
+    nothing. That happened on the first spike of 2026-08-27 and raised nothing.
+    """
 
-    def test_the_enum_is_exactly_what_is_on_disk(self):
-        enum = self.tool.params_json_schema["properties"]["fisier"]["enum"]
-        self.assertEqual(enum, sorted(reference_index()))
+    def test_the_skills_root_is_mounted(self):
+        keys = {str(key) for key in sandbox_manifest().entries}
+        self.assertIn(SKILLS_PATH, keys)
 
-    def test_it_returns_the_file_whole(self):
-        name = "propune-postari/piloni.md"
-        self.assertIn(name, reference_index())
-        body = call(self.tool, json.dumps({"fisier": name}))
-        self.assertEqual(body, reference_index()[name].read_text(encoding="utf-8"))
-
-    def test_an_unknown_name_is_refused_and_does_not_end_the_run(self):
-        # A raise here would kill a detail run that has nine siblings.
-        answer = call(self.tool, json.dumps({"fisier": "nu-exista.md"}))
-        self.assertIn("Nu există", answer)
-
-    def test_a_traversal_is_not_a_key(self):
-        answer = call(self.tool, json.dumps({"fisier": "../../.env"}))
-        self.assertIn("Nu există", answer)
-
-    def test_broken_arguments_are_refused_rather_than_raised(self):
-        self.assertIn("Nu există", call(self.tool, "not json"))
-        self.assertIn("Nu există", call(self.tool, ""))
+    def test_every_skill_has_the_frontmatter_the_index_is_built_from(self):
+        # Not asserting the SDK's wording - asserting that what it renders the
+        # index from is the skill's own frontmatter, which is rule 4.
+        found = 0
+        for folder in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
+            skill_md = folder / "SKILL.md"
+            if not skill_md.is_file():
+                continue
+            name, description, _ = parse_skill(skill_md)
+            self.assertTrue(name.strip(), folder.name)
+            self.assertTrue(description.strip(), folder.name)
+            found += 1
+        self.assertTrue(found, "no skills on disk - the fixture is gone")
 
 
-class TestThePromptDescribesTheToolsThatExist(unittest.TestCase):
-    """The regression itself: note and tools, agreeing."""
+class TestThePromptDescribesTheMethodThatExists(unittest.TestCase):
+    """The regression itself: what the prompt says, and what is actually there."""
 
     @staticmethod
     def _stub_mcp() -> MCPServerStreamableHttp:
@@ -113,24 +100,35 @@ class TestThePromptDescribesTheToolsThatExist(unittest.TestCase):
 
     def setUp(self):
         self.agent = build_worker("PROFILUL", self._stub_mcp())
-        self.names = {tool.name for tool in self.agent.tools}
 
-    def test_the_reference_tool_is_attached_next_to_the_skills(self):
-        self.assertIn(REFERENCE_TOOL_NAME, self.names)
-        for tool in skill_tools():
-            self.assertIn(tool.name, self.names)
+    def test_it_brings_no_tools_of_its_own(self):
+        # The skill tools and `citeste-referinta` are gone. Anything left here
+        # would be a second way to reach the method, which is the drift.
+        self.assertEqual(self.agent.tools, [])
 
-    def test_the_prompt_names_it(self):
-        self.assertIn(REFERENCE_TOOL_NAME, self.agent.instructions)
+    def test_it_carries_a_manifest_so_the_skills_are_mounted(self):
+        self.assertIsNotNone(self.agent.default_manifest)
 
-    def test_the_prompt_no_longer_denies_having_files(self):
-        # The exact sentence that contradicted every SKILL.md.
-        self.assertNotIn("nu ai\nfișiere", self.agent.instructions)
+    def test_it_replaces_the_sdk_coding_agent_prompt(self):
+        # The default is Codex's 16.9 KB prompt, which tells the model to write
+        # preambles and to structure a final answer - the opposite of both
+        # BASE_INSTRUCTIONS and the generation schemas.
+        self.assertEqual(self.agent.base_instructions, SANDBOX_INSTRUCTIONS)
+
+    def test_the_capabilities_are_shell_and_skills_only(self):
+        kinds = {capability.type for capability in self.agent.capabilities}
+        self.assertEqual(kinds, {"shell", "skills"})
+
+    def test_it_no_longer_names_a_tool_of_ours(self):
+        self.assertNotIn("citeste-referinta", self.agent.instructions)
+
+    def test_it_no_longer_denies_having_files_or_a_shell(self):
+        # Both sentences were true once and are contradictions now.
         self.assertNotIn("nu ai fișiere", self.agent.instructions)
+        self.assertNotIn("Nu ai shell", self.agent.instructions)
 
-    def test_it_still_says_there_is_no_shell(self):
-        # Removing the contradiction must not invite `exec_command` back.
-        self.assertIn("Nu ai shell", self.agent.instructions)
+    def test_it_still_says_the_method_is_mandatory(self):
+        self.assertIn("APLICAREA METODEI ESTE OBLIGATORIE", self.agent.instructions)
 
 
 class TestTheManifestMatchesDisk(unittest.TestCase):
@@ -157,10 +155,9 @@ class TestTheManifestMatchesDisk(unittest.TestCase):
     def test_every_reference_on_disk_has_a_declared_trigger(self):
         self.assertEqual({e["file"] for e in self.entries}, set(reference_index()))
 
-    def test_the_names_it_declares_are_the_names_the_tool_accepts(self):
-        enum = reference_tool().params_json_schema["properties"]["fisier"]["enum"]
+    def test_the_names_it_declares_are_files_that_exist(self):
         for entry in self.entries:
-            self.assertIn(entry["file"], enum)
+            self.assertIn(entry["file"], reference_index())
 
     def test_every_entry_says_when_in_romanian_prose(self):
         for entry in self.entries:
@@ -184,19 +181,30 @@ class TestTheManifestMatchesDisk(unittest.TestCase):
         self.assertEqual(pointed, expected)
 
 
-class TestEveryMentionIsCallable(unittest.TestCase):
-    """A pointer to a reference has to be a call the tool would accept.
+class TestEveryMentionIsOpenable(unittest.TestCase):
+    """A pointer to a reference has to be a path the model can actually open.
 
-    Found by hand on 2026-08-24, in `surse.md`: it told the model to take the
-    book titles from `references/carti.md` - the sandbox path, from when a shell
-    opened files. That is not a key the tool accepts, so the call would come back
-    "Nu există referința" and the model would carry on without the list. The
-    SKILL.md bodies were rewritten and checked; the reference files pointing at
-    EACH OTHER were not, and nothing would have said so.
+    THIS TEST INVERTED ON 2026-08-27, and the inversion is the whole story. It
+    used to assert that no document wrote `references/<file>` - because back
+    then that was the stale sandbox path, left over from when a shell opened
+    files, while the live shape was `citeste-referinta("skill/file.md")`. The
+    method is files in a sandbox again, so `references/<file>` is once more the
+    correct form and the tool-call form is the stale one.
+
+    What did NOT change is why it exists: found by hand on 2026-08-24 in
+    `surse.md`, which pointed the model at a name nothing would accept. The call
+    came back empty and the model carried on without the list - no error, no
+    log. The skill bodies had been rewritten and checked; the reference files
+    pointing at EACH OTHER had not.
     """
 
-    #: `citeste-referinta("propune-postari/carti.md")`, however it is wrapped.
-    CALL = re.compile(r'citeste-referinta\(\s*["\']([^"\']+)["\']\s*\)')
+    #: `references/structura-reel.md`, wherever it appears - fenced, inline or
+    #: in prose. The `references/` prefix is what makes it a pointer.
+    POINTER = re.compile(r"references/([\w.-]+\.md)")
+
+    #: The tool that used to serve them. Any survivor is an instruction to call
+    #: something that is not attached.
+    STALE_TOOL = re.compile(r"citeste-referinta\s*\(")
 
     def documents(self):
         """Every file the model can be handed: skill bodies and references."""
@@ -204,37 +212,42 @@ class TestEveryMentionIsCallable(unittest.TestCase):
         for folder in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
             skill_md = folder / "SKILL.md"
             if skill_md.is_file():
-                yield skill_md
-            yield from sorted((folder / "references").glob("*.md"))
+                yield folder.name, skill_md
+            for path in sorted((folder / "references").glob("*.md")):
+                yield folder.name, path
 
-    def test_every_call_names_a_reference_that_exists(self):
+    def test_every_pointer_names_a_file_in_the_same_skill(self):
+        """`references/x.md` is resolved next to the document that wrote it.
+
+        Relative, not absolute, because that is what it means inside the
+        container: the skill is one directory, and `references/` is its own
+        subfolder. A body pointing at another skill's reference would resolve
+        to nothing there, and read perfectly well here.
+        """
         index = reference_index()
-        for path in self.documents():
-            for name in self.CALL.findall(path.read_text(encoding="utf-8")):
-                self.assertIn(name, index, f"{path.name} asks for {name!r}")
+        for skill, path in self.documents():
+            for filename in self.POINTER.findall(path.read_text(encoding="utf-8")):
+                self.assertIn(f"{skill}/{filename}", index, f"{path.name} -> {filename}")
 
-    def test_no_document_still_points_at_a_sandbox_path(self):
-        # The bare filename is what makes this a pointer rather than prose: it
-        # is the name of a file that really exists under some skill.
-        filenames = {key.split("/", 1)[1] for key in reference_index()}
-        stale = re.compile(r"references[/\\](" + "|".join(map(re.escape, filenames)) + r")")
-        for path in self.documents():
-            found = stale.findall(path.read_text(encoding="utf-8"))
-            self.assertEqual(found, [], f"{path.name} points at references/{found}")
+    def test_no_document_still_calls_the_tool_that_is_gone(self):
+        for _, path in self.documents():
+            found = self.STALE_TOOL.findall(path.read_text(encoding="utf-8"))
+            self.assertEqual(found, [], f"{path.name} still calls citeste-referinta")
 
-    def test_a_bare_filename_is_never_offered_as_the_name_to_ask_for(self):
-        """`filmare.md` is not a key; `dezvolta-postarea/filmare.md` is.
+    def test_a_reference_is_never_named_without_its_folder(self):
+        """`structura-reel.md` on its own is not a path; `references/...` is.
 
-        The system prompt tells the model to ask "cu numele exact pe care ți-l dă"
-        the skill body. A body that prints the bare filename is therefore handing
-        it a name the tool refuses - and this very file shipped that way for a few
-        minutes, in the one section listing the references it should ask for only
-        when she brings the subject up.
+        A body that prints the bare filename is handing the model something it
+        has to guess the location of, and a guess that lands wrong is a file
+        silently not read - which is the failure this whole module is about.
         """
         filenames = {key.split("/", 1)[1] for key in reference_index()}
         quoted = re.compile(r"`([^`\n]+\.md)`")
-        for path in self.documents():
+        for _, path in self.documents():
             for mention in quoted.findall(path.read_text(encoding="utf-8")):
                 if mention.split("/")[-1] not in filenames:
                     continue  # some other .md, not one of ours
-                self.assertIn(mention, reference_index(), f"{path.name}: `{mention}`")
+                self.assertTrue(
+                    mention.startswith("references/"),
+                    f"{path.name}: `{mention}` is not a path the model can open",
+                )

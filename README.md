@@ -53,7 +53,7 @@ flowchart TB
         A["audit.py<br/>own connection"]
     end
 
-    W -->|"skills as tools"| S["propune-postari · dezvolta-postarea<br/>+ citeste-referinta"]
+    W -->|"shell, into a sandbox"| S["skills/ mounted at .agents/<br/>propune-postari · dezvolta-postarea + references/"]
     W -->|"5 tools, HTTP"| M["MCP server<br/>content-data"]
     W -.->|"gate: the four write tools"| G{"approve?"}
     G -->|"no"| W

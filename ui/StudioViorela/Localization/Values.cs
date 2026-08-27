@@ -37,24 +37,15 @@ public static class Values
         _ => value
     };
 
-    /// <summary>
-    /// The models the interface may ask for, in the order the picker shows them.
-    ///
-    /// The value is the API model id and never translates — `GenerationStartRequest`
-    /// validates it against the same two strings, and `pricing.py` charges by it.
-    /// The LABEL says nothing about price, deliberately: the studio shows a tester
-    /// a percentage of their allowance and never a figure, and a picker reading
-    /// "cheap / expensive" would undo that in one glance. It describes what she
-    /// actually chooses between — how carefully the thing is written.
-    /// </summary>
-    public static readonly string[] Models = ["gpt-5-nano", "gpt-5-mini"];
-
-    public static string ModelLabel(Translator t, string value) => value switch
-    {
-        "gpt-5-nano" => t.Pick("Rapid", "Fast"),
-        "gpt-5-mini" => t.Pick("Îngrijit", "Polished"),
-        _ => value
-    };
+    // There is no model picker here since 2026-08-27: nano was removed after it
+    // failed to drive the sandbox shell, and a select with one option is a
+    // control that promises a choice it cannot give. The server picks.
+    //
+    // If a second model ever earns its place, the rule that governed the labels
+    // comes back with it: they say how carefully the thing is written, never
+    // what it costs. The studio shows a tester a percentage of their allowance
+    // and never a figure, and a picker reading "cheap / expensive" would undo
+    // that in one glance.
 
     public static readonly string[] Formats = ["Reel", "Carusel", "Stories"];
 

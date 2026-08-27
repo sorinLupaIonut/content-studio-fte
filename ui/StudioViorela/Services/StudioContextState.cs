@@ -40,6 +40,39 @@ public sealed class StudioContextState(LanguageState language)
     public event Func<string, Task>? GenerationPatched;
     public event Func<string, JsonElement, Task>? SavedPostPatched;
 
+    // The one-conversation-per-lot unification (2026-08-27). `ConversationChanged`
+    // means the transcript grew — the drawer re-reads it. `ConversationReset`
+    // means a fresh conversation began — the generator drops the old lot from
+    // view. Two events, because the two listeners must not react to themselves.
+    public event Func<Task>? ConversationChanged;
+    public event Func<Task>? ConversationReset;
+
+    public async Task NotifyConversationChangedAsync()
+    {
+        if (ConversationChanged is null)
+        {
+            return;
+        }
+        foreach (var handler in ConversationChanged.GetInvocationList()
+                     .Cast<Func<Task>>())
+        {
+            await handler();
+        }
+    }
+
+    public async Task NotifyConversationResetAsync()
+    {
+        if (ConversationReset is null)
+        {
+            return;
+        }
+        foreach (var handler in ConversationReset.GetInvocationList()
+                     .Cast<Func<Task>>())
+        {
+            await handler();
+        }
+    }
+
     public void SetGenerationVariant(
         string batchId,
         string ideaId,

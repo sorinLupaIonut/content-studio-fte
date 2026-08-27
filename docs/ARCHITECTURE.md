@@ -115,13 +115,19 @@ loses whatever it does not recognize, and that loss would be silent.
 
 ### The HTTP control plane (deployment D1)
 
-The terminal loop still works, but the FastAPI harness is the cloud-facing front
-door. It owns the run lifecycle; E2B remains only the execution plane. For an
-approval-resumable D1 call the harness passes
-`SandboxRunConfig(client=…, options=…)`, not a live session, so the SDK can
-serialize the sandbox resume payload with `RunState`. A chat turn instead owns a
-live sandbox only while its SSE stream is active, which makes immediate
-cancellation possible; it closes that session when the stream ends.
+The FastAPI harness is the cloud-facing front door and owns the run lifecycle;
+E2B is only where the method is read from. **Every run gets its own container,
+opened as a live session** — `content_studio.sandbox.sandbox_run_config` — and
+closed when the run ends. Measured 2026-08-27: a container comes up in
+0.35–1.17s, which is small next to the model call it serves.
+
+A live session means `RunState` carries no sandbox payload (the SDK returns
+`None` for the resume state when it did not create the session), and that is
+correct here rather than a limitation: the container holds read-only method
+files that no run mutates, so an approval resumed minutes later is given a fresh
+one and reads exactly the same method. Verified end to end on 2026-08-27 —
+`save_posts_batch` gated to `pending`, approved, resumed from `RunState`, post
+written.
 
 | Endpoint | Contract |
 |---|---|
@@ -157,9 +163,14 @@ The terminal conversation still uses the interview below. The Blazor generator
 collects format, pillar, source and optional focus in a form, gathers the source
 packet once, then runs the same agent definition in two strict structured passes:
 
-1. `gpt-5-nano` returns exactly ten persisted title/angle rows;
-2. `gpt-5-mini` develops one idea per job into all five complete hook variants,
+1. one pass returns exactly ten persisted title/angle rows;
+2. a second pass develops one idea per job into all five complete hook variants,
    with at most five jobs running concurrently.
+
+Both run on `gpt-5-mini`, which since 2026-08-27 is the only model the interface
+offers: the method is read from files in a sandbox, and `gpt-5-nano` could not
+drive the shell that opens them — it wrote ten plausible titles without ever
+reading the method. See AGENTS.md, rule 4.
 
 SSE publishes the durable states. Refresh reads the same batch from Neon. A failed
 idea retries without discarding the other nine. Ten concurrent detail calls were

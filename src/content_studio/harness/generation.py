@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from content_studio import avatar
 from content_studio.language import DEFAULT_LANGUAGE, Language, task_note
+from content_studio.sandbox import SKILLS_PATH
 
 FormatChoice = Literal["Reel", "Carusel", "Stories"]
 PillarChoice = Literal[
@@ -466,7 +467,7 @@ def detail_output_type(format: FormatChoice) -> type[StrictContract]:
 #: Anything else is a 422 at the edge instead of an unpriced model reaching
 #: `pricing.py`, which charges what it does not recognise at the most expensive
 #: rate in its table. `None` means the deployment default.
-ModelChoice = Literal["gpt-5-nano", "gpt-5-mini"]
+ModelChoice = Literal["gpt-5-mini"]
 
 
 class GenerationBatchRequest(StrictContract):
@@ -528,52 +529,48 @@ def encode_sse(event: StreamEvent) -> str:
     )
 
 
-#: Name the tool, and say the call comes first. This replaced a note that told
-#: the model where the skill was MOUNTED - `.agents/<name>/SKILL.md`, read it with
-#: `sed` - which stopped being true the moment the sandbox went away and became
-#: an instruction to use a shell that does not exist.
+#: Name the FILE, and say reading it comes first. This sentence has been wrong
+#: in both directions and each time for the same reason - it named a mechanism
+#: that had been replaced underneath it. It told the model to `sed` a mounted
+#: path after the sandbox was removed on 2026-08-24, and it told the model to
+#: call a tool named `propune-postari` after the sandbox came back on
+#: 2026-08-27 and took the tools with it. Neither raises: the model hunts for
+#: the thing it was promised, spends turns not finding it, and writes anyway.
 #:
-#: The measurement that made this necessary, batch c82d55fd on 2026-08-24: the
-#: DETAIL phase called its tool 11 times out of 11, and the TITLE phase never
-#: called `propune-postari` at all. It reached for `list_posts` and `search_books`
-#: instead, got `[]` from both, and wrote ten titles without ever reading the
-#: method. Saying "activează skill-ul" is not the same as naming a tool.
-def use_skill_note(skill: str, *, preloaded: bool = False) -> str:
+#: The measurement behind the insistence, batch c82d55fd on 2026-08-24: the
+#: DETAIL phase reached its method 11 times out of 11, and the TITLE phase
+#: never reached it at all. It called `list_posts` and `search_books` instead,
+#: got `[]` from both, and wrote ten titles without ever reading the method.
+#: A vague "activează skill-ul" is not the same as naming what to open.
+def use_skill_note(skill: str) -> str:
     """Tell the model where its method is - and only what is true.
 
-    Two versions, because there are two shapes. When `content_studio.method` has
-    already assembled the method into the system prompt there is no skill tool
-    attached, and an instruction to call one is an instruction to spend a turn
-    discovering it does not exist. The system prompt says the same thing from
-    the other side; both have to move together, which is what
-    `tests/unit/test_method.py` holds.
+    One version since 2026-08-27, when both doors went back to reading the
+    method out of the container. Between 2026-08-24 and that date the
+    generation path received it already assembled in the system prompt, so
+    there were two. Both doors take the same three steps now, so both read the
+    same sentence, and the path here is the one `sandbox.py` mounts.
     """
 
-    if preloaded:
-        return """Metoda ta e în promptul de sistem, întreagă, împreună cu
-referințele ei. Nu o ceri și nu o cauți — o aplici, pas cu pas.
+    return f"""Metoda ta e în fișierul `{SKILLS_PATH}/{skill}/SKILL.md`.
+Deschide-l cu shell-ul ÎNAINTE de orice altceva, citește-l întreg și urmează-l.
+Nu scrii nimic înainte de a-l fi citit.
 
-Scrii direct răspunsul cerut. Un pas sărit e metodă neaplicată, nu timp
-economisit."""
-
-    return f"""Metoda ta este unealta `{skill}`. Cheam-o ÎNAINTE de orice
-altceva, citește ce întoarce și urmeaz-o. Nu scrii nimic înainte s-o fi chemat.
-
-Metoda ei nu se termină acolo: unde îți spune să ceri o referință, o ceri, tot
-înainte de a scrie. Un pas sărit e metodă neaplicată, nu timp economisit."""
+Metoda nu se termină acolo: unde îți spune să deschizi o referință din
+`{SKILLS_PATH}/{skill}/references/`, o deschizi, tot înainte de a scrie. Le
+deschizi pe toate cele cerute de formatul ăsta deodată, într-o singură rundă,
+nu una pe tură. Un pas sărit e metodă neaplicată, nu timp economisit."""
 
 
 def title_prompt(
     request: GenerationBatchRequest,
     source_packet: dict[str, Any],
     language: Language = DEFAULT_LANGUAGE,
-    *,
-    preloaded: bool = False,
 ) -> str:
     """The bounded title-only branch of the existing proposal skill."""
 
     packet = json.dumps(source_packet, ensure_ascii=False)
-    return f"""{use_skill_note("propune-postari", preloaded=preloaded)}
+    return f"""{use_skill_note("propune-postari")}
 
 Formatul, pilonul și sursa sunt deja alese de ea — nu le pui la îndoială, nu ceri
 confirmare și nu întrebi nimic. Scrii numai din materialul-sursă de mai jos și din
@@ -639,14 +636,12 @@ def detail_prompt(
     idea: IdeaTitle,
     source_packet: dict[str, Any],
     language: Language = DEFAULT_LANGUAGE,
-    *,
-    preloaded: bool = False,
 ) -> str:
     """The complete five-variant branch for one already-persisted idea."""
 
     idea_json = json.dumps(idea.model_dump(), ensure_ascii=False)
     packet = json.dumps(source_packet, ensure_ascii=False)
-    return f"""{use_skill_note("dezvolta-postarea", preloaded=preloaded)}
+    return f"""{use_skill_note("dezvolta-postarea")}
 
 Ideea ţi se dă mai jos, întreagă — nu o cauți în conversație și nu alegi alta.
 Cele cinci variante pornesc din același unghi, dar hook-ul și construcția

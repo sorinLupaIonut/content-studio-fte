@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import UUID
 
+from agents.run_config import SandboxRunConfig
 from fastapi.testclient import TestClient
 
 from content_studio.config import CLIENT_SLUG, MissingConfig
@@ -516,15 +517,22 @@ class TestDecisionMatching(unittest.TestCase):
 
 
 class TestSdkContracts(unittest.TestCase):
-    def test_the_run_config_carries_the_session_and_nothing_else(self) -> None:
-        # This used to assert that the harness handed the SDK sandbox OPTIONS
-        # rather than a session it had opened itself. The sandbox went on
-        # 2026-08-24, so what is left to hold is that the run is grouped by
-        # session - which is what ties every span and audit row to one story.
-        config = HarnessService._run_config("s1")
+    def test_the_run_config_carries_the_session_and_the_sandbox(self) -> None:
+        # Two things that have to travel together. `group_id` is what ties every
+        # span and audit row to one story; `sandbox` is what lets the run start
+        # at all, since the worker's method lives in a container. It is a
+        # required parameter rather than an optional one on purpose - the
+        # version of this that defaulted to None would have let a caller ship a
+        # dead door and find out in production.
+        sandbox = SandboxRunConfig()
+        config = HarnessService._run_config("s1", sandbox)
 
         self.assertEqual(config.group_id, "s1")
-        self.assertIsNone(getattr(config, "sandbox", None))
+        self.assertIs(config.sandbox, sandbox)
+
+    def test_the_run_config_cannot_be_built_without_a_sandbox(self) -> None:
+        with self.assertRaises(TypeError):
+            HarnessService._run_config("s1")
 
     def test_interrupted_state_is_serialized_synchronously(self) -> None:
         class State:

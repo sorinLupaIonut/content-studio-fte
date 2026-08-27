@@ -36,6 +36,10 @@ class Rate(NamedTuple):
 #: figure, or the studio will under-charge.
 PRICES: dict[str, Rate] = {
     "gpt-5-mini": Rate(250_000, 2_000_000, 25_000),
+    # Nano left the allowlist on 2026-08-27 and its price stays here anyway:
+    # `usage_events` holds rows that were charged at it, and an unpriced model
+    # falls through to the most expensive rate below - which would silently
+    # rewrite the history of every account that ever ran a nano batch.
     "gpt-5-nano": Rate(50_000, 400_000, 5_000),
     "text-embedding-3-small": Rate(20_000, 0, 20_000),
 }

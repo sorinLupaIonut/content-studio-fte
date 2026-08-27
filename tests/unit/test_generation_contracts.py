@@ -1,10 +1,12 @@
 """Free D1b tests for the structured 10 × 5 and SSE contracts."""
 
+import inspect
 import unittest
 from uuid import UUID
 
 from pydantic import ValidationError
 
+from content_studio.config import GENERATION_TITLE_MODEL
 from content_studio.harness.generation import (
     HOOK_TYPES,
     FormatDetails,
@@ -24,6 +26,7 @@ from content_studio.harness.generation import (
     public_batch,
     title_prompt,
 )
+from content_studio.harness.generator import GenerationCoordinator
 
 
 def titles(count: int = 10) -> list[IdeaTitle]:
@@ -273,6 +276,39 @@ class TestGenerationContracts(unittest.TestCase):
         self.assertIn("dezvolta-postarea", details)
         self.assertNotIn("propune-postari", details)
         self.assertIn("O limită blândă", details)
+
+
+class TestTheBatchAlwaysNamesItsModel(unittest.TestCase):
+    """Neither door picks a model any more, so the row must not inherit a None.
+
+    The interface lost its picker on 2026-08-27 and the chat agent never had
+    one — `start_generation` has no such parameter, deliberately. What is left
+    to guarantee is that `generation_batches.model` still says who wrote the
+    batch, which it can only do if the name is resolved before the insert.
+    """
+
+    def test_a_request_without_a_model_still_resolves_to_one(self) -> None:
+        request = GenerationBatchRequest(
+            format="Reel", pillar="Conexiune", source="Memorie"
+        )
+        self.assertIsNone(request.model)
+        self.assertEqual(
+            GenerationCoordinator._batch_model(request), GENERATION_TITLE_MODEL
+        )
+
+    def test_a_request_that_names_one_keeps_it(self) -> None:
+        request = GenerationBatchRequest(
+            format="Reel", pillar="Conexiune", source="Memorie", model="gpt-5-mini"
+        )
+        self.assertEqual(GenerationCoordinator._batch_model(request), "gpt-5-mini")
+
+    def test_the_row_is_written_from_the_resolved_request(self) -> None:
+        # A guard on the ordering, not on the value: resolving after the batch
+        # exists would store the None and lose the attribution for good.
+        source = inspect.getsource(GenerationCoordinator.start)
+        resolved = source.index("_batch_model")
+        created = source.index("drafts.create")
+        self.assertLess(resolved, created)
 
 
 if __name__ == "__main__":

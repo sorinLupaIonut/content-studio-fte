@@ -1,37 +1,39 @@
-"""Content Worker — one agent, skills as tools, data over MCP.
+"""Content Worker — one agent, skills in a sandbox, data over MCP.
 
-**A single agent**, which loads its instructions from `SKILL.md` folders.
+**A single agent**, which reads its method from `SKILL.md` folders mounted into
+a container.
 
 What that buys:
-  · real progressive disclosure — the skill index (name + description + path) is
-    always in context and costs little; the body opens only when the task matches
-    the description, and `references/` only if SKILL.md points there;
+  · real progressive disclosure, delivered by the platform rather than by tools
+    of ours — the skill index (name + description + path) is always in context
+    and costs little; the body is opened only when the task matches the
+    description, and a `references/` file only if SKILL.md points there;
   · one context, so the profile and the rules are not copied into every agent's
     prompt;
-  · the method lives in files you can edit without touching code.
+  · the method lives in files you can edit without touching code, and it is the
+    SAME file the model opens — no assembling step in between that could
+    disagree with it.
 
 What it costs, and you should know it:
   · a `SKILL.md` is text. It cannot enforce "exactly ten proposals with exactly
     five hooks" — it asks and hopes. The number is an instruction, not a contract,
     so it can come back with nine. It is counted afterwards, in
-    `tests/checks/full_flow.py`, and judged in the evals (Decision 10).
+    `tests/checks/full_flow.py`, and judged in the evals (Decision 10);
+  · turns and a container. Measured 2026-08-27 on gpt-5-mini: eleven requests and
+    87,302 input tokens for five hooks, against 26,250 and one request for the
+    same work with the method preloaded. That trade was made deliberately —
+    see `content_studio.sandbox`.
 
-The agent has no shell and no filesystem. Each skill folder is a `FunctionTool`
-named and described by its own frontmatter, and each `references/` file is fetched
-by name through one more tool — see `skill_tools` and `reference_tool`. Nothing
-from this project is reachable except what those two return, which is why `.env`
-being next to `skills/` is not a problem any more.
+The agent has a shell, and it is the shell that opens the method. Nothing else
+of this project is in the container: `content_studio.sandbox` mounts `skills/`
+and nothing more, with no network, so `.env` sitting next to `skills/` on the
+host is not reachable from in there.
 
 Data is reached only through the `content-data` MCP server (rule 1), which runs
-separately.
+separately and is called by THIS process, never from inside the container.
 
 Everything this file prints is Romanian, and so is the system prompt below: the
-person on the other side of the terminal is the client, and she works in Romanian.
-
-Run it, in two terminals:
-          uv run content-studio-server
-          uv run content-studio          (resumes the last conversation)
-          uv run content-studio --new    (starts a new one)
+person on the other side is the client, and she works in Romanian.
 """
 
 from __future__ import annotations
@@ -43,8 +45,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from agents import Agent, FunctionTool, ModelSettings, Runner
+from agents import ModelSettings, Runner
 from agents.mcp import MCPServerStreamableHttp
+from agents.sandbox import Manifest, SandboxAgent
 
 from content_studio import enable_utf8_output
 from content_studio.audit import (
@@ -62,6 +65,7 @@ from content_studio.language import DEFAULT_LANGUAGE, Language, instruction_suff
 from content_studio.mcp_server.protocol import (
     profile_uri,
 )
+from content_studio.sandbox import SANDBOX_INSTRUCTIONS, capabilities
 
 enable_utf8_output()
 
@@ -89,82 +93,32 @@ interpretezi cu bunăvoință, fără s-o corectezi. Răspunsul tău are diacrit
 """
 
 
-#: The name the model calls. A constant because the note, the tool and every
-#: SKILL.md have to agree on it, and a typo in one of them is a tool the model
-#: asks for and never receives.
-REFERENCE_TOOL_NAME = "citeste-referinta"
-
-
-#: How the method is reached. Telling a model it has a shell it does not have is
-#: worse than saying nothing: it spends a turn calling `exec_command` and gets an
-#: error back.
+#: How the method is reached. Telling a model it has something it does not have
+#: is worse than saying nothing: it spends a turn discovering the lie and gets an
+#: error back. This note and the tools attached below have to move together, and
+#: this project has now been on both sides of that fault - a note saying "nu ai
+#: fisiere" over skills that said "open references/...", and later a note naming
+#: a reference tool that had been detached.
 #:
-#: Measured on 2026-08-23, and the reason the shape changed: of 148 KB of skills
-#: mounted into an E2B sandbox, a generation run opened exactly one file -
-#: SKILL.md - and never touched `references/`. The sandbox charged 5,448 tokens of
-#: instructions and tool schemas, plus a turn of flailing at a directory, to hand
-#: over a file a single tool call can return. It was removed on 2026-08-24.
-#:
-#: Progressive disclosure survived it, and gained a third step: the skill's own
-#: frontmatter description decides whether the body is ever paid for, and the
-#: body decides whether a `references/` file is - see `reference_tool`.
+#: THE SHAPE, since 2026-08-27: skills are real folders in a sandbox, indexed and
+#: opened by the model itself. The index sentence is not written here - the SDK's
+#: `Skills` capability renders name + description + path into the prompt, off the
+#: frontmatter, so there is exactly one list and it cannot go stale. What is left
+#: for us to say is the part the platform's English cannot: that calling the
+#: skill is not optional.
 #:
 #: Romanian and untranslated, like everything the model reads.
-def skill_tool_method_note(*, references: bool) -> str:
-    """The method note for the tools shape, told the truth about what exists.
+def skill_method_note() -> str:
+    """Say that the method is mandatory, and let the platform say where it is."""
 
-    Two versions, not one. This note is the only place the model learns which
-    tools it has, and its first version said "nu ai fișiere" while every
-    SKILL.md still told it to open `references/...`. A contradiction inside one
-    context window, nothing logged, and 126 KB of method never read. Naming a
-    reference tool that is not attached would be the same fault pointing the
-    other way, so the sentence exists only when the tool does.
-    """
-
-    parts = [
-        "Metoda ta stă în unelte, câte una pentru fiecare skill, numite exact ca el."
-        " Chemi unealta potrivită și primești metoda întreagă."
-    ]
-    if references:
-        parts.append(
-            "Când corpul skill-ului te trimite la o referință, o ceri cu"
-            f" `{REFERENCE_TOOL_NAME}`, cu numele exact pe care ți-l dă el."
-            " Ceri numai referința de care ai nevoie, când ai nevoie de ea."
-        )
-    parts.append("Nu ai shell: nu deschizi fișiere singur și nu inventa unelte.")
-    parts.append(
-        "APLICAREA METODEI ESTE OBLIGATORIE. Chemi unealta ÎNAINTE de primul răspuns,"
-        " citești ce întoarce și abia apoi scrii. Nu improvizezi fluxul din memorie."
+    return (
+        "Metoda ta stă în skill-uri, iar lista lor e mai jos, în acest prompt, cu"
+        " numele și calea fiecăruia.\n\n"
+        "APLICAREA METODEI ESTE OBLIGATORIE. Deschizi skill-ul potrivit ÎNAINTE de"
+        " primul răspuns, îl citești întreg, ceri referințele pe care ți le cere"
+        " el, și abia apoi scrii. Nu improvizezi fluxul din memorie și nu scrii"
+        " nimic înainte de a-l fi citit."
     )
-    return "\n\n".join(parts)
-
-
-def preloaded_method_note(*, references: bool) -> str:
-    """The method note for the shape where the method is already in the prompt.
-
-    A second note rather than a flag inside the first one, for the same reason
-    the first one has two versions: this is where the model learns which tools
-    exist, and a sentence that describes a tool it does not have costs a turn to
-    disprove. Here there is no skill tool at all, so nothing may say there is.
-    """
-
-    parts = [
-        "Metoda ta e mai jos, în acest mesaj, întreagă - corpul ei și fiecare"
-        " referință de care are nevoie. Nu o ceri și nu o cauți: o citești și o"
-        " aplici, pas cu pas, în ordinea în care e scrisă."
-    ]
-    if references:
-        parts.append(
-            f"`{REFERENCE_TOOL_NAME}` rămâne pentru referințele care NU sunt mai"
-            " jos - alea depind de ce te întreabă ea, nu de ce a ales în"
-            " formular. Nu o chema pentru ceva ce ai deja."
-        )
-    parts.append("Nu ai shell: nu deschizi fișiere singur și nu inventa unelte.")
-    parts.append(
-        "APLICAREA METODEI ESTE OBLIGATORIE. Un pas sărit e metodă neaplicată,"
-        " nu timp economisit."
-    )
-    return "\n\n".join(parts)
 
 
 #: What the model may reach the data with, read off the server rather than typed
@@ -262,73 +216,60 @@ def build_worker(
     output_type: type[Any] | None = None,
     model_settings: ModelSettings | None = None,
     language: Language = DEFAULT_LANGUAGE,
-    method: str | None = None,
-) -> Agent:
-    """The single agent. Skills from `skills/`, data through MCP.
+) -> SandboxAgent:
+    """The single agent. Method from files in a sandbox, data through MCP.
 
-    One `FunctionTool` per skill folder, described by the skill's own frontmatter,
-    plus one tool that returns a `references/` file by name. No shell, no
-    `apply_patch`, no `view_image`, and none of the SDK's 3,472-token coding-agent
-    prompt.
+    A `SandboxAgent`, since 2026-08-27, and it needs a live sandbox at run time:
+    every caller must pass `RunConfig(sandbox=...)`, which
+    `content_studio.sandbox.sandbox_run_config` builds. Without one the run
+    fails at `Runner.run` rather than quietly answering from memory - which is
+    the right way round, because the failure mode of this shape is a model that
+    never opens the method and writes something plausible instead.
 
-    Skills are still folders on disk, discovered by themselves, named and described
-    by their own frontmatter, and the description is still what decides whether the
-    body is ever loaded. That was the point of rule 4, and the delivery changing
-    from a mounted folder to a tool did not cost it.
+    THREE THINGS ARE LOAD-BEARING HERE, and each of them fails silently:
+
+    · `default_manifest` must exist. The runtime only processes the capabilities
+      into a filesystem when a manifest is present; with none, the container
+      comes up empty, the skills index never reaches the prompt, and the model
+      answers from memory after running `find` over nothing.
+    · `base_instructions` must be overridden. The SDK's default is Codex's
+      16.9 KB coding-agent prompt, which tells the model to write preambles and
+      to structure a final answer - the opposite of both `BASE_INSTRUCTIONS` and
+      the generation schemas.
+    · the capabilities are Shell and Skills only. `Capabilities.default()` would
+      add `apply_patch`, which is a tool for editing the method the agent is
+      supposed to be reading.
+
+    Skills are folders on disk, discovered by themselves, named and described by
+    their own frontmatter, and the description is still what decides whether the
+    body is ever read. Rule 4, delivered by the platform rather than by tools of
+    ours: `Skills.instructions` renders the index, the model opens `SKILL.md`
+    with the shell, and the body sends it at a `references/` file by name.
 
     `language` changes only what comes out, never the method: the skills stay
     Romanian and an override block is appended. See `content_studio.language`.
-
-    `method`, when given, is the whole method already assembled - body plus the
-    references this run was always going to need - and it changes three things
-    together, which is why it is one parameter and not three. The skill tools
-    come off (the body is already here, so a tool that returns it can only cost
-    a turn), the note stops telling the model to call one, and the block goes
-    into the prompt ahead of the profile so it lands in the cached prefix. The
-    reference tool stays on: `content_studio.method` preloads only what the form
-    determines, and the rest must still be reachable. See that module's header
-    for why this path is not the same situation as chat.
     """
-    # Built before the prompt, because the prompt has to describe the tools that
-    # are actually attached. These lines are the whole fix: one place decides
-    # whether the reference tool exists, and the note is written from that answer
-    # rather than from what happened to be true when it was last edited.
-    references = reference_tool()
-    method_note = (
-        preloaded_method_note(references=references is not None)
-        if method is not None
-        else skill_tool_method_note(references=references is not None)
-    )
-    # Identity, then the method, then the data, then the contract. Each part
-    # written from what is actually attached rather than from what was true
-    # when the string was last edited.
-    tool_note = f"{method_note}\n\n{data_tool_note(data_mcp)}"
-    common: dict[str, Any] = {
-        "name": "Content Worker",
-        "model": model or MODEL,
-        "instructions": (
+    # Identity, then the method, then the data. Each part written from what is
+    # actually attached rather than from what was true when the string was last
+    # edited - the fault this project has committed twice.
+    tool_note = f"{skill_method_note()}\n\n{data_tool_note(data_mcp)}"
+    return SandboxAgent(
+        name="Content Worker",
+        model=model or MODEL,
+        instructions=(
             f"{BASE_INSTRUCTIONS}\n\n{tool_note}"
-            # Ahead of the profile, and never after the request: everything up to
-            # the profile is identical for every idea in a batch, which is what
-            # makes it one cached prefix read ten times instead of ten reads.
-            f"{'' if method is None else chr(10) * 2 + method}"
             f"\n\n--- PROFILUL CLIENTEI ---\n{profile_md}"
             # The language override goes last, after the profile, because it
             # has to contradict rule 1 above and the closer contradiction wins.
             f"{instruction_suffix(language)}"
         ),
-        "mcp_servers": [data_mcp],
-        "output_type": output_type,
-        "model_settings": model_settings or ModelSettings(),
-    }
-    # No skill tool when the body is already in the prompt. Leaving it attached
-    # would offer the model a turn whose only possible result is a copy of what
-    # it is already reading - and a model that is told to call its method first
-    # will take that offer.
-    tools = [] if method is not None else skill_tools()
-    if references is not None:
-        tools.append(references)
-    return Agent(tools=tools, **common)
+        base_instructions=SANDBOX_INSTRUCTIONS,
+        default_manifest=Manifest(),
+        capabilities=capabilities(),
+        mcp_servers=[data_mcp],
+        output_type=output_type,
+        model_settings=model_settings or ModelSettings(),
+    )
 
 
 #: `name` and `description` out of a SKILL.md frontmatter. Deliberately not a
@@ -367,50 +308,6 @@ def parse_skill(path: Path) -> tuple[str, str, str]:
     return name, description, text[match.end() :].lstrip()
 
 
-#: A tool takes no arguments: it returns one whole method, and there is nothing
-#: to choose. Spelled out because strict mode rejects a bare `{}`.
-_NO_ARGS = {
-    "type": "object",
-    "properties": {},
-    "required": [],
-    "additionalProperties": False,
-}
-
-
-def skill_tools() -> list[FunctionTool]:
-    """One tool per skill folder, described by the skill's own frontmatter.
-
-    This is what replaces the sandbox mount. The important part is not that it is
-    cheaper - it is that progressive disclosure survives: the description is still
-    what decides whether the body is ever paid for, and it still lives in the
-    skill, so the method is still edited without touching code (rule 4).
-
-    Read at build time, not at import: a skill edited on disk reaches the next
-    conversation without a restart, exactly as the mounted folder did.
-    """
-    tools: list[FunctionTool] = []
-    for folder in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
-        skill_md = folder / "SKILL.md"
-        if not skill_md.is_file():
-            continue
-        name, description, body = parse_skill(skill_md)
-
-        async def invoke(_ctx: Any, _args: str, body: str = body) -> str:
-            return body
-
-        tools.append(
-            FunctionTool(
-                name=name,
-                description=description,
-                params_json_schema=_NO_ARGS,
-                on_invoke_tool=invoke,
-            )
-        )
-    if not tools:
-        raise MissingConfig(f"Niciun skill în {SKILLS_DIR}")
-    return tools
-
-
 #: Every reference on disk, addressed as `<skill>/<file>.md`.
 #:
 #: A dict, and the lookup goes through it rather than joining the model's string
@@ -428,74 +325,6 @@ def reference_index() -> dict[str, Path]:
         for path in sorted((folder / "references").glob("*.md")):
             index[f"{folder.name}/{path.name}"] = path
     return index
-
-
-#: What the model reads before deciding to spend a turn on a reference. It says
-#: "only when the skill sends you", because the skill body is the index: the
-#: schema knows the names, and only SKILL.md knows what each one is for.
-REFERENCE_TOOL_DESCRIPTION = """
-Întoarce, întreg, un fișier de referință al metodei — detaliul pe care corpul
-unui skill îl are doar ca trimitere. Îl chemi numai când skill-ul te trimite
-explicit acolo, cu numele exact pe care ți-l dă, și ceri numai fișierul de care
-ai nevoie: sunt materiale lungi, se citesc pe rând, nu toate.
-""".strip()
-
-
-def reference_tool() -> FunctionTool | None:
-    """The one tool that opens a `references/` file. None when there are none.
-
-    This is the third step of progressive disclosure, and the step the sandbox
-    used to serve with a shell: the description decides whether the skill body
-    is loaded, the body decides whether a reference is. Nothing is in context
-    until something upstream asked for it by name.
-
-    None rather than an empty enum: strict mode cannot spell "a string from
-    nowhere", and a tool that can never succeed spends schema tokens on every
-    request to teach the model a dead end. `build_worker` drops the sentence
-    about it from the system prompt in the same breath.
-
-    The file is read when the tool is CALLED, not when it is built, so a
-    reference edited on disk reaches the next call - the same contract the
-    mounted folder had, one level further in.
-    """
-
-    index = reference_index()
-    if not index:
-        return None
-    schema = {
-        "type": "object",
-        "properties": {
-            "fisier": {
-                "type": "string",
-                "description": "Numele referinței, exact cum îl scrie skill-ul.",
-                "enum": sorted(index),
-            }
-        },
-        "required": ["fisier"],
-        "additionalProperties": False,
-    }
-
-    async def invoke(_ctx: Any, args: str) -> str:
-        # The enum makes an unknown name a schema violation, so this guard is
-        # for the model that answers around its own schema, and for the file
-        # deleted between build and call. It returns the refusal as a result
-        # rather than raising: a raise ends the run, and a detail run is one of
-        # ten that were meant to come back together.
-        try:
-            name = json.loads(args or "{}").get("fisier", "")
-        except json.JSONDecodeError:
-            name = ""
-        path = index.get(name)
-        if path is None or not path.is_file():
-            return f"Nu există referința {name!r}. Alege una din lista uneltei."
-        return path.read_text(encoding="utf-8")
-
-    return FunctionTool(
-        name=REFERENCE_TOOL_NAME,
-        description=REFERENCE_TOOL_DESCRIPTION,
-        params_json_schema=schema,
-        on_invoke_tool=invoke,
-    )
 
 
 def describe_request(request) -> tuple[str, dict, str]:

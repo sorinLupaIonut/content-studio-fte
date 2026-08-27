@@ -346,6 +346,38 @@ CREATE INDEX IF NOT EXISTS idx_generation_variants_idea
     ON public.generation_variants(idea_id);
 
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 5b. CONVERSATIONS — which session is the studio's one conversation, and which
+--     lot was born in it. Added 2026-08-27 for the chat↔UI unification.
+--
+--     NOT the table Decision 11 removed. That one duplicated `agent_sessions`
+--     (the messages); this one holds what `agent_sessions` cannot express:
+--     which session is the ACTIVE conversation of an account, and the batch it
+--     owns. The rule it encodes: one conversation carries at most one lot — a
+--     new lot archives the conversation and starts a fresh one, so history
+--     cannot grow without bound and the old lot leaves the interface.
+--
+--     `session_id` deliberately has no FK to `agent_sessions`: the row is
+--     written BEFORE the SDK's first turn creates the session, and the SDK owns
+--     that table's lifecycle.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.conversations (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id           UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+    owner_principal_id  TEXT NOT NULL,
+    session_id          TEXT NOT NULL UNIQUE,
+    batch_id            UUID REFERENCES public.generation_batches(id) ON DELETE SET NULL,
+    status              TEXT NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'archived')),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_one_active_per_owner
+    ON public.conversations(owner_principal_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_conversations_owner_created
+    ON public.conversations(owner_principal_id, created_at DESC);
+
+
 -- ═════════════════════════════════════════════════════════════════════════════
 -- PART TWO — DURABLE STATE, the crash course's schema (D4)
 --

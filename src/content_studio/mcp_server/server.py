@@ -3,15 +3,23 @@
     uv run content-studio-server
     uv run python -m content_studio.mcp_server.server
 
-Seven model-visible tools:
+Ten model-visible tools:
 
-    search_books      read   — meaning search across the 17 books
-    search_web        read   — current angles, with the source links
-    list_posts        read   — what has already been written
-    save_post         write  — one post, plus its audit row
-    save_posts_batch  write  — the chosen variants of one UI batch, all or none
-    update_post       write  — one studio-written post, replaced whole
-    update_profile    write  — one profile section, plus its audit row
+    search_books      read     — meaning search across the 17 books
+    search_web        read     — current angles, with the source links
+    list_posts        read     — what has already been written
+    save_post         write    — one post, plus its audit row
+    save_posts_batch  write    — the chosen variants of one UI batch, all or none
+    update_post       write    — one studio-written post, replaced whole
+    update_profile    write    — one profile section, plus its audit row
+    start_generation  trigger  — record a validated batch request; the harness runs it
+    develop_idea      trigger  — record which idea to develop; the harness runs it
+    select_variant    choice   — mark her chosen variant on the current batch
+
+The trigger tools (2026-08-27) close the chat↔UI loop: the conversation agent
+never writes her content itself — it records what she asked for, and the
+harness executes the same pipeline the interface buttons use. Ungated, because
+they create drafts; the one confirmation stays on saving a post (rule 6).
 
 Internal D1b draft operations share this server but are hidden from the agent by
 the SDK tool filter. There is no `run_sql`, no DDL, and no tool takes free text
@@ -55,15 +63,18 @@ from content_studio import enable_utf8_output
 # `replay.py` cannot group. One import keeps both ends honest.
 from content_studio.audit import (
     ACCOUNT_PROVISIONED,
+    CONVERSATION_STARTED,
     GENERATION_BATCH_CREATED,
     GENERATION_BATCH_FAILED,
     GENERATION_CANCELLED,
     GENERATION_IDEA_FAILED,
     GENERATION_IDEA_READY,
     GENERATION_IDEA_STARTED,
+    GENERATION_REQUESTED,
     GENERATION_TITLES_READY,
     GENERATION_VARIANT_PATCHED,
     GENERATION_VARIANT_SELECTED,
+    IDEA_DEVELOPMENT_REQUESTED,
     POST_SAVED,
     POST_UPDATED,
     PROFILE_UPDATED,
@@ -85,10 +96,14 @@ from content_studio.db.import_books import EMBEDDING_MODEL, as_vector
 # import breaking too.
 from content_studio.debug import attach_if_requested
 from content_studio.harness.generation import (
+    HOOK_TYPES,
+    FormatChoice,
     GenerationBatchRequest,
     IdeaDetails,
     IdeaTitles,
     IdeaVariant,
+    PillarChoice,
+    SourceChoice,
 )
 from content_studio.harness.posts import SavedPostContent, SavePostsRequest
 from content_studio.mcp_server.accounts import (
@@ -96,6 +111,11 @@ from content_studio.mcp_server.accounts import (
     provision_self,
     resolve_account,
     set_disabled,
+)
+from content_studio.mcp_server.conversation_store import (
+    bind_conversation_batch,
+    current_conversation,
+    new_conversation,
 )
 from content_studio.mcp_server.generation_store import (
     cancel_batch,
@@ -108,8 +128,12 @@ from content_studio.mcp_server.generation_store import (
     load_current_batch,
     patch_variant,
     put_titles,
-    select_variant,
     start_idea,
+)
+from content_studio.mcp_server.generation_store import (
+    # Aliased because `select_variant` is now also the model-visible tool's
+    # name; the store primitive keeps its own.
+    select_variant as select_variant_store,
 )
 from content_studio.mcp_server.posts_store import (
     as_markdown,
@@ -186,7 +210,8 @@ async def client_profile(slug: str) -> str:
 
 
 SEARCH_SQL = """
-SELECT d.title                                                  AS title,
+SELECT e.id                                                     AS chunk_id,
+       d.title                                                  AS title,
        d.metadata->>'author'                                    AS author,
        COALESCE(d.metadata->>'authority_class',
                 'context de lucru — inspirație')                AS authority_class,
@@ -217,6 +242,7 @@ SELECT d.title                                                  AS title,
 async def search_books(
     ctx: Context,
     description: str,
+    description_en: str,
     titles: list[str] | None = None,
     limit: int = 6,
 ) -> list[dict]:
@@ -225,6 +251,11 @@ async def search_books(
     Folosește-o DOAR când ea a ales sursa „Cărți" sau „Combinat". Descrie ce
     cauți în cuvintele ei („vinovăția de a spune nu"), nu cu cuvinte-cheie, și
     pune descrierea în `description`.
+
+    `description_en` e ACEEAȘI căutare, formulată de tine în engleză. Raftul e
+    bilingv — o parte din cărți sunt în engleză — iar căutarea se face cu
+    amândouă formulările și păstrează ce se potrivește mai bine; o carte
+    engleză e aproape invizibilă pentru o formulare românească fără asta.
 
     `titles` filtrează pe cărțile alese de ea, cu titlul exact; lipsă = toate.
 
@@ -244,13 +275,25 @@ async def search_books(
     # licensed material belonging to whoever imported them, and an unscoped
     # search would let one account's agent quote from another's shelf.
     client_slug = await client_of(ctx)
+    # Both phrasings in one embeddings round-trip. The shelf is bilingual and
+    # the embedding model is not: measured on 2026-08-26, a Romanian phrasing
+    # left all three English burnout books unreached while its English twin
+    # found them at 0.60. Two ANN queries, merged on the fragment, best score
+    # wins — the schema makes the second phrasing mandatory, so the guarantee
+    # does not depend on the model remembering a rule.
     response = await AsyncOpenAI().embeddings.create(
-        model=EMBEDDING_MODEL, input=[description]
+        model=EMBEDDING_MODEL, input=[description, description_en]
     )
-    vector = as_vector(response.data[0].embedding)
+    vectors = [as_vector(d.embedding) for d in response.data]
 
     async with connection() as conn:
-        rows = await conn.fetch(SEARCH_SQL, vector, titles, limit, client_slug)
+        merged: dict[object, object] = {}
+        for vector in vectors:
+            for r in await conn.fetch(SEARCH_SQL, vector, titles, limit, client_slug):
+                key = r["chunk_id"]
+                if key not in merged or r["score"] > merged[key]["score"]:
+                    merged[key] = r
+    rows = sorted(merged.values(), key=lambda r: r["score"], reverse=True)[:limit]
 
     return [
         {
@@ -306,15 +349,16 @@ async def search_web(
     description: str,
     limit: int = 5,
 ) -> dict:
-    """Caută unghiuri actuale pe internet pentru tema aleasă de Viorela.
+    """Caută pe internet material actual pentru tema aleasă de Viorela.
 
     Folosește-o DOAR când sursa aleasă este „Internet” sau „Combinat”. Rezultatul
-    este inspirație: teme de sezon și lucruri discutate acum. Nu transforma
-    cifrele, studiile sau citatele găsite pe web în fapte pentru postare.
+    aduce unghiuri de discutat acum, dar și cifre, studii și citate din paginile
+    consultate. Tot ce preiei în postare trebuie să existe chiar în rezultat —
+    nimic completat din memorie sub steagul internetului.
 
     Pune subiectul în `description`. `sources` conține titlul și linkul paginilor
-    citate. Ele merg numai în câmpul `source` la salvare, nu în hook, script sau
-    caption.
+    citate. Ele merg în câmpul `source` la salvare; în hook, script sau caption
+    sursa nu apare, cu excepția unui citat prezentat ca citat.
     """
     query = description.strip()
     if not query:
@@ -325,15 +369,15 @@ async def search_web(
             "sources": [],
         }
     limit = max(1, min(limit, 8))
-    prompt = f"""Caută pe web idei actuale pentru conținut social în limba română
+    prompt = f"""Caută pe web material actual pentru conținut social în limba română
 pe tema: {query!r}.
 
-Întoarce cel mult {limit} denumiri scurte de unghiuri, ca sintagme, fără să le
-explici și fără să afirmi nimic despre cauze, efecte, simptome, prevenție sau
-tratament. Exemple de formă: „limite după concediu”, „presiunea de a fi mereu
-disponibilă”. Nu da procente, statistici, rezultate de studii, citate ori
-afirmații medicale. Nu scrie o postare și nu da reguli; oferă numai subiecte de
-explorat și citează paginile consultate."""
+Întoarce cel mult {limit} elemente utile: unghiuri și teme discutate acum, dar
+și cifre, rezultate de studii ori citate scurte, când paginile consultate le
+dau. Fiecare element vine din paginile chiar citite — nu afirma nimic care nu
+apare în ele și nu completa din memorie. Leagă fiecare cifră, studiu sau citat
+de pagina care l-a dat. Nu scrie o postare; adu materialul și citează paginile
+consultate."""
     response = await AsyncOpenAI().responses.create(
         model=WEB_SEARCH_MODEL,
         tools=[{"type": "web_search", "search_context_size": "low"}],
@@ -720,6 +764,191 @@ async def update_profile(section: str, new_text: str, ctx: Context) -> dict:
     }
 
 
+# ---- the chat trigger tools (2026-08-27) -------------------------------------
+#
+# The conversation agent never writes content: these tools record what she asked
+# for, validated, and the harness runs the same generation pipeline the buttons
+# use. The tool answers immediately — the model tells her the app is working —
+# and the result reaches both windows through the tables, written once.
+
+
+@server.tool()
+async def start_generation(
+    format: FormatChoice,
+    pillar: PillarChoice,
+    source: SourceChoice,
+    ctx: Context,
+    focus: str | None = None,
+    book_titles: list[str] | None = None,
+) -> dict:
+    """Pornește lotul de 10 idei pentru Viorela, cu metoda întreagă a aplicației.
+
+    O chemi NUMAI după ce ea a ales formatul, pilonul și sursa — dacă lipsește
+    vreuna, o întrebi întâi, cu vocabularul închis al skill-ului. `focus` e tema
+    ei, dacă a dat una; nu inventa un focus. `book_titles` doar când sursa e
+    Cărți sau Combinat și ea a ales titluri anume, scrise exact ca în raft.
+
+    NU scrii tu cele zece idei: aplicația le generează și le aduce în
+    conversație și în interfață. După ce chemi unealta, îi spui doar că lotul
+    pornește și apare în câteva zeci de secunde. Un lot nou închide lotul vechi.
+    """
+    # The identity is enforced, not used: the harness executes under the same
+    # principal it authenticated, never one the model could influence.
+    owner_of(ctx)
+    conversation_id = conversation_of(ctx)
+    request = GenerationBatchRequest.model_validate(
+        {"format": format, "pillar": pillar, "source": source, "focus": focus}
+    )
+    client_slug = await client_of(ctx)
+
+    material_ids: list[str] = []
+    missing: list[str] = []
+    if book_titles:
+        if source not in {"Cărți", "Combinat"}:
+            raise ValueError(
+                "Titlurile de cărți au sens numai când sursa e Cărți sau Combinat."
+            )
+        async with connection() as conn:
+            library = await list_library(conn, client_slug)
+        by_title = {str(item["title"]).casefold(): str(item["id"]) for item in library}
+        for title in book_titles:
+            found = by_title.get(title.strip().casefold())
+            if found is None:
+                missing.append(title)
+            else:
+                material_ids.append(found)
+        if missing:
+            raise ValueError(
+                "Nu găsesc pe raft: " + ", ".join(missing) + ". "
+                "Propune-i titluri exact cum apar în bibliotecă."
+            )
+
+    async with connection() as conn:
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(
+                GENERATION_REQUESTED,
+                f"{request.format}/{request.pillar}/{request.source}",
+            ),
+        )
+    # The harness watches the run for this call and launches the pipeline; the
+    # resolved ids ride along so the mapping is done exactly once.
+    return {
+        "status": "accepted",
+        "format": request.format,
+        "pillar": request.pillar,
+        "source": request.source,
+        "focus": request.focus,
+        "material_ids": material_ids,
+        "note": (
+            "Lotul pornește acum; cele zece idei apar în conversație și în "
+            "interfață în câteva zeci de secunde. Nu le scrie tu."
+        ),
+    }
+
+
+@server.tool()
+async def develop_idea(idea: int, ctx: Context) -> dict:
+    """Dezvoltă o idee din lotul curent: aplicația scrie cele cinci variante.
+
+    `idea` e numărul propunerii din listă, 1–10 — „a treia” înseamnă 3. O chemi
+    când Viorela alege ce propunere dezvoltăm. NU scrii tu variantele: aplicația
+    le generează cu metoda formatului și le aduce în conversație și în
+    interfață. Dacă nu există un lot în conversație, unealta îți spune — atunci
+    îi propui întâi cele zece idei, nu ghicești o listă.
+    """
+    owner = owner_of(ctx)
+    conversation_id = conversation_of(ctx)
+    if not 1 <= idea <= 10:
+        raise ValueError("Ideea se alege cu un număr între 1 și 10.")
+    async with connection() as conn:
+        batch = await load_current_batch(conn, owner)
+    if batch is None:
+        raise ValueError(
+            "Nu există un lot de idei în conversația asta. Propune-i întâi "
+            "cele zece, cu start_generation."
+        )
+    found = next(
+        (item for item in batch.get("ideas", []) if int(item["ordinal"]) == idea),
+        None,
+    )
+    if found is None:
+        raise ValueError(f"Lotul curent nu are ideea {idea}.")
+    async with connection() as conn:
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(IDEA_DEVELOPMENT_REQUESTED, f"{batch['id']}/{idea}"),
+        )
+    return {
+        "status": "accepted",
+        "idea": idea,
+        "title": found["title"],
+        "already_ready": found.get("status") == "ready",
+        "note": (
+            "Cele cinci variante apar în conversație și în interfață în câteva "
+            "zeci de secunde. Nu le scrie tu."
+        ),
+    }
+
+
+@server.tool()
+async def select_variant(idea: int, hook_type: str, ctx: Context) -> dict:
+    """Marchează varianta aleasă de Viorela dintr-o idee dezvoltată.
+
+    `idea` e numărul ideii, 1–10. `hook_type` e numele hook-ului variantei,
+    exact unul din: PROVOCARE, CIFRA, SECRET, INTREBARE, CONTRAST — „a doua”
+    din lista arătată înseamnă al doilea hook din ordinea afișată. Alegerea se
+    vede imediat în interfață; salvarea definitivă rămâne pasul ei, cu
+    confirmare.
+    """
+    owner = owner_of(ctx)
+    conversation_id = conversation_of(ctx)
+    hook = hook_type.strip().upper()
+    if hook not in HOOK_TYPES:
+        raise ValueError(
+            "hook_type trebuie să fie unul din: " + ", ".join(HOOK_TYPES)
+        )
+    async with connection() as conn:
+        batch = await load_current_batch(conn, owner)
+    if batch is None:
+        raise ValueError("Nu există un lot curent din care să aleagă.")
+    found = next(
+        (item for item in batch.get("ideas", []) if int(item["ordinal"]) == idea),
+        None,
+    )
+    if found is None:
+        raise ValueError(f"Lotul curent nu are ideea {idea}.")
+    variant = next(
+        (
+            item
+            for item in found.get("variants", [])
+            if str(item.get("hook_type")) == hook
+        ),
+        None,
+    )
+    if variant is None or variant.get("status") != "ready":
+        raise ValueError(
+            f"Ideea {idea} nu are varianta {hook} pregătită. "
+            "Dezvolt-o întâi cu develop_idea."
+        )
+    async with connection() as conn:
+        result = await select_variant_store(conn, UUID(str(variant["id"])), owner)
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(GENERATION_VARIANT_SELECTED, str(variant["id"])),
+        )
+    return {
+        "status": "selected",
+        "idea": result["idea_ordinal"],
+        "title": result["idea_title"],
+        "hook_type": result["hook_type"],
+        "hook": variant.get("hook"),
+    }
+
+
 # ---- D1b internal UI operations ---------------------------------------------
 #
 # These functions are MCP tools so the harness still crosses the same typed data
@@ -863,7 +1092,9 @@ async def ui_select_generation_variant(
     """Alege intern o singură variantă pregătită; nu este pentru agent."""
     conversation_id = conversation_of(ctx)
     async with connection() as conn:
-        result = await select_variant(conn, UUID(variant_id), owner_principal_id)
+        result = await select_variant_store(
+            conn, UUID(variant_id), owner_principal_id
+        )
         await conn.execute(
             AUDIT_SQL,
             conversation_id,
@@ -922,6 +1153,54 @@ async def ui_get_current_generation_batch(owner_principal_id: str) -> dict:
     """Citește intern lotul curent al identității; nu este pentru agent."""
     async with connection() as conn:
         return {"batch": await load_current_batch(conn, owner_principal_id)}
+
+
+@server.tool()
+async def ui_current_conversation(owner_principal_id: str, ctx: Context) -> dict:
+    """Conversația activă a contului; o creează la prima cerere. Nu e pentru agent."""
+    conversation_id = conversation_of(ctx)
+    client_slug = await client_of(ctx)
+    async with connection() as conn:
+        row, created = await current_conversation(
+            conn, client_slug=client_slug, owner_principal_id=owner_principal_id
+        )
+        if created:
+            await conn.execute(
+                AUDIT_SQL,
+                conversation_id,
+                event_name(CONVERSATION_STARTED, row["session_id"]),
+            )
+    return {"conversation": row}
+
+
+@server.tool()
+async def ui_new_conversation(owner_principal_id: str, ctx: Context) -> dict:
+    """Arhivează conversația activă și începe una nouă; lotul vechi iese din
+    interfață în aceeași tranzacție. Nu este pentru agent."""
+    conversation_id = conversation_of(ctx)
+    client_slug = await client_of(ctx)
+    async with connection() as conn:
+        row = await new_conversation(
+            conn, client_slug=client_slug, owner_principal_id=owner_principal_id
+        )
+        await conn.execute(
+            AUDIT_SQL,
+            conversation_id,
+            event_name(CONVERSATION_STARTED, row["session_id"]),
+        )
+    return {"conversation": row}
+
+
+@server.tool()
+async def ui_bind_conversation_batch(
+    owner_principal_id: str, batch_id: str, ctx: Context
+) -> dict:
+    """Leagă intern lotul de conversația activă a contului; nu este pentru agent."""
+    async with connection() as conn:
+        row = await bind_conversation_batch(
+            conn, owner_principal_id=owner_principal_id, batch_id=UUID(batch_id)
+        )
+    return {"conversation": row}
 
 
 @server.tool()
