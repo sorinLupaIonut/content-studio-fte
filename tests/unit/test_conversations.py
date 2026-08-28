@@ -27,15 +27,14 @@ class TestDictation(unittest.TestCase):
     def test_batch_request_full(self) -> None:
         self.assertEqual(
             dictated_batch_request(
-                "Reel", "Educație", "Cărți", "limite fără vinovăție", 3
+                "Reel", "Educație", "Cărți", "limite fără vinovăție"
             ),
             "Vreau 10 idei de postare: format Reel, pilon Educație, sursă Cărți."
-            " Caută în cele 3 cărți alese."
             " Focus: limite fără vinovăție.",
         )
 
     def test_batch_request_minimal(self) -> None:
-        # No focus and no chosen books: the sentence ends at the source.
+        # No focus: the sentence ends at the source.
         self.assertEqual(
             dictated_batch_request("Stories", "Conexiune", "Memorie"),
             "Vreau 10 idei de postare: format Stories, pilon Conexiune, "

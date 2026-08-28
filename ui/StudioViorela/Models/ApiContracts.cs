@@ -361,9 +361,6 @@ public sealed class GenerationStartDto
     [JsonPropertyName("focus")]
     public string? Focus { get; set; }
 
-    [JsonPropertyName("material_ids")]
-    public List<string> MaterialIds { get; set; } = [];
-
     [JsonPropertyName("replace_current")]
     public bool ReplaceCurrent { get; set; }
 

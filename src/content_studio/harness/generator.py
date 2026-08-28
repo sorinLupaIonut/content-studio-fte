@@ -30,7 +30,7 @@ from content_studio.harness.conversations import (
     rendered_titles,
     rendered_variants,
 )
-from content_studio.harness.drafts import GenerationDraftClient, tool_payload
+from content_studio.harness.drafts import GenerationDraftClient
 from content_studio.harness.generation import (
     GenerationBatchRequest,
     GenerationStartRequest,
@@ -129,8 +129,6 @@ def cache_key(model: str, shape: str = "") -> str:
     suffix = f"-{shape}" if shape else ""
     return f"content-studio-generation-{model}{suffix}"
 
-SOURCE_TEXT_LIMIT = 2_000
-
 #: How many times the model may go round before it has to answer.
 #:
 #: Six was right when the method arrived preloaded: read the prompt, write. It
@@ -184,78 +182,6 @@ def retryable_generation_error(exc: BaseException) -> bool:
         marker in message
         for marker in ("rate limit", "invalid json", "structured output", "timeout")
     ) or isinstance(exc, asyncio.TimeoutError)
-
-
-def _trim_source(value: Any) -> Any:
-    """Bound excerpts before they are persisted and repeated into ten prompts."""
-
-    if isinstance(value, str):
-        return value[:SOURCE_TEXT_LIMIT]
-    if isinstance(value, list):
-        return [_trim_source(item) for item in value[:20]]
-    if isinstance(value, dict):
-        return {key: _trim_source(item) for key, item in value.items()}
-    return value
-
-
-async def collect_source_packet(
-    server: MCPServerStreamableHttp,
-    drafts: GenerationDraftClient,
-    request: GenerationBatchRequest,
-) -> dict[str, Any]:
-    """Gather each selected source exactly once before any model generation."""
-
-    description = request.focus or (
-        f"Idei pentru pilonul {request.pillar}, în format {request.format}, "
-        "potrivite profilului Viorelei."
-    )
-    packet: dict[str, Any] = {
-        "source": request.source,
-        "topic": description,
-        "profile": "Profilul complet este deja în instrucțiunile agentului.",
-    }
-
-    if request.source in {"Memorie", "Combinat"}:
-        packet["recent_posts"] = tool_payload(
-            await server.call_tool(
-                "list_posts",
-                {"pillar": request.pillar, "format": request.format, "limit": 12},
-            ),
-            # A client who has not saved anything yet is the normal first run,
-            # not a failure of `content-data`.
-            empty=[],
-        )
-
-    if request.source in {"Cărți", "Combinat"}:
-        library = await drafts.library()
-        by_id = {str(item["id"]): item for item in library}
-        selected = [by_id.get(str(item_id)) for item_id in request.material_ids]
-        if any(item is None for item in selected):
-            raise ValueError("Cel puțin o carte selectată nu mai există în bibliotecă.")
-        titles = [str(item["title"]) for item in selected if item is not None]
-        passages = tool_payload(
-            await server.call_tool(
-                "search_books",
-                {"description": description, "titles": titles or None, "limit": 8},
-            ),
-            empty=[],
-        )
-        packet["books"] = passages
-        packet["book_filter"] = titles
-        scores = [float(item.get("score", 0)) for item in passages]
-        packet["books_relevant"] = bool(scores and max(scores) >= 0.35)
-
-    if request.source in {"Internet", "Combinat"}:
-        web = tool_payload(
-            await server.call_tool(
-                "search_web", {"description": description, "limit": 5}
-            )
-        )
-        if not isinstance(web, dict) or web.get("status") != "ok":
-            raise RuntimeError("Căutarea web nu a furnizat un rezultat utilizabil.")
-        packet["web"] = web
-
-    return _trim_source(packet)
 
 
 def describe_batch(request: GenerationBatchRequest) -> str:
@@ -391,8 +317,11 @@ class GenerationCoordinator:
             await asyncio.gather(data_mcp.connect(), internal_mcp.connect())
             _, profile_md = await read_profile(data_mcp)
             drafts = GenerationDraftClient(internal_mcp)
-            source_packet = await collect_source_packet(internal_mcp, drafts, request)
-            batch = await drafts.create(principal_id, request, source_packet)
+            # Nothing is pre-collected or pre-resolved since 2026-08-27: the
+            # agent brings its own material and picks its own books, with its
+            # tools, following the skill. The column keeps its jsonb shape for
+            # the old batches that were born with full packets.
+            batch = await drafts.create(principal_id, request, {})
         finally:
             await asyncio.gather(
                 data_mcp.cleanup(), internal_mcp.cleanup(), return_exceptions=True
@@ -423,7 +352,6 @@ class GenerationCoordinator:
                 session_id,
                 request,
                 profile_md,
-                source_packet,
                 start_request.language,
                 trail,
                 run_id,
@@ -562,7 +490,7 @@ class GenerationCoordinator:
         and never opened.
 
         Everything the run needs is read back off the batch rather than held in
-        memory: the request, the source packet gathered once, and the model she
+        memory: the request and the model she
         chose. This can be called days later, from a different replica, and it
         has to produce the same thing the batch would have produced then.
 
@@ -596,7 +524,6 @@ class GenerationCoordinator:
                 "pillar": raw["pillar"],
                 "source": raw["source"],
                 "focus": raw.get("focus"),
-                "material_ids": raw.get("material_ids") or [],
                 "model": raw.get("model"),
             }
         )
@@ -636,7 +563,6 @@ class GenerationCoordinator:
                 batch_id,
                 principal_id,
                 request,
-                raw.get("source_packet") or {},
                 title,
                 language,
                 trail,
@@ -654,7 +580,6 @@ class GenerationCoordinator:
         batch_id: UUID,
         principal_id: str,
         request: GenerationBatchRequest,
-        source_packet: dict[str, Any],
         idea: IdeaTitle,
         language: Language,
         trail: Audit | None,
@@ -680,7 +605,7 @@ class GenerationCoordinator:
             await self._generate_one_detail(
                 batch_id,
                 request,
-                source_packet,
+                profile_md,
                 idea,
                 agent,
                 GenerationDraftClient(internal),
@@ -824,7 +749,6 @@ class GenerationCoordinator:
         session_id: str,
         request: GenerationBatchRequest,
         profile_md: str,
-        source_packet: dict[str, Any],
         language: Language = DEFAULT_LANGUAGE,
         trail: Audit | None = None,
         run_id: str | None = None,
@@ -846,7 +770,7 @@ class GenerationCoordinator:
             )
             proposed = await self._run_isolated(
                 title_agent,
-                title_prompt(request, source_packet, language),
+                title_prompt(request, profile_md, language),
                 ProposedIdeas,
                 f"{batch_id}-titles",
                 str(batch_id),
@@ -982,7 +906,7 @@ class GenerationCoordinator:
         self,
         batch_id: UUID,
         request: GenerationBatchRequest,
-        source_packet: dict[str, Any],
+        profile_md: str,
         idea: IdeaTitle,
         agent,
         drafts: GenerationDraftClient,
@@ -994,7 +918,7 @@ class GenerationCoordinator:
             try:
                 value = await self._run_agent(
                     agent,
-                    detail_prompt(request, idea, source_packet, language),
+                    detail_prompt(request, idea, profile_md, language),
                     detail_output_type(request.format),
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     str(batch_id),

@@ -126,10 +126,6 @@ public static class Copy
     public static readonly Phrase FieldPillar = new("Pilon", "Pillar");
     public static readonly Phrase FieldFormat = new("Format", "Format");
 
-    public static readonly Phrase BooksLegend = new("Cărți preferate", "Preferred books");
-    public static readonly Phrase BooksHint = new(
-        "(opțional — fără selecție caută în toate)",
-        "(optional — with nothing selected it searches all of them)");
     public static readonly Phrase LibraryLoading =
         new("Se încarcă biblioteca…", "Loading the library…");
     public static readonly Phrase SummarySuffix = new(" · rezumat", " · summary");
@@ -139,9 +135,9 @@ public static class Copy
     public static readonly Phrase FocusPlaceholder = new(
         "De exemplu: cum recunoști că ai intrat din nou în people pleasing",
         "For example: how to tell you have slipped back into people pleasing");
-    public static readonly Phrase SourceCollectedOnce = new(
-        "Sursa se colectează o singură dată și este folosită identic pentru toate cele 10 idei.",
-        "The source is collected once and used identically for all 10 ideas.");
+    public static readonly Phrase AgentBringsItsOwnMaterial = new(
+        "Agentul își caută singur materialul în sursa aleasă — inclusiv cărțile potrivite, când sursa e Cărți.",
+        "The agent gathers its own material from the chosen source — including the fitting books when the source is Books.");
     public static readonly Phrase PreparingBatch =
         new("Se pregătește lotul…", "Preparing the batch…");
     public static readonly Phrase GenerateTen =

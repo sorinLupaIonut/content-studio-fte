@@ -169,20 +169,20 @@ class TestTaskPromptsCarryTheLanguage(unittest.TestCase):
     def test_both_generation_prompts_restate_the_language(self):
         idea = IdeaTitle(ordinal=1, title="Un titlu", angle="un unghi")
         for prompt in (
-            title_prompt(self._request(), {}, "en"),
-            detail_prompt(self._request(), idea, {}, "en"),
+            title_prompt(self._request(), language="en"),
+            detail_prompt(self._request(), idea, language="en"),
         ):
             self.assertIn("ANSWER IN ENGLISH", prompt)
 
     def test_romanian_generation_prompts_are_byte_identical_to_before(self):
         idea = IdeaTitle(ordinal=1, title="Un titlu", angle="un unghi")
-        self.assertNotIn("ENGLISH", title_prompt(self._request(), {}))
-        self.assertNotIn("ENGLISH", detail_prompt(self._request(), idea, {}))
+        self.assertNotIn("ENGLISH", title_prompt(self._request()))
+        self.assertNotIn("ENGLISH", detail_prompt(self._request(), idea))
 
     def test_the_task_note_protects_the_controlled_values_too(self):
         # The note lands in the same message as `Pilon: Educație`; without this
         # the model is being shown a Romanian value and told to write English.
-        note = title_prompt(self._request(), {}, "en")
+        note = title_prompt(self._request(), language="en")
         self.assertIn("keep their Romanian spelling", note)
 
 

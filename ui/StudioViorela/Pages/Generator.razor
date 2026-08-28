@@ -57,46 +57,22 @@
         </label>
     </div>
 
-    @if (UsesBooks)
+    @* No book picker any more (2026-08-27): the agent chooses its own titles
+       off the shelf, following the skill. What remains of the old fieldset is
+       its one guard - a run from an empty shelf would cost money and could
+       not succeed, because `search_books` is scoped to the account. *@
+    @if (UsesBooks && !_libraryLoading && _library.Count == 0)
     {
-        <fieldset class="book-picker">
-            <legend>@T[Copy.BooksLegend] <small>@T[Copy.BooksHint]</small></legend>
-            @if (_libraryLoading)
-            {
-                <span class="muted-copy">@T[Copy.LibraryLoading]</span>
-            }
-            else if (_library.Count == 0)
-            {
-                @* A run started from here would cost money and could not
-                   succeed: `search_books` is scoped to the account, and this
-                   account has no books for it to find. *@
-                <p class="notice notice-warn" role="status">
-                    @T[_source == "Cărți" ? Copy.LibraryEmptyForBooks : Copy.LibraryEmptyForMixed]
-                </p>
-            }
-            else
-            {
-                <div class="book-options">
-                    @foreach (var item in _library)
-                    {
-                        <label>
-                            <input type="checkbox" checked="@_selectedBooks.Contains(item.Id)" @onchange="eventArgs => ToggleBook(item.Id, eventArgs)" />
-                            <span>
-                                <strong>@item.Title</strong>
-                                <small>@item.Author@(item.IsSummary ? T[Copy.SummarySuffix] : "")</small>
-                            </span>
-                        </label>
-                    }
-                </div>
-            }
-        </fieldset>
+        <p class="notice notice-warn" role="status">
+            @T[_source == "Cărți" ? Copy.LibraryEmptyForBooks : Copy.LibraryEmptyForMixed]
+        </p>
     }
 
     <label class="focus-field">
         <span>@T[Copy.FocusLabel] <small>@T[Copy.Optional]</small></span>
         <textarea @bind="_focus" disabled="@_busy" placeholder="@T[Copy.FocusPlaceholder]"></textarea>
     </label>
-    <p class="field-note">@T[Copy.SourceCollectedOnce]</p>
+    <p class="field-note">@T[Copy.AgentBringsItsOwnMaterial]</p>
     @* "Combinat" still has memory and the internet to work with, so only the
        books-only source is blocked. *@
     <button class="button button-primary generate-button"
@@ -320,7 +296,6 @@ else if (_batch is not null)
 @code {
     [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
 
-    private readonly HashSet<string> _selectedBooks = [];
     private readonly HashSet<string> _expandedIdeas = [];
     private readonly Dictionary<string, string> _activeHooks = [];
     private readonly HashSet<string> _toSave = [];
@@ -429,7 +404,6 @@ else if (_batch is not null)
                 Pillar = _pillar,
                 Source = _source,
                 Focus = _focus,
-                MaterialIds = UsesBooks ? _selectedBooks.ToList() : [],
                 ReplaceCurrent = replace
             });
             _batch = envelope.Batch;
@@ -586,17 +560,6 @@ else if (_batch is not null)
         }
     }
 
-    private void ToggleBook(string id, ChangeEventArgs eventArgs)
-    {
-        if (eventArgs.Value is true)
-        {
-            _selectedBooks.Add(id);
-        }
-        else
-        {
-            _selectedBooks.Remove(id);
-        }
-    }
 
     private void ToggleSave(string variantId, ChangeEventArgs eventArgs)
     {

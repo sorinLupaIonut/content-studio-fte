@@ -45,10 +45,6 @@ FORMAT = "Reel"
 PILLAR = "Educație"
 SOURCE = "Memorie"
 FOCUS = "limite sănătoase fără vinovăție pentru femeile care fac people pleasing"
-SOURCE_PACKET = (
-    "Nu există sursă externă pentru această probă. Folosește numai profilul complet "
-    "din context și situații obișnuite formulate ca posibilități."
-)
 RUN_TIMEOUT_SECONDS = 600
 
 
@@ -101,15 +97,14 @@ def safe_failure(exc: Exception) -> str:
 REQUEST = GenerationBatchRequest(
     format=FORMAT, pillar=PILLAR, source=SOURCE, focus=FOCUS
 )
-PACKET = {"source": SOURCE, "note": SOURCE_PACKET}
 
 
 def titles_prompt() -> str:
-    return title_prompt(REQUEST, PACKET)
+    return title_prompt(REQUEST)
 
 
 def details_prompt(idea: IdeaTitle) -> str:
-    return detail_prompt(REQUEST, idea, PACKET)
+    return detail_prompt(REQUEST, idea)
 
 
 async def run_agent(agent, prompt: str, output_type: type[Any], label: str):

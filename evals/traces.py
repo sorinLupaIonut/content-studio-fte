@@ -54,13 +54,15 @@ from content_studio.config import MissingConfig, database_url
 #: those - a typo in this string silently empties that half of the report.
 RETRIEVAL_TOOL = "search_books"
 
-#: THE PASSAGES DO NOT ARRIVE AS A SPAN, AND ASSUMING THEY DID COST THIS MODULE
-#: A REWRITE. On the generation path the model never calls `search_books`:
-#: `collect_source_packet` calls it server-side, once per batch, and it runs
-#: BEFORE `Audit.open_run` - so there is no run to hang a span on and no span to
-#: read. Measured on 2026-08-25: a batch with source `Cărți` produced two runs,
-#: both with `unelte: niciuna`, while its `source_packet` held the passages all
-#: along. So retrieval is read from the batch, and a run is tied to its batch
+#: THE PASSAGES HAVE TWO SHAPES, AND ASSUMING ONE COST THIS MODULE A REWRITE.
+#: Until 2026-08-27 the generation path never called `search_books` from the
+#: model: `collect_source_packet` called it server-side, BEFORE `Audit.open_run`
+#: - so those batches have no retrieval span, only a `source_packet` full of
+#: passages (measured 2026-08-25: source `Cărți`, two runs, both `unelte:
+#: niciuna`). Since 2026-08-27 the pre-collection is gone and the agent calls
+#: `search_books` itself, so new runs DO have the span and their batches store
+#: an empty packet. Both doors below stay: the packet one reads the old
+#: batches, the span one reads everything new. A run is tied to its batch
 #: two ways, both of them strings this codebase writes itself:
 #:
 #:   · a title run shares the batch's `session_id`
@@ -189,9 +191,10 @@ class GradedRun:
     def retrieved(self) -> list[Any]:
         """The passages this run was written from, wherever they came in.
 
-        Two doors, because the studio has two: the batch's `source_packet`, which
-        is how the generation path gets its material, and a `search_books` span,
-        which is how chat gets it. Empty means this was not a retrieval run -
+        Two doors, one of them historical: the batch's `source_packet`, which
+        is how generation got its material until 2026-08-27, and a
+        `search_books` span, which is how chat always got it and how generation
+        gets it now. Empty means this was not a retrieval run -
         a fact Ragas needs, not a failure. `searched` is what separates "never
         asked the shelf" from "asked and it was silent".
         """

@@ -103,6 +103,47 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true
+    },
+    {
+      // COSTS MONEY, and it is the only configuration here that does: one real
+      // generation run, the same call the "Generare" button makes, with the
+      // container and the model. Start "2. MCP server" first, and leave it
+      // running: this reads the profile over MCP before it reaches OpenAI, and
+      // the agent then calls `search_books` / `search_web` back through the same
+      // connection while it works. Nothing else is needed - no harness, no UI.
+      //
+      // No `args`: the form lives in the file, in `FROM_THE_UI`, so the pillar
+      // and the format are changed where you are already reading. Breakpoints
+      // worth setting, in order: `_run_agent` in harness/generator.py (the
+      // input, complete, one line before it goes out), `_warn_if_the_method_was
+      // _never_opened` (every tool call the run made, with its arguments), and
+      // step 3 in this script (what came back, parsed).
+      //
+      // justMyCode STAYS TRUE HERE, and the reason is measured, not a habit.
+      // Importing `agents.mcp` takes 4.5s under the debugger either way - the
+      // flag alone costs nothing. But with the BREAKPOINTS panel's "Raised
+      // Exceptions" ticked, the pair is ruinous: true takes 6s and false had
+      // not finished the same import after ten minutes, because every one of
+      // the ~130k exceptions Pydantic raises on import now happens in code the
+      // debugger is willing to stop in. It looks exactly like a hang at
+      // `import httpx`, and interrupting it lands you in `pydevd.get_file_type`.
+      //
+      // Set it to false when you actually need to step into `Runner.run`, and
+      // untick every exception filter first. Then do not linger: the run has a
+      // 20-minute timeout and the container 10.
+      "name": "6. One real run (COSTS MONEY)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/checks/run_like_production.py",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "pythonArgs": ["-X", "frozen_modules=off"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "PYDEVD_DISABLE_FILE_VALIDATION": "1"
+      },
+      "justMyCode": true
     }
   ],
   "compounds": [

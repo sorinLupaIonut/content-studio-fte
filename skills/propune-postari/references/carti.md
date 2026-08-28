@@ -1,7 +1,7 @@
 # Biblioteca Viorelei — cele 17 cărți
 
-Lista e aici ca să poți propune **titluri anume**, nu ca s-o arăți întreagă.
-Viorelei îi dai 3–4 potrivite pe tema și pilonul ei, plus „caut în toate".
+Lista e aici ca să poți **alege tu titluri anume**, nu ca s-o arăți întreagă.
+Alegi 3–4 potrivite pe tema și pilonul ei — pe Viorela n-o întrebi care.
 
 Titlurile sunt scrise exact cum le știe `search_books` în parametrul `titles`.
 Dacă adaugi o carte în bibliotecă, adaug-o și aici — de aici își ia numele.

@@ -309,7 +309,10 @@ async def create_batch(
         request.pillar,
         request.format,
         request.focus,
-        request.material_ids,
+        # The column stays for the batches that were born with selections;
+        # since 2026-08-27 nothing selects books up front - the agent picks
+        # its own titles off the shelf reference.
+        [],
         _json(source_packet),
         request.model,
     )

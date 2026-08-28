@@ -779,14 +779,13 @@ async def start_generation(
     source: SourceChoice,
     ctx: Context,
     focus: str | None = None,
-    book_titles: list[str] | None = None,
 ) -> dict:
     """Pornește lotul de 10 idei pentru Viorela, cu metoda întreagă a aplicației.
 
     O chemi NUMAI după ce ea a ales formatul, pilonul și sursa — dacă lipsește
     vreuna, o întrebi întâi, cu vocabularul închis al skill-ului. `focus` e tema
-    ei, dacă a dat una; nu inventa un focus. `book_titles` doar când sursa e
-    Cărți sau Combinat și ea a ales titluri anume, scrise exact ca în raft.
+    ei, dacă a dat una; nu inventa un focus. Cărțile nu se aleg aici: motorul
+    își alege singur titlurile de pe raft, potrivite pe temă.
 
     NU scrii tu cele zece idei: aplicația le generează și le aduce în
     conversație și în interfață. După ce chemi unealta, îi spui doar că lotul
@@ -799,30 +798,6 @@ async def start_generation(
     request = GenerationBatchRequest.model_validate(
         {"format": format, "pillar": pillar, "source": source, "focus": focus}
     )
-    client_slug = await client_of(ctx)
-
-    material_ids: list[str] = []
-    missing: list[str] = []
-    if book_titles:
-        if source not in {"Cărți", "Combinat"}:
-            raise ValueError(
-                "Titlurile de cărți au sens numai când sursa e Cărți sau Combinat."
-            )
-        async with connection() as conn:
-            library = await list_library(conn, client_slug)
-        by_title = {str(item["title"]).casefold(): str(item["id"]) for item in library}
-        for title in book_titles:
-            found = by_title.get(title.strip().casefold())
-            if found is None:
-                missing.append(title)
-            else:
-                material_ids.append(found)
-        if missing:
-            raise ValueError(
-                "Nu găsesc pe raft: " + ", ".join(missing) + ". "
-                "Propune-i titluri exact cum apar în bibliotecă."
-            )
-
     async with connection() as conn:
         await conn.execute(
             AUDIT_SQL,
@@ -832,15 +807,13 @@ async def start_generation(
                 f"{request.format}/{request.pillar}/{request.source}",
             ),
         )
-    # The harness watches the run for this call and launches the pipeline; the
-    # resolved ids ride along so the mapping is done exactly once.
+    # The harness watches the run for this call and launches the pipeline.
     return {
         "status": "accepted",
         "format": request.format,
         "pillar": request.pillar,
         "source": request.source,
         "focus": request.focus,
-        "material_ids": material_ids,
         "note": (
             "Lotul pornește acum; cele zece idei apar în conversație și în "
             "interfață în câteva zeci de secunde. Nu le scrie tu."
@@ -964,7 +937,6 @@ async def ui_create_generation_batch(
     source: str,
     ctx: Context,
     focus: str | None = None,
-    material_ids: list[str] | None = None,
     source_packet: dict | None = None,
     model: str | None = None,
 ) -> dict:
@@ -976,7 +948,6 @@ async def ui_create_generation_batch(
             "pillar": pillar,
             "source": source,
             "focus": focus,
-            "material_ids": material_ids or [],
             "model": model,
         }
     )

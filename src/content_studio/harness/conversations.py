@@ -56,14 +56,11 @@ def dictated_batch_request(
     pillar: str,
     source: str,
     focus: str | None = None,
-    material_count: int = 0,
 ) -> str:
     text = (
         f"Vreau 10 idei de postare: format {format}, pilon {pillar}, "
         f"sursă {source}."
     )
-    if material_count:
-        text += f" Caută în cele {material_count} cărți alese."
     if focus:
         text += f" Focus: {focus}."
     return text

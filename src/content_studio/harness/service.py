@@ -745,7 +745,6 @@ class HarnessService:
                         request.pillar,
                         request.source,
                         request.focus,
-                        len(request.material_ids or []),
                     ),
                 )
             batch = await self.generator.start(
@@ -927,30 +926,12 @@ class HarnessService:
         authenticated principal — never one the model named.
         """
         if name == "start_generation":
-            material_ids: list[str] = []
-            titles = [
-                str(item).strip()
-                for item in (arguments.get("book_titles") or [])
-                if str(item).strip()
-            ]
-            if titles:
-                library = await self.generator.library(principal_id)
-                by_title = {
-                    str(item["title"]).casefold(): str(item["id"])
-                    for item in library
-                }
-                material_ids = [
-                    by_title[title.casefold()]
-                    for title in titles
-                    if title.casefold() in by_title
-                ]
             request = GenerationStartRequest.model_validate(
                 {
                     "format": arguments.get("format"),
                     "pillar": arguments.get("pillar"),
                     "source": arguments.get("source"),
                     "focus": arguments.get("focus"),
-                    "material_ids": material_ids,
                     "replace_current": True,
                     "language": language,
                 }

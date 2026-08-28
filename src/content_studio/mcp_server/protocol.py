@@ -69,11 +69,13 @@ MODEL_VISIBLE_TOOLS = frozenset(
 # proposal-only generation anyway — saving is a separate, later phase the
 # client confirms explicitly — so the safe fix is to never show one to the
 # model here, rather than trust a cheap, low-effort model not to reach for it.
+# Two tools, not three: `list_posts` came off on 2026-08-27 with the source
+# packet. The skill's own source rule is "Memorie = the profile, nothing else",
+# so a posts listing had no reader on this door - chat keeps it for reports.
 GENERATION_VISIBLE_TOOLS = frozenset(
     {
         "search_books",
         "search_web",
-        "list_posts",
     }
 )
 

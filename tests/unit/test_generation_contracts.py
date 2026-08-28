@@ -2,7 +2,6 @@
 
 import inspect
 import unittest
-from uuid import UUID
 
 from pydantic import ValidationError
 
@@ -175,21 +174,18 @@ class TestSilentReelContract(unittest.TestCase):
 
     def test_the_reel_prompt_says_mute_and_the_carousel_prompt_does_not(self) -> None:
         idea = IdeaTitle(ordinal=1, title="O limită blândă", angle="Un exemplu")
-        packet = {"source": "Memorie"}
 
         reel = detail_prompt(
             GenerationBatchRequest(
                 format="Reel", pillar="Conexiune", source="Memorie"
             ),
             idea,
-            packet,
         )
         carousel = detail_prompt(
             GenerationBatchRequest(
                 format="Carusel", pillar="Conexiune", source="Memorie"
             ),
             idea,
-            packet,
         )
 
         self.assertIn("MUTE", reel)
@@ -234,15 +230,6 @@ class TestGenerationContracts(unittest.TestCase):
         self.assertTrue(encoded.endswith("\n\n"))
         self.assertIn('"delta":"Bună"', encoded)
 
-    def test_material_filter_is_restricted_to_book_sources(self) -> None:
-        with self.assertRaises(ValidationError):
-            GenerationBatchRequest(
-                format="Reel",
-                pillar="Conexiune",
-                source="Memorie",
-                material_ids=[UUID("11111111-1111-1111-1111-111111111111")],
-            )
-
     def test_public_batch_hides_internal_source_and_identity(self) -> None:
         result = public_batch(
             {
@@ -260,19 +247,18 @@ class TestGenerationContracts(unittest.TestCase):
             format="Reel", pillar="Conexiune", source="Memorie"
         )
         idea = IdeaTitle(ordinal=1, title="O limită blândă", angle="Un exemplu")
-        packet = {"source": "Memorie"}
 
         # It used to look for the marker lines "MOD UI STRUCTURAT D1B - TITLURI"
         # and "- DETALII". Those went on 2026-08-24: the structured contract
         # already makes their content unviolable, so what is left to check is
         # that each prompt names its own skill and carries its own payload.
-        titles = title_prompt(request, packet)
+        titles = title_prompt(request)
         self.assertIn("propune-postari", titles)
         self.assertNotIn("dezvolta-postarea", titles)
         # The titles run must not receive an idea to develop; that is phase 2.
         self.assertNotIn("O limită blândă", titles)
 
-        details = detail_prompt(request, idea, packet)
+        details = detail_prompt(request, idea)
         self.assertIn("dezvolta-postarea", details)
         self.assertNotIn("propune-postari", details)
         self.assertIn("O limită blândă", details)

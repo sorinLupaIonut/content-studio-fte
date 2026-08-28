@@ -10,10 +10,10 @@ prints is not a reconstruction: the system prompt comes out of the SDK's own
 `build_sandbox_instructions`, the same function `prepare_sandbox_agent` calls
 one line before the request goes out, fed the same manifest `sandbox.py` mounts.
 
-WHY IT EXISTS. The input is assembled from six places that no single file can
-show you - our two prompt strings, the profile out of Neon, the source packet
-out of the MCP tools, the SDK's capability notes, and the schema the contract
-turns into. Before this, the only way to see the whole thing was to pay for a
+WHY IT EXISTS. The input is assembled from five places that no single file can
+show you - our two prompt strings, the profile out of Neon, the SDK's
+capability notes, and the schema the contract turns into. The source material
+is deliberately absent: the agent fetches it at run time, with its own tools. Before this, the only way to see the whole thing was to pay for a
 run and read the span. Two of the faults this project has actually shipped were
 faults of composition, not of any one part: a prompt naming tools that were not
 attached, and a prompt telling the model to open files it had no shell for.
@@ -39,7 +39,6 @@ from agents.sandbox.runtime_agent_preparation import build_sandbox_instructions
 
 from content_studio import enable_utf8_output
 from content_studio.config import CLIENT_SLUG, MCP_TIMEOUT, MCP_URL
-from content_studio.harness.drafts import GenerationDraftClient
 from content_studio.harness.generation import (
     GenerationBatchRequest,
     IdeaTitle,
@@ -50,7 +49,6 @@ from content_studio.harness.generation import (
 from content_studio.harness.generator import (
     GENERATION_MAX_TURNS,
     GenerationCoordinator,
-    collect_source_packet,
 )
 from content_studio.mcp_server.protocol import (
     CLIENT_HEADER,
@@ -98,14 +96,6 @@ async def assemble(args: argparse.Namespace) -> dict[str, Any]:
         tool_filter={"allowed_tool_names": sorted(GENERATION_VISIBLE_TOOLS)},
         client_session_timeout_seconds=MCP_TIMEOUT,
     )
-    internal_mcp = MCPServerStreamableHttp(
-        params={"url": MCP_URL, "headers": headers},
-        name="content-data-internal",
-        cache_tools_list=True,
-        use_structured_content=True,
-        client_session_timeout_seconds=MCP_TIMEOUT,
-    )
-
     request = GenerationBatchRequest(
         format=args.format,
         pillar=args.pillar,
@@ -121,23 +111,23 @@ async def assemble(args: argparse.Namespace) -> dict[str, Any]:
 
     stack = AsyncExitStack()
     try:
-        await asyncio.gather(data_mcp.connect(), internal_mcp.connect())
+        await data_mcp.connect()
         _, profile_md = await read_profile(data_mcp)
-        drafts = GenerationDraftClient(internal_mcp)
-        packet = await collect_source_packet(internal_mcp, drafts, request)
         tools = await data_mcp.list_tools()
 
         if args.phase == "title":
             agent = coordinator._title_agent(
                 profile_md, data_mcp, request, args.language, "input-check"
             )
-            user_message = title_prompt(request, packet, args.language)
+            user_message = title_prompt(request, profile_md, language=args.language)
             output_type = agent.output_type
         else:
             agent = coordinator._detail_agent(
                 profile_md, data_mcp, request, args.language, "input-check"
             )
-            user_message = detail_prompt(request, SAMPLE_IDEA, packet, args.language)
+            user_message = detail_prompt(
+                request, SAMPLE_IDEA, profile_md, language=args.language
+            )
             output_type = detail_output_type(request.format)
 
         # THE SYSTEM PROMPT, from the SDK's own assembler rather than from a
@@ -171,9 +161,7 @@ async def assemble(args: argparse.Namespace) -> dict[str, Any]:
         system_prompt = await assemble_instructions(RunContextWrapper(None), agent)
     finally:
         await stack.aclose()
-        await asyncio.gather(
-            data_mcp.cleanup(), internal_mcp.cleanup(), return_exceptions=True
-        )
+        await asyncio.gather(data_mcp.cleanup(), return_exceptions=True)
 
     settings = agent.model_settings
     return {
@@ -184,7 +172,6 @@ async def assemble(args: argparse.Namespace) -> dict[str, Any]:
         "agent_instructions": agent.instructions,
         "base_instructions": agent.base_instructions,
         "profile_md": profile_md,
-        "source_packet": packet,
         "user_message": user_message,
         "tools": [
             {"name": tool.name, "description": (tool.description or "").strip()}
@@ -231,8 +218,7 @@ def report(payload: dict[str, Any], full: bool) -> None:
         print("        ⚠ the index and the file tree need a container: rerun with --live.")
         print("          Offline they come back EMPTY, not wrong, so this total is a floor.")
     print(f"  2. user message       {megabytes(user)}   generation.py")
-    packet_json = json.dumps(payload["source_packet"], ensure_ascii=False)
-    print(f"     └─ of which packet  {megabytes(packet_json)}   collected once, before the model")
+    print("     └─ no source material in it: the agent fetches its own, with the tools")
     print(f"  3. output schema      {megabytes(schema)}   the contract, as response_format")
     tool_names = [t["name"] for t in payload["tools"]] + payload["shell_tools"]
     print(f"  4. tools              {len(tool_names)}: {', '.join(tool_names)}")

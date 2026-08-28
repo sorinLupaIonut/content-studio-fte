@@ -475,7 +475,6 @@ class GenerationBatchRequest(StrictContract):
     pillar: PillarChoice
     source: SourceChoice
     focus: str | None = Field(default=None, max_length=2_000)
-    material_ids: list[UUID] = Field(default_factory=list, max_length=50)
     # On the batch request rather than on the start request, unlike `language`:
     # this one has to survive the request that created the batch. Details are
     # generated when she opens an idea, and they must come from the model she
@@ -489,13 +488,6 @@ class GenerationBatchRequest(StrictContract):
             return None
         value = value.strip()
         return value or None
-
-    @model_validator(mode="after")
-    def materials_belong_to_book_sources(self) -> GenerationBatchRequest:
-        if self.material_ids and self.source not in {"Cărți", "Combinat"}:
-            raise ValueError("material_ids are available only for Cărți or Combinat")
-        return self
-
 
 class GenerationStartRequest(GenerationBatchRequest):
     replace_current: bool = False
@@ -562,27 +554,47 @@ deschizi pe toate cele cerute de formatul ăsta deodată, într-o singură rund�
 nu una pe tură. Un pas sărit e metodă neaplicată, nu timp economisit."""
 
 
+#: Her chosen books, named so the model can hand them to `search_books` exactly
+#: as the shelf spells them. Empty when she chose none - the skill then searches
+#: the whole shelf, which is the conversational behaviour too.
+def book_note(book_titles: list[str] | None) -> str:
+    if not book_titles:
+        return ""
+    titled = ", ".join(f"„{title}”" for title in book_titles)
+    return (
+        f"Cărțile alese de ea: {titled}. Le pui în `titles` la `search_books`, "
+        "scrise exact așa — nu propui altele.\n"
+    )
+
+
 def title_prompt(
     request: GenerationBatchRequest,
-    source_packet: dict[str, Any],
+    profile_md: str = "",
+    book_titles: list[str] | None = None,
     language: Language = DEFAULT_LANGUAGE,
 ) -> str:
-    """The bounded title-only branch of the existing proposal skill."""
+    """The bounded title-only branch of the existing proposal skill.
 
-    packet = json.dumps(source_packet, ensure_ascii=False)
+    No pre-collected material since 2026-08-27: the agent brings its own, with
+    the same tools and the same skill rules as a conversation - `search_books`
+    for Cărți (it picks the titles itself, off `references/carti.md`),
+    `search_web` for Internet, the profile alone for Memorie. The engine's one
+    head start is the four choices themselves, because the form already made
+    them - nothing else arrives pre-resolved.
+    """
+
     return f"""{use_skill_note("propune-postari")}
 
 Formatul, pilonul și sursa sunt deja alese de ea — nu le pui la îndoială, nu ceri
-confirmare și nu întrebi nimic. Scrii numai din materialul-sursă de mai jos și din
-profil.
+confirmare și nu întrebi nimic. Materialul ți-l aduci singur, cu uneltele, după
+regula sursei din metodă — ÎNAINTE să scrii, și numai din sursa aleasă.
 
 Format: {request.format}
 Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
-Material-sursă colectat o singură dată: {packet}
 
-{avatar_brief(source_packet)}
+{avatar.brief(profile_md)}
 
 Cele zece propuneri stau în același focus, dar fiecare pornește din alt loc:
 contractul îți cere un `angle_type` diferit la fiecare, iar tiparul îl alegi
@@ -612,19 +624,6 @@ PRODUCED_BRIEF = """Varianta are `script` și `format_details` complete, potrivi
 Captionul rămâne scurt, 2–4 fraze, cu întrebarea de engagement la final."""
 
 
-def avatar_brief(source_packet: dict[str, Any]) -> str:
-    """Her pains, lifted out of the packet and given their own block.
-
-    The profile is already inside `packet` above, JSON-encoded among the topic,
-    the recent posts and everything else. Repeating it is deliberate and it is
-    the same trade the caption floor made: what an instruction cannot achieve by
-    being present, a shape can achieve by being unmissable. Roughly 9 KB, once
-    per run, against ten proposals that were all interchangeable without it.
-    """
-    profile = source_packet.get("profile")
-    return avatar.brief(profile) if isinstance(profile, str) else ""
-
-
 def format_brief(format: FormatChoice) -> str:
     """The format-specific half of the detail prompt."""
 
@@ -634,27 +633,34 @@ def format_brief(format: FormatChoice) -> str:
 def detail_prompt(
     request: GenerationBatchRequest,
     idea: IdeaTitle,
-    source_packet: dict[str, Any],
+    profile_md: str = "",
     language: Language = DEFAULT_LANGUAGE,
 ) -> str:
-    """The complete five-variant branch for one already-persisted idea."""
+    """The complete five-variant branch for one already-persisted idea.
+
+    Same shape as `title_prompt`: the choices arrive made, the material does
+    not - the agent searches its own source, following the skill's Pasul 5.
+    `avatar.brief` is cut from the REAL profile here. Until 2026-08-27 it was
+    cut from `source_packet["profile"]`, which had long since become a one-line
+    placeholder, so the pains block silently rendered empty on every run.
+    """
 
     idea_json = json.dumps(idea.model_dump(), ensure_ascii=False)
-    packet = json.dumps(source_packet, ensure_ascii=False)
     return f"""{use_skill_note("dezvolta-postarea")}
 
 Ideea ţi se dă mai jos, întreagă — nu o cauți în conversație și nu alegi alta.
 Cele cinci variante pornesc din același unghi, dar hook-ul și construcția
 fiecăreia sunt realmente diferite, nu aceeași propoziție reformulată.
+Materialul ți-l aduci singur, cu uneltele, după regula sursei din metodă —
+numai din sursa aleasă de ea.
 
 Ideea existentă: {idea_json}
 Format: {request.format}
 Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
-Material-sursă colectat o singură dată: {packet}
 
-{avatar_brief(source_packet)}
+{avatar.brief(profile_md)}
 
 {format_brief(request.format)}
 

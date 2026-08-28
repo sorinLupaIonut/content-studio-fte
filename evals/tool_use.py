@@ -137,14 +137,9 @@ async def route_of_generation(
         source=brief["sursa"],
         focus=brief.get("focus"),
     )
-    packet = {
-        "source": brief["sursa"],
-        "topic": brief.get("focus") or "",
-        "profile": "Profilul complet este deja în instrucțiunile agentului.",
-    }
     async with sandbox_run_config("tool-use-generation") as sandbox:
         result, attempts = await run_without_writing(
-            worker, title_prompt(request, packet), RunConfig(sandbox=sandbox)
+            worker, title_prompt(request, profile_md), RunConfig(sandbox=sandbox)
         )
     route = [call["name"] for call in calls_in(result)] + attempts
     # The course's Trajectory lab counts the message history as the path; the

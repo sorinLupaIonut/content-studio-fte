@@ -147,13 +147,13 @@ Orice pilon ar fi, subiectul ales trebuie s-o facă pe femeia din avatar să
 spună „e ca și cum ai vorbi direct cu mine" — pentru că exact asta face
 postarea.
 
-## Pasul 5 — Sursa, și materialul pe care mai trebuie să-l aduci
+## Pasul 5 — Sursa, și materialul pe care trebuie să-l aduci
 
-Materialul primit a fost adunat **pentru zece idei deodată**. Pentru una singură
-e subțire: acoperă tema, nu unghiul. Aici scrii textul care ajunge la ea, deci
-aici ai nevoie de concret — exemplul, pasajul, formularea.
+Materialul nu vine de-a gata în mesaj: ți-l aduci singur, cu uneltele, din
+sursa aleasă de ea. Aici scrii textul care ajunge la ea, deci aici ai nevoie de
+concret — exemplul, pasajul, formularea.
 
-**Cauți din nou, dacă ideea o cere.** În aceeași sursă, niciodată în alta:
+**Cauți înainte să scrii, dacă sursa o cere.** În aceeași sursă, niciodată în alta:
 sursa a fost alegerea ei, iar o postare care aduce material dintr-o sursă
 neacceptată e o postare care minte pe câmpul `source`. Regulile de mai jos
 contează **mai mult** aici decât în Faza 1, fiindcă acum nu scrii un titlu, ci
@@ -195,8 +195,7 @@ Ce scrii pe `source`, adevărul și atât:
 - internet → `internet — ce ai citit + linkul`
 - memorie → `din memorie 🧠 (profil + avatar), fără sursă externă`
 
-Dacă ai căutat din nou și ai folosit un pasaj nou, `source` îl arată pe **acela**,
-nu pe cel din Faza 1.
+`source` arată pasajul pe care l-ai folosit **aici**, nu ce s-a citat în Faza 1.
 
 ## Pasul 6 — Focusul
 

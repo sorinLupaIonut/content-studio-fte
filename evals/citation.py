@@ -155,11 +155,6 @@ async def run_case(data_mcp, profile_md: str, case: dict[str, Any]) -> dict[str,
         focus=case.get("focus"),
     )
     idea = IdeaTitle(**case["idee"])
-    packet = {
-        "source": case["sursa"],
-        "topic": case.get("focus") or "",
-        "profile": "Profilul complet este deja în instrucțiunile agentului.",
-    }
     # One container per case, the same as production gives one per run. The
     # method has to be opened from inside it, which is the point: a citation
     # metric run against a worker that never reached its own method would be
@@ -167,7 +162,7 @@ async def run_case(data_mcp, profile_md: str, case: dict[str, Any]) -> dict[str,
     async with sandbox_run_config(f"citation-{case['id']}") as sandbox:
         result, _ = await run_without_writing(
             worker,
-            detail_prompt(request, idea, packet),
+            detail_prompt(request, idea, profile_md),
             RunConfig(sandbox=sandbox),
         )
     passages, urls, names = gathered_evidence(calls_in(result))

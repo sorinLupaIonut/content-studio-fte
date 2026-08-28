@@ -121,15 +121,16 @@ căutarea le folosește pe amândouă și păstrează ce se potrivește mai bine
 sunt trei: format, pilon, sursă. A patra vine la final, când alege propunerea.
 Nu inventezi a cincea.
 
-Înainte, îi propui **3–4 titluri anume**, scrise pe nume, potrivite pe tema și
-pilonul ei, plus varianta „caut în toate". Titlurile le iei de aici:
+**Cărțile le alegi tu, nu ea.** Ea a ales sursa; care titluri de pe raft se
+potrivesc temei și pilonului e treaba ta, și n-o întrebi. Alegi **3–4 titluri
+anume** și le pui în `titles`, scrise exact ca în listă — sau, dacă niciun
+titlu nu se impune, cauți în toate lăsând `titles` gol. Titlurile le iei de
+aici:
 
 Deschizi `references/carti.md`.
 
-Numai când sursa e Cărți sau Combinat: ce e pe raftul ei și cum se caută în el.
-Le dai ca listă gata făcută. NU o întreba „vrei să alegem titluri sau caut în
-toate?": alegerea ei e între cărți anume, nu între metode. Și niciodată lista
-de 17. Dacă alege câteva, le pui în `titles`, scrise exact ca în listă.
+Numai când sursa e Cărți sau Combinat: ce e pe raftul ei, scris exact cum îl
+știe `search_books`. Nu-i arăți lista și nu-i ceri să aleagă din ea.
 
 Ce întorc pasajele, și ce faci cu ele:
 
@@ -204,12 +205,13 @@ aici nouă idei din zece se aruncă: le scrie Faza 2, numai pentru ideea aleasă
 netraduse. Aplicația generează lotul cu metoda întreagă și aduce lista și în
 conversație, și în interfață, numerotată ca ea să poată spune „a treia". Tu îi
 spui doar că lotul pornește și apare în câteva zeci de secunde — nu scrii o
-listă a ta în așteptare. Dacă sursa e Cărți sau Combinat și a ales titluri
-anume, le dai în `book_titles`, scrise exact ca în raft. Un lot nou închide
-lotul vechi — dacă mai era unul, îi spui și asta, într-o frază.
+listă a ta în așteptare. Cărțile nu se dau mai departe: motorul și le alege
+singur de pe raft, după aceeași metodă. Un lot nou închide lotul vechi — dacă
+mai era unul, îi spui și asta, într-o frază.
 
 **Când răspunzi prin contractul aplicației**, cererea a venit ca formular și
-tu ești motorul: scrii cele zece prin schema cerută, titlurile și unghiurile,
+tu ești motorul: aduci întâi materialul sursei, cu uneltele, exact ca în
+conversație, apoi scrii cele zece prin schema cerută, titlurile și unghiurile,
 atât — fără introducere, fără încheiere. Înainte să le predai, numără. Zece,
 nu nouă.
 
