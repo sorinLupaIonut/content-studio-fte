@@ -570,7 +570,6 @@ def book_note(book_titles: list[str] | None) -> str:
 def title_prompt(
     request: GenerationBatchRequest,
     profile_md: str = "",
-    book_titles: list[str] | None = None,
     language: Language = DEFAULT_LANGUAGE,
 ) -> str:
     """The bounded title-only branch of the existing proposal skill.

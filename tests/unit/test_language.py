@@ -179,6 +179,20 @@ class TestTaskPromptsCarryTheLanguage(unittest.TestCase):
         self.assertNotIn("ENGLISH", title_prompt(self._request()))
         self.assertNotIn("ENGLISH", detail_prompt(self._request(), idea))
 
+    def test_the_language_arrives_positionally_the_way_the_engine_sends_it(self):
+        # EVERY OTHER TEST HERE PASSES `language=` BY KEYWORD, and that is how
+        # this shipped broken: `title_prompt` kept a dead `book_titles`
+        # parameter on position three after the 2026-08-27 refactor, while
+        # `generator.py` had always called it positionally. The language landed
+        # in `book_titles`, the prompt stayed Romanian, and 375 keyword-passing
+        # tests saw nothing. Both prompts are called exactly as the engine calls
+        # them.
+        idea = IdeaTitle(ordinal=1, title="Un titlu", angle="un unghi")
+        self.assertIn("ANSWER IN ENGLISH", title_prompt(self._request(), "", "en"))
+        self.assertIn(
+            "ANSWER IN ENGLISH", detail_prompt(self._request(), idea, "", "en")
+        )
+
     def test_the_task_note_protects_the_controlled_values_too(self):
         # The note lands in the same message as `Pilon: Educație`; without this
         # the model is being shown a Romanian value and told to write English.
