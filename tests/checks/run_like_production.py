@@ -256,6 +256,48 @@ def describe_input(agent, profile_md: str, prompt: str, label: str) -> None:
     print("\n  (every layer verbatim: tests/checks/show_agent_input.py --live --full)")
 
 
+#: What a failure means, in the words of the thing that has to be fixed.
+#:
+#: Until 2026-08-28 every exception here printed one guess - "is
+#: `uv run content-studio-server` running?" - and on the day E2B blocked the
+#: team for reaching its billing limit, that guess sent the reading in the
+#: wrong direction: the MCP server WAS running, it had answered twice, and its
+#: two 200s were on screen above the error. A hint that is right once and
+#: confident always is worse than no hint, because it is read as a diagnosis.
+#: Each entry below matches on what the failure actually says.
+DIAGNOSES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        ("billing limit", "team is blocked"),
+        "E2B a blocat contul: plafonul de facturare e atins. Nu e cod - se ridica"
+        " limita in e2b.dev/dashboard, la Team → Billing. Fara container nu se"
+        " poate citi metoda, deci nicio rulare nu porneste pana atunci.",
+    ),
+    (
+        ("e2b_api_key", "sandboxexception", "403", "401"),
+        "Sandbox-ul n-a pornit. Cheia E2B din .env, si contul din e2b.dev.",
+    ),
+    (
+        ("connection", "connect", "8765", "econnrefused"),
+        "Nimeni nu raspunde pe 8765: porneste `uv run content-studio-server`.",
+    ),
+    (
+        ("modelbehaviorerror", "invalid json"),
+        "Modelul a rupt contractul structurat. Productia reincearca o data pentru"
+        " exact clasa asta; scriptul asta nu. Ruleaza din nou inainte sa cauti"
+        " vinovatul in cod.",
+    ),
+)
+
+
+def diagnose(e: Exception) -> list[str]:
+    """The lines printed under a failure. Empty when nothing is recognised."""
+    haystack = f"{type(e).__name__} {e}".lower()
+    hits = [text for needles, text in DIAGNOSES if any(n in haystack for n in needles)]
+    # Silence beats a guess: an unrecognised failure gets its own message and
+    # nothing else, which is the honest amount of help available.
+    return hits or ["Eroare nerecunoscuta - citeste mesajul de mai sus, e tot ce se stie."]
+
+
 async def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--format", default="Reel", choices=["Reel", "Carusel", "Stories"])
@@ -397,7 +439,12 @@ async def main(argv: list[str] | None = None) -> int:
         await trail.close_run(run_id, text[:400])
     except Exception as e:  # noqa: BLE001
         print(f"\n✗ {type(e).__name__}: {e}", file=sys.stderr)
-        print("  is `uv run content-studio-server` running?", file=sys.stderr)
+        for line in diagnose(e):
+            print(f"  {line}", file=sys.stderr)
+        # The run row exists from `open_run` on, and a failure that leaves it
+        # open is a run that never ends - the same shape of missing record this
+        # script was pointed at on 2026-08-28. Production marks it; so does this.
+        await trail.failed(run_id, e)
         return 1
     finally:
         await asyncio.gather(
@@ -466,7 +513,7 @@ async def main(argv: list[str] | None = None) -> int:
 FROM_THE_UI = [
     "--format", "Reel",      # Reel | Carusel | Stories
     "--pillar", "Educație",  # Poziționare | Educație | Conexiune | Conversie | Magnetism
-    "--source", "Memorie",   # Memorie | Cărți | Internet | Combinat
+    "--source", "Cărți",   # Memorie | Cărți | Internet | Combinat
     # "--focus", "despre limite la job",   # the form's fourth field, optional
     "--phase", "title",      # NOT a form field - see below
     "--debug",               # every step live, and every span's payload at the end

@@ -21,12 +21,34 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from agents.exceptions import MaxTurnsExceeded, ModelBehaviorError
+from agents.run_config import SandboxRunConfig
 
 from content_studio.harness import generator as G
+
+
+@asynccontextmanager
+async def no_sandbox(label: str):
+    """`_run_agent` opens a container before it calls the model. Not here.
+
+    Until 2026-08-28 these four tests patched `Runner.run` and nothing else, so
+    every one of them created a REAL E2B container - on every local run of the
+    suite, silently, because `.env` has the key and a container that starts and
+    closes prints nothing. CI, which has no key, failed all four with
+    `MissingConfig` and sent an email for each push; locally the same tests
+    passed while spending sandbox minutes nobody had asked for. The day E2B
+    blocked the team for its billing limit, they failed here too, which is how
+    they were found.
+
+    A unit test does not reach the network. The container is faked - but with
+    the real `SandboxRunConfig`, because `RunConfig` type-checks that field and
+    a `SimpleNamespace` fails there rather than in the code under test.
+    """
+    yield SandboxRunConfig(session=SimpleNamespace())
 
 
 def usage(input_tokens: int = 26_000, output_tokens: int = 900) -> SimpleNamespace:
@@ -70,11 +92,12 @@ class TestFailedRunsAreMetered(unittest.TestCase):
         agent = SimpleNamespace(model="gpt-5-mini")
 
         async def go() -> None:
-            with patch.object(G.Runner, "run", failing_run(exc, context)):
-                with self.assertRaises(type(exc)):
-                    await coord._run_agent(
-                        agent, "p", dict, "lot-idea-3-attempt-1", "lot"
-                    )
+            with patch.object(G, "sandbox_run_config", no_sandbox):
+                with patch.object(G.Runner, "run", failing_run(exc, context)):
+                    with self.assertRaises(type(exc)):
+                        await coord._run_agent(
+                            agent, "p", dict, "lot-idea-3-attempt-1", "lot"
+                        )
 
         asyncio.run(go())
         return accounts
@@ -106,11 +129,12 @@ class TestFailedRunsAreMetered(unittest.TestCase):
             raise ModelBehaviorError("died before the first call")
 
         async def go() -> None:
-            with patch.object(G.Runner, "run", run):
-                with self.assertRaises(ModelBehaviorError):
-                    await coord._run_agent(
-                        SimpleNamespace(model="gpt-5-mini"), "p", dict, "l", "g"
-                    )
+            with patch.object(G, "sandbox_run_config", no_sandbox):
+                with patch.object(G.Runner, "run", run):
+                    with self.assertRaises(ModelBehaviorError):
+                        await coord._run_agent(
+                            SimpleNamespace(model="gpt-5-mini"), "p", dict, "l", "g"
+                        )
 
         asyncio.run(go())
         self.assertEqual(accounts.rows, [])
