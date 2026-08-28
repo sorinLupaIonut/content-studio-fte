@@ -340,7 +340,7 @@ def diverse(cases: list[dict[str, Any]], batches: list[dict[str, Any]]) -> list[
 
 def main() -> int:
     enable_utf8_output()
-    parser = argparse.ArgumentParser(description="Seed evals/golden.json from Neon.")
+    parser = argparse.ArgumentParser(description="Seed evals/output/golden.json from Neon.")
     parser.add_argument("--batches", type=int, default=5, help="how many recent batches")
     parser.add_argument("--batch", help="only this batch, by id or its first 8 chars")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)

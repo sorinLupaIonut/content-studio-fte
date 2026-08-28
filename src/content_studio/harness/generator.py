@@ -83,7 +83,7 @@ def workflow_name(batch_id: str) -> str:
 
     Short prefix rather than the whole UUID: eight hex characters are unique
     enough among a day's batches and still fit in a list column. The same
-    truncation is what `evals/references.py` and the audit print, so the id you
+    truncation is what `evals/route/references.py` and the audit print, so the id you
     read in Phoenix is the id you paste into a query.
     """
 
@@ -140,7 +140,7 @@ def cache_key(model: str, shape: str = "") -> str:
 GENERATION_MAX_TURNS = 20
 
 #: What a shell command has to mention for the method to count as opened.
-#: `evals/grade.py` scores the same two markers off `public.traces`; this is the
+#: `evals/runs/grade.py` scores the same two markers off `public.traces`; this is the
 #: live half of that question, asked while the run is still in hand.
 METHOD_MARKERS = ("SKILL.md", "references/")
 

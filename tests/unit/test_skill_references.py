@@ -26,9 +26,9 @@ from content_studio.worker import build_worker, parse_skill, reference_index
 
 
 def load_audit():
-    """`evals/references.py` by path - `evals/` is a folder of scripts, not a package."""
+    """`evals/route/references.py` by path - `evals/` is scripts, not a package."""
 
-    path = Path(__file__).resolve().parents[2] / "evals" / "references.py"
+    path = Path(__file__).resolve().parents[2] / "evals" / "route" / "references.py"
     spec = importlib.util.spec_from_file_location("evals_references", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -150,7 +150,7 @@ class TestThePromptDescribesTheMethodThatExists(unittest.TestCase):
 
 
 class TestTheManifestMatchesDisk(unittest.TestCase):
-    """`evals/references.json` says when each reference should fire.
+    """`evals/route/references.json` says when each reference should fire.
 
     A manifest nobody checks is the same failure one level up: it would keep
     declaring a trigger for a file that was renamed, and keep silent about one

@@ -5,7 +5,7 @@ Why this is built the way it is. The rules themselves are in
 reasoning behind each structural choice.
 
 The original planning document, written in Romanian while the system was being
-designed, is kept as [plan-ro.md](plan-ro.md). It has the day-by-day reasoning,
+designed, is kept as [plan-ro.md](../plans/plan-ro.md). It has the day-by-day reasoning,
 including the parts that were later abandoned.
 
 ---
@@ -238,7 +238,7 @@ two agents. They are skills instead, because splitting means copying the
 30,000-character profile and the ten rules into a second context, and because the
 handover between phase 1 and phase 2 is exactly where a rejected proposal list would
 get lost. The cost is real: a `SKILL.md` cannot *enforce* ten proposals. So the
-number is counted afterwards, in `tests/checks/full_flow.py`, and judged in the evals.
+number is counted afterwards, in `tests/checks/paid/full_flow.py`, and judged in the evals.
 
 **Skills as folders, disclosed progressively.** The index — name, description, path —
 is always in context and costs almost nothing. The body opens when the task matches
@@ -289,8 +289,14 @@ so the database can be asked which rows are stale.
 
 ## 7. Where the ugly cases live
 
-Fifteen eval cases in [../evals/cases.json](../evals/cases.json), twelve of them
-chosen because they are how this class of system fails quietly. Each one carries the
-correct behaviour written next to it in plain language — that, rather than the
-matcher, is the actual specification. Three of them are trigger evals: does the skill
-fire when it should, and stay silent when the question is only a report.
+Not in a file of hand-written cases any more. Fifteen of those existed until the
+suite moved onto real traces; what replaced them measures the same failures against
+every combination the interface can produce, and against runs that actually
+happened. [../evals/README.md](../evals/README.md) is the map, and the groups are
+the questions: `route/` — did it reach the method and the right tools;
+`runs/` — what a real run did, read back out of `public.traces`; `retrieval/` — does
+the shelf return the right book; `output/` — is what it wrote any good.
+
+The quiet failures are still the reason for all of it: a reference that never
+loaded, an invented page number, a quote attributed to a book that was only a
+summary, a skill that fired on a question that was only a report.

@@ -1,10 +1,15 @@
 # Critical metrics — what blocks a merge, and what only gets watched
 
-The gate is `.github/workflows/evals.yml`. This page says which of its findings
-may stop a change and which are recorded and left alone. Everything here is
-about `evals/output/`, the layer that grades **what the studio writes**; the
-layer that grades whether the code runs is `tests/unit` and all of it is
-critical by definition.
+> **A plan, not the state.** It lives in `plans/` because the gate it describes,
+> `.github/workflows/evals.yml`, was never built. The thresholds below are decided
+> and worth keeping; what does not exist yet is the workflow that enforces them.
+> `.github/workflows/ci.yml` is the only gate today — lint and the unit tests — and
+> since 2026-08-28 even that runs only on the button in the Actions tab.
+
+This page says which findings may stop a change and which are recorded and left
+alone. Everything here is about `evals/output/`, the layer that grades **what the
+studio writes**; the layer that grades whether the code runs is `tests/unit` and
+all of it is critical by definition.
 
 ## The three metrics
 

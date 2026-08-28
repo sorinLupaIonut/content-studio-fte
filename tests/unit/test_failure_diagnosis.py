@@ -20,7 +20,9 @@ from pathlib import Path
 
 from agents.exceptions import ModelBehaviorError
 
-CHECK = Path(__file__).resolve().parents[2] / "tests" / "checks" / "run_like_production.py"
+CHECK = (
+    Path(__file__).resolve().parents[2] / "tests" / "checks" / "paid" / "run_like_production.py"
+)
 
 
 def _load():

@@ -1,8 +1,8 @@
 """One reader, so every grader looks at the same thing.
 
-    uv run python evals/traces.py --hours 24
-    uv run python evals/traces.py --run <run_id>
-    uv run python evals/traces.py --hours 24 --json
+    uv run python evals/runs/traces.py --hours 24
+    uv run python evals/runs/traces.py --run <run_id>
+    uv run python evals/runs/traces.py --hours 24 --json
 
 CONCEPT 12'S ONE ARCHITECTURAL CLAIM is that traces are the integration point:
 everything an eval grades is read from a trace, and the traces live in two

@@ -1,6 +1,6 @@
 """Safe check: the prompt and the tools, built exactly as a real run builds them.
 
-    uv run python tests/checks/prompt.py
+    uv run python tests/checks/safe/prompt.py
 
 No database, no MCP connection, no OpenAI call, no cost. The MCP server object is
 constructed but never connected: `build_worker` only holds onto it and reads its

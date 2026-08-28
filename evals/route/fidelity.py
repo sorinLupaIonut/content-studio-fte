@@ -1,6 +1,6 @@
 """`fidelitate` — the method reaches the container whole, byte for byte.
 
-    uv run python evals/fidelity.py       # one container, no model, no cost
+    uv run python evals/route/fidelity.py       # one container, no model, no cost
 
 WHAT IS MEASURED, AND WHY IT MOVED. Until 2026-08-27 the method was carried by
 three tools of ours - one per skill, plus `citeste-referinta` - and the metric
@@ -37,7 +37,9 @@ from content_studio.worker import parse_skill
 enable_utf8_output()
 
 HERE = Path(__file__).parent
-REPORTS = HERE / "reports"
+#: One reports folder for the whole suite, one level up from this group.
+REPORTS = HERE.parent / "reports"
+ROOT = HERE.parents[2]
 
 
 def expected() -> dict[str, Path]:
@@ -141,7 +143,7 @@ async def run() -> int:
         encoding="utf-8",
     )
     passed = len(findings) - len(failures)
-    print(f"\nfidelitate: {passed}/{len(findings)} · {out.relative_to(HERE.parent)}")
+    print(f"\nfidelitate: {passed}/{len(findings)} · {out.relative_to(ROOT)}")
     return 1 if failures else 0
 
 

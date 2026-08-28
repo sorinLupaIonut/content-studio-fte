@@ -1,7 +1,7 @@
 """The search_books pair — `regasire` and `control-negativ`, tool probed directly.
 
     uv run content-studio-server          # terminal 1
-    uv run python evals/retrieval.py      # terminal 2
+    uv run python evals/retrieval/retrieval.py      # terminal 2
 
 WHAT IS MEASURED, and why no agent is in the loop: layer 6 (RAG) failures are
 the tool's own — the right book not surfaced, or an off-topic query scoring
@@ -45,7 +45,9 @@ enable_utf8_output()
 
 HERE = Path(__file__).parent
 DATASET_FILE = HERE / "retrieval-dataset.json"
-REPORTS = HERE / "reports"
+#: One reports folder for the whole suite, one level up from this group.
+REPORTS = HERE.parent / "reports"
+ROOT = HERE.parents[2]
 TOP_K = 3
 
 
@@ -141,7 +143,7 @@ async def run() -> int:
     if margin is not None:
         verdictul = "pozitivele și negativele se SUPRAPUN" if margin <= 0 else "separare pozitivă"
         print(f" · separare: {margin:+.3f} ({verdictul})", end="")
-    print(f" · {out.relative_to(HERE.parent)}")
+    print(f" · {out.relative_to(ROOT)}")
     return 0
 
 

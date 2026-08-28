@@ -15,9 +15,9 @@ The override is written in English on purpose. It is model-facing only — the
 client never reads it — and asking for English output in English primes the
 model far better than asking for it in Romanian.
 
-Added for the American entrepreneur trying the product. `evals/cases.json` still
-asserts Romanian answers and has not been extended to English; that is a known,
-accepted gap, recorded in plans/DEPLOYMENT.md.
+Added for the American entrepreneur trying the product. The evals still assert
+Romanian answers and have not been extended to English; that is a known, accepted
+gap, recorded in plans/DEPLOYMENT.md.
 """
 
 from __future__ import annotations

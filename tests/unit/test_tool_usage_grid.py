@@ -1,6 +1,6 @@
 """The grid's labels, checked without a model, a container or a key.
 
-`evals/tool_usage.py` spends real money per square, so the part that decides
+`evals/route/tool_usage.py` spends real money per square, so the part that decides
 WHAT a square expects has to be right before any of them run. Three things are
 held here and each has a way of going wrong quietly:
 
@@ -27,7 +27,7 @@ from content_studio.harness.generation import (
     SourceChoice,
 )
 from content_studio.worker import reference_index
-from evals.tool_usage import (
+from evals.route.tool_usage import (
     Expectation,
     Route,
     all_cases,

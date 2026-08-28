@@ -1,10 +1,10 @@
 """Metric `tool_usage` — the whole domain grid, one real run per square.
 
     uv run content-studio-server                     # terminal 1
-    uv run python evals/tool_usage.py --dry-run      # the labels, free, no model
-    uv run python evals/tool_usage.py                # the spine: 24 real runs
-    uv run python evals/tool_usage.py --all          # all 240. COSTS MONEY.
-    uv run python evals/tool_usage.py --format Reel --source Cărți --phase detalii
+    uv run python evals/route/tool_usage.py --dry-run      # the labels, free, no model
+    uv run python evals/route/tool_usage.py                # the spine: 24 real runs
+    uv run python evals/route/tool_usage.py --all          # all 240. COSTS MONEY.
+    uv run python evals/route/tool_usage.py --format Reel --source Cărți --phase detalii
 
 NOT `tool_use.py`. That file runs six hand-written cases and asks one question
 per case: was any required tool missing. This one asks the same question of the
@@ -21,7 +21,7 @@ Skill lab splits it into:
 THE INPUT IS THE ONE PRODUCTION SENDS, not a re-typing of it. The request goes
 through `GenerationBatchRequest`, the agent through `GenerationCoordinator`'s
 own `_title_agent` / `_detail_agent`, and the message through `title_prompt` /
-`detail_prompt` — the same three builders `tests/checks/run_like_production.py`
+`detail_prompt` — the same three builders `tests/checks/paid/run_like_production.py`
 uses, for the same reason: a prompt written here would be a fourth copy that
 drifts. Each case also prints the sentence the button dictates
 (`dictated_batch_request`, `dictated_develop`), so what you READ in the report
@@ -91,18 +91,21 @@ from content_studio.observability import configure_phoenix, shutdown_phoenix
 from content_studio.sandbox import sandbox_run_config
 from content_studio.worker import read_profile
 
-# `python evals/tool_usage.py` puts `evals/` on the path, not the repo root, so
-# `evals.references` is not importable without this. Same three lines as
-# `grade.py`, and for the same reason.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# `python evals/route/tool_usage.py` puts `evals/route/` on the path, not the
+# repo root, so `evals.route.references` is not importable without this. Same
+# three lines as `grade.py`, and for the same reason.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from evals.references import SHELL_TOOL_NAME, manifest, shell_reads  # noqa: E402
+from evals.route.references import SHELL_TOOL_NAME, manifest, shell_reads  # noqa: E402
 
 enable_utf8_output()
 
 HERE = Path(__file__).parent
 GRID_FILE = HERE / "tool-usage-grid.json"
-REPORTS = HERE / "reports"
+#: One reports folder for the whole suite, one level up from this group. Every
+#: eval writes there whichever subfolder it lives in.
+REPORTS = HERE.parent / "reports"
+ROOT = HERE.parents[2]
 
 #: The MCP tools a generation run may reach. Anything outside this set is not
 #: refused by the eval — it is invisible to the agent, which is the stronger
@@ -624,7 +627,7 @@ async def run_grid(cases: list[Case], spec: dict[str, Any], concurrency: int) ->
         f"\ntool_usage: {passed}/{len(findings)}"
         f"  ·  router {rate('router')}  referințe {rate('references')}"
         f"  unelte {rate('tools')}"
-        f"  ·  {out.relative_to(HERE.parent)}"
+        f"  ·  {out.relative_to(ROOT)}"
     )
     return 1 if passed < len(findings) else 0
 

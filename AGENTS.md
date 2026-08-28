@@ -82,7 +82,7 @@ Six rules a new session must respect without asking again.
    ever opened, was running blind. Descriptions are one quoted line now;
    `tests/unit/test_skill_references.py` holds both readers to the same answer.
    Found by assembling the prompt and reading it —
-   `uv run python tests/checks/show_agent_input.py --live`, which is the only
+   `uv run python tests/checks/safe/show_agent_input.py --live`, which is the only
    way to see the whole input without paying for a run.
 
    **THE FAILURE MODE IS NOW A MODEL THAT NEVER OPENS THE FILE**, and it does
@@ -91,8 +91,8 @@ Six rules a new session must respect without asking again.
    plausible titles. `gpt-5-mini`, same request minutes later, ran
    `sed -n '1,200p'` over the whole `SKILL.md`. **Nano cannot drive this shape.**
    `generator.py` logs a warning when a run wrote without opening the method,
-   and `evals/grade.py` scores the same question off `public.traces`;
-   `evals/fidelity.py` opens a real container and compares every file byte for
+   and `evals/runs/grade.py` scores the same question off `public.traces`;
+   `evals/route/fidelity.py` opens a real container and compares every file byte for
    byte, which is what catches a mount that arrives truncated or re-encoded.
 
    **AND THE PROMPT IS NOT WHERE YOU FIX IT.** A generation run has to fetch two
@@ -318,8 +318,11 @@ was built for.
   [mcp_server/server.py](src/content_studio/mcp_server/server.py)
 - everything `worker.py` prints — that terminal is the product
 - `content/` — the profile, the posts, the books
-- the conversation summary in [conversation.py](src/content_studio/conversation.py)
-- the turns and regex patterns in `evals/cases.json`
+- the dictated sentences in
+  [harness/conversations.py](src/content_studio/harness/conversations.py) — a button
+  press is dictation, and those strings are contract
+- what an eval prints and the labelled prose in its dataset — the terminal is read
+  by the client too
 
 **English, everywhere else:** identifiers, comments, docstrings that are not read by
 the model, database names, tool *names* and parameter *names*, the docs, the tests,
@@ -345,8 +348,8 @@ shown to someone who does not read Romanian. This does not weaken anything above
   [Values.cs](ui/StudioViorela/Localization/Values.cs).
 - Profile **section titles are her content**, parsed out of the profile itself, so
   they stay Romanian in both languages. That is correct, not an omission.
-- `evals/cases.json` still asserts Romanian only. Extending it to English is open
-  work, deliberately deferred.
+- The **evals still assert Romanian only**. Extending them to English is open work,
+  deliberately deferred.
 
 ## Where each truth lives
 
@@ -367,7 +370,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Which references a format needs | the `SKILL.md` body | prose in the skill, never a table in Python |
 | How the method reaches the model | `sandbox.py` | one container per run; the manifest is not optional |
 | That the ten proposals differ | `generation.py` → `ANGLE_TYPES` | ten archetypes, ten slots |
-| What a correct route is, per square of the domain grid | `evals/references.json` (format half) + `evals/tool-usage-grid.json` (source half) | two manifests, neither copying the other |
+| What a correct route is, per square of the domain grid | `evals/route/references.json` (format half) + `evals/route/tool-usage-grid.json` (source half) | two manifests, neither copying the other |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
 | Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |
@@ -400,37 +403,40 @@ Anything touching the MCP tools, the gate or the audit also needs the server run
 and:
 
 ```bash
-uv run python tests/checks/bootstrap.py
+uv run python tests/checks/safe/bootstrap.py
 ```
 
 Changing a skill, a tool description or the system prompt means the evals are
-the only real proof. `evals/cases.json` and `evals/run.py` were removed while the
-suite migrates to Phoenix; what stands today is one cheap check and one live one.
+the only real proof. They are grouped by the question they answer — `evals/route/`,
+`evals/runs/`, `evals/retrieval/`, `evals/output/` — and [evals/README.md](evals/README.md)
+is the map. The hand-written case files (`cases.json`, `tool-use-dataset.json` and
+their runners) were removed as the suite moved onto real traces; `evals/route/`
+below is what replaced them.
 
 The method reaches the container whole - one container, no model, no cost:
 
 ```bash
-uv run python evals/fidelity.py
+uv run python evals/route/fidelity.py
 ```
 
 What a real run actually opened, off `public.traces`:
 
 ```bash
-uv run python evals/references.py --traces --minutes 15
+uv run python evals/route/references.py --traces --minutes 15
 ```
 
 Which square of the domain grid a change broke - what a correct route is for
 every format × pillar × source × focus, free and before paying for anything:
 
 ```bash
-uv run python evals/tool_usage.py --dry-run
+uv run python evals/route/tool_usage.py --dry-run
 ```
 
 Then the same labels against real runs. The default is the spine, 24 of the 240
 squares; `--all` is the whole grid and costs hours:
 
 ```bash
-uv run python evals/tool_usage.py
+uv run python evals/route/tool_usage.py
 ```
 
 Do not commit or push unless asked. The client's books stay out of git.

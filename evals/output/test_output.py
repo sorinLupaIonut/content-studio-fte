@@ -2,7 +2,7 @@
 
     uv run pytest evals/output/ -v
 
-Reads `evals/golden.json` and nothing else - no harness, no MCP server, no UI, no
+Reads `evals/output/golden.json` and nothing else - no harness, no MCP server, no UI, no
 generation. The answers were frozen by `seed_golden.py`, so a score that moves
 between runs moved because the METRIC or the JUDGE changed, never because the
 model wrote something different this time.
@@ -73,7 +73,7 @@ RULER_MOVED = "\n".join(
         "",
         "O comparație între două rigle nu spune nimic. Re-măsoară:",
         "  uv run python -m evals.output.report --update-baseline",
-        "și comite evals/golden.json — schimbarea riglei devine o linie în diff.",
+        "și comite evals/output/golden.json — schimbarea riglei devine o linie în diff.",
     ]
 )
 
@@ -95,7 +95,7 @@ needs_judge = pytest.mark.skipif(
 )
 needs_cases = pytest.mark.skipif(
     not CASES,
-    reason="evals/golden.json lipsește sau e gol — rulează seed_golden.py.",
+    reason="evals/output/golden.json lipsește sau e gol — rulează seed_golden.py.",
 )
 needs_baseline = pytest.mark.skipif(
     not BASELINE.get("metrics"),

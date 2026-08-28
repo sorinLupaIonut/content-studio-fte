@@ -172,7 +172,7 @@ WHY = {
 
 
 #: The eval stack itself, and the frozen set it grades.
-OWN_FILES = ("evals/output/*.py", "evals/golden.json")
+OWN_FILES = ("evals/output/*.py", "evals/output/golden.json")
 
 
 def watched_files() -> list[str]:

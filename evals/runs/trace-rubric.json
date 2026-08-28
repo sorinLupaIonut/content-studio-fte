@@ -4,7 +4,7 @@
   "what_this_is": [
     "The specification of good behaviour, written as data rather than as code,",
     "so it can be edited without a deploy and so the same words are used by",
-    "three readers: `evals/grade.py` locally, the OpenAI Evals API remotely, and",
+    "three readers: `evals/runs/grade.py` locally, the OpenAI Evals API remotely, and",
     "the Phoenix online evaluators. A rubric that lives in one grader's source is",
     "a rubric the other two will drift away from."
   ],

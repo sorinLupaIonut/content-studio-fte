@@ -38,7 +38,7 @@ from evals.output.ruler import drift, fingerprint
 from evals.output.test_output import NO_PASSAGES
 
 ROOT = Path(__file__).resolve().parents[2]
-GOLDEN = ROOT / "evals" / "golden.json"
+GOLDEN = Path(__file__).resolve().parent / "golden.json"
 REPORTS = ROOT / "evals" / "reports"
 
 
@@ -58,7 +58,7 @@ def as_test_case(case: dict[str, Any]) -> LLMTestCase:
 
 def main() -> int:
     enable_utf8_output()
-    parser = argparse.ArgumentParser(description="Score evals/golden.json.")
+    parser = argparse.ArgumentParser(description="Score evals/output/golden.json.")
     parser.add_argument("--only", action="append", help="just this metric, repeatable")
     parser.add_argument("--case", help="just this case id")
     parser.add_argument("--quiet", action="store_true", help="table only, no reasons")
@@ -75,7 +75,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if not GOLDEN.is_file():
-        print("evals/golden.json lipsește. Rulează seed_golden.py întâi.", file=sys.stderr)
+        print("evals/output/golden.json lipsește. Rulează seed_golden.py întâi.", file=sys.stderr)
         return 2
     gold = json.loads(GOLDEN.read_text(encoding="utf-8"))
     cases = gold["cases"]
@@ -208,7 +208,7 @@ def main() -> int:
         GOLDEN.write_text(
             json.dumps(gold, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
-        print("\nreferință actualizată în evals/golden.json:")
+        print("\nreferință actualizată în evals/output/golden.json:")
         for name, now in gold["baseline"]["metrics"].items():
             before = (was.get("metrics") or {}).get(name, {}).get("mean")
             move = "  (nou)" if before is None else f"  ({before:.2f} → {now['mean']:.2f})"

@@ -12,7 +12,7 @@ here; at two runs a day the cost difference is pennies either way.
 The books stay at OpenAI. Nothing in this module sends licensed passages
 anywhere: `Hallucination` receives `context`, so a Cărți batch would - which is
 why `attribution`, the criterion that exists to read passages, stays on the
-OpenAI side in `evals/trace-rubric.json` and is not reimplemented here.
+OpenAI side in `evals/runs/trace-rubric.json` and is not reimplemented here.
 """
 
 from __future__ import annotations

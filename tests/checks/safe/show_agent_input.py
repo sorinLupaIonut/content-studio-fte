@@ -1,9 +1,9 @@
 """Safe check: the EXACT input one generation run sends, assembled and measured.
 
     uv run content-studio-server                        (in another terminal)
-    uv run python tests/checks/show_agent_input.py
-    uv run python tests/checks/show_agent_input.py --phase detail --full
-    uv run python tests/checks/show_agent_input.py --json input.json
+    uv run python tests/checks/safe/show_agent_input.py
+    uv run python tests/checks/safe/show_agent_input.py --phase detail --full
+    uv run python tests/checks/safe/show_agent_input.py --json input.json
 
 No model is called and no container is opened, so this costs nothing. What it
 prints is not a reconstruction: the system prompt comes out of the SDK's own

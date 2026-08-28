@@ -2,7 +2,7 @@
   "_": [
     "The domain grid, and what a correct route looks like on every square of it.",
     "",
-    "Read by `evals/tool_usage.py`. Four axes - format, pillar, source, focus -",
+    "Read by `evals/route/tool_usage.py`. Four axes - format, pillar, source, focus -",
     "and the two generation phases, which is 240 combinations. Every one of them",
     "is a real run the interface can produce, so every one of them is a case.",
     "",
@@ -145,6 +145,6 @@
     "ordinal": 3,
     "title": "Formula celor 3 pași pentru un NU blând",
     "angle": "Trei pași concreți, în ordinea în care se spun",
-    "why": "Faza 2 dezvoltă un titlu pe care Faza 1 l-a scris deja, deci un rând plauzibil ține locul celui care ar veni din `generation_ideas`. Aceeași propunere pe care o dezvoltă și `tests/checks/run_like_production.py`, ca să fie citite una lângă alta."
+    "why": "Faza 2 dezvoltă un titlu pe care Faza 1 l-a scris deja, deci un rând plauzibil ține locul celui care ar veni din `generation_ideas`. Aceeași propunere pe care o dezvoltă și `tests/checks/paid/run_like_production.py`, ca să fie citite una lângă alta."
   }
 }

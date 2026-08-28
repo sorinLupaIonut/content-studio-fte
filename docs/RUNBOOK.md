@@ -303,18 +303,27 @@ and Phoenix. Take the `run_id` from here and follow it there.
 **Phoenix, DeepEval, Ragas and a nightly evaluation job.** Decision 8 wires four
 frameworks and a scheduled grader. Every one of them runs the agent, and running
 the agent costs money — which in this project is Sorin's decision, taken per run,
-not a cron's. The evals exist and are run by hand:
+not a cron's. The evals exist and are run by hand — free first, paid only when
+the free one has nothing left to say:
 
 ```bash
-uv run python evals/run.py --id 13
+uv run python evals/route/tool_usage.py --dry-run
 ```
 
-CI does gate what can be gated for free: lint, the 171 unit tests, and a check
-that `evals/cases.json` is still well formed. A change that breaks the eval
-*harness* is caught before merge; a change that makes the agent *worse* is caught
-by running the evals, on purpose, with someone watching.
+```bash
+uv run python evals/route/tool_usage.py
+```
+
+CI gates what can be gated for free: lint and the unit tests, including the ones
+that hold the eval labels against the domain contract
+(`tests/unit/test_tool_usage_grid.py`). A change that breaks the eval *harness* is
+caught before merge; a change that makes the agent *worse* is caught by running
+the evals, on purpose, with someone watching. Since 2026-08-28 even that runs only
+on the button in the Actions tab — see the note at the top of
+`.github/workflows/ci.yml`.
 
 **The promotion ritual**, when it starts: read the failed runs from
-`public.runs` where `status = 'failed'`, replay the interesting ones, and add the
-turn to `evals/cases.json`. Each production failure becomes a future regression
-test. This is written down here so it can start without a design session.
+`public.runs` where `status = 'failed'`, replay the interesting ones, and turn each
+into a square the grid already covers, or a new axis value if it does not. Each
+production failure becomes a future regression test. This is written down here so
+it can start without a design session.

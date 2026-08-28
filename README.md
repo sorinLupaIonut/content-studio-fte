@@ -193,22 +193,23 @@ uv run python -m unittest discover -s tests/unit
 ```
 
 ```bash
-uv run python tests/checks/bootstrap.py
+uv run python tests/checks/safe/bootstrap.py
 ```
 
 ```bash
-uv run python evals/run.py --automatic-only
+uv run python evals/route/tool_usage.py --dry-run
 ```
 
 ```bash
-uv run python tests/checks/full_flow.py
+uv run python tests/checks/paid/full_flow.py
 ```
 
-The eval set is the interesting one: twelve cases chosen because they are the ways
-this kind of agent fails quietly — an invented page number, a quote attributed to a
-book that was only a summary, a figure that sounds like a study, a topic that
-conflicts with what the client will not say — plus three trigger evals that check a
-skill fires when it should and stays quiet when it should not.
+The evals are the interesting part, and they measure the ways this kind of agent
+fails quietly — a reference that never loaded, an invented page number, a quote
+attributed to a book that was only a summary, a skill that fired on a question
+that was only a report. They are grouped by the question each answers
+(`evals/route/`, `evals/runs/`, `evals/retrieval/`, `evals/output/`); the map is
+[evals/README.md](evals/README.md).
 
 ## Where it stands
 

@@ -186,7 +186,7 @@ async def sandbox_run_config(label: str) -> AsyncIterator[SandboxRunConfig]:
     # the files in. The runtime does that when it attaches a live session, so a
     # run would work without this line - and anything that touches the container
     # without going through `Runner` would find it empty, which is how
-    # `evals/fidelity.py` first reported ten missing files against a mount that
+    # `evals/route/fidelity.py` first reported ten missing files against a mount that
     # was fine. Furnishing it here means the container is only ever handed over
     # in one state: ready.
     await session.apply_manifest()

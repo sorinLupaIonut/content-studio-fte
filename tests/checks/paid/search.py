@@ -1,7 +1,7 @@
 """Decision 5's criterion: a search returns ranked passages, each with its page.
 
-    uv run python tests/checks/search.py
-    uv run python tests/checks/search.py "cum spun nu fara vinovatie"
+    uv run python tests/checks/paid/search.py
+    uv run python tests/checks/paid/search.py "cum spun nu fara vinovatie"
 
 The question from the plan is „vinovăția de a spune nu". What matters is not only
 that passages come back, but that each one knows which book, chapter and page it

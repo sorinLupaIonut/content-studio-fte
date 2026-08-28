@@ -1,7 +1,7 @@
 """Decision 6's criterion: the `content-data` server answers over HTTP.
 
     uv run content-studio-server            (in another terminal, left running)
-    uv run python tests/checks/tools.py
+    uv run python tests/checks/safe/tools.py
 
 It checks four things, in the order they matter:
 

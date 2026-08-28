@@ -1,8 +1,8 @@
 """Grade what really ran, against `trace-rubric.json`. No schedule anywhere.
 
-    uv run python evals/grade.py --hours 24
-    uv run python evals/grade.py --hours 1 --dry-run     # no model call, no cost
-    uv run python evals/grade.py --run <run_id>
+    uv run python evals/runs/grade.py --hours 24
+    uv run python evals/runs/grade.py --hours 1 --dry-run     # no model call, no cost
+    uv run python evals/runs/grade.py --run <run_id>
 
 WHAT THIS IS. Concept 12's second attachment point: read the traces, grade them
 against a rubric, write a report. The course calls it a nightly scheduled job.
@@ -45,18 +45,19 @@ from typing import Any
 from content_studio import enable_utf8_output
 from content_studio.config import MissingConfig
 
-# Run as `uv run python evals/grade.py`, the way every other script in this
-# folder is run, and `sys.path[0]` is `evals/` - so `evals.traces` is not
-# importable unless the project root is put back. The tests import it as
-# `evals.traces` from the root, where it already resolves; this line is for the
-# command line, and it is a no-op there.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Run as `uv run python evals/runs/grade.py`, the way every other script in this
+# folder is run, and `sys.path[0]` is `evals/runs/` - so `evals.runs.traces` is
+# not importable unless the project root is put back. The tests import it as
+# `evals.runs.traces` from the root, where it already resolves; this line is for
+# the command line, and it is a no-op there.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from evals.traces import GradedRun, read  # noqa: E402
+from evals.runs.traces import GradedRun, read  # noqa: E402
 
 HERE = Path(__file__).parent
 RUBRIC_FILE = HERE / "trace-rubric.json"
-REPORTS_DIR = HERE / "reports"
+#: One reports folder for the whole suite, one level up from this group.
+REPORTS_DIR = HERE.parent / "reports"
 
 #: A run whose `session_id` starts with this came from the structured
 #: generation path rather than from chat. Both open their method the same way
@@ -67,7 +68,7 @@ GENERATION_PREFIX = "generation"
 #: The shell tool. Since the method moved into the sandbox, a file reaches the
 #: model only through this, so its arguments are where "did it read the method"
 #: is answered. There is no field naming the file - it is a command string - so
-#: the check is a substring one. See `evals/references.py`, which does the same
+#: the check is a substring one. See `evals/route/references.py`, which does the same
 #: thing for the same reason.
 SHELL_TOOL_NAME = "exec_command"
 

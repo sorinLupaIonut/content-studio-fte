@@ -10,7 +10,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from evals.traces import (
+from evals.runs.traces import (
     RETRIEVAL_TOOL,
     GradedRun,
     ToolCall,

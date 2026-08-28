@@ -1,7 +1,7 @@
 """Isolated check for `search_web` — no access to the books or the posts.
 
     uv run content-studio-server            (in another terminal)
-    uv run python tests/checks/web.py
+    uv run python tests/checks/paid/web.py
 
 Only the generic topic below is sent to OpenAI. It verifies the MCP contract, the
 angles and the web provenance; it reads nothing from Neon.

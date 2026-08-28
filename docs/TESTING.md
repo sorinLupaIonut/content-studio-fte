@@ -59,7 +59,7 @@ Everything below uses a second terminal.
 ## Rung 1 — the safe check
 
 ```bash
-uv run python tests/checks/bootstrap.py
+uv run python tests/checks/safe/bootstrap.py
 ```
 
 No model call, no writes. It reads the profile over MCP without printing its
@@ -70,14 +70,14 @@ roughly 30,000 characters of profile.
 ## Rung 2 — one service at a time
 
 ```bash
-uv run python tests/checks/web.py
+uv run python tests/checks/paid/web.py
 ```
 
 Sends only the generic topic written in the file. Reads nothing from Neon. Costs one
 small web call.
 
 ```bash
-uv run python tests/checks/write_gate.py
+uv run python tests/checks/safe/write_gate.py
 ```
 
 No model call. Creates a test conversation, simulates a refused write, saves one
@@ -85,7 +85,7 @@ dummy post, verifies the transactional audit, and deletes every row it created i
 `finally`. The last line must be `✓ the check rows were deleted`.
 
 ```bash
-uv run python tests/checks/tools.py
+uv run python tests/checks/safe/tools.py
 ```
 
 All five tools: an embedding call, the passages read locally from Neon, a generic
@@ -94,42 +94,53 @@ each passage it checks title, marker, authority class, version, rights, owner an
 embedding model.
 
 ```bash
-uv run python tests/checks/search.py
+uv run python tests/checks/paid/search.py
 ```
 
 Decision 5's criterion: ranked passages, each with its page or chapter.
 
 ## Rung 3 — the automated evals
 
-One case:
+Grouped by the question each one answers; `evals/README.md` is the map. The order
+below is also the order to run them in — the free ones first.
+
+The labels, without a model, a container or a key. A wrong label is a wrong
+verdict on every square it touches, so this is read before anything is paid for:
 
 ```bash
-uv run python evals/run.py --id 10
+uv run python evals/route/tool_usage.py --dry-run
 ```
 
-Only the mechanically checkable ones:
+The method reaches the container whole — one container, no model, no cost:
 
 ```bash
-uv run python evals/run.py --automatic-only
+uv run python evals/route/fidelity.py
 ```
 
-All fifteen:
+What a real run actually opened, off `public.traces`. Free: it reads runs that
+already happened:
 
 ```bash
-uv run python evals/run.py
+uv run python evals/runs/traces.py --hours 24
 ```
 
-The evals start E2B and call the model, so they take minutes and consume API budget.
-Every write attempt is refused automatically. The report lands in
-`evals/report-latest.json` and is not committed.
+The spine of the domain grid — 24 squares of the 240, one per distinct label,
+against real runs. **This one spends money**, roughly an hour for the spine and
+hours for `--all`:
 
-A verdict of `BY_EYE` is not a failure: it means the patterns cannot judge this one.
-Read `final_answer` in the report and decide yourself.
+```bash
+uv run python evals/route/tool_usage.py
+```
+
+Every eval writes its report to `evals/reports/<name>-<stamp>.json`, which is
+gitignored: a graded report is evidence of a moment, not source. The report holds
+the whole route per case — the shell commands verbatim, the references, the tools,
+the turns — which is where you look when a square fails.
 
 ## Rung 4 — the full flow
 
 ```bash
-uv run python tests/checks/full_flow.py
+uv run python tests/checks/paid/full_flow.py
 ```
 
 The most expensive and slowest: nine real turns, profile in the system prompt, E2B,
@@ -182,13 +193,16 @@ Messages, skills opened, tools called, approval requests, refusals and saves.
 | Check | OpenAI | E2B | Neon | Writes? |
 |---|---|---|---|---|
 | `tests/unit/` | no | no | no | no |
-| `tests/checks/bootstrap.py` | no | no | reads the profile | no |
-| `tests/checks/web.py` | generic web topic | no | no | no |
-| `tests/checks/write_gate.py` | no | no | temporary dummy | yes, then deletes |
-| `tests/checks/tools.py` | generic topics | no | books + post titles | no |
-| `tests/checks/search.py` | one embedding | no | books | no |
-| `evals/run.py` | profile + messages + passages | yes | reads | refuses all writes |
-| `tests/checks/full_flow.py` | profile + conversation + passages | yes | reads, one dummy | deletes the post |
+| `tests/checks/safe/bootstrap.py` | no | no | reads the profile | no |
+| `tests/checks/paid/web.py` | generic web topic | no | no | no |
+| `tests/checks/safe/write_gate.py` | no | no | temporary dummy | yes, then deletes |
+| `tests/checks/safe/tools.py` | generic topics | no | books + post titles | no |
+| `tests/checks/paid/search.py` | one embedding | no | books | no |
+| `evals/route/tool_usage.py --dry-run` | no | no | no | no |
+| `evals/route/fidelity.py` | no | no | no | no |
+| `evals/runs/traces.py` | no | no | reads `public.traces` | no |
+| `evals/route/tool_usage.py` | profile + brief | yes | reads | writes no batch at all |
+| `tests/checks/paid/full_flow.py` | profile + conversation + passages | yes | reads, one dummy | deletes the post |
 
 ## Debugging in VS Code
 
@@ -245,7 +259,7 @@ Python frame. That is the whole reason the second shape exists.
 | `mcp_server/server.py` — `save_post` | the body of the write, after approval, before the row exists. |
 | `audit.py` — `calls_in(result)` | the calls with their arguments, as pulled from `new_items`, before `audit_log`. |
 | `worker.py` — `run_turn` | the terminal path's entry. From there `F11` walks the rest. |
-| `evals/run.py` — `verify` | why a case failed: compare `answers[-1]` with the patterns in `cases.json`. |
+| `evals/route/tool_usage.py` — `route_from` | what a run actually did, read out of its shell commands. Where a square's verdict is decided. |
 
 Search for the symbol rather than the line number — lines move.
 

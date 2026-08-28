@@ -1,9 +1,9 @@
 """COSTS MONEY: one real generation run, wired exactly the way production is.
 
     uv run content-studio-server                          (another terminal)
-    uv run python tests/checks/run_like_production.py
-    uv run python tests/checks/run_like_production.py --phase detail --format Carusel
-    uv run python tests/checks/run_like_production.py --debug --spans spans.json
+    uv run python tests/checks/paid/run_like_production.py
+    uv run python tests/checks/paid/run_like_production.py --phase detail --format Carusel
+    uv run python tests/checks/paid/run_like_production.py --debug --spans spans.json
 
 Or F5 on "6. One real run" with no command line at all, which is what
 `FROM_THE_UI` at the bottom of this file is for: the generator form, in code,
@@ -253,7 +253,7 @@ def describe_input(agent, profile_md: str, prompt: str, label: str) -> None:
     print(f"  user message   {len(prompt):>7,} chars")
     print("  material       none up front - the agent fetches its own, per the skill")
     print(f"  workflow       {workflow_name(label)}")
-    print("\n  (every layer verbatim: tests/checks/show_agent_input.py --live --full)")
+    print("\n  (every layer verbatim: tests/checks/safe/show_agent_input.py --live --full)")
 
 
 #: What a failure means, in the words of the thing that has to be fixed.

@@ -3,7 +3,7 @@
 No model and no network. That is the point of the split: a caption is 863
 characters or it is not, and paying a judge to count them would be the most
 expensive way to learn a number. Every threshold here comes from
-`evals/trace-rubric.json`, so a rule changed there and not here fails loudly.
+`evals/runs/trace-rubric.json`, so a rule changed there and not here fails loudly.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import unittest
 from datetime import UTC, datetime
 from pathlib import Path
 
-from evals.grade import (
+from evals.runs.grade import (
     RUBRIC_FILE,
     grade_contract_quality,
     grade_tool_correctness,
@@ -21,7 +21,7 @@ from evals.grade import (
     run_kind,
     testing_criteria,
 )
-from evals.traces import GradedRun, ToolCall
+from evals.runs.traces import GradedRun, ToolCall
 
 RUBRIC = load_rubric()
 NOW = datetime(2026, 8, 25, 6, 0, tzinfo=UTC)

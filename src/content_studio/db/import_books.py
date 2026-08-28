@@ -274,7 +274,7 @@ async def main() -> int:
         await engine.dispose()
 
     print(f"\n{total} new chunks in `embeddings`.")
-    print("Check it with:  uv run python tests/checks/search.py")
+    print("Check it with:  uv run python tests/checks/paid/search.py")
     return 0
 
 

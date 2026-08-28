@@ -1,9 +1,9 @@
 """Which `references/` file was supposed to reach the model, and whether it did.
 
-    uv run python evals/references.py                 the static audit, free
-    uv run python evals/references.py --traces        what real runs actually asked for
-    uv run python evals/references.py --traces --minutes 30
-    uv run python evals/references.py --traces --run <run_id>
+    uv run python evals/route/references.py                 the static audit, free
+    uv run python evals/route/references.py --traces        what real runs actually asked for
+    uv run python evals/route/references.py --traces --minutes 30
+    uv run python evals/route/references.py --traces --run <run_id>
 
 A reference fails silently. Nothing raises, nothing logs, the answer still
 arrives - written from memory instead of from the method. Until 2026-08-24 that

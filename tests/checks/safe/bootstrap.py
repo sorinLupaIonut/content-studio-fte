@@ -1,7 +1,7 @@
 """Safe check: the MCP contract and the startup profile, with no model and no writes.
 
     uv run content-studio-server            (in another terminal)
-    uv run python tests/checks/bootstrap.py
+    uv run python tests/checks/safe/bootstrap.py
 
 Reads the profile from Neon through the MCP resource, but never prints its content
 and never sends it to OpenAI. It checks the raw server contract and separately

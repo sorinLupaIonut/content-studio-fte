@@ -18,7 +18,7 @@ What it costs, and you should know it:
   · a `SKILL.md` is text. It cannot enforce "exactly ten proposals with exactly
     five hooks" — it asks and hopes. The number is an instruction, not a contract,
     so it can come back with nine. It is counted afterwards, in
-    `tests/checks/full_flow.py`, and judged in the evals (Decision 10);
+    `tests/checks/paid/full_flow.py`, and judged in the evals (Decision 10);
   · turns and a container. Measured 2026-08-27 on gpt-5-mini: eleven requests and
     87,302 input tokens for five hooks, against 26,250 and one request for the
     same work with the method preloaded. That trade was made deliberately —
@@ -306,7 +306,7 @@ def parse_skill(path: Path) -> tuple[str, str, str]:
     shipped between 2026-08-27 and the fix - both skills reached the model
     described as `>-`, so the first step of progressive disclosure, the one
     that decides whether the body is ever opened, was running blind.
-    Discovered by assembling the prompt with `tests/checks/show_agent_input.py`
+    Discovered by assembling the prompt with `tests/checks/safe/show_agent_input.py`
     and reading it. The frontmatter is one quoted line now, which both readers
     agree on, and `test_skill_references.py` holds them to the same answer.
     """

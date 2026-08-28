@@ -130,7 +130,7 @@ SEPARATOR = ": "
 #: `.agents/<name>/SKILL.md` - back when the skills were mounted in a sandbox.
 #: The sandbox went on 2026-08-24 and skill tools take no arguments at all, so
 #: it matched nothing and `public.runs` silently stopped recording any skill
-#: activation whatsoever. Same fault, same day, as `evals/run.py`.
+#: activation whatsoever. Same fault, same day, as the eval runner of the time.
 SKILL_TOOLS = frozenset(
     p.name for p in SKILLS_DIR.iterdir() if (p / "SKILL.md").is_file()
 ) if SKILLS_DIR.is_dir() else frozenset()
