@@ -873,7 +873,14 @@ class GenerationCoordinator:
             model_settings=ModelSettings(
                 reasoning={"effort": "minimal"},
                 verbosity="low",
+                # EXPLICIT, BECAUSE None OMITS THE FIELD. Measured 2026-08-28 on
+                # 24 phase-2 runs: the model takes three model turns before it
+                # writes - read the skill, do ONE more thing, answer - so the
+                # format's reference file and the source's tool compete for a
+                # single slot, and 15 of 16 runs did one and skipped the other.
+                # Batching is what buys the second errand back.
                 max_tokens=4_000,
+                parallel_tool_calls=True,
                 extra_args={
                     "prompt_cache_key": cache_key(model)
                 },
@@ -891,9 +898,19 @@ class GenerationCoordinator:
             model=model,
             output_type=detail_output_type(request.format),
             model_settings=ModelSettings(
-                reasoning={"effort": "minimal"},
+                # "low", NOT "minimal", AND ONLY ON THIS PHASE. At "minimal" the
+                # model plans as little as it is allowed to, and 24 measured runs
+                # show what that buys: three model turns, always - read the
+                # skill, do ONE more thing, write. The format's file and the
+                # source's tool then compete for one slot. Phase 1 stays minimal:
+                # it opens no files, scores 11-12/12 on tools, and has nothing to
+                # buy with the extra reasoning tokens.
+                reasoning={"effort": "low"},
                 verbosity="low",
                 max_tokens=24_000,
+                # See the note on the title agent: this is the phase the turn
+                # budget was measured on.
+                parallel_tool_calls=True,
                 extra_args={
                     "prompt_cache_key": cache_key(model)
                 },

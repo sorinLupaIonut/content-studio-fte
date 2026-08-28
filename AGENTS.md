@@ -95,6 +95,32 @@ Six rules a new session must respect without asking again.
    `evals/fidelity.py` opens a real container and compares every file byte for
    byte, which is what catches a mount that arrives truncated or re-encoded.
 
+   **AND THE PROMPT IS NOT WHERE YOU FIX IT.** A generation run has to fetch two
+   things before it writes — the format's reference file, and the source's tool
+   — and on 2026-08-28 it did exactly one of them: 15 runs out of 16, across
+   every format and every source, opened the file OR called the tool, never
+   both, and none did neither. Every run that skipped something took exactly
+   nine items; the one that did both took twelve. `GENERATION_MAX_TURNS` is 20,
+   so nothing was cut off — the model stopped itself. The cause was
+   `reasoning={"effort": "minimal"}`, the lowest setting there is, kept from the
+   2026-08-24 cost work: measured `reasoning_tokens: 0` on every span. A
+   four-step errand asked of a model told not to plan. `"low"` on the detail
+   phase took the spine from 3/12 to **12/12**, took "did both" from 1-in-16 to
+   9-of-9, and ended six straight `Invalid JSON` failures — all of which had
+   been at Reel, the format with the largest reference file. It cost 640
+   reasoning tokens, about $0.0013 a run, and **the prompt cache survived
+   intact**: 98% cached on the first call against 97% at `minimal`, because
+   effort is a request parameter and caching matches the input prefix.
+   Phase 1 stays `minimal` — it opens no files, so it has nothing to buy.
+
+   The hours before that fix were spent rewriting the skill, and the pattern
+   that should have ended them sooner is written here for whoever meets it next:
+   **when every repair trades one score for another, the budget is exhausted,
+   and a budget is a setting, not a wording.** `parallel_tool_calls` belongs to
+   the same lesson — its default is `None`, and `None` omits the field, so the
+   model was never invited to batch. It batches tool with tool *and* shell with
+   tool once asked, which is a turn back.
+
    The five production references (filmare, editare, distribuire,
    întrebări-frecvente, tipuri-de-reels) left the tree on 2026-08-27, moved to
    `nefolosite/` — the skill declines production questions rather than
@@ -336,10 +362,12 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
 | Output-language override | `language.py` | the skills stay Romanian |
 | Model prices | `pricing.py` | one table; a copy drifts silently |
+| How many errands a run gets before it writes | `generator.py` → `ModelSettings.reasoning` | it is a setting, never a sentence in the skill |
 | Which model wrote a batch | `generation_batches.model` | resolved in `generator.py` before the row is written, so both doors record a name |
 | Which references a format needs | the `SKILL.md` body | prose in the skill, never a table in Python |
 | How the method reaches the model | `sandbox.py` | one container per run; the manifest is not optional |
 | That the ten proposals differ | `generation.py` → `ANGLE_TYPES` | ten archetypes, ten slots |
+| What a correct route is, per square of the domain grid | `evals/references.json` (format half) + `evals/tool-usage-grid.json` (source half) | two manifests, neither copying the other |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
 | Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |
@@ -389,6 +417,20 @@ What a real run actually opened, off `public.traces`:
 
 ```bash
 uv run python evals/references.py --traces --minutes 15
+```
+
+Which square of the domain grid a change broke - what a correct route is for
+every format × pillar × source × focus, free and before paying for anything:
+
+```bash
+uv run python evals/tool_usage.py --dry-run
+```
+
+Then the same labels against real runs. The default is the spine, 24 of the 240
+squares; `--all` is the whole grid and costs hours:
+
+```bash
+uv run python evals/tool_usage.py
 ```
 
 Do not commit or push unless asked. The client's books stay out of git.

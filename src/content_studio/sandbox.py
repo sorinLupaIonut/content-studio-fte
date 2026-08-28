@@ -89,6 +89,13 @@ citit pe jumătate e metodă aplicată pe jumătate, iar partea care lipsește n
 te anunță că lipsește. Nu-l cauți prin tot containerul și nu ghici ce scrie
 în el.
 
+Ceri tot ce-ți trebuie DEODATĂ, în aceeași tură. Mai multe fișiere intră într-o
+singură comandă — `cat fișier1 fișier2` — iar uneltele pleacă în paralel cu
+citirea și una cu alta. Ce ai de adus îl știi din cerere, de la început: nu
+aștepta să se întoarcă primul lucru ca să-l ceri pe al doilea. Fiecare tură în
+plus e un drum în plus, iar drumurile ți se termină înaintea răbdării — un
+model care aduce pe rând se trezește scriind cu jumătate din material.
+
 Containerul e o bibliotecă, nu un atelier: nu scrii fișiere, nu instalezi nimic,
 nu rulezi programe. Nu ai internet acolo — la date ajungi prin uneltele tale,
 niciodată din shell.
