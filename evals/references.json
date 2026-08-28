@@ -28,77 +28,33 @@
   ],
   "references": [
     {
-      "file": "propune-postari/carti.md",
-      "when": "Faza 1, Pasul 2 — numai când sursa aleasă de ea este Cărți.",
+      "file": "dezvolta-postarea/reel.md",
+      "when": "Faza 2, format Reel — structura în patru pași, șabloanele de text pe ecran și reelurile lucrate cap-coadă, într-un fișier.",
       "expect": {
-        "chat-faza1": "optional"
-      },
-      "proposed": true
-    },
-    {
-      "file": "dezvolta-postarea/structura-reel.md",
-      "when": "Faza 2, format Reel — structura în patru pași: hook, promisiune, payoff, CTA.",
-      "expect": {
-        "detalii-reel": "required",
-        "detalii-stories": "forbidden",
-        "detalii-carusel": "forbidden"
-      }
-    },
-    {
-      "file": "dezvolta-postarea/hookuri-si-scripturi.md",
-      "when": "Faza 2 — formulările celor cinci hook-uri, la orice format.",
-      "expect": {
-        "detalii-reel": "required",
-        "detalii-carusel": "required",
-        "detalii-stories": "required"
-      }
-    },
-    {
-      "file": "dezvolta-postarea/b-roll.md",
-      "when": "Faza 2, format Reel — ce se vede pe ecran, fiindcă reel-ul e mut.",
-      "expect": {
+        "titluri": "forbidden",
         "detalii-reel": "required",
         "detalii-carusel": "forbidden",
+        "detalii-stories": "forbidden"
+      }
+    },
+    {
+      "file": "dezvolta-postarea/carusel.md",
+      "when": "Faza 2, format Carusel — cele patru caruseluri lucrate slide cu slide, singurul loc din metodă unde caruselul e arătat, nu descris.",
+      "expect": {
+        "titluri": "forbidden",
+        "detalii-carusel": "required",
+        "detalii-reel": "forbidden",
         "detalii-stories": "forbidden"
       }
     },
     {
       "file": "dezvolta-postarea/stories.md",
-      "when": "Faza 2, format Stories — secvența de 3–7 story-uri.",
+      "when": "Faza 2, format Stories — secvența de 3–7 story-uri plus tiparele de idee și exemplele de storytelling, într-un fișier.",
       "expect": {
+        "titluri": "forbidden",
         "detalii-stories": "required",
         "detalii-reel": "forbidden",
         "detalii-carusel": "forbidden"
-      }
-    },
-    {
-      "file": "dezvolta-postarea/idei-reel.md",
-      "when": "Format Reel — sugestiile și reelurile lucrate din manual, cerute când vrei un exemplu întreg, nu o regulă. Sunt din alt cont: structura se ia, scriptul vorbit nu.",
-      "expect": {
-        "titluri": "forbidden",
-        "detalii-reel": "required",
-        "detalii-carusel": "forbidden",
-        "detalii-stories": "forbidden"
-      }
-    },
-    {
-      "file": "dezvolta-postarea/idei-carusel.md",
-      "when": "Format Carusel — cele patru caruseluri lucrate slide cu slide, singurul loc din metodă unde caruselul e arătat, nu descris. Se cere de fiecare dată la Carusel.",
-      "expect": {
-        "titluri": "forbidden",
-        "detalii-reel": "forbidden",
-        "detalii-carusel": "required",
-        "detalii-stories": "forbidden"
-      }
-    },
-    {
-      "file": "dezvolta-postarea/idei-stories.md",
-      "when": "Format Stories — tiparele de idee și exemplele de storytelling din manual.",
-      "expect": {
-        "titluri": "forbidden",
-        "detalii-reel": "forbidden",
-        "detalii-carusel": "forbidden",
-        "detalii-stories": "required"
       }
     }
   ]

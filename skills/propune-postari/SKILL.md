@@ -71,36 +71,43 @@ adaugi referința.
 | 📚 Cărți | biblioteca ei de 17 titluri, prin `search_books` | idee, cadru, citat, cu titlul și autorul | să fie prezentată ca „așa se face"; să i se atribuie ce nu scrie în ea |
 | 🌐 Internet | căutare web | unghi, temă de sezon, cifră, studiu, citat — fiecare cu pagina lui | ceva ce nu apare în paginile consultate; diagnostic sau promisiune de vindecare |
 | 🧠 Memorie | profilul plus ce știi tu | structură, formulare, exemple de viață obișnuită | orice cifră, studiu, nume sau afirmație dată ca fapt verificat |
-| 🔀 Combinat | mai multe de mai sus | ce dă fiecare | regulile fiecăreia se cumulează, nu se anulează |
+| 🔀 Combinat | raftul **și** webul, amândouă | ce dă fiecare | regulile fiecăreia se cumulează, nu se anulează |
 
 Profilul nu e în listă pentru că nu e o alegere — îl ai deja întreg, la orice
-variantă. La Combinat le folosești numai pe cele alese explicit de ea. Nu
-înlocui și nu adăuga tăcut altă sursă.
+variantă. Nu înlocui și nu adăuga tăcut altă sursă.
+
+**Combinat înseamnă amândouă: cărțile și internetul.** Nu e o sub-alegere pe
+care ea o face și tu o citești — alegerile ei sunt patru, iar „Combinat" e una
+singură. Nu ghici care jumătate a vrut și nu te opri după prima.
 
 Dacă sursa lipsește, o ceri cu variantele din tabel. După ce a ales-o, nu mai
 aduci material din alta.
 
-### Ce deschizi și ce chemi — decide sursa, nu formatul
+### Ce chemi — decide sursa, nu formatul
 
 **Citește rândul tău și fă exact ce scrie în el. Nimic în plus.**
 
-| Sursa aleasă de ea | Referința pe care o deschizi | Unealta pe care o chemi |
-|---|---|---|
-| 🧠 Memorie | **niciuna** | **niciuna** |
-| 📚 Cărți | `references/carti.md` | `search_books` |
-| 🌐 Internet | **niciuna** | `search_web` |
-| 🔀 Combinat | doar ale surselor alese de ea | doar ale surselor alese de ea |
+| Sursa aleasă de ea | Unealta pe care o chemi |
+|---|---|
+| 🧠 Memorie | **niciuna** |
+| 📚 Cărți | `search_books` |
+| 🌐 Internet | `search_web` |
+| 🔀 Combinat | `search_books` **și** `search_web` |
 
-La Memorie, deci, faza asta se termină cu un singur fișier citit: `SKILL.md`.
-Nu deschizi raftul de cărți „ca să vezi ce e acolo" — un fișier deschis în
-afara rândului tău e material din care n-ai voie să iei, adică un pas greșit,
-nu unul în plus. Secțiunile de mai jos sunt scrise pentru rândurile lor: dacă
-sursa ei nu e acolo, secțiunea nu e pentru tine.
+**Unealta de pe rândul tău nu e opțională, și n-o judeci tu.** O chemi de
+fiecare dată, înainte să scrii prima propunere — nu „dacă e nevoie", nu „dacă
+tema o cere". Singurul rând fără unealtă este Memorie, și acolo n-o chemi
+niciodată.
 
-### Cum cauți pe internet — numai la Internet sau Combinat cu Internet
+Faza asta nu deschide niciun fișier, la nicio sursă: tot ce-ți trebuie e aici,
+în `SKILL.md`. Secțiunile de mai jos sunt scrise pentru rândurile lor — dacă
+sursa ei nu e acolo, secțiunea nu e pentru tine, iar raftul de la sfârșit e
+pentru cine caută în cărți, nu pentru toată lumea.
 
-`search_web(description, limit)`. O chemi numai după ce ea a ales Internet sau
-Combinat cu Internet și înainte să scrii propunerile. În `description` pui tema
+### Cum cauți pe internet — la Internet și la Combinat
+
+`search_web(description, limit)`. O chemi de fiecare dată când ea a ales Internet
+sau Combinat, înainte să scrii propunerile. În `description` pui tema
 dată de ea; n-o mai întrebi a doua oară.
 
 Din rezultat iei tot ce servește tema: unghiuri și teme de sezon, dar și
@@ -126,7 +133,7 @@ Nu scrii cele zece din memorie, nu pretinzi că ai căutat și nu schimbi sursa
 fără răspunsul ei. `sources` îți dă titlul și URL-ul paginilor; le păstrezi
 pentru câmpul `source`, în forma `internet — ce ai citit + linkul`.
 
-### Cum cauți în cărți — numai la Cărți sau Combinat cu Cărți
+### Cum cauți în cărți — la Cărți și la Combinat
 
 `search_books(description, description_en, titles, limit)`. Caută după înțeles,
 deci `description` e o frază, nu cuvinte-cheie, iar `description_en` e aceeași
@@ -144,13 +151,44 @@ anume** și le pui în `titles`, scrise exact ca în listă — sau, dacă niciu
 titlu nu se impune, cauți în toate lăsând `titles` gol. Titlurile le iei de
 aici:
 
-**Numai dacă sursa e Cărți sau Combinat cu Cărți, deschizi
-`references/carti.md`.** E raftul ei, scris exact cum îl știe `search_books`.
-Nu-i arăți lista și nu-i ceri să aleagă din ea.
+Raftul e mai jos, scris exact cum îl știe `search_books` în `titles`. **Nu-i
+arăți lista și nu-i ceri să aleagă din ea** — la Memorie și la Internet nici
+n-o folosești, fiindcă de pe un raft din care n-ai voie să iei nu se ia nimic,
+nici măcar un titlu pomenit în treacăt. Dacă adaugi o carte în bibliotecă,
+adaug-o și aici: de aici își ia numele.
 
-**La Memorie și la Internet nu-l deschizi deloc** — n-ai ce căuta pe un raft
-din care n-ai voie să iei. E singura referință a acestei faze, deci la Memorie
-faza asta nu deschide nicio referință: citești `SKILL.md` și scrii.
+#### People pleasing, limite, „nu"-ul
+
+- **Granițe în relații** — Henry Cloud & John Townsend
+- **The Disease to Please. Curing the People-Pleasing Syndrome** — Harriet B. Braiker
+- **Set Boundaries, Find Peace** — Nedra Glover Tawwab (rezumat Bookey)
+  ⚠️ e rezumat, nu cartea. Nu lua citate de aici.
+- **Teoria „Let Them”** — Mel Robbins
+- **Curajul de a nu fi pe placul celorlalți** — Ichiro Kishimi & Fumitake Koga
+
+#### Burnout, stres, corp
+
+- **Când corpul spune nu. Costul stresului ascuns** — Gabor Maté
+  ⚠️ n-are marcaje de pagină. Citezi titlul și autorul, fără număr de pagină.
+- **The Body Keeps the Score** — Bessel van der Kolk
+- **ACT for Burnout** — Debbie Sorensen
+- **The Trauma of Burnout**
+- **Burnout Coach Handbook** — The Priority Academy
+
+#### Rușine, vulnerabilitate, compasiune de sine
+
+- **Curajul de a fi vulnerabil** — Brené Brown
+- **Darul imperfecțiunii** — Brené Brown
+- **The Self-Compassion Skills Workbook** — Tim Desmond
+- **Inner Critic Workbook**
+
+#### Tipare vechi, autosabotaj, traumă
+
+- **Reinventing Your Life** — Jeffrey E. Young & Janet S. Klosko
+- **Letting Go of Self-Destructive Behaviors** — Lisa Ferentz
+- **Self-Guided EMDR Therapy Workbook** — Katherine Andler
+
+Faza asta nu mai deschide niciun fișier: citești `SKILL.md` și scrii.
 
 Ce întorc pasajele, și ce faci cu ele:
 

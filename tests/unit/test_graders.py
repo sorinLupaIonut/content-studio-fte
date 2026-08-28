@@ -123,7 +123,7 @@ class ToolCorrectnessAsksOneQuestion(unittest.TestCase):
         """
         run = _run(
             "chat-abc",
-            commands=['{"cmd": "cat .agents/dezvolta-postarea/references/b-roll.md"}'],
+            commands=['{"cmd": "cat .agents/dezvolta-postarea/references/reel.md"}'],
         )
         self.assertEqual(grade_tool_correctness(run, "chat").score, 1.0)
 
@@ -141,7 +141,7 @@ class ToolCorrectnessAsksOneQuestion(unittest.TestCase):
             "generation-abc",
             commands=[
                 '{"cmd": "cat .agents/dezvolta-postarea/SKILL.md"}',
-                '{"cmd": "cat .agents/dezvolta-postarea/references/b-roll.md"}',
+                '{"cmd": "cat .agents/dezvolta-postarea/references/reel.md"}',
             ],
         )
         self.assertIn("2", grade_tool_correctness(run, "generation-detail").detail)

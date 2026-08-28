@@ -1,0 +1,150 @@
+{
+  "_": [
+    "The domain grid, and what a correct route looks like on every square of it.",
+    "",
+    "Read by `evals/tool_usage.py`. Four axes - format, pillar, source, focus -",
+    "and the two generation phases, which is 240 combinations. Every one of them",
+    "is a real run the interface can produce, so every one of them is a case.",
+    "",
+    "WHAT THIS FILE OWNS, AND WHAT IT DELIBERATELY DOES NOT.",
+    "",
+    "The method has two tables, and the skill bodies present them as two:",
+    "`dezvolta-postarea` Pasul 3 says which references a FORMAT needs, and",
+    "`propune-postari` Pasul 4 says which reference and which tool a SOURCE",
+    "needs. The format half is already written down, in `references.json`, per",
+    "scenario, with `forbidden` and everything - so it is read from there and",
+    "not copied here. This file holds only the source half, plus the axes and",
+    "the skill each phase must open. Two files, two tables, no third copy.",
+    "",
+    "`propune-postari/carti.md` is the one reference that belongs to the source",
+    "half rather than the format half, which is why `references.json` leaves it",
+    "with no `titluri` or `detalii-*` expectation at all. Its row is below.",
+    "",
+    "PHASE 2 AND THE SHELF. `dezvolta-postarea/SKILL.md` says to call",
+    "`search_books` for Carti, and it never names `carti.md` - the file lives in",
+    "the other skill's folder and nothing sends the model there. So in `detalii`",
+    "the shelf is neither required nor forbidden: the method does not say, and an",
+    "eval that invents an expectation the method never wrote is measuring itself.",
+    "",
+    "COMBINAT IS HONESTLY VAGUE. The form offers one button, and the skill says",
+    "'doar ale surselor alese de ea' - which sources those are is a thing the",
+    "form never asked. So the label is `any_of`: at least one of the two search",
+    "tools, neither of them forbidden. Tightening this needs a form change, not a",
+    "sharper eval."
+  ],
+  "axes": {
+    "format": [
+      "Reel",
+      "Carusel",
+      "Stories"
+    ],
+    "pillar": [
+      "Poziționare",
+      "Educație",
+      "Conexiune",
+      "Conversie",
+      "Magnetism"
+    ],
+    "source": [
+      "Memorie",
+      "Cărți",
+      "Internet",
+      "Combinat"
+    ],
+    "focus": [
+      null,
+      "limite fără vinovăție"
+    ]
+  },
+  "phases": {
+    "titluri": {
+      "skill": "propune-postari",
+      "scenario": "titluri",
+      "what": "Faza 1 — cele zece propuneri. Un buton „Generare\", o dată pe lot."
+    },
+    "detalii": {
+      "skill": "dezvolta-postarea",
+      "scenario_by_format": {
+        "Reel": "detalii-reel",
+        "Carusel": "detalii-carusel",
+        "Stories": "detalii-stories"
+      },
+      "what": "Faza 2 — cele cinci variante ale unei idei. O dată pentru fiecare idee deschisă."
+    }
+  },
+  "sources": {
+    "Memorie": {
+      "tools_required": [],
+      "tools_forbidden": [
+        "search_books",
+        "search_web"
+      ],
+      "references_required": {
+        "titluri": [],
+        "detalii": []
+      },
+      "references_forbidden": {
+        "titluri": [],
+        "detalii": []
+      },
+      "why": "„La Memorie, deci, faza asta se termină cu un singur fișier citit: SKILL.md.\" Raftul deschis în afara rândului tău e material din care n-ai voie să iei."
+    },
+    "Cărți": {
+      "tools_required": [
+        "search_books"
+      ],
+      "tools_forbidden": [
+        "search_web"
+      ],
+      "references_required": {
+        "titluri": [],
+        "detalii": []
+      },
+      "references_forbidden": {
+        "titluri": [],
+        "detalii": []
+      },
+      "why": "Raftul a intrat în corpul skill-ului pe 2026-08-28, deci sursa nu mai deschide niciun fișier - decide numai unealta. `search_books` la Cărți, de fiecare dată, în ambele faze."
+    },
+    "Internet": {
+      "tools_required": [
+        "search_web"
+      ],
+      "tools_forbidden": [
+        "search_books"
+      ],
+      "references_required": {
+        "titluri": [],
+        "detalii": []
+      },
+      "references_forbidden": {
+        "titluri": [],
+        "detalii": []
+      },
+      "why": "Rândul Internet din tabel cere unealta și nicio referință. „La Memorie și la Internet nu-l deschizi deloc.\""
+    },
+    "Combinat": {
+      "tools_required": [],
+      "tools_any_of": [
+        "search_books",
+        "search_web"
+      ],
+      "tools_forbidden": [],
+      "references_required": {
+        "titluri": [],
+        "detalii": []
+      },
+      "references_forbidden": {
+        "titluri": [],
+        "detalii": []
+      },
+      "why": "„Doar ale surselor alese de ea\" — și formularul nu a întrebat care. Cel puțin una din două, niciuna interzisă."
+    }
+  },
+  "idea": {
+    "ordinal": 3,
+    "title": "Formula celor 3 pași pentru un NU blând",
+    "angle": "Trei pași concreți, în ordinea în care se spun",
+    "why": "Faza 2 dezvoltă un titlu pe care Faza 1 l-a scris deja, deci un rând plauzibil ține locul celui care ar veni din `generation_ideas`. Aceeași propunere pe care o dezvoltă și `tests/checks/run_like_production.py`, ca să fie citite una lângă alta."
+  }
+}

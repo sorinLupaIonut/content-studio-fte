@@ -593,7 +593,7 @@ def title_prompt(
 
     No pre-collected material since 2026-08-27: the agent brings its own, with
     the same tools and the same skill rules as a conversation - `search_books`
-    for Cărți (it picks the titles itself, off `references/carti.md`),
+    for Cărți (it picks the titles itself, off the shelf in the skill body),
     `search_web` for Internet, the profile alone for Memorie. The engine's one
     head start is the four choices themselves, because the form already made
     them - nothing else arrives pre-resolved.
