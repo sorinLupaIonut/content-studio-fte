@@ -20,7 +20,15 @@ public sealed class ApiContractTests
         });
 
         StringAssert.Contains(json, "\"replace_current\":true");
-        StringAssert.Contains(json, "\"material_ids\":[]");
+        StringAssert.Contains(json, "\"format\":\"Reel\"");
+        StringAssert.Contains(json, "\"pillar\":\"Educa\\u021Bie\"");
+        StringAssert.Contains(json, "\"source\":\"Memorie\"");
+
+        // `material_ids` came off on 2026-08-27, when the agent started
+        // choosing its own books. The Python contract forbids unknown fields,
+        // so sending it again would be a 422 rather than a field politely
+        // ignored - which is why its absence is asserted, not just untested.
+        StringAssert.DoesNotMatch(json, new System.Text.RegularExpressions.Regex("material_ids"));
     }
 
     [TestMethod]

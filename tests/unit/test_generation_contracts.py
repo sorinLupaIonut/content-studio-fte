@@ -26,7 +26,7 @@ from content_studio.harness.generation import (
     public_batch,
     title_prompt,
 )
-from content_studio.harness.generator import GenerationCoordinator
+from content_studio.harness.generator import GenerationCoordinator, describe_batch
 
 
 def titles(count: int = 10) -> list[IdeaTitle]:
@@ -220,9 +220,30 @@ class TestSilentReelContract(unittest.TestCase):
             shared,
             "the avatar block must sit above the first line that differs per run",
         )
-        # Everything above the idea is shared; the two only part inside the JSON
-        # itself, at the ordinal, which is as late as this message can diverge.
-        self.assertGreaterEqual(shared, first.index("Ideea existentă:"))
+        # Everything above the idea is shared; the two part at the ordinal,
+        # which is as late as this message can diverge.
+        self.assertGreaterEqual(shared, first.index("Ideea existentă, numărul"))
+
+    def test_the_idea_reaches_the_model_as_prose_and_not_as_json(self) -> None:
+        # MEASURED, 2026-08-28, and it cost three runs to find. With the idea
+        # serialised as JSON and sitting last - right above "răspunde prin
+        # contractul structurat" - gpt-5-mini opened a caption string and never
+        # closed it: it wrote the rest of the answer as escaped JSON inside that
+        # one field, then filled 200,000 characters of tabs until the 24,000
+        # token ceiling. Twice out of twice. Moved back above the avatar block
+        # it succeeded first try; kept last but written as prose it succeeded
+        # too, which is the arrangement here - the cache keeps its prefix and
+        # the model is not handed a JSON blob to mimic.
+        prompt = detail_prompt(
+            GenerationBatchRequest(
+                format="Reel", pillar="Conexiune", source="Memorie"
+            ),
+            IdeaTitle(ordinal=4, title="Un titlu", angle="Un unghi"),
+        )
+        self.assertIn("Ideea existentă, numărul 4: Un titlu", prompt)
+        self.assertIn("Unghiul ei: Un unghi", prompt)
+        self.assertNotIn('{"ordinal"', prompt)
+        self.assertNotIn("idea_ordinal\":", prompt)
 
 
 class TestGenerationContracts(unittest.TestCase):
@@ -327,6 +348,37 @@ class TestTheBatchAlwaysNamesItsModel(unittest.TestCase):
         resolved = source.index("_batch_model")
         created = source.index("drafts.create")
         self.assertLess(resolved, created)
+
+
+class DescribeBatchTests(unittest.TestCase):
+    """`describe_batch` runs on every batch, one line before `open_run`.
+
+    UNTESTED UNTIL 2026-08-28, AND IT SHIPPED BROKEN. The 2026-08-27 refactor
+    took `material_ids` off the request; this function still read it, so every
+    batch raised `AttributeError` before the run row existed - no run, no
+    traces, no spans in Phoenix, and nothing to read afterwards explaining why.
+    It is one line of string building, which is exactly the kind of code that
+    gets left out of a suite and then takes a whole feature down.
+    """
+
+    @staticmethod
+    def _request(**kwargs):
+        base = {"format": "Reel", "pillar": "Educație", "source": "Memorie"}
+        return GenerationBatchRequest(**{**base, **kwargs})
+
+    def test_it_describes_a_batch_without_a_focus(self) -> None:
+        self.assertEqual(
+            describe_batch(self._request()), "10 idei · Educație · Memorie · Reel"
+        )
+
+    def test_it_appends_the_focus_when_there_is_one(self) -> None:
+        line = describe_batch(self._request(focus="limite fără vinovăție"))
+        self.assertIn("focus: limite fără vinovăție", line)
+
+    def test_it_reads_only_fields_the_request_actually_has(self) -> None:
+        # The regression itself: every name it touches must be a real field.
+        for source in ("Memorie", "Cărți", "Internet", "Combinat"):
+            describe_batch(self._request(source=source, focus="o temă"))
 
 
 if __name__ == "__main__":

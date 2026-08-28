@@ -80,7 +80,24 @@ variantă. La Combinat le folosești numai pe cele alese explicit de ea. Nu
 Dacă sursa lipsește, o ceri cu variantele din tabel. După ce a ales-o, nu mai
 aduci material din alta.
 
-### Cum cauți pe internet
+### Ce deschizi și ce chemi — decide sursa, nu formatul
+
+**Citește rândul tău și fă exact ce scrie în el. Nimic în plus.**
+
+| Sursa aleasă de ea | Referința pe care o deschizi | Unealta pe care o chemi |
+|---|---|---|
+| 🧠 Memorie | **niciuna** | **niciuna** |
+| 📚 Cărți | `references/carti.md` | `search_books` |
+| 🌐 Internet | **niciuna** | `search_web` |
+| 🔀 Combinat | doar ale surselor alese de ea | doar ale surselor alese de ea |
+
+La Memorie, deci, faza asta se termină cu un singur fișier citit: `SKILL.md`.
+Nu deschizi raftul de cărți „ca să vezi ce e acolo" — un fișier deschis în
+afara rândului tău e material din care n-ai voie să iei, adică un pas greșit,
+nu unul în plus. Secțiunile de mai jos sunt scrise pentru rândurile lor: dacă
+sursa ei nu e acolo, secțiunea nu e pentru tine.
+
+### Cum cauți pe internet — numai la Internet sau Combinat cu Internet
 
 `search_web(description, limit)`. O chemi numai după ce ea a ales Internet sau
 Combinat cu Internet și înainte să scrii propunerile. În `description` pui tema
@@ -109,7 +126,7 @@ Nu scrii cele zece din memorie, nu pretinzi că ai căutat și nu schimbi sursa
 fără răspunsul ei. `sources` îți dă titlul și URL-ul paginilor; le păstrezi
 pentru câmpul `source`, în forma `internet — ce ai citit + linkul`.
 
-### Cum cauți în cărți
+### Cum cauți în cărți — numai la Cărți sau Combinat cu Cărți
 
 `search_books(description, description_en, titles, limit)`. Caută după înțeles,
 deci `description` e o frază, nu cuvinte-cheie, iar `description_en` e aceeași
@@ -127,10 +144,13 @@ anume** și le pui în `titles`, scrise exact ca în listă — sau, dacă niciu
 titlu nu se impune, cauți în toate lăsând `titles` gol. Titlurile le iei de
 aici:
 
-Deschizi `references/carti.md`.
+**Numai dacă sursa e Cărți sau Combinat cu Cărți, deschizi
+`references/carti.md`.** E raftul ei, scris exact cum îl știe `search_books`.
+Nu-i arăți lista și nu-i ceri să aleagă din ea.
 
-Numai când sursa e Cărți sau Combinat: ce e pe raftul ei, scris exact cum îl
-știe `search_books`. Nu-i arăți lista și nu-i ceri să aleagă din ea.
+**La Memorie și la Internet nu-l deschizi deloc** — n-ai ce căuta pe un raft
+din care n-ai voie să iei. E singura referință a acestei faze, deci la Memorie
+faza asta nu deschide nicio referință: citești `SKILL.md` și scrii.
 
 Ce întorc pasajele, și ce faci cu ele:
 

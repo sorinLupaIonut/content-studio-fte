@@ -130,6 +130,24 @@ class TestThePromptDescribesTheMethodThatExists(unittest.TestCase):
     def test_it_still_says_the_method_is_mandatory(self):
         self.assertIn("APLICAREA METODEI ESTE OBLIGATORIE", self.agent.instructions)
 
+    def test_the_shell_example_reads_a_whole_file(self):
+        # THE MODEL COPIES THE EXAMPLE, VERBATIM AND EVERY RUN. While this said
+        # `sed -n '1,200p' fișier`, that is exactly what came back in the spans
+        # - harmless at 226 lines, and a silently half-read method the day
+        # `propune-postari/SKILL.md` reached 245. Nothing raises: the schema
+        # still produces ten well-formed proposals out of a method whose last
+        # three steps never arrived.
+        self.assertIn("cat fișier", SANDBOX_INSTRUCTIONS)
+        self.assertNotRegex(SANDBOX_INSTRUCTIONS, r"sed\s+-n|head\s+-|tail\s+-")
+
+    def test_no_skill_is_longer_than_the_shortest_plausible_truncation(self):
+        # A second line of defence on the same failure, because the instruction
+        # is a request and the file lengths are a fact: if a body ever needs
+        # more than this, it is time to split it, not to hope the read is whole.
+        for path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+            lines = len(path.read_text(encoding="utf-8").splitlines())
+            self.assertLess(lines, 400, f"{path}: {lines} lines is too long to read whole")
+
 
 class TestTheManifestMatchesDisk(unittest.TestCase):
     """`evals/references.json` says when each reference should fire.

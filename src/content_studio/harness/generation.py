@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
@@ -542,6 +541,12 @@ def use_skill_note(skill: str) -> str:
     generation path received it already assembled in the system prompt, so
     there were two. Both doors take the same three steps now, so both read the
     same sentence, and the path here is the one `sandbox.py` mounts.
+
+    "CERUTE DE CEREREA ASTA", not "cerute de formatul ăsta", since 2026-08-28.
+    Phase 2 picks its references by format; phase 1 picks them by source, and
+    for Memorie it needs none at all. Naming the format was therefore wrong on
+    half the calls it was written for - and it pushed the wrong way, because
+    the sentence next to it says to open everything in one round.
     """
 
     return f"""Metoda ta e în fișierul `{SKILLS_PATH}/{skill}/SKILL.md`.
@@ -550,8 +555,10 @@ Nu scrii nimic înainte de a-l fi citit.
 
 Metoda nu se termină acolo: unde îți spune să deschizi o referință din
 `{SKILLS_PATH}/{skill}/references/`, o deschizi, tot înainte de a scrie. Le
-deschizi pe toate cele cerute de formatul ăsta deodată, într-o singură rundă,
-nu una pe tură. Un pas sărit e metodă neaplicată, nu timp economisit."""
+deschizi pe toate cele cerute de cererea asta deodată, într-o singură rundă,
+nu una pe tură — dar numai pe ele. O referință pe care metoda n-o cere pentru
+alegerile astea nu se deschide: un pas sărit e metodă neaplicată, iar un fișier
+citit degeaba e material pe care n-ai voie să-l folosești."""
 
 
 # WHY THE VARYING LINES SIT LAST IN BOTH PROMPTS BELOW, and it is the cache.
@@ -654,7 +661,6 @@ def detail_prompt(
     placeholder, so the pains block silently rendered empty on every run.
     """
 
-    idea_json = json.dumps(idea.model_dump(), ensure_ascii=False)
     return f"""{use_skill_note("dezvolta-postarea")}
 
 Ideea ţi se dă mai jos, întreagă — nu o cauți în conversație și nu alegi alta.
@@ -672,10 +678,11 @@ Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 
-Ideea existentă: {idea_json}
+Ideea existentă, numărul {idea.ordinal}: {idea.title}
+Unghiul ei: {idea.angle}
 
-Dezvoltă exact ideea primită. Răspunde numai prin contractul structurat cerut de
-aplicație; `idea_ordinal` și `title` rămân identice cu ideea existentă.
+Dezvoltă exact ideea de mai sus. Răspunde numai prin contractul structurat cerut
+de aplicație; `idea_ordinal` este {idea.ordinal} și `title` se copiază literal.
 {task_note(language)}"""
 
 

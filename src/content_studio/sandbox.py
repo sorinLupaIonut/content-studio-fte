@@ -67,13 +67,27 @@ SKILLS_PATH = ".agents"
 #: the Shell capability appends its own note about `exec_command`, and the runtime
 #: appends the filesystem tree, so this only has to say what those two cannot:
 #: that the container is a library, not a workshop.
+#:
+#: `cat`, AND THE EXAMPLE IS THE WHOLE POINT. Until 2026-08-28 this said "de
+#: exemplu `sed -n '1,200p' fișier`" - and the model copied it verbatim, every
+#: run. That was harmless while `propune-postari/SKILL.md` was 226 lines and
+#: cost nothing to notice, because it truncated below the end of the file. The
+#: same day the file grew to 245 lines and a live run read `1,200p`: steps 5, 6
+#: and 7 never reached the model - the focus rule, "fără hook-uri în faza asta",
+#: and "înainte să le predai, numără. Zece, nu nouă". NOTHING RAISED. The batch
+#: came back with ten well-formed proposals because the schema enforces the ten
+#: and the archetypes, so the only visible trace of a half-read method was the
+#: line range in the span. An example that teaches a truncating command is a
+#: bug with a very long fuse.
 SANDBOX_INSTRUCTIONS = """\
 Lucrezi într-un container Linux. Metoda ta e acolo, în fișiere, sub `.agents/` —
 un folder pentru fiecare skill, cu `SKILL.md` și, unde e cazul, `references/`.
 
-Le citești cu `exec_command`, de exemplu `sed -n '1,200p' fișier`. Citești
-fișierul de care ai nevoie, întreg, dintr-o dată dacă încape; nu-l cauți prin
-tot containerul și nu ghici ce scrie în el.
+Le citești cu `exec_command`, așa: `cat fișier`. ÎNTREG, dintr-o singură dată.
+Nu citești un interval de linii și nu te opri la un număr rotund — un fișier
+citit pe jumătate e metodă aplicată pe jumătate, iar partea care lipsește nu
+te anunță că lipsește. Nu-l cauți prin tot containerul și nu ghici ce scrie
+în el.
 
 Containerul e o bibliotecă, nu un atelier: nu scrii fișiere, nu instalezi nimic,
 nu rulezi programe. Nu ai internet acolo — la date ajungi prin uneltele tale,

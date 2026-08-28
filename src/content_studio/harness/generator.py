@@ -193,8 +193,6 @@ def describe_batch(request: GenerationBatchRequest) -> str:
     parts = [f"10 idei · {request.pillar} · {request.source} · {request.format}"]
     if request.focus:
         parts.append(f"focus: {request.focus}")
-    if request.material_ids:
-        parts.append(f"{len(request.material_ids)} materiale")
     return " — ".join(parts)
 
 
