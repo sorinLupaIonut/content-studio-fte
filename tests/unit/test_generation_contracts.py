@@ -1,6 +1,7 @@
 """Free D1b tests for the structured 10 × 5 and SSE contracts."""
 
 import inspect
+import os
 import unittest
 
 from pydantic import ValidationError
@@ -191,6 +192,37 @@ class TestSilentReelContract(unittest.TestCase):
         self.assertIn("MUTE", reel)
         self.assertNotIn("MUTE", carousel)
         self.assertIn("`script`", carousel)
+
+    def test_two_ideas_of_one_batch_share_everything_above_the_idea(self) -> None:
+        # THE PROMPT CACHE IS A PREFIX MATCH, so a line that changes per run
+        # invalidates everything under it. Until 2026-08-28 the idea sat above
+        # the avatar block and the two runs below shared 841 of 11,189
+        # characters. This asserts the ordering rather than the saving: the
+        # avatar block, identical in all ten runs, has to fall inside the
+        # common prefix.
+        profile = (
+            "## Avatar\n\n### Ce dureri simte?\nSpune da și apoi se simte goală.\n"
+        )
+        request = GenerationBatchRequest(
+            format="Reel", pillar="Conexiune", source="Memorie"
+        )
+        first = detail_prompt(
+            request, IdeaTitle(ordinal=1, title="Un titlu", angle="Un unghi"), profile
+        )
+        second = detail_prompt(
+            request, IdeaTitle(ordinal=7, title="Alt titlu", angle="Alt unghi"), profile
+        )
+
+        shared = len(os.path.commonprefix([first, second]))
+        self.assertIn("Spune da și apoi se simte goală", first)
+        self.assertLess(
+            first.index("Spune da și apoi se simte goală"),
+            shared,
+            "the avatar block must sit above the first line that differs per run",
+        )
+        # Everything above the idea is shared; the two only part inside the JSON
+        # itself, at the ordinal, which is as late as this message can diverge.
+        self.assertGreaterEqual(shared, first.index("Ideea existentă:"))
 
 
 class TestGenerationContracts(unittest.TestCase):

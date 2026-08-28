@@ -554,19 +554,29 @@ deschizi pe toate cele cerute de formatul ăsta deodată, într-o singură rund�
 nu una pe tură. Un pas sărit e metodă neaplicată, nu timp economisit."""
 
 
-#: Her chosen books, named so the model can hand them to `search_books` exactly
-#: as the shelf spells them. Empty when she chose none - the skill then searches
-#: the whole shelf, which is the conversational behaviour too.
-def book_note(book_titles: list[str] | None) -> str:
-    if not book_titles:
-        return ""
-    titled = ", ".join(f"„{title}”" for title in book_titles)
-    return (
-        f"Cărțile alese de ea: {titled}. Le pui în `titles` la `search_books`, "
-        "scrise exact așa — nu propui altele.\n"
-    )
-
-
+# WHY THE VARYING LINES SIT LAST IN BOTH PROMPTS BELOW, and it is the cache.
+#
+# The prompt cache matches on the longest common PREFIX of the whole request -
+# the system prompt and the user message are one sequence, and the match stops
+# at the first byte that differs. So the order of the message decides how much
+# of it can ever be reused, and only the order: nothing here changes WHAT the
+# model is told.
+#
+# Measured on 2026-08-28, two detail runs of one batch: `Ideea existentă:` sat
+# above `avatar.brief`, so they shared 841 characters of an 11,189-character
+# message. The 9,458-character avatar block fell after the break and was paid at
+# full price on every one of the ten ideas, though it is identical in all ten.
+#
+# The lines are now ordered by how often each one changes - per client (the
+# avatar block), then per batch (the format brief and the four choices), then
+# per run (the idea). The idea also ends up next to the instruction that uses
+# it, which is the better place for it anyway.
+#
+# WHAT THIS DOES NOT BUY. The ten details are lazy - separate runs "minutes or
+# days apart" - and a cache entry expires after minutes of inactivity. This is
+# worth real money when she opens several ideas in one sitting, and nothing at
+# all when she opens one a day. `usage_events.cached_input_tokens` is where the
+# difference shows.
 def title_prompt(
     request: GenerationBatchRequest,
     profile_md: str = "",
@@ -588,17 +598,17 @@ Formatul, pilonul și sursa sunt deja alese de ea — nu le pui la îndoială, n
 confirmare și nu întrebi nimic. Materialul ți-l aduci singur, cu uneltele, după
 regula sursei din metodă — ÎNAINTE să scrii, și numai din sursa aleasă.
 
-Format: {request.format}
-Pilon: {request.pillar}
-Sursă: {request.source}
-Focus: {request.focus or "fără focus suplimentar"}
-
 {avatar.brief(profile_md)}
 
 Cele zece propuneri stau în același focus, dar fiecare pornește din alt loc:
 contractul îți cere un `angle_type` diferit la fiecare, iar tiparul îl alegi
 înainte de titlu, nu după. Două propuneri care spun același lucru cu alte
 cuvinte sunt o propunere, nu două.
+
+Format: {request.format}
+Pilon: {request.pillar}
+Sursă: {request.source}
+Focus: {request.focus or "fără focus suplimentar"}
 
 Răspunde numai prin contractul structurat cerut de aplicație.
 {task_note(language)}"""
@@ -653,15 +663,16 @@ fiecăreia sunt realmente diferite, nu aceeași propoziție reformulată.
 Materialul ți-l aduci singur, cu uneltele, după regula sursei din metodă —
 numai din sursa aleasă de ea.
 
-Ideea existentă: {idea_json}
+{avatar.brief(profile_md)}
+
+{format_brief(request.format)}
+
 Format: {request.format}
 Pilon: {request.pillar}
 Sursă: {request.source}
 Focus: {request.focus or "fără focus suplimentar"}
 
-{avatar.brief(profile_md)}
-
-{format_brief(request.format)}
+Ideea existentă: {idea_json}
 
 Dezvoltă exact ideea primită. Răspunde numai prin contractul structurat cerut de
 aplicație; `idea_ordinal` și `title` rămân identice cu ideea existentă.
