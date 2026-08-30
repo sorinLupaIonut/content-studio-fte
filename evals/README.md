@@ -1,12 +1,21 @@
 # The evals — the map
 
-One group is live. The folder name is the question it answers.
+Start here: [`experiment.py`](#experimentpy--one-dataset-six-scores) runs every
+metric below against one Phoenix dataset in one pass. The folders are what it is
+made of, and each is still runnable on its own when only one question is open.
 
 | you changed | ask | folder |
 |---|---|---|
 | a `SKILL.md`, a `references/` file, a frontmatter description | did it reach the method and call the right tools? | [`route/`](#route--did-it-reach-the-method) |
+| the search rule, a tool's contract, the shelf | was the search any good? | [`skill/`](#skill--was-the-search-any-good) |
+| the chat prompt, a trigger tool, a dictated sentence | does one request said ten ways walk one path? | [`path/`](#path--does-it-converge) |
 
-Three more groups asked the other three questions and were removed on 2026-08-30
+The two are halves of one question and they fail differently: `route/` reads the
+call's NAME, `skill/` reads what came back. A tool called correctly that returned
+nothing scores 1.0 in the first and 0.0 in the second, which is the whole reason
+the second exists.
+
+Three more groups asked the remaining questions and were removed on 2026-08-30
 with their numbers already stale. What each one measured is kept at the bottom,
 under [What used to be here](#what-used-to-be-here) — a rebuild should start from
 the question, not from the old code.
@@ -16,6 +25,84 @@ purpose — a graded report is evidence of a moment, not source.
 
 **Run the free ones first.** Two of the three below cost nothing and each can
 invalidate a paid run before you pay for it.
+
+---
+
+## `experiment.py` — one dataset, six scores
+
+```bash
+uv run python evals/experiment.py --dry-run
+```
+
+The dataset and every label on it, free. No model, no container, no upload.
+
+```bash
+uv run python evals/experiment.py
+```
+
+Ten generation runs against one Phoenix dataset, graded six ways in one place.
+Costs the ten runs plus the judge.
+
+| score | question | it came from |
+|---|---|---|
+| `router` | did it open the right `SKILL.md`? | `route/` |
+| `references` | exactly the `references/` its format calls for? | `route/` |
+| `tools` | the search tool the source asks for, and no other? | `route/` |
+| `relevance_books` | was what the shelf returned any good? | `skill/` |
+| `relevance_web` | was what the web returned any good? | `skill/` |
+| `convergence` | how long was the path, against the shortest correct one? | `path/`, adapted |
+
+**Why it exists.** `route/` and `skill/` measured the same runs and could not be
+read together: `run_cases.py` made spans and `relevance.py` read whatever spans
+the last few minutes happened to hold. A time window is not a join. The dataset
+is — the cases are uploaded once under one name, every run hangs off the example
+it answers, and two experiments a week apart compare in the Phoenix UI instead of
+being two report files somebody has to hold side by side.
+
+**One door, and it is the button.** `GenerationBatchRequest`, the coordinator's
+own agents, `title_prompt` / `detail_prompt` — `run_case` is imported from
+`route/tool_usage.py`, not rewritten. `path/convergence.py` stays on the chat
+door, because that is the only door with free text in it.
+
+**The labels are composed, never copied.** The cases are `skill/cases.json`; the
+route half of each label is computed at build time from `references.json` and
+`tool-usage-grid.json`. `tests/unit/test_experiment_dataset.py` fails if
+`cases.json` ever starts holding a route label of its own.
+
+**`convergence` means something different here**, and the two numbers are not
+comparable. On the chat door it asks whether ten phrasings walk one path; a
+button has no phrasings. Here the same arithmetic — `optimal / turns` — asks
+whether a run got there without wandering, against the shortest path any run took
+that *also* passed all three route scores. Path economy, not stability under
+rephrasing. The optimum is taken over correct runs for the reason written into
+`path/convergence.py`: the named failure mode of this project produces a
+**shorter** path, and `min(turns)` outright would let a run that did nothing set
+the floor.
+
+**Relevance is two evaluators, and that is what makes it cheap.** Each judges
+only its own tool's searches and returns a **scoreless skip** — not a zero — when
+the run never called it, because `search_web` unused on a `Cărți` run is the
+correct route. So every search is judged exactly once and the per-tool rate is a
+column rather than something to recompute. The rubric is
+`skill/relevance.py`'s `JUDGE_PROMPT`, imported.
+
+**The witness is scored against what it expects.** `martor-negativ` expects
+`irelevant`, so it passes by being refused. Nine cases that all come out
+`relevant` look the same whether the metric works or the judge says yes to
+anything; this is the one case that tells them apart, and it is the reason to
+distrust the other nine if it ever passes as `relevant`.
+
+Two things this file does not cover:
+
+- **The source `Memorie`** — the rule "call nothing". `cases.json` leaves it out
+  because a run that searches nothing leaves the judge nothing to read, so the
+  forbidden half of `tools` is only exercised here where a source forbids the
+  *other* tool. The run prints the command that covers it.
+- **n = 1 per case.** Same caveat as the grid: one run is a sample, not a
+  verdict. `--repetitions N` runs each case N times when a number has to hold up.
+
+`--id` runs one case against a separate `-proba` dataset, so a smoke test cannot
+shrink the one every other experiment is compared against.
 
 ---
 
@@ -117,6 +204,113 @@ Opens a real container and compares every mounted file byte for byte against the
 repo. One container, no model, no cost. This is what catches a mount that arrives
 truncated or re-encoded — the fault every other eval in this folder would blame on
 the model.
+
+---
+
+## `skill/` — was the search any good?
+
+The course's Skill lab, on this project's two tools. `route/` grades the routing;
+this grades the searching.
+
+### `relevance.py` — one metric, both tools
+
+```bash
+uv run python evals/skill/relevance.py --dry-run
+```
+
+What would be judged, free. No judge, no cost. Read it first: it prints the
+question each run asked, and a lazy question is visible with the naked eye before
+anybody pays to have it graded.
+
+```bash
+uv run python evals/skill/relevance.py
+```
+
+The judgement. One label per search — `relevant` or `irelevant` — scored 1/0 and
+written back onto the span as a Phoenix annotation, so the verdict sits next to
+the call it belongs to.
+
+**ONE metric for both tools, since 2026-08-30.** Before that date `search_web`
+returned a synthesis and `search_books` returned passages, so they needed two
+different questions. They return the same shape now — material with its
+provenance — so they get the same rubric.
+
+**What the judge is shown** is the whole point of the design:
+
+| piece | where it comes from | why not somewhere else |
+|---|---|---|
+| the brief — format, pillar, source, focus | regexed off the prompt in the same trace | the root span's name carries it only on eval runs; a metric that works on eval traffic alone measures the eval |
+| the avatar — Andreea's five sections | `avatar.excerpt`, imported | the writer is shown these exact sections; a copy here would drift from what is asked for |
+| the request, and the material | the tool span's input and output | |
+
+**Both halves are graded together**, and that is deliberate. A perfect tool
+answering a lazy question is not a good search; neither is a sharp question that
+came back empty. Both get fixed in the same place — the search rule in the two
+`SKILL.md` bodies, which `tests/unit/test_search_rule.py` keeps identical.
+
+**It costs only the judge.** No agent runs and no container opens: it reads spans
+Phoenix already holds, so every run it grades was paid for once already.
+
+Two things to know before trusting a number:
+
+- **The avatar is read from disk**, not from Neon. A profile she edited through
+  `update_profile` lives in `clients.profile_md`, and this eval will not see it.
+- **`get_spans_dataframe` takes its own `timeout`, defaulting to 5 seconds**, and
+  a client-level timeout does not reach it. Any window wide enough to be
+  interesting dies at five seconds with an `httpx.ReadTimeout` that names no
+  call. `READ_TIMEOUT` is why that does not happen here.
+
+---
+
+## `path/` — does it converge?
+
+The course's Trajectory lab, on the **chat** door — the only surface in the
+studio with free text in it. A button sends the same four structured fields every
+time, so repeating a generation run measures variance, not convergence.
+
+### `convergence.py` + `phrasings.json` — one request, ten wordings
+
+```bash
+uv run python evals/path/convergence.py --dry-run
+```
+
+The ten, free. Read them first: a phrasing that drops an axis is a *different*
+question, and the right answer to it is to ask her — a longer path, deservedly,
+which would drag the score down for a run that behaved correctly.
+
+```bash
+uv run python evals/path/convergence.py
+```
+
+Ten chat turns. Two numbers, both free beyond the runs themselves:
+
+- **convergence** — `optimal / turns`, the course's own score.
+- **agreement** — did the turn record `start_generation` with the request every
+  phrasing was written to mean? A path of equal length that lands on the wrong
+  pillar is not convergence, and length alone cannot tell you.
+
+**The anchor is the dictated sentence, and it is not in the manifest.** AGENTS.md
+says a button press is dictation and that the sentence a button dictates, typed by
+hand, must behave identically. That is a convergence claim written into the
+contract, and this file is the first thing to measure it —
+`dictated_batch_request` builds it at run time, so no second copy of a contract
+string exists here.
+
+**Two corrections made to the transplant on 2026-08-30, both worth keeping:**
+
+- **The focus is judged as free text, not compared byte for byte.** A phrasing
+  typed without diacritics recorded `limite fara vinovatie`, and an equality test
+  called that a disagreement — punishing the one behaviour the tool description
+  demands ("nu inventa un focus"). The three enum axes stay an exact match,
+  because there a near miss *is* a miss.
+- **The optimum is the shortest CORRECT path.** `Trajectory.py` takes
+  `min(path_length)` and can: every path in it ends at the same SQL answer. Here
+  one phrasing finished in six steps by never calling `start_generation` at all —
+  it replied and stopped — which set the floor and scored every honest run 0.750
+  against a run that did nothing.
+
+A `metodă` column says whether each run opened `SKILL.md`, so a short path can be
+told from a blind one.
 
 ---
 
