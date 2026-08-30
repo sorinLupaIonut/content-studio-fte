@@ -139,9 +139,10 @@ def cache_key(model: str, shape: str = "") -> str:
 #: of both. Twenty is above anything measured and still bounded.
 GENERATION_MAX_TURNS = 20
 
-#: What a shell command has to mention for the method to count as opened.
-#: `evals/runs/grade.py` scores the same two markers off `public.traces`; this is the
-#: live half of that question, asked while the run is still in hand.
+#: What a shell command has to mention for the method to count as opened. Asked
+#: while the run is still in hand; the half that asked it afterwards off
+#: `public.traces` (`evals/runs/`) was removed on 2026-08-30, so this is the only
+#: place the question is asked today.
 METHOD_MARKERS = ("SKILL.md", "references/")
 
 

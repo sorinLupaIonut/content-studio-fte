@@ -1,20 +1,21 @@
 # The evals — the map
 
-Four groups, and the folder name is the question each one answers. Nothing else
-here is worth memorising: open the group whose question matches what you changed.
+One group is live. The folder name is the question it answers.
 
 | you changed | ask | folder |
 |---|---|---|
 | a `SKILL.md`, a `references/` file, a frontmatter description | did it reach the method and call the right tools? | [`route/`](#route--did-it-reach-the-method) |
-| the prompt, a model setting, anything that only shows up live | what did a real run actually do? | [`runs/`](#runs--what-a-real-run-did) |
-| the shelf, the embedding model, `search_books` | does the right book come back? | [`retrieval/`](#retrieval--does-the-shelf-answer) |
-| the output contract, the voice, the schemas | is what it wrote any good? | [`output/`](#output--is-what-it-wrote-any-good) |
+
+Three more groups asked the other three questions and were removed on 2026-08-30
+with their numbers already stale. What each one measured is kept at the bottom,
+under [What used to be here](#what-used-to-be-here) — a rebuild should start from
+the question, not from the old code.
 
 Every eval writes `evals/reports/<name>-<stamp>.json`. That folder is gitignored on
 purpose — a graded report is evidence of a moment, not source.
 
-**Run the free ones first.** Three of them cost nothing and each can invalidate a
-paid run before you pay for it.
+**Run the free ones first.** Two of the three below cost nothing and each can
+invalidate a paid run before you pay for it.
 
 ---
 
@@ -119,103 +120,13 @@ the model.
 
 ---
 
-## `runs/` — what a real run did
-
-`route/` makes runs happen. This group reads runs that already happened, out of
-Neon, and grades them. Both files exist because **Neon is the record and Phoenix is
-the sample**; this is the Neon half.
-
-### `traces.py` — the reader
-
-```bash
-uv run python evals/runs/traces.py --hours 24
-```
-
-Free. Lists the runs in a window and, for each, what tools it called. One
-`GradedRun` per `run_id`, assembled from `public.runs` (the request and the reply)
-and `public.traces` (the `function` and `response` spans). Everything downstream
-reads through this, so a change to the span shape is fixed once.
-
-### `grade.py` + `trace-rubric.json` — the rubric
-
-```bash
-uv run python evals/runs/grade.py --hours 24
-```
-
-Scores those runs against `trace-rubric.json`. The deterministic criteria are code
-— a caption is 863 characters or it is not, and paying a judge to count them would
-be the most expensive way to learn a number. `--dry-run` scores without calling the
-model, so you can see what would have been sent.
-
-`tests/unit/test_graders.py` holds every threshold against the rubric file, so a
-rule changed there and not here fails loudly.
-
----
-
-## `retrieval/` — does the shelf answer?
-
-### `retrieval.py` + `retrieval-dataset.json`
-
-```bash
-uv run python evals/retrieval/retrieval.py
-```
-
-No agent in the loop, on purpose: these failures are the tool's own — the right
-book not surfaced, an off-topic query scoring like a match — and putting the agent
-between the query and the verdict adds only noise and cost. The probe calls
-`search_books` the way the agent does and reads titles and scores back.
-
-- `regasire` (recall@3): the labelled book must appear in the top 3 passages. This
-  is the guard on **architecture rule 3** — the same embedding model at both ends —
-  and on the language gap: 8 of the 17 books are English and near-invisible to
-  Romanian phrasings. One case is left red on purpose as the detector for that gap.
-- `control-negativ`: queries with nothing on the shelf. What matters is the
-  **separation** between the lowest passing positive and the highest negative. The
-  bands overlapped when last measured, which is why score alone must never gate a
-  passage — the skill says so in words; this says it in numbers, and alarms if the
-  margin shrinks.
-
-The only spend is one embedding per query.
-
----
-
-## `output/` — is what it wrote any good?
-
-A package, not a script, and deliberately **offline**: the cases are pre-recorded
-into `golden.json` by `seed_golden.py`, so grading the writing never re-runs the
-studio.
-
-| file | what it is |
-|---|---|
-| `seed_golden.py` | freezes what the studio already wrote into a gradable set |
-| `golden.json` | that set — the frozen answers, committed |
-| `metrics.py` | the three metrics, all of them judgement |
-| `judge.py` | the grader, and why it is a stranger to the model being graded |
-| `material.py` | where the ruler's material comes from: the repo itself, never a copy |
-| `ruler.py` | the ruler's fingerprint, so a comparison can refuse itself |
-| `baseline.py` | what "no worse than last time" means, and why it is not per case |
-| `control.py` / `negative.py` | are the metrics any good — text that must win points, text that must lose them |
-| `report.py` | the same metrics read as numbers instead of pass/fail |
-| `test_output.py` | the regression gate |
-
-```bash
-uv run pytest evals/output/ -v
-```
-
-```bash
-uv run python -m evals.output.report
-```
-
-Needs the `evals` extra (`deepeval`); without it the package will not import, which
-is by design and not a fault.
-
----
-
 ## What used to be here
 
-Hand-written case files and their runners — `cases.json` / `run.py`, and later
-`tool-use-dataset.json` / `tool_use.py` with `citation.py` and `convergence.py`.
-They were removed as the suite moved onto real traces and the domain grid.
+### Hand-written cases, and their runners
+
+`cases.json` / `run.py`, and later `tool-use-dataset.json` / `tool_use.py` with
+`citation.py` and `convergence.py`. They were removed as the suite moved onto real
+traces and the domain grid.
 
 The last of them went on 2026-08-28 for a reason worth keeping: **its labels named
 skills as tool names**, which stopped being true on 2026-08-27 when the sandbox came
@@ -223,3 +134,52 @@ back and took the skill tools with it. Its generation case expected an empty rou
 on a door that must now open a file *and* call a search tool. A label that cannot be
 satisfied is worse than no label — it reports a fault on every run, and you stop
 reading it.
+
+### The other three groups — removed 2026-08-30
+
+Not because they were wrong. Because only `route/` had numbers from the current
+code: the sandbox came back on 2026-08-27 and the turn budget was fixed on
+2026-08-28, and all three had last measured before both. **Stale numbers read
+exactly like fresh ones**, which is the same fault as an unsatisfiable label,
+arriving from the other direction.
+
+They are in git at `0801cfe`, whole, tests included:
+
+```bash
+git checkout 0801cfe -- evals/runs evals/retrieval evals/output
+```
+
+What each asked, so a rebuild starts from the question:
+
+**`runs/` — what a real run did.** `traces.py` was the reader and the integration
+point: one `GradedRun` per `run_id`, assembled from `public.runs` (the request and
+the reply) and `public.traces` (the `function` and `response` spans), so a change to
+the span shape was fixed once. `grade.py` + `trace-rubric.json` scored those runs on
+four criteria — `tool_correctness` and `contract_quality` in code, `policy` and
+`attribution` by judge. The deterministic ones were code on purpose: a caption is 863
+characters or it is not, and paying a judge to count them is the most expensive way
+to learn a number.
+
+**`retrieval/` — does the shelf answer?** No agent in the loop, on purpose: these
+failures are the tool's own, and the agent between the query and the verdict adds
+only noise and cost. Two halves. `regasire` (recall@3) was the guard on
+**architecture rule 3** — the same embedding model at both ends — and on the language
+gap: 8 of the 17 books are English and near-invisible to Romanian phrasings, with one
+case left red as the detector. `control-negativ` measured the **separation** between
+the lowest passing positive and the highest negative; the bands overlapped when last
+measured, which is why score alone must never gate a passage.
+
+**`output/` — is what it wrote any good?** The only layer that graded the writing
+itself, offline against `golden.json` so that grading never re-ran the studio. Three
+judged metrics — `Hallucination`, `BriefCompliance`, `AvatarResonance` — plus two
+pieces that are the interesting part: `ruler.py`, the fingerprint that **refuses a
+comparison** measured with a different pillar file, rubric, brief, judge or case set;
+and `control.py` / `negative.py`, the two controls on the metrics themselves — her own
+published posts, which must score high, and nine fragments with planted violations,
+which must score low. Its decided thresholds survive in
+[../plans/critical-metrics.md](../plans/critical-metrics.md), which is the blueprint
+for putting it back.
+
+Two of its files cost more than code to recreate: `golden.json` was seeded from paid
+runs, and `retrieval-dataset.json` was labelled by hand. Take them out of git rather
+than regenerating them.

@@ -101,8 +101,9 @@ Decision 5's criterion: ranked passages, each with its page or chapter.
 
 ## Rung 3 — the automated evals
 
-Grouped by the question each one answers; `evals/README.md` is the map. The order
-below is also the order to run them in — the free ones first.
+Grouped by the question each one answers; `evals/README.md` is the map. Since
+2026-08-30 one group is live, `evals/route/`. The order below is also the order to
+run them in — the free ones first.
 
 The labels, without a model, a container or a key. A wrong label is a wrong
 verdict on every square it touches, so this is read before anything is paid for:
@@ -121,7 +122,7 @@ What a real run actually opened, off `public.traces`. Free: it reads runs that
 already happened:
 
 ```bash
-uv run python evals/runs/traces.py --hours 24
+uv run python evals/route/references.py --traces --minutes 30
 ```
 
 The spine of the domain grid — 24 squares of the 240, one per distinct label,
@@ -200,7 +201,7 @@ Messages, skills opened, tools called, approval requests, refusals and saves.
 | `tests/checks/paid/search.py` | one embedding | no | books | no |
 | `evals/route/tool_usage.py --dry-run` | no | no | no | no |
 | `evals/route/fidelity.py` | no | no | no | no |
-| `evals/runs/traces.py` | no | no | reads `public.traces` | no |
+| `evals/route/references.py --traces` | no | no | reads `public.traces` | no |
 | `evals/route/tool_usage.py` | profile + brief | yes | reads | writes no batch at all |
 | `tests/checks/paid/full_flow.py` | profile + conversation + passages | yes | reads, one dummy | deletes the post |
 

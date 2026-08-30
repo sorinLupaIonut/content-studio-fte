@@ -195,8 +195,10 @@ PHOENIX_PROJECT_NAME = os.getenv("PHOENIX_PROJECT_NAME", "studio-viorela").strip
 # the posts. A grader from the same lineage as the author marks its own work -
 # the bias the eval course names first. DeepSeek shares no training lineage with
 # gpt-5, which is the whole reason it is here; the price is a side benefit.
-# Read only by `evals/output/`, never by the worker: nothing the client runs
-# depends on it, and empty simply means the judged metrics are skipped.
+# Never read by the worker: nothing the client runs depends on it. Its only
+# reader, `evals/output/`, was removed on 2026-08-30; the address is kept here
+# because the judge is a decision, not a folder, and empty has always meant the
+# judged metrics are skipped rather than failed.
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip()
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat").strip()

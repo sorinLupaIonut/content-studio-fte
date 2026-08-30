@@ -90,10 +90,11 @@ Six rules a new session must respect without asking again.
    `exec_command` twice with the command `bash`, read nothing, and produced ten
    plausible titles. `gpt-5-mini`, same request minutes later, ran
    `sed -n '1,200p'` over the whole `SKILL.md`. **Nano cannot drive this shape.**
-   `generator.py` logs a warning when a run wrote without opening the method,
-   and `evals/runs/grade.py` scores the same question off `public.traces`;
-   `evals/route/fidelity.py` opens a real container and compares every file byte for
-   byte, which is what catches a mount that arrives truncated or re-encoded.
+   `generator.py` logs a warning when a run wrote without opening the method —
+   the only place that question is asked today, since the half that asked it
+   afterwards off `public.traces` went on 2026-08-30. `evals/route/fidelity.py`
+   opens a real container and compares every file byte for byte, which is what
+   catches a mount that arrives truncated or re-encoded.
 
    **AND THE PROMPT IS NOT WHERE YOU FIX IT.** A generation run has to fetch two
    things before it writes — the format's reference file, and the source's tool
@@ -407,11 +408,12 @@ uv run python tests/checks/safe/bootstrap.py
 ```
 
 Changing a skill, a tool description or the system prompt means the evals are
-the only real proof. They are grouped by the question they answer — `evals/route/`,
-`evals/runs/`, `evals/retrieval/`, `evals/output/` — and [evals/README.md](evals/README.md)
-is the map. The hand-written case files (`cases.json`, `tool-use-dataset.json` and
-their runners) were removed as the suite moved onto real traces; `evals/route/`
-below is what replaced them.
+the only real proof. There is **one group left**, `evals/route/` — did the run
+reach the method and call the right tools — and [evals/README.md](evals/README.md)
+is the map. The other three (`runs/`, `retrieval/`, `output/`) were removed on
+2026-08-30, deliberately and with their numbers already stale; the README records
+what each measured, so a rebuild starts from the question rather than from the
+code. Nothing else grades what the studio *writes* until one comes back.
 
 The method reaches the container whole - one container, no model, no cost:
 

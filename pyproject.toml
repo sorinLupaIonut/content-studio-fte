@@ -51,11 +51,6 @@ Documentation = "https://github.com/sorinLupaIonut/content-studio-fte/blob/main/
 content-studio-harness = "content_studio.harness.main:run"
 content-studio-server = "content_studio.mcp_server.server:main"
 
-[project.optional-dependencies]
-evals = [
-    "deepeval>=4.2.0",
-]
-
 [dependency-groups]
 # `debugpy` so a process the editor did not launch can still be attached to:
 # a service left running in a terminal, or one inside a container. See
@@ -72,14 +67,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/content_studio"]
-
-[tool.pytest.ini_options]
-# `evals` is a directory of scripts, not an installed package, and pytest would
-# otherwise put `evals/output` itself on the path - making the module `output`
-# and `from evals.output... ` unimportable. The repo root on the path is the
-# same thing `python -m unittest discover` gets for free from the cwd.
-pythonpath = ["."]
-testpaths = ["evals/output"]
 
 [tool.ruff]
 line-length = 100

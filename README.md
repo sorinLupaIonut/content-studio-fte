@@ -207,9 +207,10 @@ uv run python tests/checks/paid/full_flow.py
 The evals are the interesting part, and they measure the ways this kind of agent
 fails quietly — a reference that never loaded, an invented page number, a quote
 attributed to a book that was only a summary, a skill that fired on a question
-that was only a report. They are grouped by the question each answers
-(`evals/route/`, `evals/runs/`, `evals/retrieval/`, `evals/output/`); the map is
-[evals/README.md](evals/README.md).
+that was only a report. They are grouped by the question each answers; today
+that is `evals/route/` — did the run reach the method and call the right tools.
+The map, including what the other three groups measured before they were removed
+on 2026-08-30, is [evals/README.md](evals/README.md).
 
 ## Where it stands
 

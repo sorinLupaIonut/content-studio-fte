@@ -292,10 +292,13 @@ so the database can be asked which rows are stale.
 Not in a file of hand-written cases any more. Fifteen of those existed until the
 suite moved onto real traces; what replaced them measures the same failures against
 every combination the interface can produce, and against runs that actually
-happened. [../evals/README.md](../evals/README.md) is the map, and the groups are
-the questions: `route/` — did it reach the method and the right tools;
-`runs/` — what a real run did, read back out of `public.traces`; `retrieval/` — does
-the shelf return the right book; `output/` — is what it wrote any good.
+happened. [../evals/README.md](../evals/README.md) is the map, and the group name
+is the question. One is live: `route/` — did it reach the method and the right
+tools. Three were removed on 2026-08-30 with their numbers already two
+architecture changes out of date — `runs/` (what a real run did, read back out of
+`public.traces`), `retrieval/` (does the shelf return the right book) and
+`output/` (is what it wrote any good). The README keeps their questions, which is
+what a rebuild needs; the code is in git at `0801cfe`.
 
 The quiet failures are still the reason for all of it: a reference that never
 loaded, an invented page number, a quote attributed to a book that was only a

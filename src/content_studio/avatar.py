@@ -16,10 +16,11 @@ sections inside a wall of JSON while also holding a format, a pillar, a source
 and ten distinct angles.
 
 So the sections are lifted out and given their own block in the prompt, under
-their own heading, with the ask attached. Same five sections the metric grades
-against - `evals/output/material.py` imports `AVATAR_SECTIONS` from here rather
-than keeping its own copy, so what the writer is shown and what the judge looks
-for cannot drift apart.
+their own heading, with the ask attached. `AVATAR_SECTIONS` below is the single
+list: the grader that used to import it (`evals/output/`) was removed on
+2026-08-30, and whatever replaces it imports from here rather than keeping its
+own copy - what the writer is shown and what a judge looks for must not drift
+apart.
 """
 
 from __future__ import annotations

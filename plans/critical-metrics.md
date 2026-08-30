@@ -1,10 +1,14 @@
 # Critical metrics — what blocks a merge, and what only gets watched
 
-> **A plan, not the state.** It lives in `plans/` because the gate it describes,
-> `.github/workflows/evals.yml`, was never built. The thresholds below are decided
-> and worth keeping; what does not exist yet is the workflow that enforces them.
-> `.github/workflows/ci.yml` is the only gate today — lint and the unit tests — and
-> since 2026-08-28 even that runs only on the button in the Actions tab.
+> **A plan, not the state — and since 2026-08-30, a blueprint.** It lives in
+> `plans/` because the gate it describes, `.github/workflows/evals.yml`, was never
+> built. On 2026-08-30 the layer it grades went too: `evals/output/` was removed
+> with its numbers two architecture changes out of date, and is in git at `0801cfe`.
+> So read every tense below as future. **The thresholds, the tolerance and the two
+> controls are decided and worth keeping** — that is the whole reason this page
+> outlived the code. `.github/workflows/ci.yml` is the only gate today — lint and
+> the unit tests — and since 2026-08-28 even that runs only on the button in the
+> Actions tab.
 
 This page says which findings may stop a change and which are recorded and left
 alone. Everything here is about `evals/output/`, the layer that grades **what the
@@ -43,9 +47,9 @@ The rule is **no worse than the recorded baseline**:
 
 | what | where | why it does not block |
 |---|---|---|
-| the `open` list | `evals/golden.json` → `open` | 28 (case, metric) pairs are under threshold today. That is the work, deliberately recorded, and shrinking it is the evidence that a repair landed |
+| the `open` list | `evals/output/golden.json` → `open` | 28 (case, metric) pairs are under threshold today. That is the work, deliberately recorded, and shrinking it is the evidence that a repair landed |
 | absolute quality | — | nothing asserts "the writing is good". No CI can, without a person |
-| `expected_behavior` | `evals/golden.json` | null on every case. Only she can write those lines, and only for the cases that fail |
+| `expected_behavior` | `evals/output/golden.json` | null on every case. Only she can write those lines, and only for the cases that fail |
 
 ## The judged layer is optional in CI, and skips rather than passes
 
@@ -78,7 +82,7 @@ same three steps:
 uv run python -m evals.output.report --update-baseline
 ```
 
-then read the printed before → after, then commit `evals/golden.json`. The ruler
+then read the printed before → after, then commit `evals/output/golden.json`. The ruler
 change becomes a line in a diff instead of a silent shift under a number nobody
 re-read.
 
