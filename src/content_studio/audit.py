@@ -237,10 +237,22 @@ def calls_in(result) -> list[dict]:
     calls: dict[str, dict] = {}
     order: list[str] = []
 
+    def call_id_of(raw) -> str | None:
+        # The two halves of a call arrive in two shapes. The call itself is an
+        # object (`ResponseFunctionToolCall`); its output is a `FunctionCallOutput`,
+        # which the SDK types as a TypedDict and hands over as a plain dict. Read
+        # only the attribute and every output falls through to the `id(raw)`
+        # fallback below, matches no call, and `result` is None for ALL of them -
+        # silently, because the two existing readers here want the arguments and
+        # never look. Found on 2026-08-30 by the first caller that did.
+        if isinstance(raw, dict):
+            return raw.get("call_id") or raw.get("id")
+        return getattr(raw, "call_id", None) or getattr(raw, "id", None)
+
     for item in getattr(result, "new_items", []):
         raw = getattr(item, "raw_item", None)
         kind = getattr(item, "type", "")
-        call_id = getattr(raw, "call_id", None) or getattr(raw, "id", None) or str(id(raw))
+        call_id = call_id_of(raw) or str(id(raw))
 
         if kind == "tool_call_item" and hasattr(raw, "name"):
             calls[call_id] = {
