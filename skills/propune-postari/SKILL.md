@@ -100,50 +100,35 @@ tema o cere". Singurul rând fără unealtă este Memorie, și acolo n-o chemi
 niciodată.
 
 Faza asta nu deschide niciun fișier, la nicio sursă: tot ce-ți trebuie e aici,
-în `SKILL.md`. Secțiunile de mai jos sunt scrise pentru rândurile lor — dacă
-sursa ei nu e acolo, secțiunea nu e pentru tine, iar raftul de la sfârșit e
-pentru cine caută în cărți, nu pentru toată lumea.
+în `SKILL.md`. Regula de căutare de mai jos e aceeași pentru amândouă uneltele;
+raftul de după ea e pentru cine caută în cărți, nu pentru toată lumea.
 
-### Cum cauți pe internet — la Internet și la Combinat
+### Cum cauți — aceeași regulă la amândouă uneltele
 
-`search_web(description, limit)`. O chemi de fiecare dată când ea a ales Internet
-sau Combinat, înainte să scrii propunerile. În `description` pui tema
-dată de ea; n-o mai întrebi a doua oară.
+**Ce ceri.** O frază, nu cuvinte-cheie, care ține cont de trei lucruri deodată:
+formatul, pilonul și focusul alese de ea. Iar fraza pornește dintr-un rând anume
+despre Andreea — o nevoie, o dorință, o durere, o frică sau o credință scrisă în
+profil, în cuvintele ei. Nu ceri „limite" sau „grija de sine": ceri lucrul
+concret de care are ea nevoie acum. La `search_books` dai aceeași frază și în
+engleză, pe `description_en` — raftul are cărți în ambele limbi.
 
-Din rezultat iei tot ce servește tema: unghiuri și teme de sezon, dar și
-cifre, studii și citate — cu o singură condiție, care nu se negociază: **să
-apară chiar în paginile consultate, nu în memoria ta.** Un fapt luat de pe web
-intră în postare cu proveniența lui: pagina care l-a dat ajunge pe câmpul
-`source`, iar un citat se prezintă ca citat.
+**Ce iei.** Numai ce apare chiar în rezultat, niciodată din memoria ta. Citești
+și subiectul, nu doar scorul: un rezultat care vorbește vag despre altceva nu e
+material, oricât de sus ar fi scorul. Pe cărți, potrivirile bune stau pe la
+0,45–0,55.
 
-Ce rămâne interzis nu ține de web, ci de profil: nu inventezi fapte care nu
-apar în rezultat, nu dai diagnostice ori promisiuni de vindecare, și nu treci
-peste „Lucruri pe care nu le spui niciodată". Dacă rezultatul nu aduce nimic
-concret pe temă, spui asta — nu împrumuți din memorie sub steagul
-internetului.
+**Când nu găsești.** Scrii din ce ai și spui adevărul pe `source`. Nu întinzi un
+rezultat slab ca să pară potrivit, nu reiei căutarea la nesfârșit cu alte
+formulări, și nu treci cunoștințele tale generale drept material găsit.
 
-Înainte să arăți propunerile din Internet, verifici: fiecare cifră, studiu sau
-citat se regăsește în paginile consultate — dacă nu-l poți arăta acolo, îl
-scoți, nu-l îndulcești în „se spune că"; proveniența e pregătită pentru câmpul
-`source`, iar în hook și caption sursa nu apare (regula 8), cu excepția unui
-citat prezentat ca citat.
+**Proveniența** merge pe câmpul `source` — vezi mai jos ce scrii acolo.
 
-Dacă unealta întoarce eroare sau `status` nu este `ok`, te oprești și îi spui.
-Nu scrii cele zece din memorie, nu pretinzi că ai căutat și nu schimbi sursa
-fără răspunsul ei. `sources` îți dă titlul și URL-ul paginilor; le păstrezi
-pentru câmpul `source`, în forma `internet — ce ai citit + linkul`.
+**La faza asta cauți o singură dată, pentru zece propuneri diferite.** Deci
+ceri larg în jurul focusului: materialul trebuie să hrănească zece unghiuri care
+nu se repetă între ele. O căutare îngustă pe un singur fir îți dă zece variații
+ale aceleiași idei.
 
-### Cum cauți în cărți — la Cărți și la Combinat
-
-`search_books(description, description_en, titles, limit)`. Caută după înțeles,
-deci `description` e o frază, nu cuvinte-cheie, iar `description_en` e aceeași
-frază, tradusă de tine în engleză — raftul are cărți în ambele limbi, iar
-căutarea le folosește pe amândouă și păstrează ce se potrivește mai bine.
-
-**Fraza aia o ai deja: e tema pe care ți-a dat-o ea, în primul mesaj.** N-o mai
-întreba „ce să caut" — pui tema ei în `description`, cu cuvintele ei. Întrebările
-sunt trei: format, pilon, sursă. A patra vine la final, când alege propunerea.
-Nu inventezi a cincea.
+### Raftul — titlurile pe care le pui în `titles`
 
 **Cărțile le alegi tu, nu ea.** Ea a ales sursa; care titluri de pe raft se
 potrivesc temei și pilonului e treaba ta, și n-o întrebi. Alegi **3–4 titluri
@@ -162,14 +147,12 @@ adaug-o și aici: de aici își ia numele.
 - **Granițe în relații** — Henry Cloud & John Townsend
 - **The Disease to Please. Curing the People-Pleasing Syndrome** — Harriet B. Braiker
 - **Set Boundaries, Find Peace** — Nedra Glover Tawwab (rezumat Bookey)
-  ⚠️ e rezumat, nu cartea. Nu lua citate de aici.
 - **Teoria „Let Them”** — Mel Robbins
 - **Curajul de a nu fi pe placul celorlalți** — Ichiro Kishimi & Fumitake Koga
 
 #### Burnout, stres, corp
 
 - **Când corpul spune nu. Costul stresului ascuns** — Gabor Maté
-  ⚠️ n-are marcaje de pagină. Citezi titlul și autorul, fără număr de pagină.
 - **The Body Keeps the Score** — Bessel van der Kolk
 - **ACT for Burnout** — Debbie Sorensen
 - **The Trauma of Burnout**
@@ -189,26 +172,6 @@ adaug-o și aici: de aici își ia numele.
 - **Self-Guided EMDR Therapy Workbook** — Katherine Andler
 
 Faza asta nu mai deschide niciun fișier: citești `SKILL.md` și scrii.
-
-Ce întorc pasajele, și ce faci cu ele:
-
-- **`page`** → o folosești la `source`. Dacă lipsește, scrii titlul și autorul,
-  atât. Nu inventezi un număr de pagină, și nu-l ghicești din capitol.
-- **`is_summary: true`** → e un rezumat Bookey, nu cartea. Scrii asta la sursă.
-  Dacă ea cere un citat propriu-zis, nu-l lua de acolo — propune altă carte.
-- **`score`** → cât de aproape e de ce ai cerut. Pe cărțile astea, potrivirile
-  bune stau pe la 0,45–0,55. **După fiecare căutare, verifici scorul maxim înainte
-  să scrii propunerile.** Dacă tot ce iese e sub 0,35, spui explicit că n-ai
-  găsit un precedent relevant în cărți. Nu întinzi un pasaj slab și nu prezinți
-  cunoștințele tale generale ca venind din bibliotecă. Poți continua numai din
-  profilul deja prezent în context, spunând limpede această limită.
-
-  Pragul de 0,35 este doar un filtru minim, nu dovada relevanței. Citești și
-  subiectul fiecărui pasaj: o potrivire vagă despre brand, identitate sau
-  marketing nu este precedent pentru o întrebare concretă despre fonturi,
-  Canva ori tipografie. Dacă niciun pasaj nu discută efectiv tema cerută, spui
-  tot explicit că n-ai găsit material relevant în cărți, chiar dacă un scor a
-  trecut de 0,35.
 
 Cartea dă **unghi și cadru, niciodată regulă**. Ce scrie într-o carte nu bate ce
 scrie în profil.

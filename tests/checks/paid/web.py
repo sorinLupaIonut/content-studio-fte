@@ -3,8 +3,11 @@
     uv run content-studio-server            (in another terminal)
     uv run python tests/checks/paid/web.py
 
-Only the generic topic below is sent to OpenAI. It verifies the MCP contract, the
-angles and the web provenance; it reads nothing from Neon.
+Only the generic topic below is sent to OpenAI. It verifies the MCP contract and
+the web provenance; it reads nothing from Neon.
+
+`search_web` returns the same shape as `search_books`: a list of findings, each
+carrying its own text and its own provenance.
 """
 
 from __future__ import annotations
@@ -51,24 +54,30 @@ async def main() -> int:
         result = content(
             await server.call_tool("search_web", {"description": TOPIC, "limit": 3})
         )
-        sources = result.get("sources", [])
+        findings = result if isinstance(result, list) else []
         checks = [
-            (result.get("status") == "ok", "the status is ok"),
-            (bool(result.get("angles")), "it returned angles"),
-            (bool(sources), "it returned sources"),
+            (bool(findings), "it returned findings"),
+            (len(findings) <= 3, "it honoured the limit"),
             (
-                all(s.get("title") and s.get("url", "").startswith("http") for s in sources),
-                "every source has a title and a URL",
+                all(f.get("text") for f in findings),
+                "every finding carries the text read on the page",
             ),
-            ("Nu prelua" in result.get("rule", ""), "it returned the no-facts rule"),
+            (
+                all(
+                    f.get("title") and f.get("url", "").startswith("http")
+                    for f in findings
+                ),
+                "every finding has a title and a URL",
+            ),
         ]
         failed = 0
         for passed, message in checks:
             failed += not passed
             print(f"{'✓' if passed else '✗'} {message}")
-        print(f"Sources: {len(sources)}")
-        for source in sources:
-            print(f"  - {source['title']}: {source['url']}")
+        print(f"Findings: {len(findings)}")
+        for f in findings:
+            print(f"  - {f['title']} — {f.get('site') or '?'}: {f['url']}")
+            print(f"      {f['text'][:100].strip()}…")
         return 1 if failed else 0
     finally:
         await server.cleanup()

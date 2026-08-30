@@ -5,11 +5,14 @@
 
 It checks four things, in the order they matter:
 
-1. **Exactly five tools**, with the names from the plan. If another one shows up,
-   or if any name contains "sql", the check fails — rule 1 is not a preference.
+1. **The model-visible surface is exactly `MODEL_VISIBLE_TOOLS`**, read off
+   `protocol.py` rather than re-typed here — a second copy of that list is a
+   check that fails on every run once the surface grows. If any name contains
+   "sql", the check fails — rule 1 is not a preference.
 2. **`search_books` returns passages with provenance.** Returning text is not
    enough: without a title and a page, the passage cannot reach the `source` field.
-3. **`search_web` returns angles and the links of its sources.**
+3. **`search_web` returns findings with their text and their links** — the same
+   shape as `search_books`.
 4. **The write tools exist and require the right fields.** They are not called — a
    check has no business in the `posts` table. End-to-end is Decision 7's job.
 """
@@ -24,16 +27,11 @@ from agents.mcp import MCPServerStreamableHttp
 
 from content_studio import enable_utf8_output
 from content_studio.config import MCP_TIMEOUT, MCP_URL
+from content_studio.mcp_server.protocol import INTERNAL_UI_TOOLS, MODEL_VISIBLE_TOOLS
 
 enable_utf8_output()
 
-EXPECTED = {
-    "search_books",
-    "search_web",
-    "list_posts",
-    "save_post",
-    "update_profile",
-}
+EXPECTED = MODEL_VISIBLE_TOOLS | INTERNAL_UI_TOOLS
 QUESTION = "vinovăția de a spune nu"
 WEB_QUESTION = "burnout și limite personale — ce se discută acum"
 
@@ -82,7 +80,7 @@ async def main() -> int:
             print(f"✗ tools: missing {missing or '—'}, extra {extra or '—'}")
             failed += 1
         else:
-            print("✓ exactly the five tools from the plan")
+            print(f"✓ exactly the {len(EXPECTED)} tools the contract declares")
 
         if any("sql" in name.lower() for name in tools):
             print("✗ there is a tool with \"sql\" in its name — rule 1")
@@ -131,22 +129,22 @@ async def main() -> int:
         else:
             print("✓ every passage carries its provenance and embedding model")
 
-        # 2. Searching the web
+        # 2. Searching the web — the same shape as the books
         web = content(
             await server.call_tool("search_web", {"description": WEB_QUESTION, "limit": 3})
         )
-        print(f"\nWeb: {web['topic']}")
-        print(f"  {web['angles'][:180].strip()}…")
-        for source in web["sources"]:
-            print(f"  - {source['title']}: {source['url']}")
-        if not web["angles"] or not web["sources"]:
-            print("✗ the web search returned no angles with sources")
+        print(f"\nWeb: {len(web)} findings")
+        for f in web:
+            print(f"  {f['title']} — {f.get('site') or '?'}: {f['url']}")
+            print(f"          {f['text'][:90].strip()}…")
+        if not web:
+            print("✗ the web search returned nothing")
             failed += 1
-        elif any(not s.get("title") or not s.get("url") for s in web["sources"]):
-            print("✗ a web source has no title and URL")
+        elif any(not f.get("text") or not f.get("title") or not f.get("url") for f in web):
+            print("✗ a web finding has no text, title or URL")
             failed += 1
         else:
-            print("✓ the web search returns angles with their source links")
+            print("✓ every web finding carries its text and its link")
 
         # 3. The posts already written
         posts = content(await server.call_tool("list_posts", {"limit": 3}))

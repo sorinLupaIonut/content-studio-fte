@@ -6,7 +6,7 @@
 Ten model-visible tools:
 
     search_books      read     — meaning search across the 17 books
-    search_web        read     — current angles, with the source links
+    search_web        read     — meaning search across the live web
     list_posts        read     — what has already been written
     save_post         write    — one post, plus its audit row
     save_posts_batch  write    — the chosen variants of one UI batch, all or none
@@ -54,6 +54,7 @@ from uuid import UUID
 
 from mcp.server.mcpserver import Context, MCPServer
 from openai import AsyncOpenAI
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
@@ -246,29 +247,20 @@ async def search_books(
     titles: list[str] | None = None,
     limit: int = 6,
 ) -> list[dict]:
-    """Caută după înțeles în cărțile din biblioteca clientului.
+    """Caută după înțeles în cărțile din biblioteca clientei.
 
-    Folosește-o DOAR când ea a ales sursa „Cărți" sau „Combinat". Descrie ce
-    cauți în cuvintele ei („vinovăția de a spune nu"), nu cu cuvinte-cheie, și
-    pune descrierea în `description`.
+    `description` e ce cauți, ca frază în română. `description_en` e aceeași
+    căutare formulată de tine în engleză: raftul e bilingv, iar o carte
+    engleză rămâne aproape invizibilă pentru o formulare românească fără ea.
+    Căutarea merge cu amândouă și păstrează, pentru fiecare pasaj, potrivirea
+    mai bună dintre cele două.
 
-    `description_en` e ACEEAȘI căutare, formulată de tine în engleză. Raftul e
-    bilingv — o parte din cărți sunt în engleză — iar căutarea se face cu
-    amândouă formulările și păstrează ce se potrivește mai bine; o carte
-    engleză e aproape invizibilă pentru o formulare românească fără asta.
+    `titles` restrânge căutarea la anumite cărți, cu titlul exact; lipsă
+    înseamnă tot raftul. `limit` e câte pasaje vrei, între 1 și 20.
 
-    `titles` filtrează pe cărțile alese de ea, cu titlul exact; lipsă = toate.
-
-    Fiecare pasaj vine cu proveniența lui: titlul, autorul, pagina sau capitolul,
-    și dacă e rezumat. Pune-le pe câmpul `source` al postării — niciodată în hook,
-    script sau caption. Un pasaj fără pagină NU primește un număr inventat: scrii
-    titlul și autorul, atât.
-
-    `score` e cât de aproape e pasajul de ce ai cerut, între 0 și 1. Pe corpusul
-    ăsta, potrivirile bune stau pe la 0,45–0,55; sub 0,35 e mai degrabă zgomot.
-    Pragul e doar un minim: verifică și dacă pasajul chiar tratează subiectul.
-    O potrivire vagă despre brand nu e material despre fonturi sau Canva. Dacă
-    nimic nu e relevant semantic, spune asta și nu întinde un pasaj slab.
+    Fiecare pasaj vine cu textul lui și cu proveniența: titlul, autorul,
+    pagina sau capitolul. `score` spune cât de aproape e pasajul de ce ai
+    cerut, între 0 și 1.
     """
     limit = max(1, min(limit, 20))
     # The client rides the connection, like every other tool here. The books are
@@ -318,82 +310,54 @@ async def search_books(
     ]
 
 
-def web_sources(response, limit: int) -> list[dict]:
-    """Titles and URLs cited by the Responses API, without duplicates."""
-    seen: set[str] = set()
-    sources: list[dict] = []
-    for item in response.output:
-        if getattr(item, "type", None) != "message":
-            continue
-        for content in getattr(item, "content", []):
-            for annotation in getattr(content, "annotations", []):
-                if getattr(annotation, "type", None) != "url_citation":
-                    continue
-                url = getattr(annotation, "url", "")
-                if not url or url in seen:
-                    continue
-                seen.add(url)
-                sources.append(
-                    {
-                        "title": getattr(annotation, "title", "") or url,
-                        "url": url,
-                    }
-                )
-                if len(sources) >= limit:
-                    return sources
-    return sources
+class WebFinding(BaseModel):
+    """One page read by the search, in the same shape a book passage arrives in."""
+
+    text: str
+    title: str
+    url: str
+    site: str
+    published: str
+
+
+class WebFindings(BaseModel):
+    items: list[WebFinding]
 
 
 @server.tool()
 async def search_web(
     description: str,
     limit: int = 5,
-) -> dict:
-    """Caută pe internet material actual pentru tema aleasă de Viorela.
+) -> list[dict]:
+    """Caută pe internet material actual, după înțeles.
 
-    Folosește-o DOAR când sursa aleasă este „Internet” sau „Combinat”. Rezultatul
-    aduce unghiuri de discutat acum, dar și cifre, studii și citate din paginile
-    consultate. Tot ce preiei în postare trebuie să existe chiar în rezultat —
-    nimic completat din memorie sub steagul internetului.
+    `description` e ce cauți, ca frază în română. `limit` e câte fragmente
+    vrei, între 1 și 8.
 
-    Pune subiectul în `description`. `sources` conține titlul și linkul paginilor
-    citate. Ele merg în câmpul `source` la salvare; în hook, script sau caption
-    sursa nu apare, cu excepția unui citat prezentat ca citat.
+    Fiecare fragment vine cu textul lui, luat din pagina citită, și cu
+    proveniența: titlul paginii, linkul ei, publicația și data, când pagina o
+    arată.
     """
     query = description.strip()
     if not query:
-        return {
-            "status": "error",
-            "message": "Lipsește descrierea temei pentru căutare.",
-            "angles": "",
-            "sources": [],
-        }
+        return []
     limit = max(1, min(limit, 8))
-    prompt = f"""Caută pe web material actual pentru conținut social în limba română
-pe tema: {query!r}.
+    prompt = f"""Caută pe web material pe tema: {query!r}.
 
-Întoarce cel mult {limit} elemente utile: unghiuri și teme discutate acum, dar
-și cifre, rezultate de studii ori citate scurte, când paginile consultate le
-dau. Fiecare element vine din paginile chiar citite — nu afirma nimic care nu
-apare în ele și nu completa din memorie. Leagă fiecare cifră, studiu sau citat
-de pagina care l-a dat. Nu scrie o postare; adu materialul și citează paginile
-consultate."""
-    response = await AsyncOpenAI().responses.create(
+Întoarce cel mult {limit} fragmente, fiecare dintr-o pagină pe care chiar ai
+citit-o. `text` e un pasaj scurt din pagină, în cuvintele paginii, nu un rezumat
+al tău. `title` e titlul paginii, `url` linkul ei, `site` publicația, iar
+`published` data publicării dacă apare în pagină, altfel șir gol."""
+    response = await AsyncOpenAI().responses.parse(
         model=WEB_SEARCH_MODEL,
         tools=[{"type": "web_search", "search_context_size": "low"}],
         input=prompt,
+        text_format=WebFindings,
     )
-    return {
-        "status": "ok",
-        "topic": query,
-        "angles": response.output_text,
-        "sources": web_sources(response, limit),
-        "rule": (
-            "Unghiurile spun numai despre ce poți vorbi. Nu afirma cauze, efecte, "
-            "simptome, prevenție, diagnostice sau reguli. Nu prelua cifre, studii "
-            "ori citate. Linkurile merg doar la sursa."
-        ),
-    }
+    findings = response.output_parsed
+    if findings is None:
+        return []
+    return [f.model_dump() for f in findings.items[:limit]]
 
 
 LIST_POSTS_SQL = """
