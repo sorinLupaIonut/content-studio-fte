@@ -33,6 +33,7 @@ enable_utf8_output()
 
 EXPECTED = MODEL_VISIBLE_TOOLS | INTERNAL_UI_TOOLS
 QUESTION = "vinovăția de a spune nu"
+QUESTION_EN = "the guilt of saying no"
 WEB_QUESTION = "burnout și limite personale — ce se discută acum"
 
 
@@ -88,7 +89,18 @@ async def main() -> int:
 
         # 1. Searching the books
         passages = content(
-            await server.call_tool("search_books", {"description": QUESTION, "limit": 5})
+            await server.call_tool(
+                "search_books",
+                {
+                    "description": QUESTION,
+                    # Required since the shelf became bilingual: the search runs
+                    # with both wordings and keeps the better match per passage.
+                    # Omitting it fails at the SDK's parameter validation, before
+                    # the server is even reached.
+                    "description_en": QUESTION_EN,
+                    "limit": 5,
+                },
+            )
         )
         print(f"\n„{QUESTION}” → {len(passages)} passages")
         with_marker = 0

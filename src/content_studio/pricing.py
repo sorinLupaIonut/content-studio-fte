@@ -35,6 +35,14 @@ class Rate(NamedTuple):
 #: them. If `MODEL` is ever pointed at one of those, this table needs a fourth
 #: figure, or the studio will under-charge.
 PRICES: dict[str, Rate] = {
+    # $1.25 / $10.00, cached $0.125. Added on 2026-08-30, unpriced until then -
+    # and the fallback below is MINI's rate, so a run on gpt-5 was charged a
+    # fifth of the input and a fifth of the output it really cost. Nothing had
+    # spent it yet (`GENERATION_MODELS` is mini only), but `config.py` names
+    # gpt-5 in two places as the thing to set for a run whose numbers have to
+    # hold up - `EVAL_JUDGE_MODEL` and `MODEL` - and both would have gone
+    # through the gate at a discount.
+    "gpt-5": Rate(1_250_000, 10_000_000, 125_000),
     "gpt-5-mini": Rate(250_000, 2_000_000, 25_000),
     # Nano left the allowlist on 2026-08-27 and its price stays here anyway:
     # `usage_events` holds rows that were charged at it, and an unpriced model
@@ -48,7 +56,14 @@ PRICES: dict[str, Rate] = {
 #: in the table rather than zero: if someone points `MODEL` at something new and
 #: forgets to price it, the budget should over-charge and be noticed, never
 #: under-charge and let a test account run free.
-FALLBACK = Rate(250_000, 2_000_000, 250_000)
+#:
+#: IT HAS TO BE RE-READ EVERY TIME A ROW IS ADDED, and on 2026-08-30 it was not:
+#: this was mini's rate, which stopped being the top of the table the moment
+#: gpt-5 went in above it. A fallback below the most expensive priced model is
+#: not a fallback, it is a discount for exactly the case it exists to catch. It
+#: is gpt-5's rate now, cached charged at the full input price on purpose - a
+#: model nobody priced is a model nobody measured the cache hit rate of.
+FALLBACK = Rate(1_250_000, 10_000_000, 1_250_000)
 
 
 def rate_for(model: str) -> Rate:

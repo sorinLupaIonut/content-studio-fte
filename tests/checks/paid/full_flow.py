@@ -57,6 +57,7 @@ from content_studio.audit import (
 )
 from content_studio.config import MCP_TIMEOUT, MCP_URL, database_url
 from content_studio.mcp_server.protocol import CONVERSATION_HEADER, MODEL_VISIBLE_TOOLS
+from content_studio.sandbox import sandbox_run_config
 from content_studio.worker import (
     GATED_TOOLS,
     build_worker,
@@ -257,41 +258,54 @@ async def main() -> int:
     print(f"Profile: {len(profile_md):,} characters · {len(book_titles)} books")
     print(f"Session: {session_id}\n")
 
-    config = RunConfig()
     history: list = []
     answers: list[str] = []
     called: list[str] = []
 
+    # ONE CONTAINER FOR ALL NINE TURNS, and it is not optional. The worker has
+    # been a `SandboxAgent` since the method went back into a sandbox on
+    # 2026-08-27; `Runner.run` refuses outright without `RunConfig(sandbox=...)`.
+    # This file kept the bare `RunConfig()` it was written with and had been
+    # dead ever since - found on 2026-08-30, by running it. Every production
+    # caller (`chat.py`, `generator.py`, `service.py`) passes one, so nothing
+    # the client uses was affected; what was lost is the only check that walks
+    # the whole conversation end to end.
     try:
-        for message in TURNS:
-            t0 = time.monotonic()
-            run_id = await trail.open_run(session_id, message)
-            print(f"tu> {message}")
-
-            result = await run_turn(
-                worker,
-                history + [{"role": "user", "content": message}],
-                None,
-                config,
-                trail,
-                run_id,
-                gatekeeper,
+        async with sandbox_run_config("full_flow") as sandbox:
+            config = RunConfig(
+                workflow_name=f"Full flow {session_id[:16]}",
+                group_id=session_id,
+                sandbox=sandbox,
             )
+            for message in TURNS:
+                t0 = time.monotonic()
+                run_id = await trail.open_run(session_id, message)
+                print(f"tu> {message}")
 
-            history = result.to_input_list()
-            answer = str(result.final_output)
-            answers.append(answer)
-            tools = tools_called(result)
-            called += tools
+                result = await run_turn(
+                    worker,
+                    history + [{"role": "user", "content": message}],
+                    None,
+                    config,
+                    trail,
+                    run_id,
+                    gatekeeper,
+                )
 
-            await trail.turn(run_id, result)
-            await trail.close_run(run_id, answer)
+                history = result.to_input_list()
+                answer = str(result.final_output)
+                answers.append(answer)
+                tools = tools_called(result)
+                called += tools
 
-            print(f"   ({time.monotonic() - t0:.0f}s)")
-            if tools:
-                print(f"   [tools: {', '.join(tools)}]")
-            print(f"worker> {answer}\n")
-            print("-" * 72)
+                await trail.turn(run_id, result)
+                await trail.close_run(run_id, answer)
+
+                print(f"   ({time.monotonic() - t0:.0f}s)")
+                if tools:
+                    print(f"   [tools: {', '.join(tools)}]")
+                print(f"worker> {answer}\n")
+                print("-" * 72)
     finally:
         await data_mcp.cleanup()
         await trail.close()

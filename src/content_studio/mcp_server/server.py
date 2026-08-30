@@ -155,6 +155,7 @@ from content_studio.mcp_server.usage_store import (
     record_usage,
     set_budget,
 )
+from content_studio.pricing import cost_micros as price_of
 
 enable_utf8_output()
 
@@ -324,8 +325,61 @@ class WebFindings(BaseModel):
     items: list[WebFinding]
 
 
+async def meter_web_search(ctx: Context, response) -> None:
+    """Put this call on the client's meter. Best effort, never fatal.
+
+    THE ONE MODEL CALL THE BUDGET COULD NOT SEE. Every other call in the studio
+    is made by the harness, which reads the usage off a `RunHooks` and records it
+    through `ui_record_usage`. This one is made here, inside the MCP server, with
+    its own `AsyncOpenAI` — so nothing was watching, and a source of `Internet`
+    or `Combinat` spent money the gate never counted. `schema.sql` has listed
+    `web_search` among the kinds since the table was written; this is the row it
+    was waiting for.
+
+    What is metered is the TOKENS. The `web_search` tool has a per-call charge of
+    its own that the Responses API does not report in `usage`, so the row is an
+    undercount by that fixed amount - smaller than the gap it closes, and honest
+    about which part it knows.
+    """
+
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+    output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+    if not input_tokens and not output_tokens:
+        return
+    # Same defensive read as `accounts.py`: a provider that reports no detail
+    # leaves this zero, which charges the full rate rather than inventing a
+    # discount.
+    details = getattr(usage, "input_tokens_details", None)
+    cached = int(getattr(details, "cached_tokens", 0) or 0)
+    try:
+        client_slug = await client_of(ctx)
+        async with connection() as conn:
+            await record_usage(
+                conn,
+                client_slug=client_slug,
+                principal_id=_header(ctx, OWNER_HEADER) or "unknown",
+                kind="web_search",
+                model=WEB_SEARCH_MODEL,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cached_input_tokens=cached,
+                cost_micros=price_of(
+                    WEB_SEARCH_MODEL, input_tokens, output_tokens, cached
+                ),
+            )
+    except Exception:  # noqa: BLE001
+        # The search already succeeded and its material is on its way to the
+        # model. Losing the meter row is bad; turning a delivered answer into a
+        # tool error because of the meter is worse.
+        return
+
+
 @server.tool()
 async def search_web(
+    ctx: Context,
     description: str,
     limit: int = 5,
 ) -> list[dict]:
@@ -354,6 +408,7 @@ al tău. `title` e titlul paginii, `url` linkul ei, `site` publicația, iar
         input=prompt,
         text_format=WebFindings,
     )
+    await meter_web_search(ctx, response)
     findings = response.output_parsed
     if findings is None:
         return []

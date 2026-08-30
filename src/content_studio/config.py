@@ -137,8 +137,18 @@ MCP_HOST = os.getenv("MCP_HOST", "127.0.0.1")
 MCP_PORT = int(os.getenv("MCP_PORT", "8765"))
 MCP_URL = os.getenv("MCP_URL", f"http://{MCP_HOST}:{MCP_PORT}/mcp")
 
-#: Web search can run past 30 seconds on cold connections.
-MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT", "90"))
+#: The ceiling on ONE MCP tool call, and `search_web` is the only tool that goes
+#: anywhere near it.
+#:
+#: MEASURED, NOT GUESSED, 2026-08-30: three consecutive real searches took 80s,
+#: 55s and 40s end to end. It was 90 here, on a note about "cold connections"
+#: written when the tool returned a short synthesis; it now reads pages and fills
+#: a schema, and the slowest of those three had ten seconds of headroom left.
+#: `tests/checks/safe/tools.py` duly timed out on the first run of the day, which
+#: is the good version of this failure - the bad one is a generation run losing
+#: its `Internet` material and writing from memory, since an MCP timeout comes
+#: back as a short error string rather than as an exception the run can see.
+MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT", "180"))
 
 HARNESS_HOST = os.getenv("HARNESS_HOST", "0.0.0.0")
 HARNESS_PORT = int(os.getenv("PORT", os.getenv("HARNESS_PORT", "8000")))

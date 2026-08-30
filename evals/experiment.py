@@ -1,4 +1,4 @@
-"""One dataset, one experiment, five scores — the whole suite on the button door.
+"""One dataset, one experiment, six scores — the whole suite on the button door.
 
     uv run content-studio-server                       # terminal 1
     uv run python evals/experiment.py --dry-run        # the dataset and its labels, free
@@ -21,7 +21,7 @@ Everything here is the button: `GenerationBatchRequest`, the coordinator's own
 is imported from `route/tool_usage.py` rather than rewritten, so what runs here
 is what runs on a click.
 
-THE FIVE SCORES, and where each one already lived:
+THE SIX SCORES, and where each one already lived:
 
   · **router**          did it open the right `SKILL.md`?            `route/`
   · **references**      exactly the `references/` its format needs?  `route/`
@@ -710,7 +710,7 @@ def show_labels(chosen: list[dict[str, Any]]) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="one dataset, one experiment, five scores")
+    parser = argparse.ArgumentParser(description="one dataset, one experiment, six scores")
     parser.add_argument("--dry-run", action="store_true", help="the dataset and labels, free")
     parser.add_argument("--id", dest="ids", action="append", help="one case; repeatable")
     parser.add_argument(
