@@ -302,6 +302,11 @@ class Route:
     references: list[str] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
     commands: list[str] = field(default_factory=list)
+    #: Each search with what it asked and what came back. The route verdict does
+    #: not read it - `evals/skill/` does, and it is collected here because this
+    #: is where the run already is. `route.tools` says a tool was called; a
+    #: search that timed out is in both, and only this one can tell you so.
+    searches: list[dict[str, Any]] = field(default_factory=list)
     turns: int = 0
     error: str | None = None
 
@@ -334,6 +339,15 @@ def route_from(result) -> Route:
         # traces, so a number read here and a number read there mean the same.
         references=sorted(shell_reads(commands)),
         tools=[call["name"] for call in calls if call["name"] in DATA_TOOLS],
+        searches=[
+            {
+                "tool": call["name"],
+                "arguments": call.get("arguments") or {},
+                "result": call.get("result"),
+            }
+            for call in calls
+            if call["name"] in DATA_TOOLS
+        ],
         commands=commands,
         turns=len(result.to_input_list()),
     )

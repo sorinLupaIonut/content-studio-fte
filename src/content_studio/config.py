@@ -121,6 +121,15 @@ GENERATION_MODELS: tuple[str, ...] = ("gpt-5-mini",)
 # without silently changing either half of the accepted hybrid topology.
 CHAT_MODEL = os.getenv("CHAT_MODEL", MODEL)
 
+#: The model that grades, never the model that writes - except it is the same
+#: family now, on Sorin's call of 2026-08-30: the evals are paid out of pocket
+#: and gpt-5 cost about four times this per run. What that buys back in money it
+#: gives up in independence: a judge on the writer's own model scores its own
+#: phrasing as good, because it is the phrasing it would have chosen. Read a
+#: borderline verdict with that in mind, and set EVAL_JUDGE_MODEL=gpt-5 in `.env`
+#: for a run whose numbers have to hold up.
+EVAL_JUDGE_MODEL = os.getenv("EVAL_JUDGE_MODEL", "gpt-5-mini")
+
 #: Storing and searching must use the SAME model — architecture rule 3.
 EMBEDDING_MODEL = "text-embedding-3-small"
 

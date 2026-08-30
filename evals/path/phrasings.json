@@ -1,0 +1,85 @@
+{
+  "_": [
+    "Una și aceeași cerere, spusă în zece feluri. Drumul trebuie să fie același.",
+    "",
+    "Citit de `evals/path/convergence.py`. Tiparul e Lab 4 al cursului",
+    "(`Trajectory.py`): șaptesprezece formulări ale aceleiași întrebări, rulate",
+    "fiecare, lungimea drumului măsurată, iar nota este `minimul / al tău`.",
+    "",
+    "DE CE CHAT-UL ȘI NU GENERAREA. Testul are nevoie de o întrebare spusă în",
+    "mai multe feluri, iar în studio există o singură suprafață cu text liber:",
+    "conversația. Butoanele trimit un `GenerationBatchRequest` structurat - o",
+    "rulare de generare primește exact aceiași patru parametri de fiecare dată,",
+    "deci a o repeta măsoară varianța, nu convergența.",
+    "",
+    "SENTINȚA DICTATĂ NU ESTE AICI, ȘI ASTA E INTENȚIONAT. Ea se construiește la",
+    "rulare din `harness/conversations.py`, prin `dictated_batch_request`.",
+    "AGENTS.md numește șirurile alea contract; copiate aici, ar deveni a doua",
+    "copie a lui, care se strică în tăcere când se schimbă prima. Runner-ul o",
+    "pune prima în listă, sub id-ul `dictat`, și tot ea este ancora: contractul",
+    "spune că «sentința pe care o dictează un buton, tastată de mână, trebuie să",
+    "se comporte identic», iar asta este afirmația pe care evalul o măsoară.",
+    "",
+    "TOATE ZECE CONȚIN TOATE CELE PATRU AXE. Formulare diferită, cerere",
+    "identică. O formulare căreia îi lipsește sursa este o ALTĂ întrebare, nu",
+    "aceeași altfel spusă: răspunsul corect la ea e s-o întrebe, iar întrebarea",
+    "e un drum mai lung pe bună dreptate. Ar face nota să măsoare altceva decât",
+    "crede că măsoară.",
+    "",
+    "CE VARIAZĂ, ATUNCI: registrul (poruncă, rugăminte, gândit cu voce tare),",
+    "ordinea axelor, diacriticele - jumătate dintre ele scrise fără, cum se",
+    "scrie de pe telefon - și dacă axele sunt numite pe nume («pilon Educație»)",
+    "sau descrise («care să învețe ceva»).",
+    "",
+    "CE NU ȚINE FIȘIERUL. Nu ține ce unealtă trebuie chemată și cu ce argumente:",
+    "aia se deduce din `request` de mai jos, care e singura definiție a cererii."
+  ],
+  "request": {
+    "format": "Reel",
+    "pillar": "Educație",
+    "source": "Cărți",
+    "focus": "limite fără vinovăție"
+  },
+  "phrasings": [
+    {
+      "id": "porunca-scurta",
+      "text": "Dă-mi 10 idei de reel educativ despre limite fără vinovăție, din cărți."
+    },
+    {
+      "id": "rugaminte",
+      "text": "aș vrea zece propuneri de reeluri pe educație, tema limite fără vinovăție, scoase din cărțile mele"
+    },
+    {
+      "id": "cu-voce-tare",
+      "text": "Vreau să fac reels despre cum să pui limite fără să te simți vinovată. Zece idei, pilon educație, luate din bibliotecă."
+    },
+    {
+      "id": "fara-diacritice",
+      "text": "poti sa imi propui 10 reel-uri educationale? sursa carti, focus limite fara vinovatie",
+      "why": "Scris de pe telefon. Jumătate din mesajele reale arată așa."
+    },
+    {
+      "id": "enumerare",
+      "text": "Am nevoie de 10 idei pentru reeluri. Pilonul educație, materialul din cărți, subiectul limite fără vinovăție."
+    },
+    {
+      "id": "telegrafic",
+      "text": "zece reels, educatie, din carti, despre limite fara vinovatie",
+      "why": "Fără verb și fără politețe. Cel mai aproape de o comandă și cel mai departe de o propoziție."
+    },
+    {
+      "id": "colocvial",
+      "text": "Hai să pornim un lot de reeluri educative despre limite fără vinovăție, cu sursa din cărți. Zece, ca de obicei."
+    },
+    {
+      "id": "axe-pe-nume",
+      "text": "Generează-mi propunerile: format Reel, pilon Educație, sursă Cărți, focus limite fără vinovăție. Zece la număr.",
+      "why": "Vocabularul închis, dar altă topică decât sentința dictată. Cel mai ușor caz; dacă pică ăsta, nu mai contează restul."
+    },
+    {
+      "id": "descriptiv",
+      "text": "Mi-ar trebui niște idei de reeluri care să învețe ceva despre limite fără vinovăție — ia din cărțile de pe raft. Zece.",
+      "why": "Singura care nu numește pilonul, ci îl descrie («să învețe ceva» = Educație). Cel mai greu caz, și tot are toate patru axele."
+    }
+  ]
+}

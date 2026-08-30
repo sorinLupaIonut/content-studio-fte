@@ -1,0 +1,136 @@
+{
+  "_": [
+    "Zece cazuri pe care se testează CE FACE agentul cu uneltele, nu unde ajunge.",
+    "",
+    "Grila rutei are 240 de pătrate și 24 în șira spinării, fiindcă acolo eticheta",
+    "se decide din fază × format × sursă. Aici întrebarea e alta - a fost căutarea",
+    "ancorată în brief și în avatar - și axele care o mișcă nu sunt aceleași:",
+    "",
+    "  SURSA rămâne, dar pierde un rând. `Memorie` nu cheamă nicio unealtă, deci",
+    "  nu produce niciun span de căutat. Rămân trei: Cărți, Internet, Combinat.",
+    "",
+    "  FAZA rămâne, și e axa cea mai tare. Regula comună din cele două skill-uri",
+    "  e aceeași frază, dar contextul e scris diferit: la faza 1 ceri larg, o",
+    "  singură dată, pentru zece propuneri diferite; la faza 2 ceri îngust și",
+    "  adânc, pentru unghiul unei singure idei. Dacă asta nu se vede în ce cere",
+    "  agentul, cele două paragrafe nu-și fac treaba.",
+    "",
+    "  FOCUSUL rămâne, la faza 1, unde poate lipsi. Fără focus, singurele lucruri",
+    "  de care se poate agăța o căutare sunt pilonul și avatarul - cazul în care",
+    "  se vede cel mai clar dacă avatarul e citit sau doar invocat.",
+    "",
+    "  FORMATUL slăbește. El alege fișierul de referință și lungimea, nu subiectul",
+    "  căutării. E rotit prin cazuri ca să fie prezent, nu ca să fie măsurat.",
+    "",
+    "  PILONUL slăbește la fel, și e rotit la fel: toți cinci apar o dată.",
+    "",
+    "AL ZECELEA CAZ ESTE UN MARTOR NEGATIV, ȘI DE-AIA EXISTĂ. Nouă cazuri care",
+    "ies toate `relevant` arată identic dacă metrica funcționează și dacă",
+    "judecătorul spune da la orice. Cazul 10 cere un focus pe care formularul îl",
+    "acceptă, dar care nu are nimic de-a face cu Andreea. O căutare cinstită",
+    "acolo TREBUIE să pice pe jumătatea de avatar. Dacă iese `relevant`, verdictul",
+    "care se strică nu e al lui - sunt toate celelalte nouă.",
+    "",
+    "CE NU ȚINE FIȘIERUL ĂSTA. Nu ține ce unealtă e corectă pe fiecare sursă -",
+    "aia e `tool-usage-grid.json`, și o a doua copie ar începe să nu mai fie de",
+    "acord cu prima. Nu ține nici avatarul: el se citește din profil, întreg, la",
+    "rulare.",
+    "",
+    "IDEEA DE LA FAZA 2 e aceeași cu a rutei, dinadins - ca să poată fi citite una",
+    "lângă alta."
+  ],
+  "idea": {
+    "ordinal": 3,
+    "title": "Formula celor 3 pași pentru un NU blând",
+    "angle": "Trei pași concreți, în ordinea în care se spun"
+  },
+  "cases": [
+    {
+      "id": "t-carti-fara-focus",
+      "phase": "titluri",
+      "format": "Reel",
+      "pillar": "Educație",
+      "source": "Cărți",
+      "focus": null,
+      "why": "Faza 1 fără focus, pe raft. Nu are de ce se agăța în afară de pilon și de avatar, deci arată dacă profilul chiar e citit."
+    },
+    {
+      "id": "t-internet-fara-focus",
+      "phase": "titluri",
+      "format": "Carusel",
+      "pillar": "Conexiune",
+      "source": "Internet",
+      "focus": null,
+      "why": "Același gol, pe web. Web-ul e nemărginit, deci aici se vede cel mai repede o căutare care pleacă de la temă în loc să plece de la ea."
+    },
+    {
+      "id": "t-combinat-fara-focus",
+      "phase": "titluri",
+      "format": "Stories",
+      "pillar": "Conversie",
+      "source": "Combinat",
+      "focus": null,
+      "why": "Amândouă uneltele, aceeași lipsă de focus. Singurul caz unde se poate compara ce cere aceleiași întrebări de la raft și de la web."
+    },
+    {
+      "id": "t-carti-focus",
+      "phase": "titluri",
+      "format": "Stories",
+      "pillar": "Magnetism",
+      "source": "Cărți",
+      "focus": "limite fără vinovăție"
+    },
+    {
+      "id": "t-internet-focus",
+      "phase": "titluri",
+      "format": "Reel",
+      "pillar": "Poziționare",
+      "source": "Internet",
+      "focus": "limite fără vinovăție"
+    },
+    {
+      "id": "t-combinat-focus",
+      "phase": "titluri",
+      "format": "Carusel",
+      "pillar": "Educație",
+      "source": "Combinat",
+      "focus": "limite fără vinovăție",
+      "why": "Perechea cazului 3, cu focus. Diferența dintre ele e exact ce adaugă focusul unei căutări."
+    },
+    {
+      "id": "d-carti",
+      "phase": "detalii",
+      "format": "Reel",
+      "pillar": "Conexiune",
+      "source": "Cărți",
+      "focus": "limite fără vinovăție",
+      "why": "Faza 2 pe raft. Aici s-au strâns cele șapte picări de la `search_books` pe 2026-08-30: agentul cere rețeta în trei pași, raftul răspunde cu teorie alăturată."
+    },
+    {
+      "id": "d-internet",
+      "phase": "detalii",
+      "format": "Carusel",
+      "pillar": "Conversie",
+      "source": "Internet",
+      "focus": "limite fără vinovăție"
+    },
+    {
+      "id": "d-combinat",
+      "phase": "detalii",
+      "format": "Stories",
+      "pillar": "Magnetism",
+      "source": "Combinat",
+      "focus": "limite fără vinovăție"
+    },
+    {
+      "id": "martor-negativ",
+      "phase": "titluri",
+      "format": "Reel",
+      "pillar": "Educație",
+      "source": "Combinat",
+      "focus": "cum alegi anvelope de iarnă pentru un SUV",
+      "expects": "irelevant",
+      "why": "Martorul. Formularul acceptă orice text în focus, deci cazul e real, nu inventat. Andreea n-are nimic aici: nu e nici dorință, nici durere, nici frică din profil. ALES DIN A DOUA ÎNCERCARE, 2026-08-30: primul era «cum îți alegi un fond de investiții cu comision mic», și a picat - dar pe subiect, nu pe avatar, fiindcă raftul n-avea nimic despre fonduri. Judecătorul a scris chiar el că avatarul are «nevoie de siguranță financiară», și are: profilul îi dă «stabilitate financiară și libertate de alegere». Un martor care pică pentru că raftul a fost gol nu probează nimic despre avatar. Anvelopele nu au nicio suprapunere, iar web-ul chiar ARE material bun despre ele - deci singurul motiv rămas de picat este Andreea, care e exact ce trebuie martorul să dovedească."
+    }
+  ]
+}
