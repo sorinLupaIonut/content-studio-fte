@@ -220,6 +220,26 @@ from the button, that is the bug.
 Refuse at the gate to check the refusal: the post must not appear in the database,
 and the trail must hold `capability_blocked`.
 
+**On a phone, and measured rather than looked at.** CSS has no overflow warning:
+a bar wider than the screen is simply clipped, the page still scores as having no
+horizontal scroll, and the controls past the edge are gone without a trace.
+That is how the bottom bar shipped with the language switch and the way out
+entirely off-screen. Narrow the viewport — 412, 375 and 320 are the three that
+matter — and ask the page, rather than the screenshot:
+
+```js
+const w = document.documentElement.clientWidth;
+[...document.querySelectorAll('body *')]
+  .map(el => [el, el.getBoundingClientRect()])
+  .filter(([, r]) => r.width && r.height && (r.right > w + 1 || r.left < -1))
+  .map(([el, r]) => `${el.className} ${Math.round(r.left)}…${Math.round(r.right)}`);
+```
+
+Empty is the pass. Two more things the same session should check, because both
+were wrong and neither raised: that the floating chat button clears the bar
+(`fab.bottom <= rail.top`), and that `--mobile-bar` still matches the bar's real
+height — it is a constant, and the bar grew a band.
+
 ## Seeing the trail without running the model
 
 ```bash

@@ -657,6 +657,29 @@ select:disabled {
     font-size: .8rem;
 }
 
+/* A finished batch that produced nothing. It occupies the place the ten cards
+   would have taken, so the eye lands on an answer rather than on an absence. */
+.batch-empty {
+    display: grid;
+    gap: 10px;
+    justify-items: start;
+    padding: 22px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 17px;
+    background: var(--surface);
+}
+
+.batch-empty strong {
+    font-size: 1rem;
+}
+
+.batch-empty p {
+    margin: 0;
+    max-width: 52ch;
+    color: var(--muted);
+    font-size: .88rem;
+}
+
 .idea-card {
     margin-bottom: 12px;
     overflow: hidden;
@@ -1630,193 +1653,6 @@ select:disabled {
     gap: 10px;
 }
 
-@media (max-width: 1000px) {
-    .app-shell {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .rail {
-        position: fixed;
-        z-index: 30;
-        /* The desktop rule pins top: 0 for the sticky column. Left standing it
-           would fight bottom: 0 and stretch the bar over the whole screen. */
-        top: auto;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        flex-direction: row;
-        gap: 4px;
-        height: auto;
-        padding: 8px;
-        border-top: 1px solid var(--line);
-        border-right: 0;
-    }
-
-    .brand,
-    .rail-label,
-    .identity {
-        display: none;
-    }
-
-    /* Kept, but folded into the bar as a compact row: an English speaker on
-       a phone still has to find the switch, and anyone has to find the way
-       out. Only the identity chip goes, since it is the one thing here that
-       is informational rather than actionable. */
-    .rail-foot {
-        flex: 0 0 auto;
-        flex-direction: row;
-        gap: 6px;
-        align-items: center;
-        margin-top: 0;
-        padding-top: 0;
-        border-top: 0;
-    }
-
-    .language-picker button {
-        padding: 6px;
-        font-size: .68rem;
-    }
-
-    .signout-button {
-        padding: 8px 9px;
-        font-size: .68rem;
-    }
-
-    .primary-nav {
-        flex: 1;
-        flex-direction: row;
-        gap: 4px;
-    }
-
-    .rail-group {
-        flex: 1;
-        flex-direction: row;
-        gap: 2px;
-    }
-
-    .rail-group a {
-        flex: 1;
-        flex-direction: column;
-        gap: 4px;
-        justify-content: center;
-        padding: 8px 2px;
-        font-size: .69rem;
-        text-align: center;
-    }
-
-    .rail-group a .ico {
-        flex: none;
-    }
-
-    .rail-group a.active::before {
-        top: auto;
-        right: 10px;
-        bottom: -8px;
-        left: 10px;
-        width: auto;
-        height: 3px;
-        border-radius: 3px 3px 0 0;
-    }
-
-    .page-content {
-        padding: 24px 16px 112px;
-    }
-
-    .chat-launcher {
-        bottom: 84px;
-    }
-}
-
-@media (max-width: 760px) {
-    .page-heading {
-        display: grid;
-        gap: 18px;
-    }
-
-    .field-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .editor-grid,
-    .editor-production .editor-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .save-panel > header,
-    .save-actions,
-    .editor-actions {
-        display: grid;
-        gap: 14px;
-    }
-
-    .saved-card-header {
-        grid-template-columns: 1fr 30px;
-        row-gap: 4px;
-    }
-
-    .saved-date {
-        grid-column: 1 / -1;
-    }
-
-    .book-options {
-        grid-template-columns: 1fr;
-    }
-
-    .replace-panel,
-    .ideas-list > header {
-        display: grid;
-    }
-
-    .replace-panel > div:last-child {
-        display: grid;
-        grid-template-columns: 1fr;
-    }
-
-    .batch-actions {
-        justify-content: space-between;
-    }
-
-    .idea-card-header,
-    .idea-waiting {
-        grid-template-columns: 34px 1fr auto 22px;
-        gap: 10px;
-        padding-inline: 13px;
-    }
-
-    .idea-details {
-        padding: 0 13px 18px;
-    }
-
-    .profile-card-header {
-        grid-template-columns: 40px 1fr auto;
-        padding-inline: 13px;
-    }
-
-    .readonly-chip {
-        display: none;
-    }
-
-    .profile-card-body {
-        padding: 4px 15px 20px;
-    }
-
-    .section-actions,
-    .approval-panel,
-    .approval-actions {
-        display: grid;
-    }
-
-    .approval-panel {
-        grid-template-columns: 38px 1fr;
-    }
-
-    .approval-actions {
-        grid-column: 1 / -1;
-        grid-template-columns: 1fr 1fr;
-    }
-
-}
-
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -2224,4 +2060,269 @@ select:disabled {
     border-left: 3px solid var(--gold);
     align-items: flex-start;
     line-height: 1.5;
+}
+
+/* ── The responsive overrides live LAST, and that is load-bearing ────────────
+   They used to sit at line 1633, with `.usage`, `.language-picker` and
+   `.signout-button` defined 300 lines below them. Same specificity, later rule
+   wins: every override in here that touched one of those three was dead on
+   arrival, silently. Two had been dead since the bottom bar was written — the
+   compact language buttons and the compact sign-out — which is part of why the
+   bar did not fit. Keep these blocks at the end of the file. */
+
+@media (max-width: 1000px) {
+    .app-shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* How tall the bottom bar actually is. Two other rules have to clear it -
+       the page's bottom padding and the chat button - and they used to carry
+       their own hand-written numbers, which is how the button ended up sitting
+       on the bar the day the bar grew a second band. */
+    :root {
+        --mobile-bar: calc(124px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* TWO BANDS, NOT ONE ROW. Measured on 2026-08-31 at 412px: the five
+       destinations took 263px and the three controls beside them 404 more, so
+       the bar wanted 679px inside 395. The usage meter was cut in half, and the
+       language switch and the way out sat entirely off the screen - not cramped,
+       unreachable. One row was never going to hold eight things on a phone.
+       Utilities on top, destinations along the bottom edge where the thumb is. */
+    .rail {
+        position: fixed;
+        z-index: 30;
+        /* The desktop rule pins top: 0 for the sticky column. Left standing it
+           would fight bottom: 0 and stretch the bar over the whole screen. */
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        flex-direction: column;
+        gap: 8px;
+        height: auto;
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+        border-top: 1px solid var(--line);
+        border-right: 0;
+    }
+
+    .brand,
+    .rail-label,
+    .identity {
+        display: none;
+    }
+
+    /* Kept, but folded into the bar as a compact row: an English speaker on
+       a phone still has to find the switch, and anyone has to find the way
+       out. Only the identity chip goes, since it is the one thing here that
+       is informational rather than actionable.
+
+       `order: -1` lifts this band above the destinations - it is read once,
+       they are tapped constantly. `flex-wrap` is the floor rather than the
+       plan: below roughly 340px the way out drops onto its own line instead of
+       leaving the screen, which is the failure this whole block exists to
+       stop. */
+    .rail-foot {
+        order: -1;
+        flex: 0 0 auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        justify-content: flex-end;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+    }
+
+    /* Lying down, and without its own word: beside a percentage, "CONSUM" says
+       nothing the number does not, and it costs 48px of a 395px bar. The track
+       takes whatever the two controls leave. */
+    .usage {
+        flex: 1 1 90px;
+        flex-direction: row;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+        padding: 5px 9px;
+    }
+
+    .usage-head {
+        flex: 0 0 auto;
+    }
+
+    .usage-head > span {
+        display: none;
+    }
+
+    .usage-track {
+        flex: 1 1 auto;
+        min-width: 28px;
+    }
+
+    .language-picker {
+        flex: 0 0 auto;
+    }
+
+    .language-picker button {
+        padding: 6px;
+        font-size: .68rem;
+    }
+
+    .signout-button {
+        flex: 0 0 auto;
+        padding: 8px 9px;
+        font-size: .68rem;
+    }
+
+    .primary-nav {
+        flex: 1;
+        flex-direction: row;
+        gap: 4px;
+    }
+
+    .rail-group {
+        flex: 1;
+        flex-direction: row;
+        gap: 2px;
+    }
+
+    /* The label shrinks with the screen rather than wrapping: a second line
+       under one of five destinations makes the whole bar taller, and two other
+       rules are measured against that height. `Administrare` is the long one
+       and the reason for the lower bound. */
+    .rail-group a {
+        flex: 1;
+        flex-direction: column;
+        gap: 4px;
+        justify-content: center;
+        min-width: 0;
+        padding: 8px 2px;
+        font-size: clamp(.58rem, 2.6vw, .69rem);
+        white-space: nowrap;
+        text-align: center;
+    }
+
+    .rail-group a .ico {
+        flex: none;
+    }
+
+    .rail-group a.active::before {
+        top: auto;
+        right: 10px;
+        bottom: -8px;
+        left: 10px;
+        width: auto;
+        height: 3px;
+        border-radius: 3px 3px 0 0;
+    }
+
+    .page-content {
+        padding: 24px 16px calc(var(--mobile-bar) + 28px);
+    }
+
+    .chat-launcher {
+        bottom: calc(var(--mobile-bar) + 12px);
+    }
+}
+
+@media (max-width: 760px) {
+    .page-heading {
+        display: grid;
+        gap: 18px;
+    }
+
+    .field-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .editor-grid,
+    .editor-production .editor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .save-panel > header,
+    .save-actions,
+    .editor-actions {
+        display: grid;
+        gap: 14px;
+    }
+
+    .saved-card-header {
+        grid-template-columns: 1fr 30px;
+        row-gap: 4px;
+    }
+
+    .saved-date {
+        grid-column: 1 / -1;
+    }
+
+    .book-options {
+        grid-template-columns: 1fr;
+    }
+
+    .replace-panel,
+    .ideas-list > header {
+        display: grid;
+    }
+
+    .replace-panel > div:last-child {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .batch-actions {
+        justify-content: space-between;
+    }
+
+    .idea-card-header,
+    .idea-waiting {
+        grid-template-columns: 34px 1fr auto 22px;
+        gap: 10px;
+        padding-inline: 13px;
+    }
+
+    .idea-details {
+        padding: 0 13px 18px;
+    }
+
+    .profile-card-header {
+        grid-template-columns: 40px 1fr auto;
+        padding-inline: 13px;
+    }
+
+    .readonly-chip {
+        display: none;
+    }
+
+    .profile-card-body {
+        padding: 4px 15px 20px;
+    }
+
+    .section-actions,
+    .approval-panel,
+    .approval-actions {
+        display: grid;
+    }
+
+    .approval-panel {
+        grid-template-columns: 38px 1fr;
+    }
+
+    .approval-actions {
+        grid-column: 1 / -1;
+        grid-template-columns: 1fr 1fr;
+    }
+
+}
+
+/* Below roughly 345px of usable width the utility row wraps to a second line
+   by design — see `.rail-foot`, where wrapping is the floor that keeps the way
+   out on the screen. The bar is then taller, and the two rules measured against
+   it have to be told: without this the chat button lands on top of the bar.
+   Measured at 320px on 2026-08-31: 161px. */
+@media (max-width: 359px) {
+    :root {
+        --mobile-bar: calc(162px + env(safe-area-inset-bottom, 0px));
+    }
 }
