@@ -213,11 +213,20 @@ reads like an agent ignoring „nu scrii tu lista"; it is the opposite. A check 
 drives the chat door has to stand where the studio stands.
 
 **With the header set, it caught a real defect.** Turn 4 called `search_books` and
-wrote the ten ideas itself instead of delegating. Cause: one skill body serving two
-doors, and the body describes the generation door — the chat instruction lived only
-in the frontmatter and the tool docstring. `propune-postari/SKILL.md` now opens with
-an explicit branch: in conversation, ask what is missing, call `start_generation`,
-say one sentence, stop. `fidelity.py` still 7/7 after the edit.
+wrote the ten ideas itself instead of delegating — so in the live UI she would get
+the model's list *and*, seconds later, the harness's. Cause: one skill body serving
+two doors, and the body describes the generation door; the chat instruction lived
+only in the frontmatter and the tool docstring, the two places a full read of the
+body talks over.
+
+`propune-postari/SKILL.md` opens with the branch now. It took two passes, and the
+first one is the more interesting: told to stop, the model stopped *before* calling
+the tool and asked for the focus instead — a field that is optional. The step says
+which three are mandatory and that a theme already mentioned IS the focus.
+
+**Green on the fourth run, all 18 checks**, turn 4 exactly as the method asks:
+`[tools: start_generation]` → „Lotul pornește — apare în câteva zeci de secunde."
+`fidelity.py` 7/7 after the edit, so the file reaches the container byte for byte.
 
 **Four diagrams** in `docs/diagrams/`, plain SVG with presentation attributes only
 so GitHub renders them, plus `docs/DIAGRAMS.md` explaining each. Linked first from
