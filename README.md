@@ -14,11 +14,20 @@ pgvector. It runs in production for one client.
 > because something was measuring. The four diagrams below are explained one by
 > one in [docs/DIAGRAMS.md](docs/DIAGRAMS.md).
 
-> **A note on language.** The agent works in Romanian, because the person it works
-> for does. Everything the model reads at runtime — the system prompt, the tool
-> descriptions, every file under `skills/` — is Romanian, and so is the terminal
-> the client types into. Everything a developer reads — code, comments, docs,
-> tests — is English. That split is deliberate and enforced throughout.
+> **A note on language.** English is the base. Code, comments, docs, tests, the MCP
+> tool descriptions, the generation prompts and every refusal are English, and the
+> studio can be *used* in English end to end — the interface is bilingual, one line
+> per phrase in `Copy.cs`.
+>
+> What stays Romanian is the **method and the voice**, untranslated: the identity
+> half of the system prompt, every file under `skills/`, the client's profile and
+> her posts. Switching the studio to English does not translate any of it — it
+> appends one block in `language.py` that changes the language of the *output*.
+> Domain values (`Reel`, `Educație`, the hook types) never translate at all; they
+> are the API contract, and only their labels change.
+>
+> The split is enforced, not asserted: `tests/checks/safe/language_split.py` reads
+> string literals with `ast` and `ui_language_split.py` does the same for the C#.
 
 ---
 
