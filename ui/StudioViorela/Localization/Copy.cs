@@ -167,6 +167,20 @@ public static class Copy
         new("Se pregătește titlul…", "Preparing the title…");
     public static readonly Phrase NanoWorking = new(
         "modelul lucrează la prima listă", "the model is working on the first list");
+
+    // A batch that ended with nothing used to render ten of the waiting cards
+    // above, spinning for ever. Seen on the deployed studio on 2026-08-31: the
+    // run failed in a third of a second for a missing sandbox key, and the only
+    // thing that said so was one line of status text above ten spinners. She
+    // read the spinners. A finished batch with nothing in it says so plainly and
+    // offers the one thing that helps.
+    public static readonly Phrase EmptyBatchHeading = new(
+        "Lotul nu a produs niciun titlu.", "The batch produced no titles.");
+    public static readonly Phrase EmptyBatchBody = new(
+        "S-a oprit înainte să scrie ceva. Nu s-a salvat nimic și nu s-a pierdut nimic.",
+        "It stopped before it wrote anything. Nothing was saved and nothing was lost.");
+    public static readonly Phrase EmptyBatchRetry =
+        new("Încearcă din nou", "Try again");
     public static readonly Phrase HookTypesAria = new("Tipuri de hook", "Hook types");
     public static readonly Phrase ChosenVariantTitle =
         new("Variantă aleasă", "Chosen variant");

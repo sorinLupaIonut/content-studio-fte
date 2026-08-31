@@ -84,7 +84,8 @@ public static class Values
             _ => status
         };
 
-    public static string BatchStatus(Translator t, string status, int readyIdeas) =>
+    public static string BatchStatus(
+        Translator t, string status, int readyIdeas, int titles) =>
         status switch
         {
             "gathering" => t.Pick(
@@ -124,9 +125,18 @@ public static class Values
                     + "Deschide oricare alta ca s-o scriu și pe ea.",
                 $"{readyIdeas} of 10 ideas are written in full. "
                     + "Open any other one and I will write that too."),
+            // A batch that never produced a title has no "ideas that were
+            // ready", and saying so above an empty list is the same fault as
+            // the two above: a status line contradicting what is under it.
+            "failed" when titles == 0 => t.Pick(
+                "Lotul s-a oprit fără să scrie ceva.",
+                "The batch stopped without writing anything."),
             "failed" => t.Pick(
                 "Lotul s-a oprit; ideile gata au rămas disponibile.",
                 "The batch stopped; the ideas that were ready are still available."),
+            "cancelled" when titles == 0 => t.Pick(
+                "Lotul a fost oprit înainte de primul titlu.",
+                "The batch was stopped before the first title."),
             "cancelled" => t.Pick("Lotul a fost oprit.", "The batch was stopped."),
             "replaced" => t.Pick("Lotul a fost înlocuit.", "The batch was replaced."),
             _ => status

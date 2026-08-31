@@ -119,7 +119,12 @@ else if (_batch is not null)
             </div>
         </header>
 
-        @if (_batch.Ideas.Count == 0)
+        @* The ten spinners are what a batch that is STILL WORKING looks like.
+           They were shown on `Ideas.Count == 0` alone until 2026-08-31, so a
+           batch that had already failed showed them too — for ever, since a
+           finished batch sends no further events. That is what "s-a blocat"
+           was: not a hang, a screen that never stopped saying "preparing". *@
+        @if (_batch.Ideas.Count == 0 && !IsTerminal(_batch.Status))
         {
             @for (var index = 1; index <= 10; index++)
             {
@@ -132,6 +137,15 @@ else if (_batch is not null)
                     <span class="mini-spinner"></span>
                 </article>
             }
+        }
+        else if (_batch.Ideas.Count == 0)
+        {
+            <section class="batch-empty" role="status">
+                <strong>@T[Copy.EmptyBatchHeading]</strong>
+                <p>@T[Copy.EmptyBatchBody]</p>
+                <button class="button button-primary" type="button"
+                        disabled="@_busy" @onclick="RetryBatchAsync">@T[Copy.EmptyBatchRetry]</button>
+            </section>
         }
         else
         {
@@ -383,6 +397,26 @@ else if (_batch is not null)
         {
             _loadingBatch = false;
         }
+    }
+
+    /// <summary>Run the failed batch's own request again.</summary>
+    /// <remarks>
+    /// The three selects are set from the batch before starting, not read from:
+    /// they hold their defaults until she touches them, so a retry that used
+    /// them would quietly generate something else than the lot she is looking at.
+    /// </remarks>
+    private async Task RetryBatchAsync()
+    {
+        if (_batch is null)
+        {
+            return;
+        }
+
+        _source = _batch.Source;
+        _pillar = _batch.Pillar;
+        _format = _batch.Format;
+        _focus = _batch.Focus ?? string.Empty;
+        await StartAsync(true);
     }
 
     private async Task StartAsync(bool replace)
@@ -753,7 +787,10 @@ else if (_batch is not null)
         Values.IdeaStatus(T, idea.Status, idea.RetryCount);
 
     private string BatchStatus(GenerationBatchDto batch) => Values.BatchStatus(
-        T, batch.Status, batch.Ideas.Count(idea => idea.Status == "ready"));
+        T,
+        batch.Status,
+        batch.Ideas.Count(idea => idea.Status == "ready"),
+        batch.Ideas.Count);
 
     private sealed record SaveCandidate(
         GenerationIdeaDto Idea, GenerationVariantDto Variant);
