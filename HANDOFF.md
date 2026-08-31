@@ -152,6 +152,41 @@ computed (the server banner). Where it is not, it carries the date it was measur
 
 ---
 
+## 2026-08-31, later — deployed, and the repository is public
+
+**The Azure deployment was seven days and three architecture changes stale.** The
+live image was built 2026-08-24: skills as tools, no trigger tools, no
+`search_web` metering, `reasoning: "minimal"` on the detail phase. `/health` also
+reported `mcp: nu răspunde (TimeoutError)` while the MCP container's own log
+showed every `POST /mcp` answered `200 OK` — a three-second probe budget on a
+stack that scales to zero by design. Raised to six and made concurrent; see the
+note on `HEALTH_PROBE_SECONDS`.
+
+Redeployed from `b0fa2b4`. The post-deploy gate reports `status: ready`, all
+backends green, and `/health` now says `Conectat; 10 unelte disponibile` — which
+is itself the proof the new image is live, because the old one had five.
+
+| | |
+|---|---|
+| harness | https://studio-harness.greenhill-fd5afa41.eastus.azurecontainerapps.io |
+| image | `content-studio@sha256:3a3019bc…` |
+| health | `ready` · openai · postgres · mcp · skills · observability · phoenix |
+| auth | Easy Auth, Google + the Entra external tenant, both present after the deploy |
+
+**The repository is public**, decision taken 2026-08-31 with the consequence
+stated: `content/profile.md` is included. `.env` was never committed and no key
+appears anywhere in history — checked before the switch. `main` was **100 commits
+behind** `deploy` and was fast-forwarded in the same pass; before that, anyone
+opening the repo saw the project as it was before the MCP server, the interface
+and the evals existed.
+
+**The 17 books stay out**, as `.gitignore` has always had them: they are published
+volumes under copyright. What is public is the inventory in
+`content/books/md/README.md` — title, author, pages, word count, extraction
+method per book.
+
+---
+
 ## Costs incurred today
 
 **2026-08-30:** roughly $0.35 in total — two Phoenix experiments ($0.10), four web

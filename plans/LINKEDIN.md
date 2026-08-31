@@ -108,22 +108,33 @@ reach it, and a cost curve that went down 5.3x because something was measuring.
 
 ---
 
-## 4 · Problema de rezolvat înainte: `[link]`
+## 4 · Linkul — rezolvat pe 31 august
 
-**Repozitoriul e PRIVAT.** Un recrutor nu-l poate deschide, deci linkul de mai sus
-nu poate fi încă `github.com/sorinLupaIonut/content-studio-fte`.
+**Repozitoriul e PUBLIC**, cu profilul inclus, decizia ta luată cu concluzia pusă
+pe masă. `main` a fost adus la zi în același timp: era cu 100 de comituri în urmă,
+deci oricine îl deschidea vedea proiectul de dinainte de serverul MCP, de UI și de
+evals.
 
-Trei opțiuni, în ordinea în care le-aș lua:
+Pune oriunde scrie `[link]`:
 
-1. **Un repo public separat, „vitrină".** Doar `docs/CASE-STUDY.md`, diagramele,
-   `AGENTS.md` și schema — fără `content/`, fără cod care atinge datele ei. Cel
-   mai bun raport între ce arăți și ce riști. ~30 de minute.
-2. **Faci public repo-ul actual după ce scoți `content/`.** Cărțile sunt deja
-   ignorate, dar `content/profile.md` (profilul ei complet de brand) și 28 de
-   postări publicate ale ei sunt urmărite în git. Ar trebui scoase din istoric,
-   nu doar din HEAD — și e materialul ei, deci e o decizie pe care o iei cu ea,
-   nu una tehnică.
-3. **Fără link.** Descrierea de mai sus stă în picioare și singură; pui linkul
-   când există.
+```
+https://github.com/sorinLupaIonut/content-studio-fte
+```
 
-Recomandarea mea: **1**.
+Pentru **Featured**, cel mai bun link nu e repo-ul, ci prezentarea vizuală — un
+recrutor se uită 40 de secunde, iar patru diagrame explicate spun mai mult decât
+un arbore de fișiere. Repo-ul îl pui în Projects, prezentarea în Featured.
+
+**Ce a rămas afară, și rămâne:** cele 17 cărți. Sunt volume publicate, sub drept de
+autor; `.gitignore` le ține afară de la început și le ține în continuare. Ce se
+vede public e inventarul din `content/books/md/README.md` — titlu, autor, pagini,
+număr de cuvinte, cum a fost extras fiecare. Asta demonstrează corpusul fără să
+distribuie textul, ceea ce e chiar mai bine la un interviu decât fișierele: arată
+că te-ai gândit la licențiere.
+
+## 5 · Ordinea în care aș face-o acum
+
+1. **Featured** — prezentarea vizuală, cu titlul și descrierea de la §2.
+2. **Projects** — intrarea de la §1, cu linkul de GitHub, *Currently working on
+   this* bifat și data de început cea mai recentă.
+3. **About** — paragraful de la §3, la final.
