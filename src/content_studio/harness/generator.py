@@ -527,7 +527,10 @@ class GenerationCoordinator:
             await internal.cleanup()
 
     async def select(
-        self, principal_id: str, variant_id: UUID
+        self,
+        principal_id: str,
+        variant_id: UUID,
+        language: Language = DEFAULT_LANGUAGE,
     ) -> dict[str, Any]:
         session_id = self._session_id("generation-select", principal_id)
         internal = self._internal_mcp_factory(session_id)
@@ -559,7 +562,9 @@ class GenerationCoordinator:
                     conversation_session,
                     "user",
                     dictated_select(
-                        int(result["idea_ordinal"]), str(result["hook_type"])
+                        int(result["idea_ordinal"]),
+                        str(result["hook_type"]),
+                        language,
                     ),
                 )
         return result
@@ -695,7 +700,7 @@ class GenerationCoordinator:
                 await self._conversations.witness(
                     conversation_session,
                     "user",
-                    dictated_develop(ordinal, title.title),
+                    dictated_develop(ordinal, title.title, language),
                 )
 
         task = asyncio.create_task(
@@ -973,7 +978,8 @@ class GenerationCoordinator:
                                 "angle": idea.angle,
                             }
                             for idea in titles
-                        ]
+                        ],
+                        language,
                     ),
                 )
             # AND THAT IS THE WHOLE BATCH. The ten details used to be written
@@ -1146,6 +1152,7 @@ class GenerationCoordinator:
                                 variant.model_dump(mode="json")
                                 for variant in value.variants
                             ],
+                            language,
                         ),
                     )
                 # NOT a bare `return`. It was one from 2026-08-31 until the same

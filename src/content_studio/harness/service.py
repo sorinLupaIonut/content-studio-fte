@@ -821,6 +821,7 @@ class HarnessService:
                         request.pillar,
                         request.source,
                         request.focus,
+                        request.language,
                     ),
                 )
             batch = await self.generator.start(
@@ -996,10 +997,13 @@ class HarnessService:
             ) from exc
 
     async def select_generation_variant(
-        self, principal_id: str, variant_id: UUID
+        self,
+        principal_id: str,
+        variant_id: UUID,
+        language: Language = DEFAULT_LANGUAGE,
     ) -> dict[str, Any]:
         try:
-            return await self.generator.select(principal_id, variant_id)
+            return await self.generator.select(principal_id, variant_id, language)
         except ValueError as exc:
             raise HarnessError(422, str(exc)) from exc
         except Exception as exc:  # noqa: BLE001

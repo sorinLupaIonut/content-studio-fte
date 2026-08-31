@@ -380,6 +380,11 @@ public sealed class VariantSelectionDto
 {
     [JsonPropertyName("selected")]
     public bool Selected { get; set; } = true;
+
+    // Only so the sentence this click dictates into the chat is written in the
+    // language she is reading. The selection itself is language-free.
+    [JsonPropertyName("language")]
+    public string Language { get; set; } = "ro";
 }
 
 public sealed class ChatTargetDto

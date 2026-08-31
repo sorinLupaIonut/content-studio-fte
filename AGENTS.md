@@ -178,9 +178,14 @@ Decided with Sorin on 2026-08-27; the rules that hold it together:
   sentence a button dictates, typed by hand, must behave identically.
 - **A button press is dictation.** `harness/conversations.py` owns the exact
   sentences („Vreau 10 idei de postare: format Reel, pilon Educație, sursă
-  Memorie.") and they are asserted whole in `tests/unit/test_conversations.py`.
-  Changing a word there changes the conversation everywhere — treat those
-  strings as contract.
+  Memorie.", and since 2026-08-31 „I want 10 post ideas: format Reel, pillar
+  Educație, source Memorie.") and they are asserted whole in
+  `tests/unit/test_conversations.py`. Changing a word there changes the
+  conversation everywhere — treat those strings as contract. **Two per button,
+  one contract each**, and the *values* inside never translate in either: `Reel`,
+  `Educație`, `Memorie` and the hook types are what the tools match on.
+  Every path that dictates carries a language now, including the two that had
+  none — `select_variant` takes it in its body, `develop` in its query string.
 - **One conversation carries at most one lot.** `public.conversations` holds
   the active pointer per account (NOT the messages — that near-duplicate is
   what Decision 11 removed; this table stores what `agent_sessions` cannot:
@@ -344,11 +349,16 @@ says why it is on it.
 - every file under `skills/` — the skill bodies, frontmatter and references. This
   is the method, she edits it, and the tone of what gets written comes from here
 - `content/` — the profile, the posts, the books
-- the dictated sentences in
-  [harness/conversations.py](src/content_studio/harness/conversations.py) — a button
-  press is dictation, and those strings are contract
 - everything the interface shows her — but bilingually, one line per phrase in
   `Copy.cs`, never a Romanian string reaching the page some other way
+- the dictated sentences in
+  [harness/conversations.py](src/content_studio/harness/conversations.py) — also
+  bilingually, and in the same shape: both languages inside one function, never
+  two dictionaries. They were Romanian only until 2026-08-31, which meant a
+  studio running in English filled its chat with Romanian the moment anybody
+  pressed a button. Dictation is what she WOULD have typed, and that is in the
+  language she is working in. The default stays Romanian, so the evals and the
+  dataset builder keep the exact strings they assert
 - **values, wherever they appear**: `Pilon`, `Sursă`, `Format`, the hook types,
   the `ANGLE_TYPE` keys, the headings this code looks for inside her profile, the
   literal written into `posts.source`, and the phrases she types that the model

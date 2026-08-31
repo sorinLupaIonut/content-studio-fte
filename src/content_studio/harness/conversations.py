@@ -31,6 +31,7 @@ from agents.extensions.memory.sqlalchemy_session import SQLAlchemySession
 from agents.mcp import MCPServerStreamableHttp
 
 from content_studio.harness.drafts import tool_payload
+from content_studio.language import DEFAULT_LANGUAGE, Language, normalise
 
 logger = logging.getLogger("content_studio.harness.conversations")
 
@@ -49,6 +50,22 @@ USER_MESSAGE_MARKER = "MESAJUL UTILIZATOAREI:"
 # ---- the composers ----------------------------------------------------------
 # One function per button. The exact string is the contract: it is shown in the
 # chat as her message, stored in the session, and later typed by hand in tests.
+#
+# TWO LANGUAGES, ONE FUNCTION, since 2026-08-31, and for the reason `Copy.cs`
+# gives for keeping both on one line: split them and they drift silently. These
+# were Romanian only, so a studio running in English filled its chat with
+# Romanian the moment anybody pressed a button - `Vreau 10 idei de postare` under
+# an English interface, in a conversation the reader could not read. Dictation is
+# what she WOULD have typed, and what she would have typed is in the language she
+# is working in.
+#
+# The default stays Romanian, so every caller that names no language - the evals,
+# the dataset builder, `test_conversations.py` - keeps the exact string it
+# asserted before. The contract is per language, not weaker.
+#
+# THE VALUES INSIDE DO NOT TRANSLATE, in either branch: `Reel`, `Educatie`,
+# `Memorie` and the hook types are identifiers the tools match on, not words on a
+# screen. Same rule `language.py` states for structured output.
 
 
 def dictated_batch_request(
@@ -56,25 +73,42 @@ def dictated_batch_request(
     pillar: str,
     source: str,
     focus: str | None = None,
+    language: Language = DEFAULT_LANGUAGE,
 ) -> str:
-    text = (
-        f"Vreau 10 idei de postare: format {format}, pilon {pillar}, "
-        f"sursă {source}."
-    )
+    if normalise(language) == "en":
+        text = (
+            f"I want 10 post ideas: format {format}, pillar {pillar}, "
+            f"source {source}."
+        )
+    else:
+        text = (
+            f"Vreau 10 idei de postare: format {format}, pilon {pillar}, "
+            f"sursă {source}."
+        )
     if focus:
         text += f" Focus: {focus}."
     return text
 
 
-def dictated_develop(ordinal: int, title: str) -> str:
+def dictated_develop(
+    ordinal: int, title: str, language: Language = DEFAULT_LANGUAGE
+) -> str:
+    if normalise(language) == "en":
+        return f"Develop idea {ordinal}: “{title}”."
     return f"Dezvoltă ideea {ordinal}: „{title}”."
 
 
-def dictated_select(ordinal: int, hook_type: str) -> str:
+def dictated_select(
+    ordinal: int, hook_type: str, language: Language = DEFAULT_LANGUAGE
+) -> str:
+    if normalise(language) == "en":
+        return f"I pick the {hook_type} hook variant from idea {ordinal}."
     return f"Aleg varianta cu hook {hook_type} de la ideea {ordinal}."
 
 
-def rendered_titles(ideas: list[dict[str, Any]]) -> str:
+def rendered_titles(
+    ideas: list[dict[str, Any]], language: Language = DEFAULT_LANGUAGE
+) -> str:
     """The ten, in the exact conversational shape `propune-postari` teaches."""
 
     lines = []
@@ -82,11 +116,20 @@ def rendered_titles(ideas: list[dict[str, Any]]) -> str:
         lines.append(f"{idea['ordinal']}. {idea['title']}")
         lines.append(f"   {idea['angle']}")
     lines.append("")
-    lines.append("Care propunere o dezvoltăm?")
+    lines.append(
+        "Which proposal shall we develop?"
+        if normalise(language) == "en"
+        else "Care propunere o dezvoltăm?"
+    )
     return "\n".join(lines)
 
 
-def rendered_variants(ordinal: int, title: str, variants: list[dict[str, Any]]) -> str:
+def rendered_variants(
+    ordinal: int,
+    title: str,
+    variants: list[dict[str, Any]],
+    language: Language = DEFAULT_LANGUAGE,
+) -> str:
     """The five variants, numbered by hook type, hooks in full.
 
     Compact on purpose: scripts and captions live in the tables and on the
@@ -94,12 +137,22 @@ def rendered_variants(ordinal: int, title: str, variants: list[dict[str, Any]]) 
     variant is chosen by.
     """
 
-    lines = [f"Cele cinci variante pentru ideea {ordinal} — „{title}”:", ""]
+    english = normalise(language) == "en"
+    lines = [
+        f"The five variants for idea {ordinal} — “{title}”:"
+        if english
+        else f"Cele cinci variante pentru ideea {ordinal} — „{title}”:",
+        "",
+    ]
     for index, variant in enumerate(variants, start=1):
         hook = str(variant.get("hook") or "").strip()
         lines.append(f"{index}. {variant['hook_type']}: {hook}")
     lines.append("")
-    lines.append("Care variantă alegi? Textul complet al fiecăreia e în aplicație.")
+    lines.append(
+        "Which variant do you pick? The full text of each one is in the app."
+        if english
+        else "Care variantă alegi? Textul complet al fiecăreia e în aplicație."
+    )
     return "\n".join(lines)
 
 

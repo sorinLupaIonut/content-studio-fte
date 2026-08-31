@@ -542,6 +542,9 @@ class GenerationStartRequest(GenerationBatchRequest):
 
 class VariantSelectionRequest(StrictContract):
     selected: Literal[True] = True
+    # Only so the sentence this click dictates into the conversation is written
+    # in the language she is reading. The selection itself is language-free.
+    language: Language = DEFAULT_LANGUAGE
 
 
 class StreamEvent(StrictContract):

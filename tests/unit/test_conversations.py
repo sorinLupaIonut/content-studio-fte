@@ -186,5 +186,72 @@ class TestTranscript(unittest.TestCase):
         self.assertEqual(len(rows[0]["detail"]), 2_000)
 
 
+class TheSameSentenceInEnglish(unittest.TestCase):
+    """A button press is dictation, and dictation is in the language she works in.
+
+    These were Romanian only until 2026-08-31, so pressing a button in an English
+    studio wrote Romanian into the chat - `Vreau 10 idei de postare` under an
+    English interface. The sentences are still contract; there are simply two of
+    them per button, held to the same standard as the Romanian ones above.
+    """
+
+    def test_the_batch_request(self) -> None:
+        self.assertEqual(
+            dictated_batch_request("Reel", "Educație", "Memorie", language="en"),
+            "I want 10 post ideas: format Reel, pillar Educație, source Memorie.",
+        )
+
+    def test_the_focus_rides_along(self) -> None:
+        self.assertEqual(
+            dictated_batch_request(
+                "Carusel", "Conexiune", "Cărți", "burnout", language="en"
+            ),
+            "I want 10 post ideas: format Carusel, pillar Conexiune, "
+            "source Cărți. Focus: burnout.",
+        )
+
+    def test_develop_and_select(self) -> None:
+        self.assertEqual(
+            dictated_develop(3, "You are not lazy", language="en"),
+            "Develop idea 3: “You are not lazy”.",
+        )
+        self.assertEqual(
+            dictated_select(3, "CIFRA", language="en"),
+            "I pick the CIFRA hook variant from idea 3.",
+        )
+
+    def test_the_values_are_not_translated(self) -> None:
+        """`Reel`, `Educație`, `Memorie` and the hook types are identifiers the
+        tools match on. An English one is rejected by the schema."""
+        sentence = dictated_batch_request(
+            "Stories", "Poziționare", "Internet", language="en"
+        )
+        for value in ("Stories", "Poziționare", "Internet"):
+            self.assertIn(value, sentence)
+        self.assertIn("PROVOCARE", dictated_select(1, "PROVOCARE", language="en"))
+
+    def test_the_readbacks_close_in_english(self) -> None:
+        titles = rendered_titles(
+            [{"ordinal": 1, "title": "A", "angle": "b"}], language="en"
+        )
+        self.assertTrue(titles.endswith("Which proposal shall we develop?"))
+        variants = rendered_variants(
+            2, "T", [{"hook_type": "SECRET", "hook": "h"}], language="en"
+        )
+        self.assertTrue(variants.startswith("The five variants for idea 2"))
+        self.assertTrue(variants.endswith("is in the app."))
+
+    def test_naming_no_language_still_gives_the_romanian_contract(self) -> None:
+        """Every caller that predates the switch - the evals, the dataset builder -
+        keeps the exact string it asserted before."""
+        self.assertEqual(
+            dictated_batch_request("Reel", "Educație", "Memorie"),
+            dictated_batch_request("Reel", "Educație", "Memorie", language="ro"),
+        )
+        self.assertTrue(
+            dictated_develop(1, "x").startswith("Dezvoltă ideea 1")
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -606,12 +606,12 @@ def create_app(
     @app.put("/api/generation-variants/{variant_id}/selection")
     async def select_generation_variant(
         variant_id: UUID,
-        _body: VariantSelectionRequest,
+        body: VariantSelectionRequest,
         request: Request,
         identity: Identity = identity_dependency,
     ) -> dict:
         return await request.app.state.harness.select_generation_variant(
-            identity.principal_id, variant_id
+            identity.principal_id, variant_id, body.language
         )
 
     @app.get("/api/conversation")

@@ -128,7 +128,7 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
     {
         using var response = await http.PutAsJsonAsync(
             $"api/generation-variants/{Uri.EscapeDataString(variantId)}/selection",
-            new VariantSelectionDto(),
+            new VariantSelectionDto { Language = language.Code },
             Json);
         await EnsureSuccessAsync(response);
     }
