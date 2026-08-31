@@ -110,14 +110,14 @@ SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,200}$")
 #:
 #: Both halves were measured failing on 2026-08-31:
 #:
-#: · Live on Azure, `/health` reported `mcp: nu răspunde (TimeoutError)` and
+#: · Live on Azure, `/health` reported `mcp: does not answer (TimeoutError)` and
 #:   returned in 3.6s while the MCP container's own log showed every
 #:   `POST /mcp` answered `200 OK`. The probe opens a NEW streamable-HTTP
 #:   session each time - DNS, TCP, TLS, `initialize`,
 #:   `notifications/initialized`, `tools/list` - across the environment's
 #:   internal ingress. The server was never the problem; the budget was.
 #: · Locally, the first probe against a suspended Neon compute reported
-#:   `Postgres nu răspunde (TimeoutError)`; the second, warm, said `ready`.
+#:   `Postgres does not answer (TimeoutError)`; the second, warm, said `ready`.
 #:
 #: A studio that works reporting itself `degraded` is worse than a slow page:
 #: `/health` is the first thing anyone looks at, and `deploy.ps1`'s own health
@@ -151,12 +151,12 @@ def match_decisions(
     """Validate one and only one human decision for every interrupted call."""
     request_by_id = {str(item.get("call_id", "")): item for item in requests}
     if "" in request_by_id or len(request_by_id) != len(requests):
-        raise HarnessError(500, "Starea salvată conține cereri de aprobare invalide.")
+        raise HarnessError(500, "the saved state holds invalid approval requests")
 
     decision_by_id: dict[str, ApprovalDecision] = {}
     for decision in decisions:
         if decision.call_id in decision_by_id:
-            raise HarnessError(422, f"Decizia pentru {decision.call_id!r} apare de două ori.")
+            raise HarnessError(422, f"two decisions arrived for {decision.call_id!r}")
         decision_by_id[decision.call_id] = decision
 
     missing = request_by_id.keys() - decision_by_id.keys()
@@ -164,12 +164,12 @@ def match_decisions(
     if missing or extra:
         details = []
         if missing:
-            details.append("lipsesc: " + ", ".join(sorted(missing)))
+            details.append("missing: " + ", ".join(sorted(missing)))
         if extra:
-            details.append("necunoscute: " + ", ".join(sorted(extra)))
+            details.append("unknown: " + ", ".join(sorted(extra)))
         raise HarnessError(
             422,
-            "Deciziile nu corespund cererilor pending (" + "; ".join(details) + ").",
+            "the decisions do not match the pending requests (" + "; ".join(details) + ")",
         )
 
     return {
@@ -181,7 +181,7 @@ def match_decisions(
 def validate_session_id(session_id: str) -> str:
     """Keep the public id safe to reuse as an HTTP header and database key."""
     if not SESSION_ID_PATTERN.fullmatch(session_id):
-        raise HarnessError(422, "session_id conține caractere nepermise.")
+        raise HarnessError(422, "session_id holds characters that are not allowed")
     return session_id
 
 
@@ -345,7 +345,7 @@ class HarnessService:
         if missing:
             raise HarnessError(
                 503,
-                "Harness-ul nu poate porni un run; lipsesc: " + ", ".join(missing) + ".",
+                "the harness cannot start a run; missing: " + ", ".join(missing),
             )
         return self.engine, self.trail
 
@@ -362,26 +362,25 @@ class HarnessService:
         # waking either takes longer than any budget this endpoint can afford,
         # because `/health` has to answer inside the liveness probe's 10 seconds.
         # Measured 2026-08-31 on the live deployment: one probe `degraded`, the
-        # next three `ready` in 0.6s. Saying "nu răspunde" for that is a false
+        # next three `ready` in 0.6s. Saying "does not answer" for that is a false
         # alarm on the one page an operator reads first.
         def asleep_or_broken(exc: BaseException, what: str) -> str:
             if isinstance(exc, TimeoutError):
                 return (
-                    f"{what} nu a răspuns în {HEALTH_PROBE_SECONDS}s. Cel mai"
-                    " probabil doarme (scale-to-zero) - o cerere reală îl"
-                    " pornește, cu răbdare. Dacă și a doua verificare spune la"
-                    " fel, atunci chiar e oprit."
+                    f"{what} did not answer within {HEALTH_PROBE_SECONDS}s. Most"
+                    " likely asleep (scale-to-zero) - a real request wakes it, given"
+                    " patience. If a second check says the same, it really is down."
                 )
-            return f"{what} nu răspunde ({type(exc).__name__})."
+            return f"{what} does not answer ({type(exc).__name__})."
 
         async def probe_database() -> tuple[bool, str]:
             if self.engine is None:
-                return False, self.database_error or "DATABASE_URL lipsește."
+                return False, self.database_error or "DATABASE_URL is missing."
             try:
                 async with asyncio.timeout(HEALTH_PROBE_SECONDS):
                     async with self.engine.connect() as conn:
                         await conn.execute(text("SELECT 1"))
-                return True, "Conexiunea Postgres răspunde."
+                return True, "The Postgres connection answers."
             except Exception as exc:  # noqa: BLE001
                 return False, asleep_or_broken(exc, "Postgres")
 
@@ -391,9 +390,9 @@ class HarnessService:
                 async with asyncio.timeout(HEALTH_PROBE_SECONDS):
                     await probe.connect()
                     tools = await probe.list_tools()
-                return True, f"Conectat; {len(tools)} unelte disponibile."
+                return True, f"Connected; {len(tools)} tools available."
             except Exception as exc:  # noqa: BLE001
-                return False, asleep_or_broken(exc, "Serverul MCP")
+                return False, asleep_or_broken(exc, "The MCP server")
             finally:
                 await probe.cleanup()
 
@@ -409,9 +408,9 @@ class HarnessService:
                 configured=openai_ok,
                 active=openai_ok,
                 detail=(
-                    "Cheie configurată; fără apel de model în health."
+                    "Key configured; no model call is made in health."
                     if openai_ok
-                    else "OPENAI_API_KEY lipsește."
+                    else "OPENAI_API_KEY is missing."
                 ),
             ),
             "postgres": BackendHealth(
@@ -424,9 +423,9 @@ class HarnessService:
                 configured=skills_ok,
                 active=skills_ok,
                 detail=(
-                    "Folderul de skill-uri e la locul lui."
+                    "The skills folder is where it should be."
                     if skills_ok
-                    else "Folderul de skill-uri lipsește."
+                    else "The skills folder is not on disk."
                 ),
             ),
             # THIS ENDPOINT SAID `ready` THROUGH A COMPLETE OUTAGE. From the
@@ -440,17 +439,17 @@ class HarnessService:
                 configured=sandbox_ok,
                 active=sandbox_ok,
                 detail=(
-                    "Cheie configurată; niciun container pornit în health."
+                    "Key configured; no container is started in health."
                     if sandbox_ok
-                    else "E2B_API_KEY lipsește: metoda nu poate ajunge la model."
+                    else "E2B_API_KEY is missing: the method cannot reach the model."
                 ),
             ),
             "artifacts": BackendHealth(
                 configured=False,
                 active=False,
                 detail=(
-                    "Amânat explicit până la D5; postările rămân date de domeniu, "
-                    "nu artifacts."
+                    "Deferred to D5 on purpose; posts stay domain data, "
+                    "not artifacts."
                 ),
             ),
             # Reported, never required: a studio that cannot be watched still
@@ -461,7 +460,7 @@ class HarnessService:
                 active=bool(observability and observability.get("ok")),
                 detail=str(
                     (observability or {}).get(
-                        "detail", "Telemetria nu a fost inițializată."
+                        "detail", "Telemetry was never initialised."
                     )
                 ),
             ),
@@ -474,7 +473,7 @@ class HarnessService:
                 detail=str(
                     (observability or {})
                     .get("phoenix", {})
-                    .get("detail", "Phoenix nu a fost inițializat.")
+                    .get("detail", "Phoenix was never initialised.")
                 ),
             ),
         }
@@ -509,12 +508,12 @@ class HarnessService:
         if pending is not None:
             raise HarnessError(
                 409,
-                f"Sesiunea are deja run-ul {pending['id']} în așteptarea aprobării.",
+                f"the session already has run {pending['id']} waiting for approval",
             )
 
         run_id = await trail.open_run(session_id, message)
         if run_id is None:
-            raise HarnessError(503, "Run-ul nu a putut fi deschis în starea durabilă.")
+            raise HarnessError(503, "the run could not be opened in durable state")
 
         data_mcp = self._data_mcp(session_id, principal_id)
         try:
@@ -537,7 +536,7 @@ class HarnessService:
             raise
         except Exception as exc:  # noqa: BLE001
             await trail.failed(run_id, exc)
-            raise HarnessError(502, f"Run-ul a eșuat ({type(exc).__name__}).") from exc
+            raise HarnessError(502, f"the run failed ({type(exc).__name__})") from exc
         finally:
             await data_mcp.cleanup()
 
@@ -551,7 +550,7 @@ class HarnessService:
             _, profile_md = await read_profile(data_mcp)
         except Exception as exc:  # noqa: BLE001
             raise HarnessError(
-                502, f"Profilul nu poate fi citit acum ({type(exc).__name__})."
+                502, f"the profile cannot be read right now ({type(exc).__name__})"
             ) from exc
         finally:
             await data_mcp.cleanup()
@@ -574,7 +573,7 @@ class HarnessService:
             _, profile_md = await read_profile(data_mcp)
         except Exception as exc:  # noqa: BLE001
             raise HarnessError(
-                502, f"Profilul nu poate fi citit acum ({type(exc).__name__})."
+                502, f"the profile cannot be read right now ({type(exc).__name__})"
             ) from exc
         finally:
             await data_mcp.cleanup()
@@ -592,12 +591,12 @@ class HarnessService:
             "profile", f"{principal_id}-{uuid.uuid4().hex[:8]}"
         )
         message = (
-            "Pregătește o singură actualizare de profil. Cheamă `update_profile` "
-            "exact o dată cu secțiunea și textul de mai jos, fără să reformulezi. "
-            "Nu chema altă unealtă și nu presupune că salvarea este aprobată; "
-            "poarta aplicației va cere confirmarea utilizatoarei.\n\n"
-            f"SECȚIUNE: {section.update_name}\n"
-            "TEXT EXACT ÎNTRE DELIMITATOARE:\n"
+            "Prepare a single profile update. Call `update_profile` exactly once "
+            "with the section and the text below, without rephrasing. Do not "
+            "call another tool and do not assume the save is approved; the "
+            "application's gate will ask the user to confirm.\n\n"
+            f"SECTION: {section.update_name}\n"
+            "EXACT TEXT BETWEEN THE DELIMITERS:\n"
             "<profile-section>\n"
             f"{new_text}\n"
             "</profile-section>"
@@ -605,7 +604,7 @@ class HarnessService:
         result = await self.run(message, session_id)
         if result.status != "pending" or not result.requests:
             raise HarnessError(
-                502, "Agentul nu a pregătit cererea de aprobare pentru profil."
+                502, "the agent did not prepare the profile approval request"
             )
         return result
 
@@ -618,8 +617,10 @@ class HarnessService:
             await internal.connect()
             items = await SavedPostClient(internal).list()
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Postările salvate nu pot fi citite ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the saved posts cannot be read ({type(exc).__name__})",
+                "saved_posts_unreadable",
             ) from exc
         finally:
             await internal.cleanup()
@@ -686,7 +687,7 @@ class HarnessService:
         if unknown:
             raise HarnessError(
                 422,
-                "Aceste variante nu sunt alese sau nu sunt gata: "
+                "these variants are not chosen, or are not ready: "
                 + ", ".join(unknown),
             )
 
@@ -694,11 +695,11 @@ class HarnessService:
             "posts-save", f"{principal_id}-{uuid.uuid4().hex[:8]}"
         )
         message = (
-            "Salvează definitiv postările alese de Viorela. Cheamă "
-            "`save_posts_batch` exact o dată, cu exact lista de id-uri de mai jos, "
-            "în aceeași ordine, fără să adaugi și fără să scoți vreunul. Nu chema "
-            "altă unealtă și nu presupune că salvarea este aprobată; poarta "
-            "aplicației va cere confirmarea ei.\n\n"
+            "Save for good the posts Viorela chose. Call `save_posts_batch` "
+            "exactly once, with exactly the list of ids below, in the same "
+            "order, without adding or removing any. Do not call another tool "
+            "and do not assume the save is approved; the application's gate "
+            "will ask her to confirm.\n\n"
             f"VARIANT_IDS: {json.dumps(wanted, ensure_ascii=False)}"
         )
         return await self._prepared(
@@ -720,13 +721,13 @@ class HarnessService:
             "posts-update", f"{principal_id}-{uuid.uuid4().hex[:8]}"
         )
         message = (
-            "Înlocuiește postarea salvată de mai jos. Cheamă `update_post` exact o "
-            "dată, cu `post_id` și cu conținutul COMPLET dintre delimitatoare, "
-            "copiat literal, fără să reformulezi nimic și fără să completezi "
-            "câmpuri de la tine. Nu chema altă unealtă; poarta aplicației va cere "
-            "confirmarea ei.\n\n"
+            "Replace the saved post below. Call `update_post` exactly once, with "
+            "`post_id` and with the COMPLETE content between the delimiters, "
+            "copied literally, without rephrasing anything and without filling "
+            "in fields of your own. Do not call another tool; the application's "
+            "gate will ask her to confirm.\n\n"
             f"POST_ID: {post_id}\n"
-            "CONȚINUT EXACT ÎNTRE DELIMITATOARE:\n"
+            "EXACT CONTENT BETWEEN THE DELIMITERS:\n"
             "<post-json>\n"
             f"{json.dumps(payload, ensure_ascii=False, indent=2)}\n"
             "</post-json>"
@@ -761,10 +762,10 @@ class HarnessService:
 
         _, trail = self._require_ready()
         await trail.failed(result.run_id, RuntimeError(mismatch))
-        raise HarnessError(
+        raise CodedError(
             502,
-            "Agentul nu a pregătit exact cererea aplicației, așa că nu îți cer "
-            f"confirmarea pe ea ({mismatch}). Încearcă din nou.",
+            f"the agent did not prepare the application's exact request ({mismatch})",
+            "gate_mismatch",
         )
 
     @staticmethod
@@ -772,13 +773,13 @@ class HarnessService:
         result: RunResponse, tool_name: str, expected: dict[str, Any]
     ) -> str | None:
         if result.status != "pending" or len(result.requests) != 1:
-            return "nu s-a oprit la poartă cu o singură cerere"
+            return "did not stop at the gate with a single request"
         request = result.requests[0]
         if request.tool_name != tool_name:
-            return f"a cerut {request.tool_name!r} în loc de {tool_name!r}"
+            return f"asked for {request.tool_name!r} instead of {tool_name!r}"
         for key, value in expected.items():
             if request.arguments.get(key) != value:
-                return f"câmpul {key!r} a fost modificat"
+                return f"the field {key!r} was modified"
         return None
 
     async def start_generation(
@@ -834,13 +835,15 @@ class HarnessService:
                 )
             return batch
         except ActiveBatchError as exc:
-            raise HarnessError(409, str(exc)) from exc
+            raise CodedError(409, exc.detail, exc.code) from exc
         except ValueError as exc:
             raise HarnessError(422, str(exc)) from exc
         except Exception as exc:  # noqa: BLE001
             logger.exception("start_generation failed for %s", principal_id)
-            raise HarnessError(
-                502, f"Generatorul nu a putut porni ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the generator could not start ({type(exc).__name__})",
+                "generation_start_failed",
             ) from exc
 
     async def current_generation(
@@ -861,7 +864,7 @@ class HarnessService:
             return current
         except Exception as exc:  # noqa: BLE001
             raise HarnessError(
-                502, f"Lotul curent nu poate fi citit ({type(exc).__name__})."
+                502, f"the current batch cannot be read ({type(exc).__name__})"
             ) from exc
 
     async def conversation_transcript(self, principal_id: str) -> dict[str, Any]:
@@ -878,8 +881,10 @@ class HarnessService:
                 str(conversation["session_id"])
             )
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Conversația nu poate fi citită ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the conversation cannot be read ({type(exc).__name__})",
+                "conversation_unreadable",
             ) from exc
         return {
             "session_id": str(conversation["session_id"]),
@@ -900,8 +905,10 @@ class HarnessService:
                     await self.generator.cancel(principal_id, UUID(str(batch_id)))
             fresh = await self.conversations.begin_new(principal_id)
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Conversația nouă nu a putut porni ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the new conversation could not start ({type(exc).__name__})",
+                "conversation_start_failed",
             ) from exc
         return {"session_id": str(fresh["session_id"])}
 
@@ -911,10 +918,12 @@ class HarnessService:
         try:
             return await self.generator.get(principal_id, batch_id)
         except GenerationAccessError as exc:
-            raise HarnessError(404, str(exc)) from exc
+            raise CodedError(404, exc.detail, exc.code) from exc
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Lotul nu poate fi citit ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the batch cannot be read ({type(exc).__name__})",
+                "batch_unreadable",
             ) from exc
 
     async def generation_events(
@@ -946,12 +955,14 @@ class HarnessService:
                 principal_id, batch_id, ordinal, trail=self.trail, dictate=dictate
             )
         except GenerationAccessError as exc:
-            raise HarnessError(404, str(exc)) from exc
+            raise CodedError(404, exc.detail, exc.code) from exc
         except ValueError as exc:
             raise HarnessError(422, str(exc)) from exc
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Ideea nu a putut fi dezvoltată ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the idea could not be developed ({type(exc).__name__})",
+                "idea_develop_failed",
             ) from exc
 
     async def cancel_generation(
@@ -960,10 +971,12 @@ class HarnessService:
         try:
             return await self.generator.cancel(principal_id, batch_id)
         except GenerationAccessError as exc:
-            raise HarnessError(404, str(exc)) from exc
+            raise CodedError(404, exc.detail, exc.code) from exc
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Lotul nu a putut fi oprit ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the batch could not be stopped ({type(exc).__name__})",
+                "batch_cancel_failed",
             ) from exc
 
     async def select_generation_variant(
@@ -974,16 +987,20 @@ class HarnessService:
         except ValueError as exc:
             raise HarnessError(422, str(exc)) from exc
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Varianta nu a putut fi selectată ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the variant could not be selected ({type(exc).__name__})",
+                "variant_select_failed",
             ) from exc
 
     async def library(self, principal_id: str) -> list[dict[str, Any]]:
         try:
             return await self.generator.library(principal_id)
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Biblioteca nu poate fi citită ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the library cannot be read ({type(exc).__name__})",
+                "library_unreadable",
             ) from exc
 
     async def _execute_chat_trigger(
@@ -1039,7 +1056,7 @@ class HarnessService:
                     principal_id, UUID(str(request.target.id))
                 )
             elif request.target.kind != "general":
-                raise ValueError("Această țintă de chat intră într-un pas ulterior.")
+                raise ValueError("this chat target belongs to a later step")
             # The chat writes into the SAME session the buttons dictate into:
             # one conversation, two ways of speaking (2026-08-27).
             conversation = await self.conversations.active(principal_id)
@@ -1052,27 +1069,29 @@ class HarnessService:
                 session_id=str(conversation["session_id"]),
             )
         except ActiveChatError as exc:
-            raise HarnessError(409, str(exc)) from exc
+            raise CodedError(409, exc.detail, exc.code) from exc
         except (GenerationAccessError, ChatAccessError) as exc:
-            raise HarnessError(404, str(exc)) from exc
+            raise CodedError(404, exc.detail, exc.code) from exc
         except (TypeError, ValueError) as exc:
             raise HarnessError(422, str(exc)) from exc
         except Exception as exc:  # noqa: BLE001
-            raise HarnessError(
-                502, f"Chatul nu a putut porni ({type(exc).__name__})."
+            raise CodedError(
+                502,
+                f"the chat could not start ({type(exc).__name__})",
+                "chat_start_failed",
             ) from exc
 
     async def chat_events(self, principal_id: str, run_id: str, sequence: int):
         try:
             return self.chat.events(principal_id, run_id, sequence)
         except ChatAccessError as exc:
-            raise HarnessError(404, str(exc)) from exc
+            raise CodedError(404, exc.detail, exc.code) from exc
 
     async def cancel_chat(self, principal_id: str, run_id: str) -> dict[str, str]:
         try:
             return await self.chat.cancel(principal_id, run_id)
         except ChatAccessError as exc:
-            raise HarnessError(404, str(exc)) from exc
+            raise CodedError(404, exc.detail, exc.code) from exc
 
     async def pending(self, session_id: str) -> PendingResponse:
         _, trail = self._require_ready()
@@ -1082,7 +1101,7 @@ class HarnessService:
         except GateError as exc:
             raise HarnessError(503, str(exc)) from exc
         if pending is None:
-            raise HarnessError(404, "Sesiunea nu are niciun run în așteptarea aprobării.")
+            raise HarnessError(404, "the session has no run waiting for approval")
         return PendingResponse(
             run_id=str(pending["id"]),
             session_id=session_id,
@@ -1107,7 +1126,7 @@ class HarnessService:
         except GateError as exc:
             raise HarnessError(503, str(exc)) from exc
         if pending is None or str(pending["id"]) != run_id:
-            raise HarnessError(404, "Run-ul nu mai așteaptă o decizie în această sesiune.")
+            raise HarnessError(404, "the run no longer waits for a decision in this session")
 
         matched = match_decisions(pending["requests"], decisions)
         # The gate interrupts *before* the call, so the write happens here, on
@@ -1129,7 +1148,7 @@ class HarnessService:
                 describe_request(item)[2]: item for item in state.get_interruptions()
             }
             if runtime_requests.keys() != matched.keys():
-                raise HarnessError(409, "Cererile din RunState nu mai corespund stării pending.")
+                raise HarnessError(409, "the RunState requests no longer match the pending state")
 
             enriched: list[dict[str, Any]] = []
             rejected: list[tuple[str, str]] = []
@@ -1140,8 +1159,8 @@ class HarnessService:
                     state.approve(request)
                 else:
                     reason = decision.reason.strip() or (
-                        "Viorela n-a aprobat scrierea. Nu insista; "
-                        "întreab-o ce vrea schimbat."
+                        "Viorela did not approve the write. Do not insist; "
+                        "ask her what she wants changed."
                     )
                     state.reject(request, rejection_message=reason)
                     rejected.append((tool_name, call_id))
@@ -1175,7 +1194,7 @@ class HarnessService:
         except Exception as exc:  # noqa: BLE001
             if resumed:
                 await trail.failed(run_id, exc)
-            raise HarnessError(502, f"Reluarea run-ului a eșuat ({type(exc).__name__}).") from exc
+            raise HarnessError(502, f"resuming the run failed ({type(exc).__name__})") from exc
         finally:
             await data_mcp.cleanup()
 

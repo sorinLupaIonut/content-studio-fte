@@ -26,3 +26,19 @@ class CodedError(RuntimeError):
         self.status_code = status_code
         self.detail = detail
         self.code = code
+
+
+class RefusalError(RuntimeError):
+    """A refusal raised deep in the harness, carrying its code with it.
+
+    `CodedError` is the HTTP shape and knows its status. This is the domain
+    shape and deliberately does not: the same refusal is a 404 on one route and
+    a 409 on another, so the status belongs to the service layer that catches
+    it, while the code — the thing the interface switches on — belongs to the
+    place that knows what was refused.
+    """
+
+    def __init__(self, detail: str, code: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.code = code

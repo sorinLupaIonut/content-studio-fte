@@ -165,7 +165,7 @@ else if (_batch is not null)
                     @if (idea.Status == "failed")
                     {
                         <div class="idea-error">
-                            @idea.LastError
+                            @Values.GenerationError(T, idea.LastError)
                             <button class="button button-quiet" type="button" disabled="@_busy" @onclick="() => DevelopAsync(idea)">@T[Copy.DevelopRetry]</button>
                         </div>
                     }

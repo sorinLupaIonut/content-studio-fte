@@ -83,19 +83,55 @@ class ClientFacingGenerationErrorTests(unittest.TestCase):
     harness had no E2B_API_KEY and the studio told its client
     `Generarea a eșuat (MissingConfig).`, which names nothing she can act on and
     invites the one thing that cannot help: pressing the button again.
+
+    Since 2026-08-31 it returns a CODE rather than a sentence, because the value
+    is stored in `generation_ideas.last_error` and the card prints that column
+    verbatim - the one client-facing string with no language net in front of it.
+    The wording lives in `Values.GenerationError`, which is why the last test
+    here reaches across into the C# and checks that every code has some.
     """
 
     def test_a_missing_setting_is_named_as_configuration_not_as_a_class(self) -> None:
-        message = safe_generation_error(MissingConfig("E2B_API_KEY lipseste"))
-        self.assertNotIn("MissingConfig", message)
-        self.assertIn("configurat", message)
+        code = safe_generation_error(MissingConfig("E2B_API_KEY lipseste"))
+        self.assertNotIn("MissingConfig", code)
+        self.assertEqual("missing_config", code)
 
     def test_an_unrecognised_failure_still_falls_back_to_the_class_name(self) -> None:
-        self.assertIn("ValueError", safe_generation_error(ValueError("nobody knows")))
+        self.assertEqual("failed:ValueError", safe_generation_error(ValueError("nobody knows")))
 
-    def test_the_recognised_model_failures_keep_their_own_sentences(self) -> None:
-        self.assertIn("Limita", safe_generation_error(RuntimeError("Rate limit reached")))
-        self.assertIn("structurat", safe_generation_error(ModelBehaviorError("Invalid JSON")))
+    def test_the_recognised_model_failures_keep_their_own_codes(self) -> None:
+        self.assertEqual(
+            "rate_limit", safe_generation_error(RuntimeError("Rate limit reached"))
+        )
+        self.assertEqual(
+            "structured_output", safe_generation_error(ModelBehaviorError("Invalid JSON"))
+        )
+
+    def test_every_code_has_wording_waiting_for_it_in_the_interface(self) -> None:
+        """The one failure splitting the sentence from its words can hide.
+
+        `Values.GenerationError` passes an unrecognised value through unchanged.
+        That is right for the rows written before the codes existed, and it is
+        exactly wrong for a code added afterwards and never worded: she would
+        read `max_turns` on the card and nothing would have raised.
+        """
+        values = (
+            Path(__file__).resolve().parents[2]
+            / "ui"
+            / "StudioViorela"
+            / "Localization"
+            / "Values.cs"
+        ).read_text("utf-8")
+        for code in (
+            "rate_limit",
+            "structured_output",
+            "max_turns",
+            "timeout",
+            "missing_config",
+            "failed:",
+        ):
+            with self.subTest(code=code):
+                self.assertIn(f'"{code}', values, f"{code} has no wording in Values.cs")
 
 
 if __name__ == "__main__":

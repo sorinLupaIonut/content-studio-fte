@@ -32,6 +32,7 @@ from content_studio.harness.conversations import (
     rendered_variants,
 )
 from content_studio.harness.drafts import GenerationDraftClient
+from content_studio.harness.errors import RefusalError
 from content_studio.harness.generation import (
     GenerationBatchRequest,
     GenerationStartRequest,
@@ -147,40 +148,50 @@ GENERATION_MAX_TURNS = 20
 METHOD_MARKERS = ("SKILL.md", "references/")
 
 
-# `safe_generation_error` deliberately hands the client a short Romanian sentence
-# and the exception class name — she must never read a stack trace. The operator
-# still needs one, so both boundaries below log it here. Second half of D7; the
-# first was the 502 handler in service.py.
+# `safe_generation_error` deliberately hands the client a short code and, where
+# there is nothing better to say, the exception class name - she must never read
+# a stack trace. The operator still needs one, so both boundaries below log it
+# here. Second half of D7; the first was the 502 handler in service.py.
+#
+# IT RETURNS A CODE AND NOT A SENTENCE, and that is the one thing to keep. The
+# value is written to `generation_ideas.last_error` and the card prints that
+# column verbatim - the only client-facing string in the harness with no
+# language safety net in front of it. A Romanian sentence stored there in
+# March is still Romanian when an English page reads it in June. A code
+# survives the round trip through the database; a sentence does not.
+# `Values.GenerationError` chooses the words, and passes an unrecognised value
+# through unchanged, which is what keeps the rows written before 2026-08-31
+# readable.
 logger = logging.getLogger("content_studio.harness.generator")
 
 
-class ActiveBatchError(RuntimeError):
+class ActiveBatchError(RefusalError):
     """A principal must explicitly replace their current draft."""
 
 
-class GenerationAccessError(RuntimeError):
+class GenerationAccessError(RefusalError):
     """A batch or variant does not belong to the authenticated principal."""
 
 
 def safe_generation_error(exc: BaseException) -> str:
-    """Return a useful error without account, prompt or source content."""
+    """Return a stable code for the failure, naming no account, prompt or source."""
 
     name = type(exc).__name__
     message = str(exc).lower()
     if "rate limit" in message or name == "RateLimitError":
-        return "Limita temporară a modelului a fost atinsă."
+        return "rate_limit"
     if "invalid json" in message or "structured output" in message:
-        return "Modelul nu a respectat formatul structurat."
+        return "structured_output"
     if "max turns" in message:
-        return "Skill-ul nu a terminat în limita de pași."
+        return "max_turns"
     if isinstance(exc, asyncio.TimeoutError):
-        return "Generarea a depășit timpul maxim."
+        return "timeout"
     # She read `Generarea a eșuat (MissingConfig)` on 2026-08-31 and it told her
     # nothing: not what broke, not whether it was her doing, not whether trying
     # again would help. It is the one failure here that no retry can clear.
     if isinstance(exc, MissingConfig):
-        return "Studioul nu e configurat complet; generarea nu poate porni."
-    return f"Generarea a eșuat ({name})."
+        return "missing_config"
+    return f"failed:{name}"
 
 
 def retryable_generation_error(exc: BaseException) -> bool:
@@ -309,7 +320,8 @@ class GenerationCoordinator:
         current = await self.current(principal_id, public=False)
         if current is not None and not start_request.replace_current:
             raise ActiveBatchError(
-                "Există deja un lot curent. Confirmă înlocuirea lui ca să continui."
+                "a current batch already exists; replacing it must be confirmed",
+                "active_batch",
             )
 
         if start_request.replace_current:
@@ -443,13 +455,17 @@ class GenerationCoordinator:
 
         batch = await self.current(principal_id, public=False)
         if batch is None:
-            raise GenerationAccessError("Nu există un lot curent pentru această țintă.")
+            raise GenerationAccessError(
+                "there is no current batch for this target", "no_current_batch"
+            )
         for idea in batch.get("ideas", []):
             for variant in idea.get("variants", []):
                 if str(variant.get("id")) != str(variant_id):
                     continue
                 if variant.get("status") != "ready":
-                    raise GenerationAccessError("Varianta aleasă nu este încă pregătită.")
+                    raise GenerationAccessError(
+                        "the chosen variant is not ready yet", "variant_not_ready"
+                    )
                 return {
                     "kind": "generation_variant",
                     "target_id": str(variant_id),
@@ -476,7 +492,10 @@ class GenerationCoordinator:
                         )
                     },
                 }
-        raise GenerationAccessError("Varianta nu aparține lotului curent al contului.")
+        raise GenerationAccessError(
+            "the variant does not belong to the account's current batch",
+            "variant_not_in_batch",
+        )
 
     async def develop(
         self,
@@ -519,7 +538,7 @@ class GenerationCoordinator:
             None,
         )
         if idea is None:
-            raise GenerationAccessError(f"Lotul nu are ideea {ordinal}.")
+            raise GenerationAccessError(f"the batch has no idea {ordinal}", "idea_not_in_batch")
         if idea.get("status") == "ready":
             return public_batch(raw)
 
@@ -542,7 +561,7 @@ class GenerationCoordinator:
         if trail is not None:
             run_id = await trail.open_run(
                 self._session_id("generation-detail", principal_id),
-                f"Dezvoltă ideea {ordinal} din lotul {str(batch_id)[:8]}",
+                f"develop idea {ordinal} of batch {str(batch_id)[:8]}",
             )
 
         # The click becomes a sentence in the conversation, before the work
@@ -1124,8 +1143,8 @@ class GenerationCoordinator:
         if opened:
             return
         logger.warning(
-            "run %s (%s): a scris FARA sa deschida metoda - niciun fisier din"
-            " skills/ nu a fost citit",
+            "run %s (%s): wrote WITHOUT opening the method - no file under"
+            " skills/ was read",
             label,
             getattr(agent, "model", "?"),
         )
@@ -1162,7 +1181,9 @@ class GenerationCoordinator:
     @staticmethod
     def _ensure_owner(batch: dict[str, Any], principal_id: str) -> None:
         if str(batch.get("owner_principal_id")) != principal_id:
-            raise GenerationAccessError("Lotul nu aparține contului autentificat.")
+            raise GenerationAccessError(
+                "the batch does not belong to the authenticated principal", "batch_not_owned"
+            )
 
     @staticmethod
     def _batch_signature(batch: dict[str, Any]) -> str:

@@ -61,7 +61,7 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
                 {
                     CallId = request.CallId,
                     Approved = approved,
-                    Reason = approved ? "Confirmat din interfața Studio." : "Anulat din interfața Studio."
+                    Reason = approved ? "Confirmed in the Studio interface." : "Cancelled in the Studio interface."
                 }).ToList(),
                 Language = language.Code
             });
@@ -236,6 +236,40 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
                         return Tr[Copy.NoCurrentBatch];
                     case "account_not_provisioned":
                         return Tr[Copy.AccountNotProvisioned];
+                    case "active_batch":
+                        return Tr[Copy.ActiveBatch];
+                    case "variant_not_ready":
+                        return Tr[Copy.VariantNotReady];
+                    case "variant_not_in_batch":
+                        return Tr[Copy.VariantNotInBatch];
+                    case "batch_not_owned":
+                        return Tr[Copy.BatchNotOwned];
+                    case "chat_busy":
+                        return Tr[Copy.ChatBusy];
+                    case "chat_run_not_owned":
+                        return Tr[Copy.ChatRunNotOwned];
+                    case "generation_start_failed":
+                        return Tr[Copy.GenerationStartFailed];
+                    case "saved_posts_unreadable":
+                        return Tr[Copy.SavedPostsUnreadable];
+                    case "conversation_unreadable":
+                        return Tr[Copy.ConversationUnreadable];
+                    case "conversation_start_failed":
+                        return Tr[Copy.ConversationStartFailed];
+                    case "batch_unreadable":
+                        return Tr[Copy.BatchUnreadable];
+                    case "idea_develop_failed":
+                        return Tr[Copy.IdeaDevelopFailed];
+                    case "batch_cancel_failed":
+                        return Tr[Copy.BatchCancelFailed];
+                    case "variant_select_failed":
+                        return Tr[Copy.VariantSelectFailed];
+                    case "library_unreadable":
+                        return Tr[Copy.LibraryUnreadable];
+                    case "chat_start_failed":
+                        return Tr[Copy.ChatStartFailed];
+                    case "gate_mismatch":
+                        return Tr[Copy.GateMismatch];
                 }
             }
 

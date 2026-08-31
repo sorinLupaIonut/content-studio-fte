@@ -142,6 +142,54 @@ public static class Values
             _ => status
         };
 
+    /// <summary>
+    /// What she reads when one idea fails.
+    ///
+    /// The harness stores a CODE in `generation_ideas.last_error`, not a
+    /// sentence, because the card prints that column verbatim — it is the one
+    /// client-facing string with no language net in front of it, and a row
+    /// written in Romanian in March is still Romanian when an English page
+    /// reads it in June.
+    ///
+    /// An unrecognised value passes straight through. That is deliberate: rows
+    /// written before 2026-08-31 hold whole Romanian sentences, and showing her
+    /// the sentence she already saw beats showing her nothing. It is also the
+    /// one way this can fail quietly — see the test in
+    /// `tests/unit/test_failure_diagnosis.py` that reads this file.
+    /// </summary>
+    public static string GenerationError(Translator t, string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return string.Empty;
+        }
+        if (code.StartsWith("failed:", StringComparison.Ordinal))
+        {
+            var name = code["failed:".Length..];
+            return t.Pick(
+                $"Generarea a eșuat ({name}).", $"The generation failed ({name}).");
+        }
+        return code switch
+        {
+            "rate_limit" => t.Pick(
+                "Limita temporară a modelului a fost atinsă.",
+                "The model's temporary rate limit was reached."),
+            "structured_output" => t.Pick(
+                "Modelul nu a respectat formatul structurat.",
+                "The model did not honour the structured format."),
+            "max_turns" => t.Pick(
+                "Skill-ul nu a terminat în limita de pași.",
+                "The skill did not finish within its step limit."),
+            "timeout" => t.Pick(
+                "Generarea a depășit timpul maxim.",
+                "The generation ran past its time limit."),
+            "missing_config" => t.Pick(
+                "Studioul nu e configurat complet; generarea nu poate porni.",
+                "The studio is not fully configured; generation cannot start."),
+            _ => code,
+        };
+    }
+
     // ---- profile sections ---------------------------------------------------
 
     public static string GroupLabel(Translator t, string group) => group switch

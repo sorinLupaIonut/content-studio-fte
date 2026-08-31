@@ -416,6 +416,68 @@ public static class Copy
         "Nu există un lot curent din care să salvezi.",
         "There is no current batch to save from.");
 
+    // ---- refusals the harness sends as a code -------------------------------
+    // The server's own `detail` stays English: it is for the log and for whoever
+    // reads the API directly. What she reads is here, in both languages. A code
+    // added on the server with no line here is not an error — `ReadErrorAsync`
+    // falls back to the generic sentence — which is exactly what makes it easy
+    // to forget, and why the English page used to say "cererea a eșuat" for
+    // nine different refusals that each had something specific to say.
+    public static readonly Phrase ActiveBatch = new(
+        "Ai deja un lot curent. Confirmă înlocuirea lui ca să continui.",
+        "You already have a current batch. Confirm replacing it to continue.");
+    public static readonly Phrase VariantNotReady = new(
+        "Varianta aleasă nu este încă gata.",
+        "The chosen variant is not ready yet.");
+    public static readonly Phrase VariantNotInBatch = new(
+        "Varianta nu face parte din lotul tău curent.",
+        "That variant is not part of your current batch.");
+    public static readonly Phrase BatchNotOwned = new(
+        "Lotul nu aparține contului tău.",
+        "That batch does not belong to your account.");
+    public static readonly Phrase ChatBusy = new(
+        "Există deja un răspuns în curs. Oprește-l înainte.",
+        "An answer is already in flight. Stop it first.");
+    public static readonly Phrase ChatRunNotOwned = new(
+        "Conversația nu aparține contului tău.",
+        "That conversation does not belong to your account.");
+
+    public static readonly Phrase GenerationStartFailed = new(
+        "Generatorul nu a putut porni. Încearcă din nou.",
+        "The generator could not start. Try again.");
+    public static readonly Phrase SavedPostsUnreadable = new(
+        "Postările salvate nu pot fi citite acum.",
+        "The saved posts cannot be read right now.");
+    public static readonly Phrase ConversationUnreadable = new(
+        "Conversația nu poate fi citită acum.",
+        "The conversation cannot be read right now.");
+    public static readonly Phrase ConversationStartFailed = new(
+        "Conversația nouă nu a putut porni.",
+        "The new conversation could not start.");
+    public static readonly Phrase BatchUnreadable = new(
+        "Lotul nu poate fi citit acum.",
+        "The batch cannot be read right now.");
+    public static readonly Phrase IdeaDevelopFailed = new(
+        "Ideea nu a putut fi dezvoltată. Încearcă din nou.",
+        "The idea could not be developed. Try again.");
+    public static readonly Phrase BatchCancelFailed = new(
+        "Lotul nu a putut fi oprit.",
+        "The batch could not be stopped.");
+    public static readonly Phrase VariantSelectFailed = new(
+        "Varianta nu a putut fi aleasă. Încearcă din nou.",
+        "The variant could not be selected. Try again.");
+    public static readonly Phrase LibraryUnreadable = new(
+        "Biblioteca nu poate fi citită acum.",
+        "The library cannot be read right now.");
+    public static readonly Phrase ChatStartFailed = new(
+        "Chatul nu a putut porni. Încearcă din nou.",
+        "The chat could not start. Try again.");
+    public static readonly Phrase GateMismatch = new(
+        "Agentul nu a pregătit exact cererea aplicației, așa că nu îți cer "
+        + "confirmarea pe ea. Încearcă din nou.",
+        "The agent did not prepare the application's exact request, so I am not "
+        + "asking you to confirm it. Try again.");
+
     public static readonly Phrase AdminCannotSuspendSelf = new(
         "Nu îți poți suspenda propriul cont.",
         "You cannot suspend your own account.");
