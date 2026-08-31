@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="1000" height="700"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 780" width="1000" height="780"
      font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
      role="img" aria-labelledby="t2 d2">
   <title id="t2">The stack that runs in production, and the three places it diverges</title>
@@ -19,71 +19,85 @@
     </marker>
   </defs>
 
-  <rect width="1000" height="700" fill="#FBFAF7"/>
+  <rect width="1000" height="780" fill="#FBFAF7"/>
 
-  <text x="40" y="46" font-size="24" font-weight="700" fill="#1A2420">The deployed stack, and the three divergences</text>
-  <text x="40" y="72" font-size="14" fill="#6B7A74">Same control-plane / execution-plane split as the reference. Three differences, each a decision.</text>
+  <text x="40" y="48" font-size="25" font-weight="700" fill="#1A2420">The deployed stack, and the three divergences</text>
+  <text x="40" y="75" font-size="14" fill="#6B7A74">Same control-plane / execution-plane split as the reference. Three differences, each a decision.</text>
 
-  <rect x="330" y="96" width="340" height="52" rx="6" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
-  <text x="500" y="120" font-size="15" font-weight="600" fill="#1A2420" text-anchor="middle">Browser · Blazor WebAssembly</text>
-  <text x="500" y="139" font-size="12" fill="#6B7A74" text-anchor="middle">buttons and chat — ONE conversation</text>
-  <path d="M500,148 L500,178" stroke="#3A5BB8" stroke-width="2.5" fill="none" marker-end="url(#b2)"/>
-  <text x="512" y="170" font-size="12" fill="#3A5BB8">HTTPS · Easy Auth</text>
+  <!-- browser -->
+  <rect x="330" y="104" width="340" height="54" rx="6" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
+  <text x="500" y="128" font-size="15" font-weight="600" fill="#1A2420" text-anchor="middle">Browser · Blazor WebAssembly</text>
+  <text x="500" y="147" font-size="12" fill="#6B7A74" text-anchor="middle">buttons and chat — ONE conversation</text>
+  <path d="M500,158 L500,192" stroke="#3A5BB8" stroke-width="2.5" fill="none" marker-end="url(#b2)"/>
+  <text x="514" y="182" font-size="12" fill="#3A5BB8">HTTPS · Easy Auth</text>
 
-  <rect x="30" y="182" width="580" height="340" rx="8" fill="#E1E8FA" stroke="#3A5BB8" stroke-width="1.5" stroke-dasharray="8 5" opacity="0.55"/>
-  <text x="48" y="204" font-size="11" font-weight="700" fill="#2A4590" letter-spacing="1.5">AZURE CONTAINER APPS · SCALE-TO-ZERO</text>
+  <!-- azure boundary -->
+  <rect x="30" y="196" width="580" height="356" rx="8" fill="#E1E8FA" stroke="#3A5BB8" stroke-width="1.5" stroke-dasharray="8 5" opacity="0.5"/>
+  <text x="48" y="220" font-size="11" font-weight="700" fill="#2A4590" letter-spacing="1.4">AZURE CONTAINER APPS · SCALE-TO-ZERO</text>
 
-  <rect x="50" y="216" width="380" height="126" rx="6" fill="#FFFFFF" stroke="#3A5BB8" stroke-width="2.5"/>
-  <text x="70" y="242" font-size="16" font-weight="700" fill="#2A4590">FastAPI harness — the control plane</text>
-  <text x="70" y="264" font-size="12" fill="#5C6B66">1 vCPU · 2 GiB · min 0 / max 1 replica</text>
-  <text x="70" y="288" font-size="12.5" fill="#1A2420">Holds every root credential. They never leave here.</text>
-  <text x="70" y="308" font-size="12.5" fill="#1A2420">Owns the run lifecycle, the approval gate on</text>
-  <text x="70" y="328" font-size="12.5" fill="#1A2420">public.runs, and the audit's own connection.</text>
+  <!-- harness -->
+  <rect x="50" y="234" width="380" height="134" rx="6" fill="#FFFFFF" stroke="#3A5BB8" stroke-width="2.5"/>
+  <text x="70" y="260" font-size="16" font-weight="700" fill="#2A4590">FastAPI harness</text>
+  <text x="70" y="280" font-size="11.5" fill="#5C6B66">the control plane · 1 vCPU · 2 GiB · min 0 / max 1</text>
+  <text x="70" y="306" font-size="12.5" fill="#1A2420">Holds every root credential —</text>
+  <text x="70" y="326" font-size="12.5" fill="#1A2420">none of them ever leaves here.</text>
+  <text x="70" y="352" font-size="12.5" fill="#1A2420">Owns the run lifecycle and the gate.</text>
 
-  <rect x="50" y="358" width="380" height="106" rx="6" fill="#FBEBD6" stroke="#C2751F" stroke-width="2.5"/>
-  <text x="70" y="382" font-size="10.5" font-weight="700" fill="#C2751F" letter-spacing="1.3">DIVERGENCE 1 · NOT IN THE REFERENCE STACK</text>
-  <text x="70" y="406" font-size="16" font-weight="700" fill="#8A5415">content-data — the MCP data plane</text>
-  <text x="70" y="428" font-size="12" fill="#5C6B66">0.5 vCPU · 1 GiB · INTERNAL ingress — not on the internet</text>
-  <text x="70" y="450" font-size="12.5" fill="#1A2420">10 model-visible tools, 25 internal. No run_sql, no DDL.</text>
-  <path d="M240,342 L240,354" stroke="#C2751F" stroke-width="2.5" fill="none"/>
-  <text x="252" y="354" font-size="12" font-weight="600" fill="#C2751F">MCP over HTTP</text>
+  <!-- mcp app -->
+  <rect x="50" y="392" width="380" height="112" rx="6" fill="#FBEBD6" stroke="#C2751F" stroke-width="2.5"/>
+  <text x="70" y="416" font-size="10.5" font-weight="700" fill="#C2751F" letter-spacing="1.3">DIVERGENCE 1 · NOT IN THE REFERENCE</text>
+  <text x="70" y="440" font-size="16" font-weight="700" fill="#8A5415">content-data</text>
+  <text x="70" y="460" font-size="11.5" fill="#5C6B66">the MCP data plane · 0.5 vCPU · 1 GiB</text>
+  <text x="70" y="482" font-size="12.5" fill="#1A2420">INTERNAL ingress — not on the internet.</text>
+  <text x="70" y="500" font-size="12.5" fill="#1A2420">10 model tools, 25 internal. No run_sql.</text>
+  <path d="M240,368 L240,388" stroke="#C2751F" stroke-width="2.5" fill="none"/>
+  <text x="252" y="384" font-size="12" font-weight="600" fill="#C2751F">MCP over HTTP</text>
 
-  <rect x="50" y="478" width="380" height="32" rx="5" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
-  <text x="70" y="499" font-size="12" fill="#5C6B66">Application Insights · 100% sampled · one run_id everywhere</text>
+  <!-- observability -->
+  <rect x="50" y="516" width="380" height="30" rx="5" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
+  <text x="70" y="536" font-size="11.5" fill="#5C6B66">App Insights · 100% sampled · one run_id</text>
 
-  <rect x="650" y="216" width="310" height="126" rx="6" fill="#FFFFFF" stroke="#0E7C68" stroke-width="2.5"/>
-  <text x="670" y="242" font-size="16" font-weight="700" fill="#0E5A4C">E2B container</text>
-  <text x="670" y="264" font-size="12" fill="#5C6B66">ONE PER RUN · up in ~1s, gone in 0.25s</text>
-  <text x="670" y="288" font-size="12.5" fill="#1A2420">ZERO credentials. No network.</text>
-  <text x="670" y="310" font-size="12" fill="#0E7C68">.agents/propune-postari/</text>
-  <text x="670" y="330" font-size="12" fill="#0E7C68">.agents/dezvolta-postarea/ + references/</text>
-  <path d="M434,262 L646,262" stroke="#0E7C68" stroke-width="2.5" fill="none" marker-end="url(#b1)"/>
-  <text x="540" y="254" font-size="12" font-weight="600" fill="#0E7C68" text-anchor="middle">shell — the model opens the method itself</text>
+  <!-- e2b -->
+  <rect x="650" y="234" width="310" height="134" rx="6" fill="#FFFFFF" stroke="#0E7C68" stroke-width="2.5"/>
+  <text x="670" y="260" font-size="16" font-weight="700" fill="#0E5A4C">E2B container</text>
+  <text x="670" y="280" font-size="11.5" fill="#5C6B66">one per run · up in ~1s, gone in 0.25s</text>
+  <text x="670" y="306" font-size="12.5" fill="#1A2420">ZERO credentials. No network.</text>
+  <text x="670" y="330" font-size="11.5" fill="#0E7C68">.agents/propune-postari/</text>
+  <text x="670" y="350" font-size="11.5" fill="#0E7C68">.agents/dezvolta-postarea/</text>
 
-  <rect x="650" y="358" width="310" height="106" rx="6" fill="#FFFFFF" stroke="#3A5BB8" stroke-width="2.5"/>
-  <text x="670" y="384" font-size="16" font-weight="700" fill="#2A4590">Neon Postgres + pgvector</text>
-  <text x="670" y="406" font-size="12" fill="#5C6B66">pooled for the app, direct for migrations</text>
-  <text x="670" y="430" font-size="12.5" fill="#1A2420">16 tables · 4,778 embedded chunks</text>
-  <text x="670" y="452" font-size="12.5" fill="#1A2420">A write and its audit row commit in ONE transaction.</text>
-  <path d="M434,404 L646,404" stroke="#C2751F" stroke-width="2.5" fill="none" marker-end="url(#b3)"/>
-  <text x="540" y="396" font-size="12" font-weight="600" fill="#C2751F" text-anchor="middle">the only component that touches it</text>
+  <!-- neon -->
+  <rect x="650" y="392" width="310" height="112" rx="6" fill="#FFFFFF" stroke="#3A5BB8" stroke-width="2.5"/>
+  <text x="670" y="418" font-size="16" font-weight="700" fill="#2A4590">Neon Postgres</text>
+  <text x="670" y="438" font-size="11.5" fill="#5C6B66">+ pgvector · pooled app, direct migrations</text>
+  <text x="670" y="462" font-size="12.5" fill="#1A2420">16 tables · 4,778 embedded chunks</text>
+  <text x="670" y="486" font-size="12.5" fill="#1A2420">Write + audit row: ONE transaction.</text>
 
-  <rect x="650" y="478" width="310" height="32" rx="5" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
-  <text x="670" y="499" font-size="12" fill="#5C6B66">Arize Phoenix — the sample. Neon is the record.</text>
-  <path d="M434,494 L646,494" stroke="#9AA8A2" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#b4)"/>
+  <!-- phoenix -->
+  <rect x="650" y="516" width="310" height="30" rx="5" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
+  <text x="670" y="536" font-size="11.5" fill="#5C6B66">Arize Phoenix — Neon is the record</text>
 
-  <rect x="30" y="540" width="930" height="132" rx="8" fill="#FFFFFF" stroke="#C0304A" stroke-width="1.5" stroke-dasharray="8 5"/>
-  <text x="50" y="564" font-size="11" font-weight="700" fill="#C0304A" letter-spacing="1.4">IN THE REFERENCE STACK, ABSENT HERE — EACH ONE A DECISION, NOT AN OMISSION</text>
+  <!-- arrows across the gap, labels centred in it -->
+  <path d="M434,290 L644,290" stroke="#0E7C68" stroke-width="2.5" fill="none" marker-end="url(#b1)"/>
+  <text x="539" y="281" font-size="12" font-weight="600" fill="#0E7C68" text-anchor="middle">shell — reads the method</text>
 
-  <text x="50" y="592" font-size="10.5" font-weight="700" fill="#C0304A" letter-spacing="1.2">DIVERGENCE 2</text>
-  <text x="50" y="614" font-size="15" font-weight="600" fill="#1A2420">Cloudflare Sandbox + bridge Worker</text>
-  <text x="50" y="636" font-size="12.5" fill="#5C6B66">The reference routes Python clients through a Worker that exposes the Sandbox</text>
-  <text x="50" y="654" font-size="12.5" fill="#5C6B66">API over HTTP. E2B needs no bridge and no paid plan: one fewer network</text>
-  <text x="50" y="670" font-size="12.5" fill="#5C6B66">boundary, and one fewer thing to authenticate.</text>
+  <path d="M434,448 L644,448" stroke="#C2751F" stroke-width="2.5" fill="none" marker-end="url(#b3)"/>
+  <text x="539" y="439" font-size="12" font-weight="600" fill="#C2751F" text-anchor="middle">the only path to the data</text>
 
-  <text x="530" y="592" font-size="10.5" font-weight="700" fill="#C0304A" letter-spacing="1.2">DIVERGENCE 3</text>
-  <text x="530" y="614" font-size="15" font-weight="600" fill="#1A2420">Cloudflare R2</text>
-  <text x="530" y="636" font-size="12.5" fill="#5C6B66">Refused outright, not postponed. Her posts are domain rows in Postgres, not</text>
-  <text x="530" y="654" font-size="12.5" fill="#5C6B66">downloadable files. /health reports artifacts inactive WITH the reason, so the</text>
-  <text x="530" y="670" font-size="12.5" fill="#5C6B66">refusal is visible in the running system rather than only in a plan.</text>
+  <path d="M434,531 L644,531" stroke="#9AA8A2" stroke-width="1.2" stroke-dasharray="5 4" fill="none" marker-end="url(#b4)"/>
+
+  <!-- ===== the missing band ===== -->
+  <rect x="30" y="580" width="930" height="168" rx="8" fill="#FFFFFF" stroke="#C0304A" stroke-width="1.5" stroke-dasharray="8 5"/>
+  <text x="52" y="606" font-size="11" font-weight="700" fill="#C0304A" letter-spacing="1.4">IN THE REFERENCE STACK, ABSENT HERE — EACH ONE A DECISION</text>
+
+  <text x="52" y="636" font-size="10.5" font-weight="700" fill="#C0304A" letter-spacing="1.2">DIVERGENCE 2</text>
+  <text x="52" y="660" font-size="15" font-weight="600" fill="#1A2420">Cloudflare Sandbox + bridge Worker</text>
+  <text x="52" y="686" font-size="12.5" fill="#5C6B66">The reference routes Python clients through a Worker</text>
+  <text x="52" y="706" font-size="12.5" fill="#5C6B66">that exposes the Sandbox API over HTTP. E2B needs no</text>
+  <text x="52" y="726" font-size="12.5" fill="#5C6B66">bridge: one fewer boundary to authenticate.</text>
+
+  <text x="530" y="636" font-size="10.5" font-weight="700" fill="#C0304A" letter-spacing="1.2">DIVERGENCE 3</text>
+  <text x="530" y="660" font-size="15" font-weight="600" fill="#1A2420">Cloudflare R2</text>
+  <text x="530" y="686" font-size="12.5" fill="#5C6B66">Refused outright, not postponed — her posts are domain</text>
+  <text x="530" y="706" font-size="12.5" fill="#5C6B66">rows, not files. /health reports artifacts inactive WITH</text>
+  <text x="530" y="726" font-size="12.5" fill="#5C6B66">the reason, so the refusal is visible in the system.</text>
 </svg>

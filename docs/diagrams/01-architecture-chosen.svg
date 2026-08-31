@@ -23,19 +23,19 @@
   <text x="60" y="124" font-size="11" font-weight="700" fill="#9AA8A2" letter-spacing="1.5">Q1</text>
   <text x="60" y="146" font-size="15" font-weight="600" fill="#1A2420">Can the solution path be defined in advance?</text>
   <path d="M240,162 L240,192" stroke="#0E7C68" stroke-width="2.5" fill="none" marker-end="url(#a1)"/>
-  <text x="254" y="182" font-size="12.5" font-weight="600" fill="#0E7C68">partly — the phases yes, the steps no</text>
+  <text x="254" y="182" font-size="12.5" font-weight="600" fill="#0E7C68">partly — phases yes, steps no</text>
 
   <rect x="40" y="196" width="400" height="62" rx="6" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
   <text x="60" y="220" font-size="11" font-weight="700" fill="#9AA8A2" letter-spacing="1.5">Q2</text>
   <text x="60" y="242" font-size="15" font-weight="600" fill="#1A2420">Is the workflow fixed across every run?</text>
   <path d="M240,258 L240,288" stroke="#0E7C68" stroke-width="2.5" fill="none" marker-end="url(#a1)"/>
-  <text x="254" y="278" font-size="12.5" font-weight="600" fill="#0E7C68">NO — the source changes which tools exist</text>
+  <text x="254" y="278" font-size="12.5" font-weight="600" fill="#0E7C68">NO — the source picks the tools</text>
 
   <rect x="40" y="292" width="400" height="62" rx="6" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
   <text x="60" y="316" font-size="11" font-weight="700" fill="#9AA8A2" letter-spacing="1.5">Q3</text>
   <text x="60" y="338" font-size="15" font-weight="600" fill="#1A2420">Is the task structure articulable up front?</text>
   <path d="M240,354 L240,384" stroke="#0E7C68" stroke-width="2.5" fill="none" marker-end="url(#a1)"/>
-  <text x="254" y="374" font-size="12.5" font-weight="600" fill="#0E7C68">YES — and already written, in SKILL.md</text>
+  <text x="254" y="374" font-size="12.5" font-weight="600" fill="#0E7C68">YES — it is written in SKILL.md</text>
 
   <rect x="40" y="388" width="400" height="92" rx="6" fill="#DBF0EA" stroke="#0E7C68" stroke-width="2.5"/>
   <text x="60" y="414" font-size="11" font-weight="700" fill="#0E7C68" letter-spacing="1.5">THE CORE PATTERN</text>

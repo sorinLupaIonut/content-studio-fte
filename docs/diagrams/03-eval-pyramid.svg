@@ -15,96 +15,95 @@
   <text x="40" y="46" font-size="24" font-weight="700" fill="#1A2420">Eight layers built, one empty on purpose</text>
   <text x="40" y="72" font-size="14" fill="#6B7A74">Each layer catches what the layers below it cannot see. The missing one is named, not hidden.</text>
 
-  <text x="36" y="112" font-size="10.5" font-weight="700" fill="#9AA8A2" letter-spacing="1.3">COST</text>
-  <path d="M44,600 L44,130" stroke="#C9D2CC" stroke-width="1.5" fill="none" marker-end="url(#c1)"/>
-  <text x="36" y="618" font-size="11" fill="#9AA8A2">free</text>
+  <text x="52" y="120" font-size="10.5" font-weight="700" fill="#9AA8A2" letter-spacing="1.3">COST</text>
+  <path d="M60,600 L60,136" stroke="#C9D2CC" stroke-width="1.5" fill="none" marker-end="url(#c1)"/>
+  <text x="52" y="620" font-size="11" fill="#9AA8A2">free</text>
 
-  <polygon points="128,556 570,556 552,600 146,600" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="576" font-size="13" font-weight="700" fill="#0E7C68">1</text>
-  <text x="190" y="576" font-size="14" font-weight="600" fill="#1A2420">Unit tests</text>
-  <text x="190" y="592" font-size="11.5" fill="#3F6259">tests/unit · free, offline, every commit</text>
-  <text x="534" y="582" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">408 green</text>
+  <polygon points="135,558 591,558 596,604 130,604" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="578" font-size="13" font-weight="700" fill="#0E7C68">1</text>
+  <text x="214" y="578" font-size="14" font-weight="600" fill="#1A2420">Unit tests</text>
+  <text x="214" y="595" font-size="11.5" fill="#3F6259">tests/unit · free, offline, every commit</text>
+  <text x="577" y="586" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">408 green</text>
 
-  <polygon points="140,506 558,506 570,552 128,552" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="526" font-size="13" font-weight="700" fill="#0E7C68">2</text>
-  <text x="190" y="526" font-size="14" font-weight="600" fill="#1A2420">Integration tests</text>
-  <text x="190" y="542" font-size="11.5" fill="#3F6259">tests/checks · real MCP, real Neon, real OpenAI</text>
-  <text x="534" y="532" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">5 free + 4 paid</text>
+  <polygon points="140,510 586,510 591,556 135,556" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="530" font-size="13" font-weight="700" fill="#0E7C68">2</text>
+  <text x="214" y="530" font-size="14" font-weight="600" fill="#1A2420">Integration tests</text>
+  <text x="214" y="547" font-size="11.5" fill="#3F6259">tests/checks · real MCP, real Neon, real OpenAI</text>
+  <text x="572" y="538" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">5 free + 4 paid</text>
 
-  <polygon points="152,456 546,456 558,502 140,502" fill="#FBE0E4" stroke="#C0304A" stroke-width="2.5" stroke-dasharray="7 4"/>
-  <text x="168" y="476" font-size="13" font-weight="700" fill="#C0304A">3</text>
-  <text x="190" y="476" font-size="14" font-weight="700" fill="#C0304A">Output evals — EMPTY</text>
-  <text x="190" y="492" font-size="11.5" fill="#A03A4C">nothing automated grades WHAT the studio writes</text>
-  <text x="522" y="482" font-size="14" font-weight="700" fill="#C0304A" text-anchor="end">by eye</text>
+  <polygon points="145,462 581,462 586,508 140,508" fill="#FBE0E4" stroke="#C0304A" stroke-width="2.5" stroke-dasharray="7 4"/>
+  <text x="192" y="482" font-size="13" font-weight="700" fill="#C0304A">3</text>
+  <text x="214" y="482" font-size="14" font-weight="700" fill="#C0304A">Output evals — EMPTY</text>
+  <text x="214" y="499" font-size="11.5" fill="#A03A4C">nothing automated grades WHAT the studio writes</text>
+  <text x="567" y="490" font-size="14" font-weight="700" fill="#C0304A" text-anchor="end">by eye</text>
 
-  <polygon points="164,406 534,406 546,452 152,452" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="426" font-size="13" font-weight="700" fill="#0E7C68">4</text>
-  <text x="190" y="426" font-size="14" font-weight="600" fill="#1A2420">Tool-use evals</text>
-  <text x="190" y="442" font-size="11.5" fill="#3F6259">evals/route · a 240-square domain grid, 24-square spine</text>
-  <text x="510" y="432" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">24/24</text>
+  <polygon points="150,414 576,414 581,460 145,460" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="434" font-size="13" font-weight="700" fill="#0E7C68">4</text>
+  <text x="214" y="434" font-size="14" font-weight="600" fill="#1A2420">Tool-use evals</text>
+  <text x="214" y="451" font-size="11.5" fill="#3F6259">evals/route · a 240-square domain grid</text>
+  <text x="562" y="442" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">24/24</text>
 
-  <polygon points="176,356 522,356 534,402 164,402" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="376" font-size="13" font-weight="700" fill="#0E7C68">5</text>
-  <text x="190" y="376" font-size="14" font-weight="600" fill="#1A2420">Trace evals</text>
-  <text x="190" y="392" font-size="11.5" fill="#3F6259">evals/path · one request said ten ways</text>
-  <text x="498" y="382" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">0.903</text>
+  <polygon points="155,366 571,366 576,412 150,412" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="386" font-size="13" font-weight="700" fill="#0E7C68">5</text>
+  <text x="214" y="386" font-size="14" font-weight="600" fill="#1A2420">Trace evals</text>
+  <text x="214" y="403" font-size="11.5" fill="#3F6259">evals/path · one request said ten ways</text>
+  <text x="557" y="394" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">0.903</text>
 
-  <polygon points="188,306 510,306 522,352 176,352" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="326" font-size="13" font-weight="700" fill="#0E7C68">6</text>
-  <text x="190" y="326" font-size="14" font-weight="600" fill="#1A2420">RAG &amp; knowledge evals</text>
-  <text x="190" y="342" font-size="11.5" fill="#3F6259">evals/skill · LLM judge with a negative control</text>
-  <text x="486" y="332" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">13/13</text>
+  <polygon points="160,318 566,318 571,364 155,364" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="338" font-size="13" font-weight="700" fill="#0E7C68">6</text>
+  <text x="214" y="338" font-size="14" font-weight="600" fill="#1A2420">RAG &amp; knowledge evals</text>
+  <text x="214" y="355" font-size="11.5" fill="#3F6259">evals/skill · LLM judge with a negative control</text>
+  <text x="552" y="346" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">13/13</text>
 
-  <polygon points="200,256 498,256 510,302 188,302" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="276" font-size="13" font-weight="700" fill="#0E7C68">7</text>
-  <text x="190" y="276" font-size="14" font-weight="600" fill="#1A2420">Safety &amp; policy evals</text>
-  <text x="190" y="292" font-size="11.5" fill="#3F6259">gate on the MCP REGISTRATION, not inside the tool</text>
-  <text x="474" y="282" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">5/5</text>
+  <polygon points="165,270 561,270 566,316 160,316" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="290" font-size="13" font-weight="700" fill="#0E7C68">7</text>
+  <text x="214" y="290" font-size="14" font-weight="600" fill="#1A2420">Safety &amp; policy evals</text>
+  <text x="214" y="307" font-size="11.5" fill="#3F6259">gate on the MCP REGISTRATION, not in the tool</text>
+  <text x="547" y="298" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">5/5</text>
 
-  <polygon points="212,206 486,206 498,252 200,252" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="226" font-size="13" font-weight="700" fill="#0E7C68">8</text>
-  <text x="190" y="226" font-size="14" font-weight="600" fill="#1A2420">Regression evals</text>
-  <text x="190" y="242" font-size="11.5" fill="#3F6259">evals/experiment.py · one Phoenix dataset, six scores</text>
-  <text x="462" y="232" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">6 scores</text>
+  <polygon points="170,222 556,222 561,268 165,268" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="242" font-size="13" font-weight="700" fill="#0E7C68">8</text>
+  <text x="214" y="242" font-size="14" font-weight="600" fill="#1A2420">Regression evals</text>
+  <text x="214" y="259" font-size="11.5" fill="#3F6259">evals/experiment.py · one Phoenix dataset</text>
+  <text x="542" y="250" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">6 scores</text>
 
-  <polygon points="224,156 474,156 486,202 212,202" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
-  <text x="168" y="176" font-size="13" font-weight="700" fill="#0E7C68">9</text>
-  <text x="190" y="176" font-size="14" font-weight="600" fill="#1A2420">Production evals</text>
-  <text x="190" y="192" font-size="11.5" fill="#3F6259">public.traces · one run_id, in four places at once</text>
-  <text x="450" y="182" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">100%</text>
+  <polygon points="175,174 551,174 556,220 170,220" fill="#DBF0EA" stroke="#0E7C68" stroke-width="1.8"/>
+  <text x="192" y="194" font-size="13" font-weight="700" fill="#0E7C68">9</text>
+  <text x="214" y="194" font-size="14" font-weight="600" fill="#1A2420">Production evals</text>
+  <text x="214" y="211" font-size="11.5" fill="#3F6259">public.traces · one run_id everywhere</text>
+  <text x="537" y="202" font-size="14" font-weight="700" fill="#0E7C68" text-anchor="end">100%</text>
 
-  <text x="614" y="122" font-size="11" font-weight="700" fill="#9AA8A2" letter-spacing="1.4">WHAT A LAYER CAUGHT THAT NOTHING BELOW IT COULD SEE</text>
+  <text x="628" y="122" font-size="11" font-weight="700" fill="#9AA8A2" letter-spacing="1.3">WHAT EACH LAYER CAUGHT</text>
 
-  <rect x="614" y="138" width="346" height="92" rx="6" fill="#FBEBD6"/>
-  <text x="634" y="160" font-size="10.5" font-weight="700" fill="#C2751F" letter-spacing="1.2">LAYER 4</text>
-  <text x="634" y="182" font-size="12.5" fill="#7A4A12">reasoning "minimal" left no budget for the second</text>
-  <text x="634" y="200" font-size="12.5" fill="#7A4A12">errand. 15 of 16 runs opened the reference file OR</text>
-  <text x="634" y="218" font-size="12.5" fill="#7A4A12">called the tool — never both.</text>
+  <rect x="628" y="138" width="332" height="92" rx="6" fill="#FBEBD6"/>
+  <text x="648" y="160" font-size="10.5" font-weight="700" fill="#C2751F" letter-spacing="1.2">LAYER 4</text>
+  <text x="648" y="182" font-size="12.5" fill="#7A4A12">reasoning "minimal" left no budget for the</text>
+  <text x="648" y="200" font-size="12.5" fill="#7A4A12">second errand. 15 of 16 runs opened the file</text>
+  <text x="648" y="218" font-size="12.5" fill="#7A4A12">OR called the tool — never both.</text>
 
-  <rect x="614" y="242" width="346" height="92" rx="6" fill="#EDE5FA"/>
-  <text x="634" y="264" font-size="10.5" font-weight="700" fill="#7A4FBF" letter-spacing="1.2">LAYER 6</text>
-  <text x="634" y="286" font-size="12.5" fill="#523486">ten of eighteen "bad retrieval" failures were in fact</text>
-  <text x="634" y="304" font-size="12.5" fill="#523486">TOOL TIMEOUTS — invisible to the layer that reads</text>
-  <text x="634" y="322" font-size="12.5" fill="#523486">only the call's name.</text>
+  <rect x="628" y="242" width="332" height="92" rx="6" fill="#EDE5FA"/>
+  <text x="648" y="264" font-size="10.5" font-weight="700" fill="#7A4FBF" letter-spacing="1.2">LAYER 6</text>
+  <text x="648" y="286" font-size="12.5" fill="#523486">ten of eighteen "bad retrieval" failures were</text>
+  <text x="648" y="304" font-size="12.5" fill="#523486">TOOL TIMEOUTS — invisible to the layer that</text>
+  <text x="648" y="322" font-size="12.5" fill="#523486">reads only the call's name.</text>
 
-  <rect x="614" y="346" width="346" height="92" rx="6" fill="#E1E8FA"/>
-  <text x="634" y="368" font-size="10.5" font-weight="700" fill="#3A5BB8" letter-spacing="1.2">LAYER 1</text>
-  <text x="634" y="390" font-size="12.5" fill="#27407F">both skill descriptions were indexed as the literal</text>
-  <text x="634" y="408" font-size="12.5" fill="#27407F">string "&gt;-". The step that decides whether the body</text>
-  <text x="634" y="426" font-size="12.5" fill="#27407F">is ever opened, running blind.</text>
+  <rect x="628" y="346" width="332" height="92" rx="6" fill="#E1E8FA"/>
+  <text x="648" y="368" font-size="10.5" font-weight="700" fill="#3A5BB8" letter-spacing="1.2">LAYER 1</text>
+  <text x="648" y="390" font-size="12.5" fill="#27407F">both skill descriptions were indexed as the</text>
+  <text x="648" y="408" font-size="12.5" fill="#27407F">literal string "&gt;-" — the step that decides</text>
+  <text x="648" y="426" font-size="12.5" fill="#27407F">whether the body is opened, running blind.</text>
 
-  <rect x="614" y="450" width="346" height="92" rx="6" fill="#DBF0EA"/>
-  <text x="634" y="472" font-size="10.5" font-weight="700" fill="#0E7C68" letter-spacing="1.2">LAYER 8</text>
-  <text x="634" y="494" font-size="12.5" fill="#0E5A4C">a run that opened NO references at all while writing</text>
-  <text x="634" y="512" font-size="12.5" fill="#0E5A4C">a Stories post — the named failure mode, caught in</text>
-  <text x="634" y="530" font-size="12.5" fill="#0E5A4C">the act.</text>
+  <rect x="628" y="450" width="332" height="92" rx="6" fill="#DBF0EA"/>
+  <text x="648" y="472" font-size="10.5" font-weight="700" fill="#0E7C68" letter-spacing="1.2">LAYER 8</text>
+  <text x="648" y="494" font-size="12.5" fill="#0E5A4C">a run that opened NO references at all while</text>
+  <text x="648" y="512" font-size="12.5" fill="#0E5A4C">writing a Stories post — the named failure</text>
+  <text x="648" y="530" font-size="12.5" fill="#0E5A4C">mode, caught in the act.</text>
 
-  <rect x="614" y="554" width="346" height="60" rx="6" fill="#FBE0E4" stroke="#C0304A" stroke-width="1.5" stroke-dasharray="6 4"/>
-  <text x="634" y="576" font-size="10.5" font-weight="700" fill="#C0304A" letter-spacing="1.2">LAYER 3 · NOTHING</text>
-  <text x="634" y="598" font-size="12.5" fill="#A03A4C">because there is nothing there to catch anything.</text>
+  <rect x="628" y="554" width="332" height="58" rx="6" fill="#FBE0E4" stroke="#C0304A" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="648" y="576" font-size="10.5" font-weight="700" fill="#C0304A" letter-spacing="1.2">LAYER 3 · NOTHING</text>
+  <text x="648" y="597" font-size="12.5" fill="#A03A4C">there is nothing there to catch anything.</text>
 
-  <line x1="40" y1="636" x2="960" y2="636" stroke="#DFE3DC" stroke-width="1"/>
-  <text x="40" y="662" font-size="13.5" font-weight="700" fill="#1A2420">Not one of those four defects raised an error.</text>
-  <text x="368" y="662" font-size="13.5" fill="#5C6B66">The agent answered every time, plausibly — which is the whole</text>
-  <text x="40" y="682" font-size="13.5" fill="#5C6B66">argument for the pyramid: a skipped layer is invisible until production, as a post that reads well and never followed the method.</text>
+  <line x1="40" y1="640" x2="960" y2="640" stroke="#DFE3DC" stroke-width="1"/>
+  <text x="40" y="666" font-size="13.5" font-weight="700" fill="#1A2420">Not one of those four defects raised an error.</text>
+  <text x="40" y="686" font-size="13.5" fill="#5C6B66">The agent answered every time, plausibly — a skipped layer stays invisible until production.</text>
 </svg>

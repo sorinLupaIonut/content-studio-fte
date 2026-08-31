@@ -1,100 +1,110 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 690" width="1000" height="690"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="1000" height="800"
      font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
      role="img" aria-labelledby="t4 d4">
-  <title id="t4">The monthly bill at ten developed ideas a day, and where the fixed floor stops dominating</title>
-  <desc id="d4">Monthly cost against developed ideas per month on a logarithmic axis. A flat five-dollar fixed floor, the container registry, is crossed by the variable line at about 227 developed ideas a month. The planned workload of ten a day, three hundred a month, sits just past that crossover. Below, the bill line by line, totalling about twelve dollars, and the one open question: what the sandbox plan costs once the free credit is spent.</desc>
+  <title id="t4">The monthly bill at ten developed ideas a day</title>
+  <desc id="d4">Monthly cost against developed ideas per month on a logarithmic axis. A flat five-dollar fixed floor is crossed by the variable line at about 227 developed ideas a month; the planned workload of ten a day, three hundred a month, sits just past that crossover. Below, the bill line by line, totalling about twelve dollars, and one open question about the sandbox plan.</desc>
 
-  <rect width="1000" height="690" fill="#FBFAF7"/>
+  <rect width="1000" height="800" fill="#FBFAF7"/>
 
-  <text x="40" y="46" font-size="24" font-weight="700" fill="#1A2420">≈ $12 a month at ten developed ideas a day</text>
-  <text x="40" y="72" font-size="14" fill="#6B7A74">One batch of ten proposals plus ten developed ideas, every day. 330 model runs and 11 container-hours a month.</text>
+  <text x="40" y="48" font-size="25" font-weight="700" fill="#1A2420">≈ $12 a month at ten developed ideas a day</text>
+  <text x="40" y="75" font-size="14" fill="#6B7A74">One batch of ten proposals plus ten developed ideas, every day — 330 model runs and 11 container-hours a month.</text>
 
-  <rect x="40" y="94" width="920" height="286" rx="8" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
+  <!-- ============ chart ============ -->
+  <rect x="40" y="100" width="920" height="330" rx="8" fill="#FFFFFF" stroke="#DFE3DC" stroke-width="1.5"/>
 
-  <line x1="120" y1="128" x2="930" y2="128" stroke="#EFF1EC" stroke-width="1"/>
-  <line x1="120" y1="188" x2="930" y2="188" stroke="#EFF1EC" stroke-width="1"/>
-  <line x1="120" y1="248" x2="930" y2="248" stroke="#EFF1EC" stroke-width="1"/>
-  <line x1="120" y1="298" x2="930" y2="298" stroke="#EFF1EC" stroke-width="1"/>
-  <text x="110" y="132" font-size="11" fill="#9AA8A2" text-anchor="end">$40</text>
-  <text x="110" y="192" font-size="11" fill="#9AA8A2" text-anchor="end">$20</text>
-  <text x="110" y="252" font-size="11" fill="#9AA8A2" text-anchor="end">$10</text>
-  <text x="110" y="302" font-size="11" fill="#9AA8A2" text-anchor="end">$5</text>
+  <!-- y gridlines -->
+  <line x1="120" y1="175" x2="930" y2="175" stroke="#EFF1EC" stroke-width="1"/>
+  <line x1="120" y1="220" x2="930" y2="220" stroke="#EFF1EC" stroke-width="1"/>
+  <line x1="120" y1="265" x2="930" y2="265" stroke="#EFF1EC" stroke-width="1"/>
+  <line x1="120" y1="310" x2="930" y2="310" stroke="#EFF1EC" stroke-width="1"/>
+  <text x="106" y="179" font-size="11.5" fill="#9AA8A2" text-anchor="end">$40</text>
+  <text x="106" y="224" font-size="11.5" fill="#9AA8A2" text-anchor="end">$20</text>
+  <text x="106" y="269" font-size="11.5" fill="#9AA8A2" text-anchor="end">$10</text>
+  <text x="106" y="314" font-size="11.5" fill="#9AA8A2" text-anchor="end">$5</text>
 
-  <rect x="120" y="112" width="323" height="226" fill="#FBEBD6" opacity="0.45"/>
-  <rect x="443" y="112" width="487" height="226" fill="#DBF0EA" opacity="0.35"/>
+  <!-- zone shading -->
+  <rect x="120" y="132" width="366" height="228" fill="#FBEBD6" opacity="0.4"/>
+  <rect x="486" y="132" width="444" height="228" fill="#DBF0EA" opacity="0.32"/>
 
-  <line x1="120" y1="338" x2="930" y2="338" stroke="#C9D2CC" stroke-width="1.5"/>
-  <text x="120" y="358" font-size="11" fill="#9AA8A2" text-anchor="middle">10</text>
-  <text x="390" y="358" font-size="11" fill="#9AA8A2" text-anchor="middle">100</text>
-  <text x="660" y="358" font-size="11" fill="#9AA8A2" text-anchor="middle">1,000</text>
-  <text x="929" y="358" font-size="11" fill="#9AA8A2" text-anchor="middle">10,000</text>
-  <text x="525" y="374" font-size="11" font-weight="700" fill="#9AA8A2" letter-spacing="1.3" text-anchor="middle">DEVELOPED IDEAS PER MONTH · LOG SCALE</text>
+  <!-- axis -->
+  <line x1="120" y1="360" x2="930" y2="360" stroke="#C9D2CC" stroke-width="1.5"/>
+  <text x="120" y="381" font-size="11.5" fill="#9AA8A2" text-anchor="middle">10</text>
+  <text x="390" y="381" font-size="11.5" fill="#9AA8A2" text-anchor="middle">100</text>
+  <text x="660" y="381" font-size="11.5" fill="#9AA8A2" text-anchor="middle">1,000</text>
+  <text x="930" y="381" font-size="11.5" fill="#9AA8A2" text-anchor="middle">10,000</text>
+  <text x="525" y="402" font-size="11" font-weight="700" fill="#9AA8A2" letter-spacing="1.4" text-anchor="middle">DEVELOPED IDEAS PER MONTH · LOG SCALE</text>
 
-  <path d="M120,298 L930,298" stroke="#C2751F" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-  <text x="150" y="288" font-size="13" font-weight="700" fill="#8A5415">fixed floor — $5 container registry, whether or not anyone signs in</text>
+  <!-- zone captions, inside the shading, well clear of the lines -->
+  <text x="303" y="164" font-size="13" font-weight="700" fill="#8A5415" text-anchor="middle">the fixed floor dominates</text>
+  <text x="708" y="164" font-size="13" font-weight="700" fill="#0E5A4C" text-anchor="middle">usage dominates — and it is the model</text>
 
-  <path d="M120,336 L390,308 L660,204 L900,118" stroke="#0E7C68" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-  <text x="676" y="196" font-size="13" font-weight="700" fill="#0E5A4C">variable — $0.022 an idea</text>
-  <text x="676" y="214" font-size="11.5" fill="#3F6259">model + sandbox seconds</text>
+  <!-- the two lines -->
+  <path d="M120,310 L930,310" stroke="#C2751F" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M120,352 L390,332 L486,310 L660,216 L900,150" stroke="#0E7C68" stroke-width="3.5" fill="none" stroke-linecap="round"/>
 
-  <line x1="443" y1="298" x2="443" y2="146" stroke="#C0304A" stroke-width="1.5" stroke-dasharray="5 4"/>
-  <circle cx="443" cy="298" r="6.5" fill="#FFFFFF" stroke="#C0304A" stroke-width="3"/>
-  <text x="443" y="138" font-size="11" font-weight="700" fill="#C0304A" text-anchor="middle" letter-spacing="1.2">CROSSOVER</text>
-  <text x="443" y="120" font-size="14" font-weight="700" fill="#1A2420" text-anchor="middle">≈ 227 a month · 7.6 a day</text>
+  <!-- line labels, at opposite ends, nothing near them -->
+  <text x="140" y="300" font-size="13" font-weight="700" fill="#8A5415">fixed floor — $5</text>
+  <text x="898" y="136" font-size="13" font-weight="700" fill="#0E5A4C" text-anchor="end">variable — $0.022 an idea</text>
 
-  <line x1="527" y1="278" x2="527" y2="170" stroke="#0E7C68" stroke-width="1.5" stroke-dasharray="4 3"/>
-  <circle cx="527" cy="278" r="5.5" fill="#0E7C68"/>
-  <rect x="556" y="146" width="238" height="52" rx="5" fill="#FFFFFF" stroke="#0E7C68" stroke-width="1.5"/>
-  <text x="572" y="168" font-size="10.5" font-weight="700" fill="#0E7C68" letter-spacing="1.2">THE PLANNED WORKLOAD</text>
-  <text x="572" y="188" font-size="13.5" font-weight="600" fill="#1A2420">10 a day ≈ 300 a month</text>
+  <!-- markers on the axis, no text inside the plot -->
+  <line x1="486" y1="310" x2="486" y2="360" stroke="#C0304A" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <circle cx="486" cy="310" r="6.5" fill="#FFFFFF" stroke="#C0304A" stroke-width="3"/>
+  <line x1="519" y1="303" x2="519" y2="360" stroke="#0E7C68" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <circle cx="519" cy="303" r="5.5" fill="#0E7C68"/>
 
-  <text x="281" y="328" font-size="12.5" font-weight="700" fill="#8A5415" text-anchor="middle">the fixed floor dominates</text>
-  <text x="686" y="328" font-size="12.5" font-weight="700" fill="#0E5A4C" text-anchor="middle">usage dominates — and it is the model, not the infrastructure</text>
+  <!-- ============ legend strip, below the chart ============ -->
+  <circle cx="60" cy="456" r="6" fill="#FFFFFF" stroke="#C0304A" stroke-width="3"/>
+  <text x="78" y="452" font-size="10.5" font-weight="700" fill="#C0304A" letter-spacing="1.2">CROSSOVER</text>
+  <text x="78" y="470" font-size="13.5" fill="#1A2420">≈ 227 ideas a month · 7.6 a day</text>
 
-  <text x="40" y="418" font-size="17" font-weight="700" fill="#1A2420">The bill, line by line</text>
-  <text x="40" y="440" font-size="12.5" fill="#6B7A74">330 runs and 11 container-hours a month. Measured figures are marked; the rest is computed from published list prices.</text>
+  <circle cx="420" cy="456" r="6" fill="#0E7C68"/>
+  <text x="438" y="452" font-size="10.5" font-weight="700" fill="#0E7C68" letter-spacing="1.2">THE PLANNED WORKLOAD</text>
+  <text x="438" y="470" font-size="13.5" fill="#1A2420">300 a month · 10 a day</text>
 
-  <rect x="40" y="456" width="920" height="32" rx="4" fill="#EFF1EC"/>
-  <text x="60" y="477" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2">LINE</text>
-  <text x="290" y="477" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2">WHY THAT MUCH</text>
-  <text x="830" y="477" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2" text-anchor="end">PER MONTH</text>
-  <text x="940" y="477" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2" text-anchor="end">SHARE</text>
+  <text x="740" y="452" font-size="10.5" font-weight="700" fill="#9AA8A2" letter-spacing="1.2">HOW THEY MEET</text>
+  <text x="740" y="470" font-size="13.5" fill="#5C6B66">$5 ÷ $0.022 ≈ 227</text>
 
-  <rect x="40" y="488" width="920" height="30" fill="#DBF0EA"/>
-  <text x="60" y="508" font-size="13" font-weight="600" fill="#1A2420">OpenAI · gpt-5-mini</text>
-  <text x="290" y="508" font-size="12.5" fill="#5C6B66">MEASURED: a batch of ten proposals is $0.0085, 73% of its input from cache. A developed idea ≈ $0.018.</text>
-  <text x="830" y="508" font-size="13" font-weight="700" fill="#0E5A4C" text-anchor="end">$5.70</text>
-  <text x="940" y="508" font-size="13" font-weight="700" fill="#0E5A4C" text-anchor="end">48%</text>
+  <!-- ============ the bill ============ -->
+  <text x="40" y="524" font-size="18" font-weight="700" fill="#1A2420">The bill, line by line</text>
+  <text x="40" y="547" font-size="12.5" fill="#6B7A74">Measured figures are marked; the rest is computed from published list prices.</text>
 
-  <rect x="40" y="518" width="920" height="30" fill="#FBEBD6"/>
-  <text x="60" y="538" font-size="13" font-weight="600" fill="#1A2420">Azure Container Registry</text>
-  <text x="290" y="538" font-size="12.5" fill="#5C6B66">Basic. The only line that is billed whether or not anybody uses the studio.</text>
-  <text x="830" y="538" font-size="13" font-weight="700" fill="#8A5415" text-anchor="end">$5.00</text>
-  <text x="940" y="538" font-size="13" font-weight="700" fill="#8A5415" text-anchor="end">42%</text>
+  <rect x="40" y="562" width="920" height="34" rx="4" fill="#EFF1EC"/>
+  <text x="62" y="584" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2">LINE</text>
+  <text x="300" y="584" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2">WHY THAT MUCH</text>
+  <text x="880" y="584" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2" text-anchor="end">PER MONTH</text>
+  <text x="946" y="584" font-size="11" font-weight="700" fill="#6B7A74" letter-spacing="1.2" text-anchor="end">%</text>
 
-  <rect x="40" y="548" width="920" height="30" fill="#E1E8FA"/>
-  <text x="60" y="568" font-size="13" font-weight="600" fill="#1A2420">E2B sandbox · compute</text>
-  <text x="290" y="568" font-size="12.5" fill="#5C6B66">11 h at 2 vCPU + 1 GiB, per second. One container per run, closed when the run ends.</text>
-  <text x="830" y="568" font-size="13" font-weight="700" fill="#2A4590" text-anchor="end">$1.29</text>
-  <text x="940" y="568" font-size="13" font-weight="700" fill="#2A4590" text-anchor="end">10%</text>
+  <rect x="40" y="596" width="920" height="36" fill="#DBF0EA"/>
+  <text x="62" y="619" font-size="13.5" font-weight="600" fill="#1A2420">OpenAI · gpt-5-mini</text>
+  <text x="300" y="619" font-size="12.5" fill="#3F6259">MEASURED: a batch of ten proposals is $0.0085, 73% of it cached</text>
+  <text x="880" y="619" font-size="13.5" font-weight="700" fill="#0E5A4C" text-anchor="end">$5.70</text>
+  <text x="946" y="619" font-size="13.5" font-weight="700" fill="#0E5A4C" text-anchor="end">48%</text>
 
-  <rect x="40" y="578" width="920" height="26" fill="#FFFFFF"/>
-  <text x="60" y="596" font-size="12.5" fill="#1A2420">Azure Container Apps</text>
-  <text x="290" y="596" font-size="12.5" fill="#5C6B66">~86k of the 180k free vCPU-seconds a month. Both apps scale to zero.</text>
-  <text x="830" y="596" font-size="12.5" fill="#6B7A74" text-anchor="end">$0</text>
+  <rect x="40" y="632" width="920" height="36" fill="#FBEBD6"/>
+  <text x="62" y="655" font-size="13.5" font-weight="600" fill="#1A2420">Azure Container Registry</text>
+  <text x="300" y="655" font-size="12.5" fill="#8A5415">Basic. Billed whether or not anybody uses the studio</text>
+  <text x="880" y="655" font-size="13.5" font-weight="700" fill="#8A5415" text-anchor="end">$5.00</text>
+  <text x="946" y="655" font-size="13.5" font-weight="700" fill="#8A5415" text-anchor="end">42%</text>
 
-  <rect x="40" y="604" width="920" height="26" fill="#F7F8F4"/>
-  <text x="60" y="622" font-size="12.5" fill="#1A2420">Neon · App Insights · Phoenix · R2</text>
-  <text x="290" y="622" font-size="12.5" fill="#5C6B66">Free tiers, and R2 is refused outright — the posts are domain rows, not files.</text>
-  <text x="830" y="622" font-size="12.5" fill="#6B7A74" text-anchor="end">$0</text>
+  <rect x="40" y="668" width="920" height="36" fill="#E1E8FA"/>
+  <text x="62" y="691" font-size="13.5" font-weight="600" fill="#1A2420">E2B sandbox · compute</text>
+  <text x="300" y="691" font-size="12.5" fill="#2A4590">11 h at 2 vCPU + 1 GiB, per second. One container per run</text>
+  <text x="880" y="691" font-size="13.5" font-weight="700" fill="#2A4590" text-anchor="end">$1.29</text>
+  <text x="946" y="691" font-size="13.5" font-weight="700" fill="#2A4590" text-anchor="end">10%</text>
 
-  <line x1="40" y1="630" x2="960" y2="630" stroke="#1A2420" stroke-width="2"/>
-  <text x="60" y="648" font-size="13.5" font-weight="700" fill="#1A2420">TOTAL</text>
-  <text x="830" y="648" font-size="13.5" font-weight="700" fill="#1A2420" text-anchor="end">≈ $12</text>
-  <text x="940" y="648" font-size="13.5" font-weight="700" fill="#1A2420" text-anchor="end">100%</text>
+  <rect x="40" y="704" width="920" height="30" fill="#FFFFFF"/>
+  <text x="62" y="724" font-size="12.5" fill="#1A2420">Azure Container Apps</text>
+  <text x="300" y="724" font-size="12.5" fill="#5C6B66">~86k of the 180k free vCPU-seconds. Both apps scale to zero</text>
+  <text x="880" y="724" font-size="12.5" fill="#6B7A74" text-anchor="end">$0</text>
 
-  <rect x="40" y="658" width="920" height="26" rx="4" fill="#FBE0E4"/>
-  <text x="60" y="676" font-size="12.5" fill="#A03A4C">
-    <tspan font-weight="700">The one open number:</tspan> the sandbox's free credit is spent. Pay-as-you-go keeps it at $1.29; if the provider requires its $150/mo plan, Cloudflare Containers does the same job for $5 + $1.14.
-  </text>
+  <rect x="40" y="734" width="920" height="30" fill="#F7F8F4"/>
+  <text x="62" y="754" font-size="12.5" fill="#1A2420">Neon · App Insights · Phoenix · R2</text>
+  <text x="300" y="754" font-size="12.5" fill="#5C6B66">Free tiers. R2 refused — the posts are rows, not files</text>
+  <text x="880" y="754" font-size="12.5" fill="#6B7A74" text-anchor="end">$0</text>
+
+  <line x1="40" y1="764" x2="960" y2="764" stroke="#1A2420" stroke-width="2"/>
+  <text x="62" y="784" font-size="14" font-weight="700" fill="#1A2420">TOTAL</text>
+  <text x="300" y="784" font-size="12.5" fill="#5C6B66">Open: the sandbox's free credit is spent — see docs/DIAGRAMS.md §4</text>
+  <text x="880" y="784" font-size="14" font-weight="700" fill="#1A2420" text-anchor="end">≈ $12</text>
+  <text x="946" y="784" font-size="14" font-weight="700" fill="#1A2420" text-anchor="end">100%</text>
 </svg>

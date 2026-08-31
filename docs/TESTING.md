@@ -26,6 +26,19 @@ locally before a commit.
 uv run ruff check .
 ```
 
+```bash
+uv run python tests/checks/safe/diagram_fit.py
+```
+
+Does every label in `docs/diagrams/` fit where it was put. SVG has no text
+layout — a label that is too long simply runs over whatever is beside it, the
+file stays well-formed, and nothing warns. Four such faults shipped on
+2026-08-31 and every one was found by looking at a rendered screenshot. This
+estimates the width of each label and reports the four ways it goes wrong:
+off the canvas, out of its own box, *into* a neighbouring box, or on top of
+another label. It is an estimate, so it is a first pass and not a substitute for
+rendering the picture and reading it.
+
 ## Preparation for everything below
 
 `.env` needs:

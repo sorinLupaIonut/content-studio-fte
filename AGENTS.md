@@ -382,6 +382,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | How the method reaches the model | `sandbox.py` | one container per run; the manifest is not optional |
 | That the ten proposals differ | `generation.py` → `ANGLE_TYPES` | ten archetypes, ten slots |
 | What a correct route is, per square of the domain grid | `evals/route/references.json` (format half) + `evals/route/tool-usage-grid.json` (source half) | two manifests, neither copying the other |
+| That a diagram's labels fit | `tests/checks/safe/diagram_fit.py` | SVG has no text layout; nothing warns when a label runs over its neighbour |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
 | Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |
