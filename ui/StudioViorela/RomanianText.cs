@@ -33,4 +33,8 @@ public static class RomanianText
 
     public static string Posts(int count) =>
         Count(count, "postare", "postări", one: "o postare");
+
+    /// <summary>"un material" / "17 materiale" / "20 de materiale".</summary>
+    public static string Materials(int count) =>
+        Count(count, "material", "materiale", one: "un material");
 }

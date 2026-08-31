@@ -197,13 +197,36 @@ Decided with Sorin on 2026-08-27; the rules that hold it together:
 - **A button press is dictation.** `harness/conversations.py` owns the exact
   sentences („Vreau 10 idei de postare: format Reel, pilon Educație, sursă
   Memorie.", and since 2026-08-31 „I want 10 post ideas: format Reel, pillar
-  Educație, source Memorie.") and they are asserted whole in
+  Education, source Memory.") and they are asserted whole in
   `tests/unit/test_conversations.py`. Changing a word there changes the
   conversation everywhere — treat those strings as contract. **Two per button,
-  one contract each**, and the *values* inside never translate in either: `Reel`,
-  `Educație`, `Memorie` and the hook types are what the tools match on.
-  Every path that dictates carries a language now, including the two that had
-  none — `select_variant` takes it in its body, `develop` in its query string.
+  one contract each.** Every path that dictates carries a language now,
+  including the two that had none — `select_variant` takes it in its body,
+  `develop` in its query string.
+
+  **THE VALUE NEVER TRANSLATES; THE LABEL IN THE SENTENCE DOES**, since later on
+  2026-08-31. `Reel`, `Educație`, `Memorie` and the hook types stay exactly what
+  they are everywhere a tool, a schema or a column sees them — that half has not
+  moved. What moved is the half a person reads: the first English dictation
+  shipped as „pillar Educație, source Memorie" into the transcript of a studio
+  whose reader does not read Romanian, which is the whole reason the studio has
+  an English mode. Nothing parses the sentence back — the buttons send the enum
+  from the form, `select_variant` resolves the hook type from the variant's id —
+  and the one door that does read a sentence is a person typing one, where the
+  chat model maps prose onto the enum in the tool's own schema, as it always
+  had to. `ENGLISH_LABELS` in `conversations.py` is a copy of pairs `Values.cs`
+  owns, allowed only because `tests/unit/test_value_labels.py` reads that file
+  and holds the two equal.
+
+  **AND A `source` IS TWO DIFFERENT THINGS.** `SourceChoice` — Memorie, Cărți,
+  Internet, Combinat — is an enum the tools match on. `posts.source` is the
+  provenance line under a finished post: a book's title and page, a link, or a
+  note that the material came from the profile alone. Nothing matches on it, it
+  is prose, and it had no schema `description` at all until 2026-08-31 — so the
+  only thing telling the model what to write there was the skill's Romanian
+  literal, and every otherwise-flawless English post ended with „din memorie 🧠
+  (profil + avatar), fără sursă externă". Rule 5 applied: it lives on the field
+  now, as `generation.SOURCE_LINE`.
 - **One conversation carries at most one lot.** `public.conversations` holds
   the active pointer per account (NOT the messages — that near-duplicate is
   what Decision 11 removed; this table stores what `agent_sessions` cannot:
@@ -451,6 +474,8 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Environment and paths | `config.py` | no other module calls `os.getenv` |
 | Tool contract | `mcp_server/server.py` | |
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
+| The English label for a domain value | `ui/.../Localization/Values.cs` | `conversations.ENGLISH_LABELS` mirrors it; `test_value_labels.py` reads the C# and holds them equal |
+| The provenance line under a post | `generation.SOURCE_LINE`, on the field | not the skill's literal, and not `SourceChoice` |
 | A refusal the client reads | a `code` from `harness/errors.py`, worded in `Copy.cs` | never an English sentence on her page, never a Romanian one on his |
 | Why a generated idea failed | `generation_ideas.last_error`, a code | the card prints the column verbatim; a stored sentence cannot be translated later |
 | That the language split holds | `tests/checks/safe/language_split.py` | diacritics alone miss a third of it |

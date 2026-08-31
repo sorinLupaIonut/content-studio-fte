@@ -68,10 +68,16 @@ above; every other rule stays exactly as written.
 7. Controlled values are NOT prose and are NOT translated. `hook_type` stays
    PROVOCARE, CIFRA, SECRET, INTREBARE, CONTRAST. A pillar stays Poziționare,
    Educație, Conexiune, Conversie or Magnetism. A format stays Reel, Carusel or
-   Stories. A source stays Memorie, Cărți, Internet or Combinat. These are
-   identifiers the database and the tools match on, not words on a screen: an
-   English one is rejected, and the interface shows the reader an English label
-   for them anyway.
+   Stories. The source CHOICE stays Memorie, Cărți, Internet or Combinat. These
+   are identifiers the database and the tools match on, not words on a screen:
+   an English one is rejected, and the interface shows the reader an English
+   label for them anyway.
+8. THE `source` FIELD OF A POST IS NOT THAT CHOICE, and it IS prose. It is the
+   provenance line the reader sees under the post — a book's title and page, a
+   link, or the note that you wrote from the profile alone. Nothing matches on
+   it. The method spells its memory form in Romanian, and in this session you
+   write the English equivalent: "from memory 🧠 (profile + avatar), no external
+   source". A book keeps its own title exactly as printed.
 """
 
 #: Only non-default languages carry an override; Romanian is what the base
@@ -86,7 +92,9 @@ OVERRIDES: dict[str, str] = {"en": ENGLISH_OVERRIDE}
 ENGLISH_TASK_NOTE = (
     "ANSWER IN ENGLISH. The Romanian in this prompt is the method and the "
     "source material, not the language of your answer. Controlled values "
-    "(hook_type, pilon, format, sursă) still keep their Romanian spelling."
+    "(hook_type, pilon, format, and the sursă CHOICE) still keep their "
+    "Romanian spelling — but the post's `source` field is prose, not a choice: "
+    "write it in English."
 )
 
 TASK_NOTES: dict[str, str] = {"en": ENGLISH_TASK_NOTE}

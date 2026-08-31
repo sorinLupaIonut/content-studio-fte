@@ -241,4 +241,8 @@ public static class Values
     public static string SavedPosts(Translator t, int count) => t.IsEnglish
         ? count == 1 ? "1 saved post" : $"{count} saved posts"
         : RomanianText.SavedPosts(count);
+
+    public static string Materials(Translator t, int count) => t.IsEnglish
+        ? count == 1 ? "1 material" : $"{count} materials"
+        : RomanianText.Materials(count);
 }

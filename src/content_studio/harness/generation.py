@@ -263,6 +263,20 @@ HASHTAG_PATTERN = r"^#\S+$"
 #: rejected before `checked_hashtags` ever got the chance to repair it into
 #: `#perfecționism`. Prevention in the schema, repair in the validator, and
 #: neither standing in the other's way.
+#: The provenance line the reader sees under a finished post. NOT the source
+#: CHOICE - that one is `SourceChoice`, an enum the tools match on. This is free
+#: prose, nothing matches on it, and it had no description at all until
+#: 2026-08-31: the only thing telling the model what to write here was the
+#: skill's Romanian literal, so an otherwise flawless English post ended with
+#: „din memorie 🧠 (profil + avatar), fără sursă externă" on every single card.
+#: Rule 5 of AGENTS.md, applied: a rule with a field to sit next to moves onto
+#: that field.
+SOURCE_LINE = (
+    "Where this post's material actually came from, in the language of the "
+    "answer: the book's title and page, the link, or that you wrote from the "
+    "profile alone with no external source. A book title stays as printed."
+)
+
 HASHTAG_FIELD = {
     "items": {"type": "string", "pattern": HASHTAG_PATTERN},
     "description": (
@@ -356,7 +370,7 @@ class IdeaVariant(StrictContract):
         min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
     )
     cta: str = Field(min_length=2, max_length=1_000)
-    source: str = Field(min_length=2, max_length=2_000)
+    source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
     format_details: FormatDetails | None = None
 
     @field_validator("hashtags")
@@ -389,7 +403,7 @@ class ProducedVariant(StrictContract):
         min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
     )
     cta: str = Field(min_length=2, max_length=1_000)
-    source: str = Field(min_length=2, max_length=2_000)
+    source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
     format_details: FormatDetails
 
     @field_validator("hashtags")
@@ -445,7 +459,7 @@ class SilentReelVariant(StrictContract):
         min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
     )
     cta: str = Field(min_length=2, max_length=1_000)
-    source: str = Field(min_length=2, max_length=2_000)
+    source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
 
     @field_validator("hashtags")
     @classmethod

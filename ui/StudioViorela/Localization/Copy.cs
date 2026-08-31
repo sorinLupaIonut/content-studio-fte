@@ -327,6 +327,16 @@ public static class Copy
     public static readonly Phrase LibraryComingBody = new(
         "Atunci vom adăuga încărcare, procesare și embeddings automate, cu stare vizibilă pentru fiecare fișier.",
         "That is when upload, processing and automatic embeddings arrive, with a visible state per file.");
+    public static readonly Phrase LibraryListAria =
+        new("Materialele din bibliotecă", "The materials in the library");
+    // The shelf was on the page from the start and the page never asked for it:
+    // `/api/library` returned all 17 books while this route rendered a static
+    // "coming later" card. Read on 2026-08-31, the day the studio had to be
+    // demonstrable. The upload IS still deferred, so that promise stays - it
+    // just sits under the shelf now instead of standing in for it.
+    public static readonly Phrase LibraryUploadNote = new(
+        "Încărcarea de materiale noi vine în etapa media. Cărțile de mai jos sunt deja indexate și agentul caută în ele.",
+        "Uploading new materials arrives in the media stage. The books below are already indexed, and the agent searches them.");
 
     // ---- chat drawer --------------------------------------------------------
     public static readonly Phrase ChatLauncher =

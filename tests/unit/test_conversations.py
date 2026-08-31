@@ -198,7 +198,7 @@ class TheSameSentenceInEnglish(unittest.TestCase):
     def test_the_batch_request(self) -> None:
         self.assertEqual(
             dictated_batch_request("Reel", "Educație", "Memorie", language="en"),
-            "I want 10 post ideas: format Reel, pillar Educație, source Memorie.",
+            "I want 10 post ideas: format Reel, pillar Education, source Memory.",
         )
 
     def test_the_focus_rides_along(self) -> None:
@@ -206,8 +206,8 @@ class TheSameSentenceInEnglish(unittest.TestCase):
             dictated_batch_request(
                 "Carusel", "Conexiune", "Cărți", "burnout", language="en"
             ),
-            "I want 10 post ideas: format Carusel, pillar Conexiune, "
-            "source Cărți. Focus: burnout.",
+            "I want 10 post ideas: format Carousel, pillar Connection, "
+            "source Books. Focus: burnout.",
         )
 
     def test_develop_and_select(self) -> None:
@@ -217,18 +217,39 @@ class TheSameSentenceInEnglish(unittest.TestCase):
         )
         self.assertEqual(
             dictated_select(3, "CIFRA", language="en"),
-            "I pick the CIFRA hook variant from idea 3.",
+            "I pick the Number hook variant from idea 3.",
         )
 
-    def test_the_values_are_not_translated(self) -> None:
-        """`Reel`, `Educație`, `Memorie` and the hook types are identifiers the
-        tools match on. An English one is rejected by the schema."""
+    def test_the_english_sentence_carries_english_labels(self) -> None:
+        """The VALUE is unchanged everywhere a tool, a schema or a column sees
+        it; the LABEL in a sentence a person reads is theirs. This assertion was
+        the opposite until 2026-08-31 - it required `Poziționare` to appear in
+        an English sentence, which is exactly what shipped and what Sorin read
+        in the transcript. `test_value_labels.py` holds the pairs to the
+        interface's own file."""
         sentence = dictated_batch_request(
             "Stories", "Poziționare", "Internet", language="en"
         )
-        for value in ("Stories", "Poziționare", "Internet"):
-            self.assertIn(value, sentence)
-        self.assertIn("PROVOCARE", dictated_select(1, "PROVOCARE", language="en"))
+        self.assertEqual(
+            sentence,
+            "I want 10 post ideas: format Stories, pillar Positioning, "
+            "source Internet.",
+        )
+        for romanian in ("Poziționare", "Educație", "Cărți", "Carusel"):
+            self.assertNotIn(romanian, sentence)
+        self.assertIn("Challenge", dictated_select(1, "PROVOCARE", language="en"))
+
+    def test_the_romanian_sentence_is_untouched(self) -> None:
+        """The values ARE the words there, and every eval asserts them."""
+        self.assertEqual(
+            dictated_batch_request("Stories", "Poziționare", "Internet"),
+            "Vreau 10 idei de postare: format Stories, pilon Poziționare, "
+            "sursă Internet.",
+        )
+        self.assertEqual(
+            dictated_select(1, "PROVOCARE"),
+            "Aleg varianta cu hook PROVOCARE de la ideea 1.",
+        )
 
     def test_the_readbacks_close_in_english(self) -> None:
         titles = rendered_titles(
@@ -240,6 +261,13 @@ class TheSameSentenceInEnglish(unittest.TestCase):
         )
         self.assertTrue(variants.startswith("The five variants for idea 2"))
         self.assertTrue(variants.endswith("is in the app."))
+        # The hook type is a label to the reader here, and the value itself in
+        # the Romanian rendering below.
+        self.assertIn("1. Secret: h", variants)
+        self.assertIn(
+            "1. INTREBARE: h",
+            rendered_variants(2, "T", [{"hook_type": "INTREBARE", "hook": "h"}]),
+        )
 
     def test_naming_no_language_still_gives_the_romanian_contract(self) -> None:
         """Every caller that predates the switch - the evals, the dataset builder -

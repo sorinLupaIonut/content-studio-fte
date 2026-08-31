@@ -1,6 +1,14 @@
 @page "/library"
+@inject StudioApiClient Api
 
 <PageTitle>@T[Copy.LibraryTab]</PageTitle>
+
+@* The shelf, not a promise of one. `/api/library` has answered with every book
+   since documents were scoped per account on 2026-08-21, and this page rendered
+   a static "coming later" card over the top of it until 2026-08-31 - on an
+   account whose seventeen books are the product's headline claim. The upload is
+   genuinely still deferred, so that sentence survives as a note under the list
+   rather than instead of it. *@
 
 <section class="page-heading">
     <div>
@@ -8,15 +16,79 @@
         <h1>@T[Copy.LibraryHeading]</h1>
         <p>@T[Copy.LibraryLede]</p>
     </div>
-    <button class="button button-primary" disabled>@T[Copy.LibraryAdd]</button>
+    @if (_items is not null && _items.Count > 0)
+    {
+        <span class="step-chip">@Values.Materials(T, _items.Count)</span>
+    }
 </section>
 
-<section class="empty-state">
-    <span class="empty-illustration">▤</span>
-    <h2>@T[Copy.LibraryComingHeading]</h2>
-    <p>@T[Copy.LibraryComingBody]</p>
-</section>
+@if (_error is not null)
+{
+    <div class="notice notice-error" role="alert">@_error</div>
+}
+
+@if (_loading)
+{
+    <section class="loading-card" aria-live="polite">
+        <span class="spinner"></span> @T[Copy.LibraryLoading]
+    </section>
+}
+else if (_items is null || _items.Count == 0)
+{
+    <section class="empty-state">
+        <span class="empty-illustration">▤</span>
+        <h2>@T[Copy.LibraryComingHeading]</h2>
+        <p>@T[Copy.LibraryComingBody]</p>
+    </section>
+}
+else
+{
+    <p class="library-note">@T[Copy.LibraryUploadNote]</p>
+    <section class="library-list" aria-label="@T[Copy.LibraryListAria]">
+        @foreach (var item in _items)
+        {
+            <article class="library-card">
+                <span class="library-icon" aria-hidden="true">▤</span>
+                <span class="library-text">
+                    <strong>@item.Title</strong>
+                    <small>@Subtitle(item)</small>
+                </span>
+            </article>
+        }
+    </section>
+}
 
 @code {
     [CascadingParameter(Name = "T")] public Translator T { get; set; } = new("ro");
+
+    private List<LibraryItemDto>? _items;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await Api.GetLibraryAsync();
+            _items = response.Items;
+        }
+        catch
+        {
+            // The shelf failing to load must not take the page with it: the
+            // heading and the note below still say something true.
+            _error = T[Copy.LibraryUnreadable];
+            _items = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Author, plus the summary marker when the entry is one.</summary>
+    private string Subtitle(LibraryItemDto item)
+    {
+        var author = string.IsNullOrWhiteSpace(item.Author) ? "" : item.Author!;
+        return item.IsSummary ? author + T[Copy.SummarySuffix] : author;
+    }
 }

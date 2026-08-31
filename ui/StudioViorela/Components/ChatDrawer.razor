@@ -103,7 +103,19 @@
         }
 
         <footer class="chat-composer">
-            <textarea @bind="_draft" disabled="@_busy" placeholder="@T[Copy.ChatPlaceholder]"></textarea>
+            @* `@bind:event="oninput"` IS LOAD-BEARING, and its absence had no
+               error to report. A plain `@bind` on a textarea binds to `onchange`,
+               which fires when the box loses focus - so `_draft` stayed empty
+               for the whole time she was typing, and the Send button below,
+               disabled on exactly that field, stayed dead until she clicked
+               somewhere else. Clicking Send does not count: a disabled button
+               takes no click, so the blur that would have enabled it never
+               happened. The chat was unusable by anyone who typed and pressed
+               send, which is everyone. Found by typing into it, 2026-08-31;
+               `@onkeydown` is the other half - a chat where Enter does nothing
+               reads as broken even when the button works. *@
+            <textarea @bind="_draft" @bind:event="oninput" @onkeydown="OnComposerKeyAsync"
+                      disabled="@_busy" placeholder="@T[Copy.ChatPlaceholder]"></textarea>
             <div>
                 <button class="icon-button" disabled title="@T[Copy.ChatAttachments]">＋</button>
                 <button class="icon-button" disabled title="@T[Copy.ChatMicrophone]">◉</button>
@@ -278,6 +290,20 @@
             return Task.CompletedTask;
         }
         return InvokeAsync(LoadTranscriptAsync);
+    }
+
+    /// <summary>
+    /// Enter sends, Shift+Enter starts a new line. The convention every chat
+    /// this one will be compared against already uses, and the reason the
+    /// composer needs a key handler at all: without one, Enter inserts a
+    /// newline into a box the reader believes they just sent.
+    /// </summary>
+    private async Task OnComposerKeyAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !e.AltKey && !e.CtrlKey && !e.MetaKey)
+        {
+            await SendAsync();
+        }
     }
 
     private async Task SendAsync()

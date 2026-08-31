@@ -2411,3 +2411,64 @@ select:disabled {
         --mobile-bar: calc(162px + env(safe-area-inset-bottom, 0px));
     }
 }
+
+/* ---- the materials shelf ------------------------------------------------- */
+/* Added 2026-08-31, when the page stopped rendering a "coming later" card over
+   a library the API had been serving in full all along. Two columns from the
+   tablet width up: seventeen one-line rows in a single column is a scroll, not
+   a shelf. */
+
+.library-note {
+    margin-top: 22px;
+    color: var(--muted);
+    font-size: .88rem;
+}
+
+.library-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+@media (min-width: 860px) {
+    .library-list {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.library-card {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 12px;
+    align-items: center;
+    min-height: 62px;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+}
+
+.library-icon {
+    color: var(--plum);
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.library-text {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.library-text strong {
+    font-size: .96rem;
+    font-weight: 650;
+    /* Titles are real book titles and some are long; wrapping beats clipping,
+       but a runaway title must not stretch the grid column. */
+    overflow-wrap: anywhere;
+}
+
+.library-text small {
+    color: var(--muted);
+    font-size: .8rem;
+}

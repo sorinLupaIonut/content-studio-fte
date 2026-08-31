@@ -16,7 +16,8 @@ Three layers, deliberately separable:
     through `content-data` (rule 1: no SQL from here) and writes witness items
     into the SDK's own session storage.
 
-Messages the client reads are Romanian; identifiers are English, as everywhere.
+Messages the client reads are in the language she is working in; identifiers
+are English, as everywhere.
 """
 
 from __future__ import annotations
@@ -63,9 +64,61 @@ USER_MESSAGE_MARKER = "MESAJUL UTILIZATOAREI:"
 # the dataset builder, `test_conversations.py` - keeps the exact string it
 # asserted before. The contract is per language, not weaker.
 #
-# THE VALUES INSIDE DO NOT TRANSLATE, in either branch: `Reel`, `Educatie`,
-# `Memorie` and the hook types are identifiers the tools match on, not words on a
-# screen. Same rule `language.py` states for structured output.
+# THE VALUE NEVER TRANSLATES; THE LABEL IN THE SENTENCE NOW DOES. `Reel`,
+# `Educatie`, `Memorie` and the hook types stay exactly what they are everywhere
+# a tool, a schema or a column sees them - that rule has not moved, and
+# `language.py` states it for structured output. What moved, on 2026-08-31, is
+# what the READER of an English chat sees: „I want 10 post ideas: format Reel,
+# pillar Educatie, source Memorie." was the sentence an English studio wrote into
+# its own transcript, and the person it was written for could not read two words
+# of it. Sorin saw it in the transcript and said so.
+#
+# The dictated sentence is display text. Nothing parses it back: the buttons send
+# the enum from the form, and `select_variant` resolves the hook type from the
+# variant's id, not from the words. The one path that reads a sentence is the
+# other door - somebody typing it - and there the chat model maps prose to the
+# enum anyway, from the closed vocabulary in the tool's own schema. It has always
+# had to: she types "vreau reels despre educatie", never this exact string.
+
+
+#: Romanian value -> the English label the interface already shows for it. NOT a
+#: second vocabulary: `ui/.../Localization/Values.cs` owns these pairs, and
+#: `tests/unit/test_value_labels.py` reads that file and holds this map to it, so
+#: the two cannot drift in silence. A value with no entry is passed through.
+ENGLISH_LABELS: dict[str, str] = {
+    # sources
+    "Memorie": "Memory",
+    "Cărți": "Books",
+    "Internet": "Internet",
+    "Combinat": "Mixed",
+    # pillars
+    "Poziționare": "Positioning",
+    "Educație": "Education",
+    "Conexiune": "Connection",
+    "Conversie": "Conversion",
+    "Magnetism": "Magnetism",
+    # formats
+    "Reel": "Reel",
+    "Carusel": "Carousel",
+    "Stories": "Stories",
+    # hook types
+    "PROVOCARE": "Challenge",
+    "CIFRA": "Number",
+    "SECRET": "Secret",
+    "INTREBARE": "Question",
+    "CONTRAST": "Contrast",
+}
+
+
+def english_label(value: str) -> str:
+    """The label an English reader sees, or the value itself when there is none.
+
+    Passing an unknown value through rather than raising is deliberate: a new
+    pillar added to the domain before this map catches up should read oddly in
+    one sentence, not break the button that dictates it.
+    """
+
+    return ENGLISH_LABELS.get(value, value)
 
 
 def dictated_batch_request(
@@ -77,8 +130,8 @@ def dictated_batch_request(
 ) -> str:
     if normalise(language) == "en":
         text = (
-            f"I want 10 post ideas: format {format}, pillar {pillar}, "
-            f"source {source}."
+            f"I want 10 post ideas: format {english_label(format)}, "
+            f"pillar {english_label(pillar)}, source {english_label(source)}."
         )
     else:
         text = (
@@ -102,7 +155,10 @@ def dictated_select(
     ordinal: int, hook_type: str, language: Language = DEFAULT_LANGUAGE
 ) -> str:
     if normalise(language) == "en":
-        return f"I pick the {hook_type} hook variant from idea {ordinal}."
+        return (
+            f"I pick the {english_label(hook_type)} hook variant "
+            f"from idea {ordinal}."
+        )
     return f"Aleg varianta cu hook {hook_type} de la ideea {ordinal}."
 
 
@@ -146,7 +202,10 @@ def rendered_variants(
     ]
     for index, variant in enumerate(variants, start=1):
         hook = str(variant.get("hook") or "").strip()
-        lines.append(f"{index}. {variant['hook_type']}: {hook}")
+        hook_type = str(variant["hook_type"])
+        if english:
+            hook_type = english_label(hook_type)
+        lines.append(f"{index}. {hook_type}: {hook}")
     lines.append("")
     lines.append(
         "Which variant do you pick? The full text of each one is in the app."
