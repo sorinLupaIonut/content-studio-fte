@@ -1,9 +1,19 @@
-# LinkedIn — gata de lipit
+# LinkedIn — publicat pe 31 august 2026
 
-Textul pentru profil, pregătit pe 2026-08-30. **Nepublicat**: profilul e public și
-e al tău, așa că ultimul pas — Save — rămâne al tău.
+**Publicat.** Textul de mai jos e ce stă acum pe profil, păstrat aici ca să știi ce
+scrie fără să deschizi LinkedIn — și ca să ai de unde edita dacă vrei altceva.
 
-Ordinea de mai jos e ordinea în care aș face-o: 10 minute în total.
+| Unde | Ce e acolo | Poziția |
+|---|---|---|
+| **Featured** | link GitHub cu card și thumbnail, titlu „Content Studio FTE — a production Digital FTE agent" | **primul**, peste Digital FTE și Reading Room |
+| **Projects** | intrarea completă de mai jos, iul. 2026 – prezent, 5 skill-uri, media GitHub | **primul** |
+| **Skills** | LLM · Python · Software Architecture · PostgreSQL · Microsoft Azure, toate legate de proiect | — |
+
+**Ce n-am atins:** headline-ul, banner-ul, About. Headline-ul tău spune deja
+„Agentic AI Engineer & Senior .NET Developer", iar banner-ul „AI workers you can
+audit — every action traced, every claim verified" — proiectul ăsta e chiar dovada
+pentru amândouă, deci n-aveau nevoie de schimbare. Paragraful de About de la §3 a
+rămas nepus: e singurul loc unde ai o voce personală și merită să-l scrii tu.
 
 ---
 
