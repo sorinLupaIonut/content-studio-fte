@@ -445,10 +445,10 @@ if (-not $SkipBuild -and $KeepImages -ge 1) {
                 --name "content-studio@$digest" --yes --output none 2>$null
             if ($LASTEXITCODE -eq 0) { $removed++ }
         }
-        Write-Host ("taguri: {0} pastrate, {1} sterse; manifeste-copil sterse: {2}" -f `
+        Write-Host ("tags: {0} kept, {1} deleted; child manifests deleted: {2}" -f `
             [Math]::Min($tags.Count, $KeepImages), $stale.Count, $removed)
     } catch {
-        Write-Warning "curatenia registrului a esuat, deploy-ul e neatins: $_"
+        Write-Warning "registry housekeeping failed, the deploy is untouched: $_"
     } finally {
         $ErrorActionPreference = $previousEap
     }
