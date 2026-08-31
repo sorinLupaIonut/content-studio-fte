@@ -263,7 +263,7 @@ SSL_TRANSLATION = {
 
 
 class MissingConfig(RuntimeError):
-    """DATABASE_URL is absent or unusable."""
+    """A required setting is absent or unusable — DATABASE_URL, E2B_API_KEY."""
 
 
 def has_openai_key() -> bool:

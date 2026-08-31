@@ -162,7 +162,10 @@ Write-Host ("Image        : {0}" -f $image)
 
 # --- 2. The secrets, read once, never printed -----------------------------
 $dotenv = Read-DotEnv -Path $EnvFile
-foreach ($required in @('DATABASE_URL', 'DATABASE_URL_DIRECT', 'OPENAI_API_KEY')) {
+# E2B_API_KEY joined this list on 2026-08-31, four days late. The sandbox came
+# back on the 27th and nothing here was told, so every deploy since produced a
+# harness that could not generate anything - and said `ready` while doing it.
+foreach ($required in @('DATABASE_URL', 'DATABASE_URL_DIRECT', 'OPENAI_API_KEY', 'E2B_API_KEY')) {
     if (-not $dotenv.ContainsKey($required) -or -not $dotenv[$required]) {
         throw "$required is missing from $EnvFile"
     }
@@ -172,7 +175,7 @@ foreach ($required in @('DATABASE_URL', 'DATABASE_URL_DIRECT', 'OPENAI_API_KEY')
 if ($dotenv['DATABASE_URL_DIRECT'] -like '*-pooler*') {
     throw "DATABASE_URL_DIRECT points at the pooled endpoint. Migrations must use the direct one."
 }
-Write-Host ("Secrets      : {0} read from .env, none printed" -f 4)
+Write-Host ("Secrets      : {0} read from .env, none printed" -f 5)
 
 # The allowlist is deployment configuration, not source. It lives in .env beside
 # the secrets so the client's address never reaches a command line, the shell
@@ -351,6 +354,7 @@ $parameters = @{
         databaseUrl       = @{ value = $dotenv['DATABASE_URL'] }
         databaseUrlDirect = @{ value = $dotenv['DATABASE_URL_DIRECT'] }
         openaiApiKey      = @{ value = $dotenv['OPENAI_API_KEY'] }
+        e2bApiKey         = @{ value = $dotenv['E2B_API_KEY'] }
         googleClientSecret = @{ value = $googleClientSecret }
         entraClientSecret  = @{ value = $entraClientSecret }
         phoenixCollectorEndpoint = @{ value = $phoenixEndpoint }

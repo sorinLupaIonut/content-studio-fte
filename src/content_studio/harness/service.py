@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from content_studio.audit import Audit, GateError
 from content_studio.config import (
+    E2B_API_KEY,
     MCP_TIMEOUT,
     MCP_URL,
     SKILLS_DIR,
@@ -335,6 +336,12 @@ class HarnessService:
             missing.append("DATABASE_URL")
         if not SKILLS_DIR.is_dir():
             missing.append("SKILLS_DIR")
+        # The folder being on disk is half the answer. Since 2026-08-27 the
+        # method reaches the model only through a container, so no key means no
+        # method - and the failure lands as a MissingConfig traceback deep in the
+        # run rather than as a refusal to start it. Named here, it is one line.
+        if not E2B_API_KEY:
+            missing.append("E2B_API_KEY")
         if missing:
             raise HarnessError(
                 503,
@@ -347,6 +354,7 @@ class HarnessService:
     ) -> HealthResponse:
         openai_ok = has_openai_key()
         skills_ok = SKILLS_DIR.is_dir()
+        sandbox_ok = bool(E2B_API_KEY)
 
         # A TIMEOUT AND A REFUSAL ARE NOT THE SAME NEWS, and the first probe after
         # a quiet hour is almost always the first. Both backends sleep on purpose
@@ -421,6 +429,22 @@ class HarnessService:
                     else "Folderul de skill-uri lipsește."
                 ),
             ),
+            # THIS ENDPOINT SAID `ready` THROUGH A COMPLETE OUTAGE. From the
+            # day the sandbox came back (2026-08-27) until 2026-08-31 the
+            # deployed harness had no E2B_API_KEY: every batch died in a third
+            # of a second, and the page an operator reads first reported four
+            # green backends, because `skills` checks that the folder is on
+            # disk and nothing checked that it could be delivered. The folder
+            # and the door to it are two facts, so they are two rows.
+            "sandbox": BackendHealth(
+                configured=sandbox_ok,
+                active=sandbox_ok,
+                detail=(
+                    "Cheie configurată; niciun container pornit în health."
+                    if sandbox_ok
+                    else "E2B_API_KEY lipsește: metoda nu poate ajunge la model."
+                ),
+            ),
             "artifacts": BackendHealth(
                 configured=False,
                 active=False,
@@ -454,7 +478,7 @@ class HarnessService:
                 ),
             ),
         }
-        required = (openai_ok, database_ok, mcp_ok, skills_ok)
+        required = (openai_ok, database_ok, mcp_ok, skills_ok, sandbox_ok)
         return HealthResponse(
             status="ready" if all(required) else "degraded", backends=backends
         )

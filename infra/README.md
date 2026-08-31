@@ -117,8 +117,11 @@ adding a tester to the email list will silently do nothing.
 ## Secrets
 
 Four values are read from `.env` at deploy time — `DATABASE_URL`,
-`DATABASE_URL_DIRECT`, `OPENAI_API_KEY` — and land as Container
-Apps secrets referenced by `secretRef`. They are never printed, never written into
+`DATABASE_URL_DIRECT`, `OPENAI_API_KEY` and `E2B_API_KEY` — and land as Container
+Apps secrets referenced by `secretRef`. The count said four while three were
+named, and the unnamed one was the one nobody noticed was missing: the sandbox
+key returned to the project on 2026-08-27 and reached this file on 2026-08-31,
+after four days in which no deployed run could start. They are never printed, never written into
 the template, and never passed on a command line: `deploy.ps1` writes a parameters
 file into the temp directory and deletes it in a `finally` block, and the Bicep
 parameters are `@secure()`, so they stay out of the deployment record too.

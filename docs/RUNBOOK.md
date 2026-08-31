@@ -64,10 +64,27 @@ absorbs it. A sustained failure is different.
    before the damage, verify the branch, then repoint `DATABASE_URL`. Restoring
    into a branch rather than over the main one means a wrong guess costs nothing.
 
-## 3. E2B is down, or out of quota
+## 3. E2B is down, out of quota, or unconfigured
 
-**Looks like:** runs fail with a sandbox error; `/health` reports `e2b`
-configured but runs still fail.
+**Looks like:** every batch fails within a second of starting, and the log says
+`MissingConfig: E2B_API_KEY lipsește` — or runs fail with a sandbox error while
+`/health` reports `sandbox` configured.
+
+**Unconfigured is the first thing to rule out, because it looks like an outage
+and is not one.** It happened: from 2026-08-27, when the sandbox came back, to
+2026-08-31, the deployed harness had no `E2B_API_KEY` at all. `infra/main.bicep`
+had never been told about it, so every deploy shipped a harness that could not
+start a single run — and `/health` said `ready`, because `skills` checks that the
+folder is on disk and nothing checked the door it travels through. Both gaps are
+closed: the key is a declared secret in the template, and `/health` carries a
+`sandbox` row that turns the whole endpoint `degraded` without it.
+
+```bash
+curl -s https://studio-harness.<region>.azurecontainerapps.io/health
+```
+
+If `sandbox` is `configured: false`, this is configuration, not E2B: put
+`E2B_API_KEY` in `.env` and redeploy. Nothing else on this page applies.
 
 The health check reports whether the key and the skills folder exist; it does not
 create a sandbox, because creating one on every probe would cost money. So a

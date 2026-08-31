@@ -125,6 +125,19 @@ Six rules a new session must respect without asking again.
    model was never invited to batch. It batches tool with tool *and* shell with
    tool once asked, which is a turn back.
 
+   **AND BEFORE ANY OF THAT, A HARNESS WITH NO DOOR AT ALL.** The key that
+   opens a container is deployment configuration, and on 2026-08-27 the sandbox
+   came back to the code without reaching `infra/main.bicep`. For four days
+   every deployed batch failed inside a third of a second with
+   `MissingConfig: E2B_API_KEY`, while `/health` reported four green backends —
+   `skills` checks that the folder is on disk, and nothing checked that it could
+   be delivered. The folder and the door to it are two facts, so they are now
+   two rows: `E2B_API_KEY` is a declared secret in the template (a missing one
+   fails the deploy, not the client's next click) and `/health` carries a
+   `sandbox` row that turns the endpoint `degraded` without it. **A capability
+   that arrives in the code has not arrived until the template carries what it
+   needs and the health check can see it missing.**
+
    The five production references (filmare, editare, distribuire,
    întrebări-frecvente, tipuri-de-reels) left the tree on 2026-08-27, moved to
    `nefolosite/` — the skill declines production questions rather than
@@ -385,6 +398,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | That a diagram's labels fit | `tests/checks/safe/diagram_fit.py` | SVG has no text layout; nothing warns when a label runs over its neighbour |
 | What to do when it breaks | [docs/RUNBOOK.md](docs/RUNBOOK.md) | each failure has one named response |
 | Telemetry wiring | `observability.py` | one `run_id`, everywhere it goes |
+| Which secrets a deployed harness needs | `infra/main.bicep` + `infra/deploy.ps1` | bicep declares the whole list; a key set by hand is deleted by the next deploy |
 | Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |
 | Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
 | Which providers carry their own allowlist | `config.py` → `AUTH_SELF_PROVISION_PROVIDERS` | decided once, in `auth.py` |

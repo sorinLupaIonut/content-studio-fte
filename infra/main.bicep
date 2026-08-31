@@ -46,6 +46,17 @@ param databaseUrlDirect string
 @secure()
 param openaiApiKey string
 
+// THE OUTAGE THIS PARAMETER EXISTS TO PREVENT: the sandbox came back on
+// 2026-08-27 and this template was not told. From that day until 2026-08-31 the
+// deployed harness had no E2B_API_KEY, every generation died in a third of a
+// second, and /health reported four green backends because nothing checked the
+// one door the method travels through. Required, not defaulted to empty: a
+// harness without it cannot generate anything, so an empty deploy should fail
+// here rather than in front of the client.
+@secure()
+@description('E2B key. The method is read from a container; without it no run can start.')
+param e2bApiKey string
+
 @description('Google OAuth client secret for Easy Auth. Empty leaves sign-in untouched.')
 @secure()
 param googleClientSecret string = ''
@@ -272,6 +283,10 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
           value: openaiApiKey
         }
         {
+          name: 'e2b-api-key'
+          value: e2bApiKey
+        }
+        {
           // Empty is a supported state: `configure_phoenix` reads it, finds
           // nothing and reports the surface as off. See observability.py.
           name: 'phoenix-api-key'
@@ -350,6 +365,10 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'OPENAI_API_KEY'
               secretRef: 'openai-api-key'
+            }
+            {
+              name: 'E2B_API_KEY'
+              secretRef: 'e2b-api-key'
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

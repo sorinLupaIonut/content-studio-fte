@@ -22,6 +22,7 @@ from content_studio.audit import Audit, calls_in
 from content_studio.config import (
     GENERATION_TITLE_MODEL,
     MODEL,
+    MissingConfig,
 )
 from content_studio.harness.conversations import (
     ConversationLog,
@@ -174,6 +175,11 @@ def safe_generation_error(exc: BaseException) -> str:
         return "Skill-ul nu a terminat în limita de pași."
     if isinstance(exc, asyncio.TimeoutError):
         return "Generarea a depășit timpul maxim."
+    # She read `Generarea a eșuat (MissingConfig)` on 2026-08-31 and it told her
+    # nothing: not what broke, not whether it was her doing, not whether trying
+    # again would help. It is the one failure here that no retry can clear.
+    if isinstance(exc, MissingConfig):
+        return "Studioul nu e configurat complet; generarea nu poate porni."
     return f"Generarea a eșuat ({name})."
 
 
