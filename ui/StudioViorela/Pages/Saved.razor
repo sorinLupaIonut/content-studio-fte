@@ -225,9 +225,22 @@ else
             || _production.VisualDirection.Trim().Length == 0
             || _production.DurationOrCount.Trim().Length == 0);
 
+    /// <summary>
+    /// The three lines the confirmation panel shows before a post is replaced.
+    ///
+    /// Every word here was Romanian until 2026-08-31 — a hardcoded "Titlu:" and
+    /// the raw `Format`/`Pillar` values — so the last screen before a
+    /// destructive, unrecoverable write was the one screen an English reader
+    /// could not read. The values themselves never travel translated; these are
+    /// labels, and <see cref="Values"/> owns them.
+    /// </summary>
     private List<string> UpdateSummary => _draft is null
         ? []
-        : [$"Titlu: {_draft.Title}", $"Hook: {HookLabel(_draft.HookType)}", $"{_draft.Format} · {_draft.Pillar}"];
+        : [
+            $"{T[Copy.FieldTitle]}: {_draft.Title}",
+            $"{T[Copy.FieldHookType]}: {HookLabel(_draft.HookType)}",
+            $"{Values.FormatLabel(T, _draft.Format)} · {Values.PillarLabel(T, _draft.Pillar)}"
+        ];
 
     protected override async Task OnInitializedAsync()
     {
@@ -379,6 +392,16 @@ else
                 {
                     Open((await Api.GetSavedPostAsync(post.Id)).Post ?? post);
                 }
+            }
+            // Approved, and the run came back still waiting: the agent asked
+            // for something else instead of finishing. Not a cancellation, and
+            // saying so was how a real defect stayed hidden — a silent Reel
+            // could not be saved at all, and the page called that "cancelled"
+            // rather than "something went wrong", so it read like the user's
+            // own doing.
+            else if (approved)
+            {
+                _error = T[Copy.ChangeNotApplied];
             }
             else
             {

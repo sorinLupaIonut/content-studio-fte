@@ -142,7 +142,7 @@ else
             _pending = await Api.PrepareProfileUpdateAsync(section);
             if (_pending.Status == "completed")
             {
-                _message = "Profilul a fost actualizat.";
+                _message = T[Copy.ChangeSaved];
                 await LoadAsync();
             }
         }

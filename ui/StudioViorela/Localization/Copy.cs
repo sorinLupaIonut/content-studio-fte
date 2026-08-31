@@ -327,9 +327,12 @@ public static class Copy
     public static readonly Phrase LibraryComingBody = new(
         "Atunci vom adăuga încărcare, procesare și embeddings automate, cu stare vizibilă pentru fiecare fișier.",
         "That is when upload, processing and automatic embeddings arrive, with a visible state per file.");
+    // Used by the profile page and the saved-post editor, so it names neither:
+    // both were reporting a write that had not happened, one as "saved" and the
+    // other as "cancelled".
     public static readonly Phrase ChangeNotApplied = new(
-        "Modificarea nu a fost aplicată. Profilul a rămas neschimbat — încearcă din nou sau spune-i agentului în chat ce vrei schimbat.",
-        "The change was not applied. The profile is unchanged — try again, or tell the agent in the chat what you want changed.");
+        "Modificarea nu a fost aplicată. Nimic nu s-a schimbat — încearcă din nou sau spune-i agentului în chat ce vrei schimbat.",
+        "The change was not applied. Nothing was changed — try again, or tell the agent in the chat what you want changed.");
     public static readonly Phrase LibraryListAria =
         new("Materialele din bibliotecă", "The materials in the library");
     // The shelf was on the page from the start and the page never asked for it:

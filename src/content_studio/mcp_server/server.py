@@ -669,12 +669,22 @@ async def update_post(
     format: str,
     hook: str,
     hook_type: str,
-    script: str,
+    # NULLABLE, AND STILL REQUIRED. A silent Reel has no script and no
+    # production block, so the JSON the application hands the model carries
+    # `"script": null` — and the model is told, in as many words, to copy that
+    # content literally. Until 2026-08-31 these two were plain `str` and `dict`,
+    # so `null` violated the schema: the call was rejected before the tool ran,
+    # the model corrected itself to `""`, and the corrected call hit the
+    # approval gate AGAIN. From the page that looked like confirming a save and
+    # being told the change was cancelled — every time, for any saved Reel.
+    # No default, so the model must still send both: what is being replaced is
+    # the WHOLE post, and a field it may omit is a field it may drop.
+    script: str | None,
     caption: str,
     hashtags: list[str],
     cta: str,
     source: str,
-    format_details: dict,
+    format_details: dict | None,
     ctx: Context,
 ) -> dict:
     """Replace a saved post with the version rewritten in the interface.
@@ -697,12 +707,21 @@ async def update_post(
             "format": format,
             "hook": hook,
             "hook_type": hook_type,
-            "script": script,
+            # EMPTY IS ABSENT, for the two fields a silent Reel does not have.
+            # The parameters above are required so the model always sends the
+            # complete post; `SavedPostContent` says `str | None` with a
+            # `min_length` of 3. So `""` — which is what the editor sends for a
+            # Reel's script — was neither absent nor long enough, and the tool
+            # raised "String should have at least 3 characters" on every attempt.
+            # The model read the error and called the tool again, hit the
+            # approval gate again, and the page reported the change cancelled.
+            # A saved Reel could not be edited at all. Found 2026-08-31.
+            "script": script or None,
             "caption": caption,
             "hashtags": hashtags,
             "cta": cta,
             "source": source,
-            "format_details": format_details,
+            "format_details": format_details or None,
         }
     )
 

@@ -28,14 +28,18 @@
     <div class="notice notice-error" role="alert">@_error</div>
 }
 
-@if (_accounts.Count == 0)
+@* An empty list because we were refused is not an empty list. Until 2026-08-31
+   a non-admin who typed /admin was told both "this page is for the
+   administrator only" AND "no accounts provisioned yet" — the second one is a
+   statement about data the page was never allowed to read. *@
+@if (_accounts.Count == 0 && _error is null)
 {
     <section class="empty-state">
         <span class="empty-illustration">⚙</span>
         <p>@T[Copy.AdminEmpty]</p>
     </section>
 }
-else
+else if (_accounts.Count > 0)
 {
     <section class="table-scroll">
         <table class="admin-table">

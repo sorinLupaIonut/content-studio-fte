@@ -186,6 +186,28 @@ def validate_session_id(session_id: str) -> str:
     return session_id
 
 
+def same_value(sent: Any, asked: Any) -> bool:
+    """Is what the model typed the same value the application asked for?
+
+    Equality, with ONE exception: absent and empty are the same absence. A Reel
+    is silent, so its `script` has no value — the page sends `""` and the model
+    sends `null`, or the other way round, and on 2026-08-31 that was enough to
+    fail a save the user had every right to make, with "the field 'script' was
+    modified". Intermittent, because it depended on which shape the model
+    happened to echo: the same edit succeeded minutes earlier and failed on the
+    retry.
+
+    NOTHING ELSE IS FORGIVEN. Whitespace is not trimmed and case is not folded.
+    This comparison exists because the gate protects against an unwanted write,
+    not against a write of the wrong thing - a model that rephrased one word of
+    her post must still be caught before she is asked to approve it.
+    """
+
+    if sent is None or sent == "":
+        return asked is None or asked == ""
+    return sent == asked
+
+
 def _client_header() -> dict[str, str]:
     """The current request's client, when one has been bound.
 
@@ -781,8 +803,9 @@ class HarnessService:
         if request.tool_name != tool_name:
             return f"asked for {request.tool_name!r} instead of {tool_name!r}"
         for key, value in expected.items():
-            if request.arguments.get(key) != value:
-                return f"the field {key!r} was modified"
+            if same_value(request.arguments.get(key), value):
+                continue
+            return f"the field {key!r} was modified"
         return None
 
     async def start_generation(
