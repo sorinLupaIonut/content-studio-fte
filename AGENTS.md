@@ -166,6 +166,24 @@ Six rules a new session must respect without asking again.
    model can get wrong. `client_of(ctx)` reads a header, falls back to the
    principal in `app_users`, then to `CLIENT_SLUG` — see §Multi-user below.
 
+   **AND A RESOURCE IS NOT A TOOL.** That header scopes every *tool*, which is
+   why no tool takes a client argument — but the profile is an MCP **resource**,
+   and `profile_uri(slug)` carries its subject in the URI on purpose: the
+   harness reads it before an agent exists, so there is no model in the loop to
+   mislead. A resource read therefore ignores the header, and one that names no
+   slug gets `CLIENT_SLUG`. All seven harness call sites named none, from the
+   day accounts arrived on 2026-08-21 until 2026-08-31: **every account read,
+   and every agent wrote from, Viorela's profile** — her avatar, her voice, her
+   offers. It could not raise, because the read succeeded and returned a real
+   profile. And it could not be seen, because the four clients were seeded from
+   one file and held byte-identical profiles, 28,639 characters each — the wrong
+   answer and the right one were the same text. It surfaced within minutes of
+   the first account whose profile differed, when one was translated into
+   English and the page kept showing Romanian. `current_client()` is the answer
+   and `tests/unit/test_profile_scope.py` walks the AST for call sites that skip
+   it, because the defect is an argument that is **absent**, and absence is what
+   reading a diff misses.
+
 ## One conversation, two doors (2026-08-27)
 
 The studio has ONE conversation, and the buttons are a way of speaking into it.
@@ -450,6 +468,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Which secrets a deployed harness needs | `infra/main.bicep` + `infra/deploy.ps1` | bicep declares the whole list; a key set by hand is deleted by the next deploy |
 | Phoenix export and its key | `observability.py` → `configure_phoenix` | the key lives in `.env`, never in a template |
 | Who owns which client | `app_users` + `client_of(ctx)` | never a tool argument |
+| Whose profile a harness read returns | `current_client()`, passed into `read_profile` | `client_of(ctx)` scopes tools, not resources |
 | Which providers carry their own allowlist | `config.py` → `AUTH_SELF_PROVISION_PROVIDERS` | decided once, in `auth.py` |
 | Who owns which books | `documents.client_id` | scoped in the SQL, not in the caller |
 

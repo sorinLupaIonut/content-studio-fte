@@ -21,6 +21,7 @@ from pydantic import Field, field_validator, model_validator
 
 from content_studio.audit import Audit
 from content_studio.config import CHAT_MODEL
+from content_studio.harness.accounts import current_client
 from content_studio.harness.conversations import USER_MESSAGE_MARKER
 from content_studio.harness.drafts import GenerationDraftClient
 from content_studio.harness.errors import RefusalError
@@ -533,7 +534,7 @@ class ChatCoordinator:
         try:
             await asyncio.gather(data_mcp.connect(), internal_mcp.connect())
             sandbox = await stack.enter_async_context(sandbox_cm)
-            _, profile_md = await read_profile(data_mcp)
+            _, profile_md = await read_profile(data_mcp, current_client())
             output_type = CHAT_OUTPUTS.get(state.target.kind, ChatTurnOutput)
             worker = build_worker(
                 profile_md,

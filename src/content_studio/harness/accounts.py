@@ -34,6 +34,32 @@ CURRENT_CLIENT: ContextVar[str | None] = ContextVar("current_client", default=No
 CURRENT_PRINCIPAL: ContextVar[str | None] = ContextVar("current_principal", default=None)
 
 
+def current_client() -> str:
+    """Whose account this request belongs to, for a caller that must NAME it.
+
+    THE CLIENT HEADER DOES NOT COVER EVERYTHING. `client_of(ctx)` scopes every
+    tool off the connection, which is why no tool takes a client argument. The
+    profile is not a tool: it is an MCP *resource*, and `profile_uri(slug)`
+    carries its subject in the URI by design - the harness reads it before an
+    agent exists, so there is no model in the loop to mislead. A resource read
+    therefore ignores the header entirely, and a call that names no slug gets
+    `CLIENT_SLUG`.
+
+    Every one of the seven harness call sites named no slug, from the day
+    accounts arrived on 2026-08-21 until 2026-08-31. Each account read, and each
+    agent wrote from, VIORELA's profile - her avatar, her voice, her offers.
+    Nothing raised, and nothing could have: the read succeeded, and the profile
+    it returned was a real one.
+
+    IT WAS INVISIBLE BY CONSTRUCTION. All four clients were seeded from the same
+    file and held byte-identical profiles - 28,639 characters each - so the
+    wrong profile and the right one were the same text. It surfaced within
+    minutes of the first account whose profile differed, when one was translated
+    into English on 2026-08-31 and the page kept showing Romanian.
+    """
+    return CURRENT_CLIENT.get() or CLIENT_SLUG
+
+
 class BudgetExhausted(RuntimeError):
     """Raised instead of starting a run that the account cannot pay for."""
 
@@ -165,7 +191,7 @@ class AccountDirectory:
     # ---- how much ------------------------------------------------------------
 
     async def budget_for(self, client_slug: str | None = None) -> Budget | None:
-        slug = client_slug or CURRENT_CLIENT.get() or CLIENT_SLUG
+        slug = client_slug or current_client()
         payload = await self._call("ui_get_budget", {"client_slug": slug})
         raw = (payload or {}).get("budget")
         if not raw:
@@ -225,7 +251,7 @@ class AccountDirectory:
         output_tokens: int,
         cached_input_tokens: int = 0,
     ) -> None:
-        slug = CURRENT_CLIENT.get() or CLIENT_SLUG
+        slug = current_client()
         principal = CURRENT_PRINCIPAL.get() or "unknown"
         if not input_tokens and not output_tokens:
             return

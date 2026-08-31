@@ -38,6 +38,7 @@ from content_studio.config import (
 from content_studio.harness.accounts import (
     CURRENT_CLIENT,
     AccountDirectory,
+    current_client,
 )
 from content_studio.harness.chat import (
     ActiveChatError,
@@ -518,7 +519,7 @@ class HarnessService:
         data_mcp = self._data_mcp(session_id, principal_id)
         try:
             await data_mcp.connect()
-            _, profile_md = await read_profile(data_mcp)
+            _, profile_md = await read_profile(data_mcp, current_client())
             worker = build_worker(profile_md, data_mcp, language=language)
             sandbox_cm = sandbox_run_config(f"run-{run_id[:8]}")
             session = SQLAlchemySession(
@@ -547,7 +548,7 @@ class HarnessService:
         data_mcp = self._data_mcp(session_id)
         try:
             await data_mcp.connect()
-            _, profile_md = await read_profile(data_mcp)
+            _, profile_md = await read_profile(data_mcp, current_client())
         except Exception as exc:  # noqa: BLE001
             raise HarnessError(
                 502, f"the profile cannot be read right now ({type(exc).__name__})"
@@ -570,7 +571,7 @@ class HarnessService:
         data_mcp = self._data_mcp(read_session)
         try:
             await data_mcp.connect()
-            _, profile_md = await read_profile(data_mcp)
+            _, profile_md = await read_profile(data_mcp, current_client())
         except Exception as exc:  # noqa: BLE001
             raise HarnessError(
                 502, f"the profile cannot be read right now ({type(exc).__name__})"
@@ -1157,7 +1158,7 @@ class HarnessService:
         resumed = False
         try:
             await data_mcp.connect()
-            _, profile_md = await read_profile(data_mcp)
+            _, profile_md = await read_profile(data_mcp, current_client())
             # The run resumes with the language the browser is showing now,
             # which is the same one it was started in unless she switched
             # mid-run - in which case following the screen is the right call.

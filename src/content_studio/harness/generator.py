@@ -26,6 +26,7 @@ from content_studio.config import (
     MODEL,
     MissingConfig,
 )
+from content_studio.harness.accounts import current_client
 from content_studio.harness.conversations import (
     ConversationLog,
     dictated_develop,
@@ -448,7 +449,7 @@ class GenerationCoordinator:
         internal_mcp = self._internal_mcp_factory(session_id)
         try:
             await asyncio.gather(data_mcp.connect(), internal_mcp.connect())
-            _, profile_md = await read_profile(data_mcp)
+            _, profile_md = await read_profile(data_mcp, current_client())
             drafts = GenerationDraftClient(internal_mcp)
             # Nothing is pre-collected or pre-resolved since 2026-08-27: the
             # agent brings its own material and picks its own books, with its
@@ -743,7 +744,7 @@ class GenerationCoordinator:
             # to spend, and the gate has to stand in front of each of them.
             if self._accounts is not None:
                 await self._accounts.require_budget()
-            _, profile_md = await read_profile(data_mcp)
+            _, profile_md = await read_profile(data_mcp, current_client())
             agent = self._detail_agent(
                 profile_md, data_mcp, request, language, batch_id
             )
