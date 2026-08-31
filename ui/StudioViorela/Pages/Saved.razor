@@ -70,7 +70,7 @@ else
 
                         <label class="editor-field">
                             <span>@T[Copy.FieldTitle]</span>
-                            <input type="text" @bind="_draft.Title" @bind:event="oninput" @onchange="MarkDirty" />
+                            <input type="text" @bind="_draft.Title" @bind:event="oninput" @bind:after="MarkDirty" />
                         </label>
 
                         <div class="editor-grid">
@@ -105,7 +105,7 @@ else
 
                         <label class="editor-field">
                             <span>@T[Copy.LabelHook]</span>
-                            <textarea rows="2" @bind="_draft.Hook" @bind:after="MarkDirty"></textarea>
+                            <textarea rows="2" @bind="_draft.Hook" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
                         </label>
                         @* Shown on what the post carries, not on its format: a silent
                            reel never had a script, while a post saved before reels went
@@ -114,28 +114,28 @@ else
                         {
                             <label class="editor-field">
                                 <span>@T[Copy.LabelScript]</span>
-                                <textarea rows="10" @bind="_draft.Script" @bind:after="MarkDirty"></textarea>
+                                <textarea rows="10" @bind="_draft.Script" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
                             </label>
                         }
                         <label class="editor-field">
                             <span>@T[Copy.LabelCaption]</span>
-                            <textarea rows="5" @bind="_draft.Caption" @bind:after="MarkDirty"></textarea>
+                            <textarea rows="5" @bind="_draft.Caption" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
                         </label>
 
                         <div class="editor-grid">
                             <label class="editor-field">
                                 <span>@T[Copy.LabelHashtags] <small>@T[Copy.HashtagsHint]</small></span>
-                                <input type="text" @bind="_hashtags" @bind:after="MarkDirty" />
+                                <input type="text" @bind="_hashtags" @bind:event="oninput" @bind:after="MarkDirty" />
                             </label>
                             <label class="editor-field">
                                 <span>@T[Copy.LabelCta]</span>
-                                <input type="text" @bind="_draft.Cta" @bind:after="MarkDirty" />
+                                <input type="text" @bind="_draft.Cta" @bind:event="oninput" @bind:after="MarkDirty" />
                             </label>
                         </div>
 
                         <label class="editor-field">
                             <span>@T[Copy.LabelSource]</span>
-                            <input type="text" @bind="_draft.Source" @bind:after="MarkDirty" />
+                            <input type="text" @bind="_draft.Source" @bind:event="oninput" @bind:after="MarkDirty" />
                         </label>
 
                         @if (HasScript)
@@ -149,16 +149,16 @@ else
                                 <div class="editor-grid">
                                     <label class="editor-field">
                                         <span>@T[Copy.FieldDuration]</span>
-                                        <input type="text" @bind="_production.DurationOrCount" @bind:after="MarkDirty" />
+                                        <input type="text" @bind="_production.DurationOrCount" @bind:event="oninput" @bind:after="MarkDirty" />
                                     </label>
                                     <label class="editor-field">
                                         <span>@T[Copy.FieldVisual]</span>
-                                        <input type="text" @bind="_production.VisualDirection" @bind:after="MarkDirty" />
+                                        <input type="text" @bind="_production.VisualDirection" @bind:event="oninput" @bind:after="MarkDirty" />
                                     </label>
                                 </div>
                                 <label class="editor-field">
                                     <span>@T[Copy.FieldBlocks] <small>@T[Copy.BlocksHint]</small></span>
-                                    <textarea rows="4" @bind="_blocks" @bind:after="MarkDirty"></textarea>
+                                    <textarea rows="4" @bind="_blocks" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
                                 </label>
                             </fieldset>
                         }
