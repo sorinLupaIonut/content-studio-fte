@@ -482,7 +482,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Why a generated idea failed | `generation_ideas.last_error`, a code | the card prints the column verbatim; a stored sentence cannot be translated later |
 | That the language split holds | `tests/checks/safe/language_split.py` | diacritics alone miss a third of it |
 | That it holds in the INTERFACE too | `tests/checks/safe/ui_language_split.py` | the Python check stops at `src/`; a hardcoded „Titlu:" sat on the last screen before a destructive write |
-| That a gated button can be clicked at all | `tests/checks/safe/ui_bind_on_input.py` | `@bind` commits on BLUR; where a button is disabled until the form is dirty, the first click is spent enabling it |
+| That a gated button can be clicked at all | `tests/checks/safe/ui_bind_on_input.py` | `@bind` commits on BLUR, so a button disabled until the form is dirty spends the first click enabling itself. **Two shapes**: a flag the fields raise (`!_dirty`) and the field's own value (`IsNullOrWhiteSpace(_draft)`) — the check reads the buttons for both, because knowing one and reporting clean over the other is what it did for a day |
 | Output-language override | `language.py` | the skills stay Romanian |
 | Model prices | `pricing.py` | one table; a copy drifts silently |
 | How many errands a run gets before it writes | `generator.py` → `ModelSettings.reasoning` | it is a setting, never a sentence in the skill |
