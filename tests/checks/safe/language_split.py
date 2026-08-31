@@ -94,8 +94,14 @@ ALLOWED_SUBSTRINGS = (
     "context de lucru",
     "ediție neînregistrată",
     "copie personală",
-    # Data about Romanian itself.
+    # Data about Romanian itself: the diacritics, and the stopwords
+    # `path/convergence.py` strips out of a focus SHE typed before asking
+    # whether the topic reached the tool. Words used as data, not as prose.
     "ăâîșşțţĂÂÎȘŞȚŢ",
+    "fara de a si cu la in pe sa",
+    # The name of the pre-rename Romanian table, which `db/apply.py` looks for
+    # so it can tell the operator which migration has not been run.
+    "postari",
     "Sursă:",
     # The Romanian half of the one prompt line that chooses the answer language.
     "Răspunde natural, în română",
@@ -137,7 +143,16 @@ def romanian(text: str) -> str | None:
     # count on 2026-08-31 - found by reading an eval's output, which is exactly
     # the manual step this file exists to replace.
     hits = [w for w in words if w in MARKERS]
-    return f"words: {' '.join(sorted(set(hits)))}" if len(hits) >= 2 else None
+    if len(hits) >= 2:
+        return f"words: {' '.join(sorted(set(hits)))}"
+    # A SHORT string gets no benefit of the doubt, and 25 of them collected it
+    # on 2026-08-31: `pe disc`, `niciun pas`, `Set de date:`, `n-a deschis`.
+    # One marker inside a long English sentence is a coincidence; one marker
+    # inside three words IS the string. The threshold that let these through
+    # was written the same afternoon, against the opposite failure.
+    if hits and len(words) <= 6:
+        return f"short, and one of its {len(words)} words is {hits[0]!r}"
+    return None
 
 
 def allowed(text: str) -> bool:

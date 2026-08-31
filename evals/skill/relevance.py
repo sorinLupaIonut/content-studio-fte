@@ -356,7 +356,7 @@ def main() -> int:
         # A verdict that could not be read is not a verdict of zero. Say so and
         # refuse the summary rather than print a clean-looking 0/N - which is
         # exactly what this file did on its first run, on 2026-08-30.
-        print(f"\n{unreadable} din {len(frame)} verdicte n-au putut fi citite.")
+        print(f"\n{unreadable} of {len(frame)} verdicts could not be read.")
         for detail in frame.loc[frame["score"].isna(), "execution_details"].head(3):
             print(f"  {str(detail)[:200]}")
         if unreadable == len(frame):

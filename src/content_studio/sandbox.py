@@ -213,7 +213,7 @@ async def sandbox_run_config(label: str) -> AsyncIterator[SandboxRunConfig]:
     # was fine. Furnishing it here means the container is only ever handed over
     # in one state: ready.
     await session.apply_manifest()
-    logger.info("sandbox %s: pornit", label)
+    logger.info("sandbox %s: started", label)
     try:
         yield SandboxRunConfig(session=session)
     finally:
@@ -222,6 +222,6 @@ async def sandbox_run_config(label: str) -> AsyncIterator[SandboxRunConfig]:
         # would turn a cleanup problem into a lost lot.
         try:
             await session.aclose()
-            logger.info("sandbox %s: inchis", label)
+            logger.info("sandbox %s: closed", label)
         except Exception:  # noqa: BLE001 - cleanup must not mask the real result
-            logger.warning("sandbox %s: nu s-a putut inchide", label, exc_info=True)
+            logger.warning("sandbox %s: could not be closed", label, exc_info=True)

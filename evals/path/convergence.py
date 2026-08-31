@@ -251,7 +251,7 @@ def plain(text: str) -> str:
 
 #: Words in a focus that carry no topic. Kept tiny on purpose: this is a
 #: containment test, not a language model.
-STOPWORDS = frozenset({"fara", "de", "a", "si", "cu", "la", "in", "pe", "sa"})
+STOPWORDS = frozenset("fara de a si cu la in pe sa".split())
 
 
 def survived(focus: str | None, wanted: str) -> bool:
@@ -347,7 +347,7 @@ def report(findings: list[dict[str, Any]], request: dict[str, str]) -> int:
         print(
             f"{finding['id']:<18}{finding['turns']:>6}"
             f"{finding['convergence']:>14.3f}"
-            f"{'da' if finding['opened_method'] else 'NU':>9}   {mark}"
+            f"{'yes' if finding['opened_method'] else 'NO':>9}   {mark}"
         )
 
     scores = [f["convergence"] for f in findings if f.get("convergence") is not None]
@@ -366,7 +366,7 @@ def report(findings: list[dict[str, Any]], request: dict[str, str]) -> int:
         # a decision, not an arithmetic.
         print(f"no method      {len(blind)} — {', '.join(blind)}  (a short path for a bad reason)")
     if len(walked) < len(findings):
-        print(f"picate         {len(findings) - len(walked)}")
+        print(f"failed         {len(findings) - len(walked)}")
 
     REPORTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y-%m-%d-%H%M")

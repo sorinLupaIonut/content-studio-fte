@@ -441,7 +441,7 @@ def verdict(route: Route, expected: Expectation) -> dict[str, Any]:
 
     router_ok = expected.skill in route.skills
     if not router_ok:
-        missing.append(f"skill: n-a deschis {expected.skill}/SKILL.md")
+        missing.append(f"skill: did not open {expected.skill}/SKILL.md")
 
     absent = [r for r in expected.references_required if r not in route.references]
     extra = [r for r in expected.references_forbidden if r in route.references]
@@ -460,7 +460,7 @@ def verdict(route: Route, expected: Expectation) -> dict[str, Any]:
     if tools_extra:
         surplus.append(f"tools from another source: {tools_extra}")
     if none_of_any:
-        missing.append(f"niciuna din uneltele sursei: {list(expected.tools_any_of)}")
+        missing.append(f"none of the source's tools: {list(expected.tools_any_of)}")
 
     if route.error:
         missing.append(f"the run failed: {route.error}")
@@ -497,7 +497,7 @@ def show_labels(cases: list[Case]) -> None:
 def by_axis(findings: list[dict[str, Any]]) -> None:
     """Where the failures cluster. The whole reason a grid beats six cases."""
 
-    print("\nPe axe:")
+    print("\nBy axis:")
     for axis in ("phase", "format", "source", "pillar", "focus"):
         values = sorted({str(f[axis]) for f in findings})
         cells = []
@@ -516,7 +516,7 @@ def select(cases: list[Case], args) -> list[Case]:
         wanted = set(args.ids)
         unknown = wanted - {c.id for c in cases}
         if unknown:
-            raise SystemExit(f"Cazuri necunoscute: {sorted(unknown)}")
+            raise SystemExit(f"Unknown cases: {sorted(unknown)}")
         return [c for c in cases if c.id in wanted]
     for axis, chosen in (
         ("phase", args.phase),
@@ -643,7 +643,7 @@ async def run_grid(cases: list[Case], spec: dict[str, Any], concurrency: int) ->
     print(
         f"\ntool_usage: {passed}/{len(findings)}"
         f"  ·  router {rate('router')}  references {rate('references')}"
-        f"  unelte {rate('tools')}"
+        f"  tools {rate('tools')}"
         f"  ·  {out.relative_to(ROOT)}"
     )
     return 1 if passed < len(findings) else 0

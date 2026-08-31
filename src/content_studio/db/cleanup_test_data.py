@@ -55,7 +55,7 @@ from content_studio.config import MissingConfig, database_url, describe_database
 #: report reads the way a person thinks about it, not the way the keys do.
 GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
-        "loturile de generare",
+        "the generation lots",
         ("generation_variants", "generation_ideas", "generation_batches"),
     ),
     # `traces`, `audit_log` and `artifacts` all carry a foreign key to `runs`,

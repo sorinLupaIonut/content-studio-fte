@@ -95,12 +95,12 @@ async def run() -> int:
                 continue
             detail = ""
             if in_box != on_disk:
-                detail = f"pe disc {len(on_disk)} octeti"
+                detail = f"on disk {len(on_disk)} bytes"
             else:
                 try:
                     in_box.decode("utf-8")
                 except UnicodeDecodeError:
-                    detail = "nu e UTF-8 valid in container"
+                    detail = "not valid UTF-8 inside the container"
             findings.append(
                 {
                     "check": where,
@@ -120,7 +120,7 @@ async def run() -> int:
             _, description, _ = parse_skill(skill_md)
             findings.append(
                 {
-                    "check": f"descriere:{folder.name}",
+                    "check": f"description:{folder.name}",
                     "ok": bool(description.strip()),
                     "chars": len(description),
                     "detail": "",
@@ -131,8 +131,8 @@ async def run() -> int:
 
     failures = [f for f in findings if not f["ok"]]
     for f in findings:
-        mark = "OK " if f["ok"] else "NU "
-        print(mark, f"{f['check']:<52}", f"{f['chars']:>6} octeti", f["detail"])
+        mark = "OK " if f["ok"] else "NO "
+        print(mark, f"{f['check']:<52}", f"{f['chars']:>6} bytes", f["detail"])
 
     stamp = datetime.now(UTC).strftime("%Y-%m-%d-%H%M")
     REPORTS.mkdir(parents=True, exist_ok=True)
@@ -143,7 +143,7 @@ async def run() -> int:
         encoding="utf-8",
     )
     passed = len(findings) - len(failures)
-    print(f"\nfidelitate: {passed}/{len(findings)} · {out.relative_to(ROOT)}")
+    print(f"\nfidelity: {passed}/{len(findings)} · {out.relative_to(ROOT)}")
     return 1 if failures else 0
 
 

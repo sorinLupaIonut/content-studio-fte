@@ -272,7 +272,7 @@ def router(output: dict[str, Any], expected: dict[str, Any]) -> dict[str, Any]:
         "score": 1.0 if ok else 0.0,
         "label": "correct" if ok else "wrong",
         "explanation": (
-            f"a deschis {output.get('skills') or '—'}; se cerea {wanted}/SKILL.md"
+            f"opened {output.get('skills') or '—'}; asked for {wanted}/SKILL.md"
         ),
     }
 
@@ -381,7 +381,7 @@ def relevance_evaluator(tool: str, avatar: str):
                 }
             )
             first = scores[0] if scores else None
-            verdicts.append(getattr(first, "label", None) or "necitit")
+            verdicts.append(getattr(first, "label", None) or "unread")
             why.append(f"«{search['description'][:70]}» → {verdicts[-1]}")
 
         # "relevant" only if every search this tool made was. One good passage
@@ -413,7 +413,7 @@ def convergence_evaluator(optimal: int):
             return {
                 "score": 0.0,
                 "label": "failed",
-                "explanation": output.get("error") or "niciun pas",
+                "explanation": output.get("error") or "no steps",
             }
         return {
             "score": round(min(optimal / turns, 1.0), 3),
@@ -510,17 +510,17 @@ def show(findings: list[dict[str, Any]], url: str) -> None:
     print(f"{'evaluator':<20}{'passed':>12}{'rate':>9}   what it says")
     print("-" * 96)
     meaning = {
-        "router": "a deschis SKILL.md-ul fazei",
+        "router": "opened the phase's SKILL.md",
         "references": "exactly the format's references",
         "tools": "the tool the source asks for",
         "relevance_books": "what the shelf returned, judged",
         "relevance_web": "what the web returned, judged",
-        "convergence": "drum scurt / cel mai scurt corect",
+        "convergence": "short path / the shortest correct one",
     }
     for name in NAMES:
         scored = [f["scores"][name] for f in findings if f["scores"].get(name) is not None]
         if not scored:
-            print(f"{name:<20}{'—':>12}{'—':>9}   {meaning[name]} (niciun caz)")
+            print(f"{name:<20}{'—':>12}{'—':>9}   {meaning[name]} (no cases)")
             continue
         if name == "convergence":
             # A mean, not a pass count: every run has a length and none of them
@@ -627,7 +627,7 @@ async def run(
                 " from skill/cases.json."
             ),
         )
-        print(f"Set de date: {name} — {len(chosen)} cazuri")
+        print(f"Dataset: {name} — {len(chosen)} cases")
 
         ran = await async_run_experiment(
             client=client,
@@ -732,7 +732,7 @@ def main() -> int:
     if args.ids:
         unknown = set(args.ids) - {row["input"]["case"] for row in chosen}
         if unknown:
-            raise SystemExit(f"Cazuri necunoscute: {sorted(unknown)}")
+            raise SystemExit(f"Unknown cases: {sorted(unknown)}")
         chosen = [row for row in chosen if row["input"]["case"] in args.ids]
         # A DIFFERENT DATASET, and the smoke test of 2026-08-30 is why. An
         # experiment runs against every example the dataset holds, so filtering

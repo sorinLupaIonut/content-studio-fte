@@ -183,7 +183,7 @@ def report(findings: list[dict[str, Any]]) -> None:
     for tool in DATA_TOOLS:
         mine = [s for s in searches if s["tool"] == tool]
         if not mine:
-            print(f"{tool:<15} niciun apel")
+            print(f"{tool:<15} no calls")
             continue
         worked = sum(s["worked"] for s in mine)
         print(f"{tool:<15} {worked}/{len(mine)} calls returned material")
@@ -286,10 +286,10 @@ def main() -> int:
     if args.ids:
         unknown = set(args.ids) - {case.id for case in chosen}
         if unknown:
-            raise SystemExit(f"Cazuri necunoscute: {sorted(unknown)}")
+            raise SystemExit(f"Unknown cases: {sorted(unknown)}")
         chosen = [case for case in chosen if case.id in args.ids]
 
-    print(f"{len(chosen)} cazuri\n{RULE}")
+    print(f"{len(chosen)} cases\n{RULE}")
     for i, case in enumerate(chosen, 1):
         print(
             f"  {i:>2}. {case.id:<24} {case.phase}/{case.format}/{case.pillar}/"
