@@ -327,6 +327,12 @@ this project already had.
 This is not a style preference; it is how the project stays usable by the person it
 was built for.
 
+The line moved on 2026-08-31, at Sorin's decision, and it moved one way: English
+became the base, Romanian became what the client reads. The reason is plain — a
+stranger has to be able to work on this repository and to demo the product — and
+the cost is equally plain, which is why the list below is short and each entry
+says why it is on it.
+
 **Romanian, and never translated:**
 
 - `BASE_INSTRUCTIONS` in [worker.py](src/content_studio/worker.py) — identity and
@@ -335,25 +341,55 @@ was built for.
   writes. The output contract is the skills plus `harness/generation.py`
 - `skill_method_note()` and `data_tool_note()` in the same file — the other two
   parts of the system prompt
-- every file under `skills/` — the skill bodies, frontmatter and references
-- the MCP tool **descriptions and docstrings** in
-  [mcp_server/server.py](src/content_studio/mcp_server/server.py)
-- everything the interface shows her — the Blazor UI is the product now; there is
-  no terminal loop left in `worker.py`, only the agent definition the harness
-  builds from
+- every file under `skills/` — the skill bodies, frontmatter and references. This
+  is the method, she edits it, and the tone of what gets written comes from here
 - `content/` — the profile, the posts, the books
 - the dictated sentences in
   [harness/conversations.py](src/content_studio/harness/conversations.py) — a button
   press is dictation, and those strings are contract
-- what an eval prints and the labelled prose in its dataset — the terminal is read
-  by the client too
+- everything the interface shows her — but bilingually, one line per phrase in
+  `Copy.cs`, never a Romanian string reaching the page some other way
+- **values, wherever they appear**: `Pilon`, `Sursă`, `Format`, the hook types,
+  the `ANGLE_TYPE` keys, the headings this code looks for inside her profile, the
+  literal written into `posts.source`, and the phrases she types that the model
+  has to recognise („dezvoltă a treia”). A value is not prose about a value
 
-**English, everywhere else:** identifiers, comments, docstrings that are not read by
-the model, database names, tool *names* and parameter *names*, the docs, the tests,
-the check scripts, and anything printed by a developer tool.
+**English, everywhere else** — and *everywhere* now includes the four surfaces
+that used to be Romanian:
 
-A Romanian docstring on a function with an English name is correct here, and so is
-an English identifier quoted inside Romanian prose.
+- the MCP tool **descriptions and docstrings** in
+  [mcp_server/server.py](src/content_studio/mcp_server/server.py), and what those
+  tools say back to the model when they refuse
+- the generation prompts and schema field descriptions in
+  [harness/generation.py](src/content_studio/harness/generation.py),
+  `sandbox.py`, `avatar.py`, and the approval-gate dictation in `service.py`
+- everything an eval prints, **including its Phoenix annotation labels**: `corect`
+  / `greșit` became `correct` / `wrong`, so a comparison spanning 2026-08-31 is
+  comparing two vocabularies. Runs recorded after that date are consistent
+- every refusal and every `/health` detail. A refusal the CLIENT reads does not
+  become an English sentence on her page: it becomes a **code**, and the wording
+  is chosen in `Copy.cs` in the reader's language. See `harness/errors.py`
+
+plus what was always English: identifiers, comments, database names, tool *names*
+and parameter *names*, the docs, the tests, and the check scripts.
+
+A Romanian docstring on a function with an English name is no longer correct here.
+An English identifier quoted inside Romanian prose still is, and so is an English
+comment quoting the Romanian line it explains.
+
+**THE DIACRITIC GREP IS NOT THE CHECK, and believing it was cost three of the
+five passes this took.** `Conectat; 10 unelte disponibile.`, `Chatul nu a putut
+porni`, `cerute, nechemate` and `Niciun model, niciun container, niciun cost.`
+are all Romanian and none of them contains ă, â, î, ș or ț. A net woven out of
+diacritics catches most of it and then reports clean over the rest, which is
+worse than no net: it looks like proof. `tests/checks/safe/language_split.py`
+reads string literals with `ast`, matches diacritics **and** a list of Romanian
+function words that are not English words, and holds the exemption list as data
+with a reason on each line:
+
+```bash
+uv run python tests/checks/safe/language_split.py
+```
 
 ### The language switch
 
@@ -387,6 +423,9 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Environment and paths | `config.py` | no other module calls `os.getenv` |
 | Tool contract | `mcp_server/server.py` | |
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
+| A refusal the client reads | a `code` from `harness/errors.py`, worded in `Copy.cs` | never an English sentence on her page, never a Romanian one on his |
+| Why a generated idea failed | `generation_ideas.last_error`, a code | the card prints the column verbatim; a stored sentence cannot be translated later |
+| That the language split holds | `tests/checks/safe/language_split.py` | diacritics alone miss a third of it |
 | Output-language override | `language.py` | the skills stay Romanian |
 | Model prices | `pricing.py` | one table; a copy drifts silently |
 | How many errands a run gets before it writes | `generator.py` → `ModelSettings.reasoning` | it is a setting, never a sentence in the skill |
@@ -423,6 +462,10 @@ uv run ruff check .
 
 ```bash
 uv run python -m unittest discover -s tests/unit
+```
+
+```bash
+uv run python tests/checks/safe/language_split.py
 ```
 
 Anything touching the MCP tools, the gate or the audit also needs the server running
