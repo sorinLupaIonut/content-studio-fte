@@ -106,8 +106,13 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
     /// </summary>
     public async Task DevelopGenerationIdeaAsync(string batchId, int ordinal)
     {
+        // The language rides in the query string because this POST has no body,
+        // and it is not decoration: until 2026-08-31 this was the ONE call that
+        // did not carry it, so an English batch produced English titles and a
+        // Romanian post. The detail phase is the whole cost of a run.
         using var response = await http.PostAsync(
-            $"api/generation-batches/{Uri.EscapeDataString(batchId)}/ideas/{ordinal}/details",
+            $"api/generation-batches/{Uri.EscapeDataString(batchId)}/ideas/{ordinal}"
+            + $"/details?language={language.Code}",
             null);
         await EnsureSuccessAsync(response);
     }

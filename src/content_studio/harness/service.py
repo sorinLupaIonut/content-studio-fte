@@ -938,9 +938,20 @@ class HarnessService:
         batch_id: UUID,
         ordinal: int,
         *,
+        language: Language = DEFAULT_LANGUAGE,
         dictate: bool = True,
     ) -> dict[str, Any]:
         """Start the five variants for one idea. Returns immediately, 202.
+
+        `language` is a parameter and not a default because it was a default
+        until 2026-08-31, and that was a bug with one visible symptom: a batch
+        of ten titles came back in English - `start_generation` carries the
+        language - and the post itself came back in Romanian, because THIS call
+        never carried it and fell to `DEFAULT_LANGUAGE`. The whole cost of a
+        run is in the detail phase, so the half that was wrong was the half
+        worth paying for. Both doors are fixed together: the click stamps it in
+        `StudioApiClient`, and the chat trigger below passes the language of the
+        conversation it was asked in.
 
         The budget is checked here AND again inside the task, for the same
         reason `start_generation` checks before a batch: this endpoint is the
@@ -952,7 +963,12 @@ class HarnessService:
         await self.accounts.require_budget()
         try:
             return await self.generator.develop(
-                principal_id, batch_id, ordinal, trail=self.trail, dictate=dictate
+                principal_id,
+                batch_id,
+                ordinal,
+                language=language,
+                trail=self.trail,
+                dictate=dictate,
             )
         except GenerationAccessError as exc:
             raise CodedError(404, exc.detail, exc.code) from exc
@@ -1037,6 +1053,7 @@ class HarnessService:
                 principal_id,
                 UUID(str(current["id"])),
                 int(arguments.get("idea", 0)),
+                language=language,
                 dictate=False,
             )
 

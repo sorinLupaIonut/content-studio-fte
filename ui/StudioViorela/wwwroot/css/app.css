@@ -1120,6 +1120,12 @@ select:disabled {
     background: var(--sage-soft);
 }
 
+/* The one way into the chat, so it has to READ as one. Until 2026-08-31 this
+   was a bare 54px circle with a `º6` in it and the label span set to
+   `display: none` - a plum dot that named nothing, in the corner where a
+   scroll-to-top button also lives. A floating circle is a convention on a
+   phone and a guess everywhere else; the words are what turn it into a door.
+   The spark stays, because it is the same mark `.chat-spark` uses inside. */
 .chat-launcher {
     position: fixed;
     z-index: 40;
@@ -1128,20 +1134,34 @@ select:disabled {
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    width: 54px;
+    gap: 9px;
     min-height: 50px;
-    padding: 0;
+    padding: 0 20px 0 17px;
     border: 0;
     border-radius: 999px;
     color: var(--on-accent);
     background: var(--plum);
+    font: inherit;
+    font-size: .95rem;
     font-weight: 750;
+    letter-spacing: .01em;
+    white-space: nowrap;
     box-shadow: 0 16px 38px rgba(0, 0, 0, .45);
     cursor: pointer;
+    /* Both durations are neutralised by the `prefers-reduced-motion` block
+       above, which zeroes every transition in the sheet. */
+    transition: transform .16s ease, box-shadow .16s ease;
 }
 
-.chat-launcher span:last-child {
-    display: none;
+.chat-launcher:hover,
+.chat-launcher:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, .52);
+}
+
+.chat-launcher span:first-child {
+    font-size: 1.05rem;
+    line-height: 1;
 }
 
 .chat-drawer {

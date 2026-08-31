@@ -46,6 +46,7 @@ from content_studio.harness.models import (
 from content_studio.harness.posts import PostUpdateRequest, SavePostsRequest
 from content_studio.harness.service import HarnessError, HarnessService
 from content_studio.harness.static_ui import mount_ui
+from content_studio.language import normalise
 from content_studio.observability import configure as configure_observability
 from content_studio.observability import shutdown_phoenix
 
@@ -572,6 +573,7 @@ def create_app(
         batch_id: UUID,
         ordinal: int,
         request: Request,
+        language: str | None = None,
         identity: Identity = identity_dependency,
     ) -> dict:
         """Write the five variants for one idea, because she opened it.
@@ -580,8 +582,14 @@ def create_app(
         she develops one idea, so they are written on demand rather than ten at
         a time - see `GenerationCoordinator.develop`.
         """
+        # A query parameter rather than a body: this POST has no body and a
+        # stale cached client that sends nothing must still get a post, not a
+        # 422. `normalise` is the forgiving reader for exactly that reason.
         batch = await request.app.state.harness.develop_generation_idea(
-            identity.principal_id, batch_id, ordinal
+            identity.principal_id,
+            batch_id,
+            ordinal,
+            language=normalise(language),
         )
         return {"batch": batch}
 
