@@ -10,6 +10,22 @@ document, so it is English. Everything the client reads stays Romanian.
 
 Last updated: 2026-08-19 · owner of this update: Claude Code
 
+> **Read this as a record, not as current state.** Reviewed on 2026-08-31 and
+> deliberately left as it was written, because it is the day-by-day account of how
+> the deployment was reasoned through. Four things below have since changed, and
+> [AGENTS.md](../AGENTS.md) is the authority on all of them:
+>
+> - **D7 says Phoenix was skipped.** It was refused, then asked for, and has been
+>   wired since 2026-08-23 — its own `TracerProvider`, never the global one.
+> - **D8's CI step read `evals/cases.json`.** That file is gone; the eval suite is
+>   `route/`, `skill/`, `path/` and `experiment.py`. CI has been paused since
+>   2026-08-28 and gates `ruff` plus the unit tests only.
+> - **The gate is no longer `input()` in `worker.py`.** The HTTP shape below is the
+>   product; `run_turn`'s in-process loop survives only for
+>   `tests/checks/paid/full_flow.py`.
+> - **"Who owns which files" lists the docs as unclaimed with the tool counts and
+>   the `conversations` change unreflected.** Both were corrected on 2026-08-31.
+
 ---
 
 ## The goal

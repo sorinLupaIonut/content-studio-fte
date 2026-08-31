@@ -1,4 +1,4 @@
-# Handoff — 2026-08-30, evening
+# Handoff — 2026-08-31
 
 For the next session in this folder. `AGENTS.md` is the contract and loads itself;
 this page is only what that file cannot know: where the work stopped and what the
@@ -102,8 +102,62 @@ accompanied this handoff.
 
 ---
 
+## 2026-08-31 — the documentation currency pass
+
+Sorin read the architecture diagram and asked two questions that were both right:
+why `SandboxAgent` is on it (it is correct — the sandbox came back on 2026-08-27),
+and whether the ten output rules still exist (**they do not**). That opened a
+sweep of every doc against the code. `tests/checks/safe/prompt.py` is the proof:
+the system prompt is four parts — voice, method note, tool note, profile — and no
+rules.
+
+**Fixed in code, not only in prose:**
+
+- `mcp_server/server.py` printed `content-data · five agent tools` on startup
+  while ten were registered. It counts `MODEL_VISIBLE_TOOLS` and
+  `INTERNAL_UI_TOOLS` now — a hand-written number is a second source of truth.
+- `db/provision.py --list` **crashed** with `TypeError` on any client nobody has
+  signed in as, which is exactly the row it exists to show (the listing is of
+  clients, not sign-ins). `viorela` is such a row today.
+- `language.py`'s English override told the model "Rule 7 holds with full force" —
+  a reference to a rule that has not existed since 2026-08-26. It states the rule
+  itself now.
+- `tests/checks/safe/prompt.py` said the profile placeholder stood in for 6 KB;
+  it is 28,639 characters.
+
+**Corrected in the docs**, each verified against the code or the database:
+
+| Was | Is |
+|---|---|
+| `ARCHITECTURE.md`: profile + ten output rules in the prompt | four parts, no rules |
+| `ARCHITECTURE.md`: five model-visible tools | ten, plus 25 internal |
+| `ARCHITECTURE.md`: `conversations` was removed at Decision 11 | a different table under the same name came back 2026-08-27 |
+| `ARCHITECTURE.md`: `traces` holds one payload per run | two kinds of row, same `run_id` |
+| `ARCHITECTURE.md`: the generator gathers a source packet, offers 3–4 books, five concurrent detail jobs | no packet, no picker, details are lazy — one, when she opens it |
+| `ARCHITECTURE.md`: phase 1 shows 10 proposals × 5 hooks | ten titles; the hooks are phase 2 |
+| `ARCHITECTURE.md` / `CASE-STUDY.md`: 18 tables | 16 — fourteen ours, two the SDK's |
+| `ARCHITECTURE.md`: access limited to two Google identities | multi-tenant, two providers, scoped library |
+| `CASE-STUDY.md` lever 3: one container per **batch** | one per **run** — and the real lever is that nine of ten details are never written, $0.0733 of $0.0770 |
+| `README.md`: skills delivered as tools | mounted into the container |
+| `README.md` / `TESTING.md`: VS Code targets `Studio complet (3 servicii)` etc. | `.vscode/launch.json` was rewritten 2026-08-24; the names are `1.`–`6.` and `Site complet` |
+| `TESTING.md`: the manual test is `uv run content-studio --new` | that entry point does not exist; the manual test is the site |
+| `TESTING.md`: unit tests run in CI on every push | CI has been paused since 2026-08-28 |
+| `manual.html`: 29 tools; Phoenix is not here; 173 tests | 10 + 25; Phoenix since 2026-08-23; 408 |
+| `AGENTS.md`: one eval group left | three, plus `experiment.py` |
+| `plans/DEPLOYMENT.md` | left as the record, with a dated note naming the four things that have changed under it |
+
+**The pattern worth keeping:** every number that was hand-written drifted, and
+every number read off the code did not. Where the fix was cheap, the number is now
+computed (the server banner). Where it is not, it carries the date it was measured.
+
+---
+
 ## Costs incurred today
 
-Roughly $0.35 in total: two Phoenix experiments ($0.10), four web searches
-($0.04), one full flow of nine turns, one real batch of ten titles, plus the
-paid checks.
+**2026-08-30:** roughly $0.35 in total — two Phoenix experiments ($0.10), four web
+searches ($0.04), one full flow of nine turns, one real batch of ten titles, plus
+the paid checks.
+
+**2026-08-31:** nothing. The currency pass used `ruff`, the 408 unit tests,
+`tests/checks/safe/prompt.py`, `evals/route/tool_usage.py --dry-run` and two
+read-only database queries. No model call, no container.

@@ -10,8 +10,17 @@ installation that already works.
 uv run python -m unittest discover -s tests/unit
 ```
 
-No network, no database, no model. URL normalization, the conversation summary and
-profile section replacement. These run in CI on every push.
+No network, no database, no model — 408 tests in about four seconds. URL
+normalization, the conversation summary, profile section replacement, the pricing
+table, and two invariants that would otherwise drift silently: that every skill's
+frontmatter parses identically under this project's YAML reader *and* the SDK's own
+line-based one, and that the search rule written in both `SKILL.md` bodies stays
+byte-equal.
+
+CI runs these and `ruff`, and nothing else — no key is set for that job on purpose,
+because a unit test that needs a key is not a unit test. It has been **paused since
+2026-08-28** and runs only from the Actions tab; the checks are the ones you run
+locally before a commit.
 
 ```bash
 uv run ruff check .
@@ -51,8 +60,12 @@ uv run content-studio-server
 Leave it open. A good start says:
 
 ```text
-content-data · seven tools · http://127.0.0.1:8765/mcp
+content-data · 10 agent tools + 25 internal UI operations · http://127.0.0.1:8765/mcp
 ```
+
+The two counts are read off `MODEL_VISIBLE_TOOLS` and `INTERNAL_UI_TOOLS`, not
+typed into the banner — that line said "five agent tools" for weeks while ten
+were registered, because nothing reads a banner.
 
 Everything below uses a second terminal.
 
@@ -63,9 +76,8 @@ uv run python tests/checks/safe/bootstrap.py
 ```
 
 No model call, no writes. It reads the profile over MCP without printing its
-content. Expect five ticks: the seven model-visible tools plus the internal UI
-operations, no SQL tool, the client's name, and
-roughly 30,000 characters of profile.
+content. Expect five ticks: the ten model-visible tools plus the 25 internal UI
+operations, no SQL tool, the client's name, and 28,639 characters of profile.
 
 ## Rung 2 — one service at a time
 
@@ -88,10 +100,14 @@ dummy post, verifies the transactional audit, and deletes every row it created i
 uv run python tests/checks/safe/tools.py
 ```
 
-All five tools: an embedding call, the passages read locally from Neon, a generic
-web search, and the titles of the last three posts. It must end with `PASSED`. For
-each passage it checks title, marker, authority class, version, rights, owner and
-embedding model.
+The three read tools: `search_books` (an embedding call plus the passages read
+out of Neon), `search_web`, and the titles of the last three posts from
+`list_posts`. It must end with `PASSED`. For each passage it checks title, marker,
+authority class, version, rights, owner and embedding model.
+
+`search_books` takes a bilingual description — `description` and `description_en`
+— because the shelf holds books in both languages and a Romanian query alone
+cannot reach an English one.
 
 ```bash
 uv run python tests/checks/paid/search.py
@@ -101,9 +117,12 @@ Decision 5's criterion: ranked passages, each with its page or chapter.
 
 ## Rung 3 — the automated evals
 
-Grouped by the question each one answers; `evals/README.md` is the map. Since
-2026-08-30 one group is live, `evals/route/`. The order below is also the order to
-run them in — the free ones first.
+Grouped by the question each one answers; `evals/README.md` is the map. Three
+groups are live — `route/` (did it reach the method and call the right tools),
+`skill/` (did the search bring back usable material) and `path/` (does one request
+said ten ways walk one path) — and `evals/experiment.py` runs all six of their
+scores against one Phoenix dataset in one pass. The order below is also the order
+to run them in — the free ones first.
 
 The labels, without a model, a container or a key. A wrong label is a wrong
 verdict on every square it touches, so this is read before anything is paid for:
@@ -125,12 +144,26 @@ already happened:
 uv run python evals/route/references.py --traces --minutes 30
 ```
 
+The dataset and every label on it, free — no model, no container, no upload:
+
+```bash
+uv run python evals/experiment.py --dry-run
+```
+
 The spine of the domain grid — 24 squares of the 240, one per distinct label,
 against real runs. **This one spends money**, roughly an hour for the spine and
 hours for `--all`:
 
 ```bash
 uv run python evals/route/tool_usage.py
+```
+
+All six scores at once, against the Phoenix dataset, so two runs a week apart are
+a comparison rather than two report files. **Costs ten generation runs plus the
+judge:**
+
+```bash
+uv run python evals/experiment.py
 ```
 
 Every eval writes its report to `evals/reports/<name>-<stamp>.json`, which is
@@ -150,31 +183,29 @@ is deleted; the conversation's audit trail is kept on purpose, for replay.
 
 ## The manual test, exactly as the client works
 
-With the server still running:
+There is no terminal product any more — `worker.py` is the agent *definition*, and
+every door builds from it. The manual test is the site. In VS Code press `F5` and
+pick the compound **Site complet (MCP + harness + UI)**; it starts the MCP server,
+the harness and the Blazor host, and opens `http://127.0.0.1:5178` by itself.
 
-```bash
-uv run content-studio --new
-```
+**Through the buttons.** Pick a format, a pillar and a source, add a focus if you
+like, press *Generare*. Correct behaviour:
 
-```text
-tu> Vreau conținut despre vinovăția de a spune nu
-```
+1. the batch reaches `titles_ready` with **ten** titles, ten different angles;
+2. no detail is written yet — that is the point of the lazy phase;
+3. opening one idea writes its five hook variants, one per hook type;
+4. selecting a variant marks it, and still writes nothing to `posts`;
+5. saving asks for confirmation, and only then does a row appear.
 
-The correct behaviour is:
+**Through chat, which must behave identically.** Type the sentence the button
+dictates — „Vreau 10 idei de postare: format Reel, pilon Educație, sursă Memorie."
+— and the same thing has to happen, because a button press *is* dictation into the
+same session. The sentences are asserted whole in
+`tests/unit/test_conversations.py`; if a hand-typed sentence behaves differently
+from the button, that is the bug.
 
-1. it asks for the format;
-2. after the answer, the pillar;
-3. after the answer, the source;
-4. it gathers material only from the chosen source;
-5. it shows 10 proposals × 5 hooks;
-6. it asks which proposal and which hook to develop;
-7. it shows the whole post;
-8. only after confirmation does it ask, in the terminal, for permission to save.
-
-Answer `nu` at the gate to check the refusal. The post must not appear in the
-database. Repeat with `da` only if you actually want to keep it.
-
-Type `iesire` or press `Ctrl+C` to stop.
+Refuse at the gate to check the refusal: the post must not appear in the database,
+and the trail must hold `capability_blocked`.
 
 ## Seeing the trail without running the model
 
@@ -203,30 +234,45 @@ Messages, skills opened, tools called, approval requests, refusals and saves.
 | `evals/route/fidelity.py` | no | no | no | no |
 | `evals/route/references.py --traces` | no | no | reads `public.traces` | no |
 | `evals/route/tool_usage.py` | profile + brief | yes | reads | writes no batch at all |
+| `evals/experiment.py --dry-run` | no | no | no | no |
+| `evals/experiment.py` | ten runs + the judge | yes | reads | uploads a Phoenix dataset |
+| `tests/checks/paid/run_like_production.py` | one real generation run | yes | reads | writes a batch, as the button does |
 | `tests/checks/paid/full_flow.py` | profile + conversation + passages | yes | reads, one dummy | deletes the post |
 
 ## Debugging in VS Code
 
-The configurations are written already, in `.vscode/launch.json`. Open the project,
-press `F5` and pick from the list. The interpreter is the project's `.venv` and
-`.env` loads itself.
+The configurations are written already, in `.vscode/launch.json`, rewritten on
+2026-08-24. Open the project, press `F5` and pick from the list. The interpreter is
+the project's `.venv` and `.env` loads itself.
 
 Nothing else may hold the ports first. If `8000` or `8765` is already taken by a
-service you started in a terminal, the launch fails on bind — stop it, or attach to
-it instead (below).
+service you started in a terminal, the launch fails on bind — stop it first.
 
 | Pick this | To debug |
 |---|---|
-| **Studio complet (3 servicii)** | the product as the client uses it: MCP, harness, Blazor. One `F5`. |
-| **Terminal (MCP + CLI)** | the same worker without a browser. The cheapest place to step through a turn. |
-| **Studio ca in container (MCP + harness)** | the served build. It publishes the UI first and FastAPI serves it from `/`, the way the image will. Open `8000`, not `5178`. |
-| **Unit tests** | a failing test from inside, instead of from its traceback. |
-| **FastAPI harness** alone | a request whose data service is already running elsewhere. |
-| **Attach to a running process** | something this editor did not start — including a container. |
+| **1. Prompt (build_worker)** | anything about the system prompt. No database, no MCP, no OpenAI call, no cost — it stops inside `build_worker` in under a second. The one config with `justMyCode: false`, so `F11` steps into the SDK. |
+| **2. MCP server** | a tool body. The harness needs this one, so it starts first in the compound. |
+| **3. Harness (FastAPI)** | a request. No `--reload`: a reloader forks, and the debugger would own the parent while the code runs in the child. |
+| **4. Blazor UI** | the host process only. `node-terminal`, not `coreclr` — the app runs in the browser's WebAssembly runtime, so debug the C# from the browser's devtools. |
+| **5. Unit tests** | a failing test from inside, instead of from its traceback. |
+| **6. One real run (COSTS MONEY)** | the only configuration here that spends: one real generation run, the same call the *Generare* button makes. Start **2. MCP server** first and leave it running. |
+| **Site complet (MCP + harness + UI)** | the product as the client uses it. One `F5`, three processes, UI at `5178`. |
 
-The compounds start two or three processes, so the debug toolbar grows a process
-picker: you can stop inside the harness and inside the MCP tool it calls, in the same
+**Every configuration is `launch`, and the attach ones are deliberately gone.**
+They cost an afternoon: the selected one rewrote every breakpoint path to `/app/src`,
+a filesystem no local process has, so every breakpoint went hollow while the
+connection itself succeeded and nothing reported an error. `git show
+<commit>:.vscode/launch.json` has them if a container ever needs debugging.
+
+The compound starts three processes, so the debug toolbar grows a process picker:
+you can stop inside the harness and inside the MCP tool it calls, in the same
 session.
+
+**Leave the BREAKPOINTS panel's exception filters unticked.** Importing FastAPI
+and Pydantic raises ~130k caught exceptions, all normal; they are only expensive if
+the debugger stops to inspect them. With "Raised Exceptions" ticked *and*
+`justMyCode: false`, one import had not finished after ten minutes — it looks
+exactly like a hang at `import httpx`.
 
 No .NET extension is required. The Blazor entry is not a `coreclr` launch: with the
 C# extension installed it would attach to the DevServer, a static file server, while
@@ -241,8 +287,8 @@ turns on. Put a breakpoint in both and the difference is visible in one sitting:
 
 | Where | What happens |
 |---|---|
-| `worker.py` — `while result.interruptions:` | the terminal shape. The loop **waits**: `input()` further down blocks the process until she types. |
-| `service.py` — `if result.interruptions:` in `_finish` | the HTTP shape. Nothing waits. The run is serialized into `public.runs` (`status='pending'`) and the request returns `202`. |
+| `worker.py` — `while result.interruptions:` in `run_turn` | the in-process shape. The loop **waits**: the caller answers inside the same frame. Only `tests/checks/paid/full_flow.py` still uses it — it is the shortcut past the other shape, not a different design. |
+| `service.py` — `if result.interruptions:` in `_finish` | the HTTP shape, which is the product. Nothing waits. The run is serialized into `public.runs` (`status='pending'`) and the request returns `202`. |
 | `service.py` — `RunState.from_string(worker, …)` in `decide` | the other half, in a **different request**, possibly a different process, possibly hours later. |
 
 A container cannot block on a keyboard, and a replica scaled to zero cannot hold a
@@ -259,7 +305,7 @@ Python frame. That is the whole reason the second shape exists.
 | `generation.py` — `detail_output_type` | which contract a format gets. Step in to watch a Reel choose the silent one. |
 | `mcp_server/server.py` — `save_post` | the body of the write, after approval, before the row exists. |
 | `audit.py` — `calls_in(result)` | the calls with their arguments, as pulled from `new_items`, before `audit_log`. |
-| `worker.py` — `run_turn` | the terminal path's entry. From there `F11` walks the rest. |
+| `worker.py` — `build_worker` | the four parts of the system prompt being assembled, from what is actually attached. Reachable for free through configuration **1**. |
 | `evals/route/tool_usage.py` — `route_from` | what a run actually did, read out of its shell commands. Where a square's verdict is decided. |
 
 Search for the symbol rather than the line number — lines move.
@@ -300,21 +346,31 @@ useful when you want to see what `Runner.run` does from the inside.
 
 ## Known limits
 
-- "Exactly 10 × 5" is an instruction to the model, not a schema. The checks count the
-  result after generation.
-- The no-facts rule for the internet source is reinforced in the prompt and checked
-  mechanically, but qualitative case 11 stays `by_eye`: a human has to read whether a
-  phrasing still sounds like an unsupported claim.
-- The gate applies to the MCP registration the worker uses, and protects the agent's
+- **"Exactly ten proposals" is a schema now, not an instruction.** `ANGLE_TYPES`
+  gives ten archetypes for ten slots, and OpenAI enforces the enum while the model
+  writes. What a `SKILL.md` still cannot enforce — tone, whether an angle is any
+  good — is judged in the evals.
+- **Nothing automated grades what the studio writes.** The `output/` group was
+  removed on 2026-08-30 with numbers already two architecture changes stale. Hook
+  quality and voice fidelity are read by eye today; that is the top item on the
+  backlog and it is named rather than hidden.
+- The no-facts rule for the internet source is reinforced in the prompt and in the
+  skill, and the route half is checked mechanically — but whether a phrasing still
+  *sounds* like an unsupported claim is read by a human.
+- The gate applies to the MCP registration the agent uses, and protects the agent's
   calls. The server listens on `127.0.0.1` only; a local development script can call
   the tool directly on purpose, which is exactly what `write_gate.py` does.
-- The interface is a terminal. A phone-shaped one is not part of this stage yet.
+- The evals assert Romanian only. The interface is bilingual; the graders are not.
 
 ## When something does not work
 
 - `Nothing answers at …8765` → start the server in the first terminal.
 - `OPENAI_API_KEY / E2B_API_KEY / DATABASE_URL is missing` → check `.env`.
-- `TimeoutError` on the web search → keep `MCP_TIMEOUT=90` or raise it temporarily.
+- `TimeoutError` on the web search → `MCP_TIMEOUT` defaults to 180 since 2026-08-30.
+  `search_web` returns read passages rather than a synthesis now, and three
+  consecutive real searches took 80s, 55s and 40s. Raise it further if a check
+  times out; an MCP timeout comes back as a short error string, not an exception
+  the run can see.
 - The server starts on another port → `MCP_PORT` and the port inside `MCP_URL` have
   to match.
 - `relation "posts" does not exist` on an older database → run

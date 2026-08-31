@@ -78,9 +78,18 @@ async def run(args: argparse.Namespace) -> int:
                     print("No accounts provisioned yet.")
                 for row in rows:
                     flag = " (disabled)" if row["disabled"] else ""
+                    # THE LISTING IS OF CLIENTS, NOT SIGN-INS - the LEFT JOIN in
+                    # `list_accounts` is deliberate, because listing `app_users`
+                    # would hide any client nobody has signed in as, such as the
+                    # original one, whose budget would then be unreachable from
+                    # the only page that can change it. So both of these are
+                    # normally NULL, and formatting None with a width raises:
+                    # this listing crashed on exactly the row it exists to show.
+                    email = row["email"] or "—"
+                    principal = row["principal_id"] or "(no sign-in yet)"
                     print(
                         f"  {row['role']:<5} {row['client_slug']:<12} "
-                        f"{row['email']:<32} {row['principal_id']}{flag}"
+                        f"{email:<32} {principal}{flag}"
                     )
                 return 0
 

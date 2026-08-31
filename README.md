@@ -39,11 +39,12 @@ and every one of them is visible in the code:
    `text-embedding-3-small`, always. Two different models return garbage without
    complaining, so every row carries the model it was made with.
 4. **Skills are folders, not code.** `SKILL.md` plus a `references/` directory,
-   delivered as tools and disclosed progressively: the description is always in
-   context, the body opens when the task matches, a reference opens only when the
-   skill asks for it by name. The method can be edited without touching Python.
+   mounted into an E2B container and disclosed progressively by the SDK's own
+   `Skills` capability: the description is always in context, the body opens when
+   the task matches, a reference opens only when the skill asks for it by name.
+   The method can be edited without touching Python.
 5. **One agent, not a crew.** The two phases are skills, not separate agents — one
-   context, so the 30k-character client profile is not copied twice.
+   context, so the 28,639-character client profile is not copied twice.
 6. **Nothing is saved without human approval.** The gate sits on the MCP server
    *registration*, not inside the tool, so it protects every call the agent can
    make regardless of what the prompt says.
@@ -52,26 +53,28 @@ and every one of them is visible in the code:
 
 ```mermaid
 flowchart TB
-    U["The client<br/>(terminal, Romanian)"] --> W
+    U["The client<br/>Blazor WASM, Romanian<br/>buttons + chat, one conversation"] --> H
 
-    subgraph proc["worker.py — one process"]
-        W["Agent<br/>profile + method note in the system prompt"]
+    subgraph proc["FastAPI harness — the agent runs here"]
+        H["SandboxAgent<br/>profile + voice + method note + tool note"]
         A["audit.py<br/>own connection"]
     end
 
-    W -->|"shell, into a sandbox"| S["skills/ mounted at .agents/<br/>propune-postari · dezvolta-postarea + references/"]
-    W -->|"5 tools, HTTP"| M["MCP server<br/>content-data"]
-    W -.->|"gate: the four write tools"| G{"approve?"}
-    G -->|"no"| W
+    H -->|"shell, into a container per run"| S["skills/ mounted at .agents/<br/>propune-postari · dezvolta-postarea + references/"]
+    H -->|"10 model-visible tools, HTTP"| M["MCP server<br/>content-data"]
+    H -.->|"gate: the four write tools"| G{"approve?"}
+    G -->|"no"| H
 
     M --> DB[("Neon Postgres<br/>+ pgvector")]
     A -.->|"trail only"| DB
-    W -.->|"conversation memory only"| DB
+    H -.->|"conversation memory only"| DB
 ```
 
-The dotted lines are the only direct database access the worker keeps: its own
-conversation state and the audit trail. The profile, the books and the posts — the
-business data — all travel through MCP.
+The dotted lines are the only direct database access the harness keeps: the SDK's
+own conversation state and the audit trail. The profile, the books and the posts —
+the business data — all travel through MCP. `worker.py` owns the agent
+*definition* — the prompt assembly, the profile read, one gated turn — and every
+door builds its agent from it, so there is one agent and not three.
 
 ### The ten model-visible tools
 
@@ -138,13 +141,13 @@ model call. The interactive API contract is at
 `degraded`, but `/runs` refuses safely rather than replacing the Neon approval
 gate with temporary state.
 
-For the Blazor UI, open the repository in VS Code and choose the single compound
-debug target `Studio complet (3 servicii)`. It starts `content-data`, FastAPI and
-the .NET 10 WebAssembly development host on `5178`; no .NET extension is needed,
-because the host runs as a command rather than under a .NET debugger. Local auth is
-loopback-only. A Release publish places the SPA under `ui/StudioViorela/dist/wwwroot`,
-which FastAPI serves at `/` — the shape the Azure container has, and the one the
-`Studio ca in container (MCP + harness)` compound reproduces on `8000`:
+For the Blazor UI, open the repository in VS Code and choose the compound debug
+target `Site complet (MCP + harness + UI)`. It starts `content-data`, FastAPI and
+the .NET 10 WebAssembly development host on `5178`, and opens the browser itself;
+no .NET extension is needed, because the host runs as a command rather than under
+a .NET debugger. Local auth is loopback-only. A Release publish places the SPA
+under `ui/StudioViorela/dist/wwwroot`, which FastAPI serves at `/` — the shape the
+Azure container has:
 
 ```bash
 dotnet publish ui/StudioViorela/StudioViorela.csproj -c Release
@@ -168,7 +171,7 @@ not touch the vectors.
 
 ```
 src/content_studio/
-  worker.py            the agent and the conversation loop
+  worker.py            the agent definition: prompt assembly, one gated turn
   audit.py             durable runs, replayable trail, and approval gate
   harness/             FastAPI control plane: runs, generator and streaming chat
   replay.py            reconstructs a past conversation, no model involved
@@ -178,9 +181,9 @@ src/content_studio/
 
 ui/StudioViorela/      .NET 10 Blazor UI: profile, generator and streaming chat
 
-skills/                one tool each; Romanian, edited without code
-  propune-postari/       phase 1: three questions, then 10 proposals × 5 hooks
-  dezvolta-postarea/     phase 2: develop the chosen one, then save it
+skills/                mounted into the sandbox; Romanian, edited without code
+  propune-postari/       phase 1: ten proposals, ten different angles
+  dezvolta-postarea/     phase 2: one of them, developed into 5 hook variants
 
 tests/unit/            free, no network — these run in CI
 tests/checks/          checks against the real services, from cheapest to fullest
@@ -230,24 +233,28 @@ including the layer that is still missing, is in
 
 | # | Decision | State |
 |---|---|---|
-| 0 | Minimal chat agent — uv, Agents SDK | ✅ |
-| 1 | The architecture rules | ✅ |
-| 2 | Schema and flow planned, with the reason for each choice | ✅ |
-| 3 | Neon + pgvector + schema, then `SQLAlchemySession` | ✅ 7 tables, memory across restarts |
-| 4 | `propune-postari` as a folder skill | ✅ 10 proposals × 5 hooks |
+| 0–2 | Minimal agent, the architecture rules, schema and flow | ✅ |
+| 3 | Neon + pgvector + schema, then `SQLAlchemySession` | ✅ 16 tables, memory across restarts |
+| 4 | `propune-postari` as a folder skill | ✅ ten proposals, ten different angles |
 | 5 | Import + embedding of the 17 books | ✅ 4,778 chunks, search returns the page |
-| 6 | `content-data` MCP server | ✅ 10 agent tools: books, web, posts, guarded writes |
+| 6 | `content-data` MCP server | ✅ 10 model-visible tools + 25 internal |
 | 7 | `dezvolta-postarea` + saving | ✅ full cycle, and a second post from the same list |
 | 8 | Audit at every boundary + replay | ✅ trail tied to the conversation, replayable |
-| 9 | Approval gate on both write tools | ✅ refused = `blocked`, approved = written |
-| 10 | The eval set — 12 ugly cases + 3 trigger evals | ✅ real runner |
-| 11/D1 | FastAPI harness + durable HTTP approval gate | ✅ free contract tests; paid round trip deferred to the testing stage |
-| D1b.1 | secure Blazor shell + structured profile | ✅ local/Azure identity adapters, gated section save |
-| D1b.2 | title-first progressive generator | 🟡 API, durable orchestration, SSE and UI built; accepted real 10 × 5 run pending |
-| D1b.3 | synchronized streaming chat | 🟡 target-aware SSE, stop and validated draft patches built; saved-post approvals next |
+| 9 | Approval gate on the write tools | ✅ refused = `blocked`, approved = written |
+| 11/D1 | FastAPI harness + durable HTTP approval gate | ✅ live paid round trip: `RunState` persisted, approved hours later, write completed |
+| D1b | Blazor shell, profile, title-first generator, streaming chat | ✅ one conversation, two doors — a button press is dictation into the same session |
+| D2–D3 | Containerize and deploy to Azure Container Apps | ✅ live, Easy Auth, two identity providers |
+| D4 | Neon from the cloud + the course's state model | ✅ |
+| D5 | Cloudflare R2 | ⛔ skipped on purpose — posts are domain rows, not artifacts |
+| D6 | Sandbox execution | ✅ one E2B container per run, method mounted at `.agents/` |
+| D7 | Observability | ✅ one `run_id` across logs, spans, Neon and Phoenix; 100% sampled |
+| D8 | Evals as a deploy gate | 🟡 partial on purpose — CI gates everything free; paid runs stay a per-run decision |
+| D9 | Production checklist, runbook, rate limit, cost alert | ✅ |
+| — | Multi-tenant: accounts, lifetime budgets, admin page | ✅ one account = one `clients` row; the shelf is scoped too |
 
-Next: accept one real hybrid 10 × 5 run, add atomic saved-post approvals and the
-saved editor, then containerize the accepted core for Azure Container Apps.
+Open, and named rather than hidden: **layer 3 of the eval pyramid is empty** —
+nothing automated grades what the studio *writes*. See
+[docs/CASE-STUDY.md](docs/CASE-STUDY.md) §4 and §8.
 
 ## Documentation
 

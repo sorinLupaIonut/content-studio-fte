@@ -28,9 +28,12 @@ from content_studio.mcp_server.protocol import (
 )
 from content_studio.worker import build_worker
 
-#: Stands in for the 6 KB the real run reads out of Neon. A marker rather than a
-#: sample of her profile: this file is committed, and her content is not.
-PROFILE_PLACEHOLDER = "<<PROFILUL CLIENTEI - ~6 KB, citit din Neon la runtime>>"
+#: Stands in for the ~28 KB the real run reads out of Neon (28,639 characters,
+#: measured 2026-08-31). A marker rather than a sample of her profile: this file
+#: is committed, and her content is not. The number matters when you are reading
+#: the token count above: the placeholder is three lines, the real thing is the
+#: largest single part of the prompt.
+PROFILE_PLACEHOLDER = "<<PROFILUL CLIENTEI - ~28 KB, citit din Neon la runtime>>"
 
 RULE = "=" * 78
 

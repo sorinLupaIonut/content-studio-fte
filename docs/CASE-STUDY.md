@@ -15,11 +15,11 @@ measuring.
 |---|---|
 | **Runtime** | OpenAI Agents SDK (Python 3.13), one `SandboxAgent` |
 | **Data plane** | purpose-built MCP server, 10 model-visible tools, 25 internal |
-| **System of record** | Neon Postgres + pgvector, 18 tables |
-| **Method** | 2 skill folders, 107 KB, mounted into an E2B container per run |
+| **System of record** | Neon Postgres + pgvector, 16 tables |
+| **Method** | 2 skill folders, 5 files, 107 KB, mounted into an E2B container per run |
 | **Interface** | .NET 10 Blazor WebAssembly + FastAPI control plane |
 | **Observability** | OpenTelemetry → Application Insights + Arize Phoenix, 100% sampled |
-| **Scale of the code** | 12,969 lines of Python in `src/`, 4,598 lines of C#, 408 unit tests |
+| **Scale of the code** | 12,972 lines of Python in `src/`, 4,598 lines of C#, 408 unit tests |
 | **Corpus** | 17 books → 4,778 embedded chunks; a 28,639-character client profile |
 
 ---
@@ -58,7 +58,7 @@ flowchart TB
     UI --> API
 
     subgraph run["one run"]
-        AG["SandboxAgent<br/>profile in the system prompt"]
+        AG["SandboxAgent<br/>system prompt: identity + voice,<br/>method note, tool note, her profile"]
         AU["audit.py<br/>its own connection"]
     end
 
@@ -69,7 +69,7 @@ flowchart TB
     AG -.->|"4 write tools are gated"| GATE{"human says yes?"}
     GATE -->|"no"| AG
 
-    MCP --> DB[("Neon Postgres + pgvector<br/>18 tables")]
+    MCP --> DB[("Neon Postgres + pgvector<br/>16 tables")]
     AU -->|"same transaction as the write"| DB
     AG -.->|"spans"| OBS["Phoenix + App Insights"]
     AU -.-> OBS
@@ -78,8 +78,20 @@ flowchart TB
 ### Shift 1 — capabilities move out of code, into skill folders
 
 The method lives in `skills/propune-postari/SKILL.md` and
-`skills/dezvolta-postarea/SKILL.md`, plus a `references/` directory. 107 KB of
-Romanian prose, edited in a text editor, no deploy.
+`skills/dezvolta-postarea/SKILL.md`, the second of which also has a `references/`
+directory — one file per format. 107 KB of Romanian prose across five files,
+edited in a text editor, no deploy.
+
+**What is a body and what is a reference is a rule, not a habit.** Method that is
+*always* required is body; method that is required *conditionally* travels as a
+reference. That is why `propune-postari` has no `references/` at all — the
+pillars used to be one and were folded into the body on 2026-08-27 — and why the
+three format files are references: a Reel run needs `reel.md` and must not open
+`stories.md`.
+
+**And the skill decides which reference a format needs, in prose.** Never a
+dictionary in Python. That table existed once, in a `method.py` that preloaded
+the method, and it had to keep agreeing with the skill body that also stated it.
 
 It reaches the model through the SDK's own `Skills` capability, mounted into an
 E2B container under `.agents/`. Progressive disclosure in three steps, and all
@@ -119,8 +131,10 @@ reason the eval suite in §4 exists in the shape it does.
 
 ### Shift 2 — durable state moves into a system of record
 
-Neon Postgres with pgvector. 18 tables, and the interesting ones are not the
-business tables:
+Neon Postgres with pgvector. Sixteen tables — fourteen of ours, plus the SDK's
+`agent_sessions` and `agent_messages`, which are the *only* session tables here
+because `runs.session_id` points at the SDK's rather than at a second one of our
+own. The interesting ones are not the business tables:
 
 | Table | What it makes possible |
 |---|---|
@@ -415,7 +429,7 @@ went from **$0.2490 to $0.0470** — 5.3× — without changing the model.
 
 ```mermaid
 flowchart LR
-    A["$0.2490<br/>per batch"] --> B["price the cache<br/>correctly"] --> C["cut the prompt"] --> D["one container<br/>per batch"] --> E["$0.0470<br/>per batch"]
+    A["$0.2490<br/>per batch"] --> B["price the cache<br/>correctly"] --> C["cut the prompt"] --> D["develop on demand,<br/>not all ten"] --> E["$0.0470<br/>per batch"]
 ```
 
 **Four levers, in the order they mattered:**
@@ -426,13 +440,26 @@ flowchart LR
    a third figure in the price table and a `cached_input_tokens` column, and the
    correction is deliberately **not** retroactive: a row keeps the price it was
    charged on the day, or last month's total silently rewrites itself.
-2. **The ten output rules left the prompt.** They were 3,800 tokens above the
-   schema and enforced nothing the schema could not enforce better. What survives
-   in the system prompt is identity and voice.
-3. **One container per batch, not per run.** A batch is eleven runs — one for the
-   titles, ten for the details — sharing one E2B container. Per-run containers
-   would pay the startup and the 107 KB upload eleven times for a filesystem that
-   never changes.
+2. **The ten output rules left the prompt, and then were deleted.** Cut on
+   2026-08-24, removed from the file on 2026-08-26. They sat 3,800 tokens above
+   the schema and enforced nothing the schema could not enforce better — and
+   enforce *while the model writes* rather than by rejecting afterwards. What
+   the system prompt holds today is four things and no rules: identity and voice,
+   that the method is mandatory, the tools this run can actually see, and her
+   profile. The output contract is the skills plus `harness/generation.py`.
+3. **Nine of the ten details are never written.** The batch used to develop all
+   ten ideas the moment the titles landed. That is where nearly the entire cost
+   of a batch sits — **$0.0733 of $0.0770**, measured 2026-08-24 — and she opens
+   one. The other nine were paid for, stored, and never read. Detail generation
+   is lazy now: the batch is the ten titles, and a detail run happens when she
+   opens an idea. Everything that run needs is read back off the batch rather
+   than held in memory, so it can be asked for days later, from a different
+   replica, and produce what the batch would have produced then.
+
+   This is also why there is **one container per run rather than one per batch**:
+   once the details became lazy, the batch *is* one run, and the details are
+   separate runs minutes or days apart. A container comes up in 0.35–1.17s and
+   closes in 0.25s — cheap next to the model call it serves.
 4. **`reasoning: "minimal"` was a false economy, and this is the best story in
    the file.** Phase 2 has to fetch two things before it writes — the format's
    reference file, and the source's material. Across 16 runs covering every format

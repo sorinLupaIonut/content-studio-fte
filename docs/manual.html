@@ -430,7 +430,7 @@ footer {
                 <rect class="d-box" x="600" y="60" width="150" height="80" rx="8"/>
                 <text class="d-t-b" x="675" y="88" text-anchor="middle">Server MCP</text>
                 <text class="d-t-s" x="675" y="106" text-anchor="middle">content-data</text>
-                <text class="d-t-s" x="675" y="121" text-anchor="middle">29 de unelte</text>
+                <text class="d-t-s" x="675" y="121" text-anchor="middle">10 + 25 de unelte</text>
 
                 <!-- neon -->
                 <rect class="d-box" x="600" y="185" width="150" height="80" rx="8"/>
@@ -578,8 +578,14 @@ footer {
         greși.</p>
     </div>
 
-    <p>Viorela nu are rând în <code>app_users</code>, și e corect așa: cade pe
-    <code>CLIENT_SLUG</code> și rămâne pe profilul original. Contul tău,
+    <p>Viorela n-are încă rând în <code>app_users</code> — nu s-a autentificat de
+    când există conturi — și tot funcționează: cade pe <code>CLIENT_SLUG</code> și
+    rămâne pe profilul original. Din 23 august, prima ei autentificare îi
+    <em>scrie</em> rândul, legat de clientul pe care îl are deja, niciodată de
+    unul nou. Motivul e pagina de administrare: singurul cont pe care nu putea
+    acționa era chiar al clientei. Iar lista de acolo e o listă de
+    <em>clienți</em>, nu de autentificări — altfel un cont cu care n-a intrat
+    nimeni ar fi invizibil, cu bugetul lui cu tot. Contul tău,
     <code>sorin</code>, a pornit cu o <em>copie</em> a profilului ei — ce editezi
     tu nu atinge ce scrie agentul ei.</p>
 
@@ -764,15 +770,21 @@ footer {
     <code>artifacts</code> ca inactiv, cu motivul scris în cod — nu e o piesă
     uitată, e o piesă refuzată.</p>
 
-    <h3>Phoenix, DeepEval, Ragas, job de noapte</h3>
-    <p>Decizia 8 leagă patru cadre de evaluare și un grader nocturn. Fiecare
-    dintre ele <em>rulează agentul</em>, iar a rula agentul costă bani — ceea ce în
-    proiectul ăsta e decizia ta, luată per rulare, nu a unui cron.</p>
-    <p>CI-ul verifică ce se poate verifica gratis: lint, cele 173 de teste, și că
-    <code>evals/cases.json</code> e încă bine format. O schimbare care strică
-    <em>infrastructura</em> de evals e prinsă înainte de merge; o schimbare care face
-    agentul <em>mai prost</em> se prinde rulând evals, intenționat, cu cineva care
-    se uită.</p>
+    <h3>Un grader de noapte</h3>
+    <p>Decizia 8 leagă un grader nocturn peste evaluări. Fiecare evaluare
+    <em>rulează agentul</em>, iar a rula agentul costă bani — ceea ce în proiectul
+    ăsta rămâne decizia ta, luată per rulare, nu a unui cron.</p>
+    <p>Phoenix, în schimb, <strong>este</strong> aici din 23 august: a fost refuzat
+    întâi, cerut apoi, și e locul unde se citesc scorurile. Neon rămâne
+    <em>înregistrarea</em>, Phoenix e <em>proba</em>.</p>
+    <p>Verificarea gratuită — lint și cele 408 teste — rulează local înainte de
+    fiecare commit. CI-ul face aceleași două lucruri, dar din 28 august doar la
+    apăsarea unui buton: pornea la fiecare push și trimitea un mail de eșec de
+    fiecare dată, pe bună dreptate de două ori — citea un fișier șters, iar patru
+    teste „unitare" deschideau un container E2B adevărat. Ambele sunt reparate;
+    ce a rămas oprit e programarea, nu verificările.</p>
+    <p>Ce <em>nu</em> există: nimic nu notează automat <em>ce scrie</em> studioul.
+    Ruta e măsurată, materialul e judecat, textul se citește cu ochii.</p>
 
     <h3>Al doilea administrator</h3>
     <p>Primul admin se face doar din terminal, cu <code>db/provision.py</code>. O

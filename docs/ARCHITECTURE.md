@@ -29,45 +29,71 @@ The design answers those three, in that order.
 
 ## 2. The shape
 
-One `SandboxAgent` definition with the client profile and ten output rules in its
-system prompt. Two folder-shaped skills mounted into E2B. Five model-visible tools
-and typed internal UI operations reached over HTTP from a purpose-built MCP server.
-One Postgres database behind that server, plus two direct connections the harness
-keeps only for SDK conversation memory and the approval/audit trail.
+One `SandboxAgent` definition. Its system prompt is assembled from four parts, and
+each is written from what is actually attached rather than from what was true when
+the string was last edited: who the assistant is and whose voice it writes in
+(`BASE_INSTRUCTIONS`), that the method is mandatory (`skill_method_note`), the
+tools this particular run can see (`data_tool_note`, read off the server's own
+filter), and the client's profile, 28,639 characters of it, read over MCP at
+startup.
+
+**There are no output rules in the prompt.** Ten of them used to live there. They
+came out on 2026-08-24 and were deleted on 2026-08-26: they were 3,800 tokens
+above a schema that enforces the same things better, because OpenAI enforces
+`enum`, `pattern` and `minLength` *while the model writes*. What the model is
+allowed to produce is now the skills plus the generation schemas — see
+[AGENTS.md](../AGENTS.md), the "Where each truth lives" table.
+
+Two folder-shaped skills mounted into E2B. Ten model-visible tools and 25 internal
+UI operations, reached over HTTP from a purpose-built MCP server. One Postgres
+database behind that server, plus two direct connections the harness keeps only
+for SDK conversation memory and the approval/audit trail.
 
 ```
 The client
-    │  terminal or Blazor WebAssembly, Romanian
+    │  Blazor WebAssembly, Romanian — buttons and chat, ONE conversation
     ▼
-worker.py ─── profile + 10 output rules ──► one SandboxAgent
-    │                                            │
-    │                                            ├─ skill: propune-postari
-    │                                            └─ skill: dezvolta-postarea
+FastAPI harness ─── the front door and the run lifecycle
+    ├─ trusted identity (local loopback or Azure Easy Auth headers)
+    ├─ structured profile API + approval resume
+    ├─ title-first generation + SSE
+    ├─ saved posts: batch save and rewrite, both through the same gate
+    ├─ internal `ui_*` MCP operations ─► durable generation drafts
+    │
+    ├─ builds and runs ─► one SandboxAgent  (definition: worker.py)
+    │       system prompt = voice + method note + tool note + her profile
+    │       │
+    │       ├─ shell ─► E2B container, one per run, `.agents/`
+    │       │             ├─ skill: propune-postari
+    │       │             └─ skill: dezvolta-postarea + references/
+    │       │
+    │       └─ MCP over HTTP ─► the tools below
     │
     └─ MCP server `content-data`
          ├─ internal resource: the live profile (not a tool the model can call)
          ├─ search_books      ─► OpenAI embedding + Neon pgvector
-         ├─ search_web        ─► OpenAI web search
+         ├─ search_web        ─► OpenAI web search, metered like every other call
          ├─ list_posts        ─► Neon
+         ├─ start_generation  ─► records the intent; the harness runs the batch
+         ├─ develop_idea      ─► records the intent; the harness runs the detail
+         ├─ select_variant    ─► marks her chosen variant on the current batch
          ├─ save_post         ─► Neon, only after approval
          ├─ save_posts_batch  ─► Neon, only after approval, all or none
          ├─ update_post       ─► Neon, only after approval
          └─ update_profile    ─► Neon, only after approval
 
-FastAPI harness
-    ├─ trusted identity (local loopback or Azure Easy Auth headers)
-    ├─ structured profile API + approval resume
-    ├─ title-first generation + SSE
-    ├─ saved posts: batch save and rewrite, both through the same gate
-    └─ internal `ui_*` MCP operations ─► durable generation drafts
-
 audit.py ─── own connection ──► messages, skills, calls, approvals, results
 ```
 
+The three trigger tools are how the chat door reaches the same pipeline the
+buttons use: the model records an intent, the harness executes it. None of them
+writes her content, so none is gated — the one confirmation stays on saving a
+post. See [AGENTS.md](../AGENTS.md), "One conversation, two doors".
+
 **Why the profile is a resource and not a tool.** It has to be in the system prompt
 before the agent can do anything, and it must never be something the model decides
-to fetch. As an MCP resource it is read programmatically at startup, by the worker,
-which still runs no SQL of its own.
+to fetch. As an MCP resource it is read programmatically at startup, by whichever
+door is starting the run, which still runs no SQL of its own.
 
 ## 3. The data model
 
@@ -81,10 +107,13 @@ the deployment crash course's five-table model adopted whole at D4.
 | `documents` | the library, one row per book | provenance lives in `metadata`, per row |
 | `embeddings` | 4,778 chunks, 1536 dimensions, HNSW index | one link, to a document, enforced by NOT NULL since Decision 11 |
 | `clients` | one content column, `profile_md` | it lives here rather than in embeddings because it is the only material that gets *written to*: you cannot UPDATE a vector |
-| `posts` | the finished posts | at 27 rows, "have I written about this?" is a WHERE, not a vector search |
-| `generation_batches` | one current unsaved batch per authenticated principal | holds the bounded source packet and survives refresh |
+| `posts` | the finished posts | in the dozens, so "have I written about this?" is a WHERE, not a vector search |
+| `generation_batches` | one current unsaved batch per authenticated principal | survives refresh. `source_packet` is a dead column kept for the old rows: since 2026-08-27 nothing pre-collects material, the agent fetches its own |
 | `generation_ideas` | exactly ten title/angle rows | each reports its own generation and retry state |
-| `generation_variants` | five complete hook variants per idea | at most one selected variant per idea |
+| `generation_variants` | five complete hook variants per idea | written lazily, only for the idea she opens; at most one selected variant per idea |
+| `conversations` | which session is active per account, and which batch was born in it | **not** the table Decision 11 removed — that one duplicated the messages. This one holds what `agent_sessions` cannot express |
+| `app_users` | principal → client | a *link* table: several principals may point at one client, because a principal id belongs to the identity provider, not to a person |
+| `usage_events` | one row per model call, in integer micro-dollars | no floats anywhere near money; `cached_input_tokens` is the evidence for the tenth-rate cache reads |
 
 **Durable state** (D4). Every statement names its schema — `public.runs` — because
 Neon's pooled endpoint makes no promise about `search_path` surviving between
@@ -93,14 +122,20 @@ transactions.
 | Table | Holds | Note |
 |---|---|---|
 | `runs` | one row per turn: the message in, the answer out | `session_id` points at `agent_sessions`, the SDK's own and the **only** session table |
-| `traces` | one payload per run | `{"output": …}`; the real SDK traces are in the OpenAI dashboard, grouped by `group_id` |
+| `traces` | **two kinds of row per run** | what was answered, written by `close_run`; and how it was reached — the agent's own spans, collected by `RunTraceProcessor` since 2026-08-23. Same `run_id`, which is what makes them one story rather than two tables |
 | `artifacts` | pointers to files in object storage | empty until D5 decides on R2. A post is *not* an artifact |
 | `audit_log` | the replayable trail | `(run_id, event)`; `event` is free text, so the vocabulary is a shared constant in `audit.py`, not a CHECK |
 
-Two tables that used to be here are gone: `conversations` and
-`capability_invocations` at Decision 11, both second copies of a truth another
-table already held. `pending_runs` went at D4 with the rest of the old state
-half. The gate itself moved onto six columns of `public.runs`: a pending run keeps
+Sixteen tables in all: the fourteen above plus `agent_sessions` and
+`agent_messages`, which belong to the SDK and are the **only** session tables —
+`runs.session_id` points at the SDK's, rather than a second one of ours.
+
+`capability_invocations` went at Decision 11, a second copy of a truth another
+table already held; `pending_runs` went at D4 with the rest of the old state
+half. A `conversations` table went at Decision 11 too and a different one came
+back on 2026-08-27 under the same name — that near-duplicate held the messages,
+this one holds the active pointer. The gate moved onto six columns of
+`public.runs`: a pending run keeps
 its serialized `RunState`, every approval request, and later every decision. A
 database constraint forbids `pending` without resumable state, while a partial
 unique index allows at most one pending run per session.
@@ -147,59 +182,84 @@ supplies only a typed target ID; the server verifies its ownership through
 patch is persisted only after the complete object validates. The browser never
 supplies the audit actor.
 
-Production identity comes from Azure Container Apps Easy Auth headers. Authorization
-starts with a deployment email allow-list and moves to stable principal IDs after
-the two Google identities have signed in once. Development auth refuses non-loopback
-binding and refuses to run when Azure environment markers are present.
+Production identity comes from Azure Container Apps Easy Auth headers, and since
+2026-08-21 the studio is multi-tenant in fact rather than only in the schema.
+**One account is one `clients` row** — it owns the profile, the lifetime budget in
+integer micro-dollars, the usage and the shelf — and `app_users` links principals
+to it. Google principals are authorized off the deployment allow-list; principals
+from the Entra external tenant carry their own (see §6). An authenticated
+principal with no `app_users` row is told its account is not set up yet; only the
+address in `CLIENT_OWNER_EMAIL` may fall through to the original client, and that
+fall-through now *writes* her row, so the admin page can act on her account like
+anybody else's. `provisioned()` has three answers, not two — True, False, and None
+when the data plane could not be asked — because refusing on None would turn one
+bad minute into everybody locked out of their own studio. Development auth refuses
+non-loopback binding and refuses to run when Azure environment markers are present.
 
 The process may boot in a degraded state so Azure can expose diagnostics, but it
 does not fall back to SQLite: a run is refused unless Neon can hold the approval
 gate durably. R2 is likewise not faked locally; it remains the explicit D5
 decision, and `posts` are domain rows rather than artifacts.
 
-## 4. The flow: one method, two UI passes
+## 4. The flow: one method, two passes, and the second one is lazy
 
-The terminal conversation still uses the interview below. The Blazor generator
-collects format, pillar, source and optional focus in a form, gathers the source
-packet once, then runs the same agent definition in two strict structured passes:
+Four answers start a batch — **format**, **pillar**, **source**, and an optional
+**focus**. The buttons collect them in a form; chat asks for whatever is missing
+and then dictates the same sentence. Nothing else is collected: since 2026-08-27
+there is no source packet and no book picker, because the agent brings its own
+material with its own tools, following the skill. `drafts.create(...)` passes an
+empty packet on purpose.
 
-1. one pass returns exactly ten persisted title/angle rows;
-2. a second pass develops one idea per job into all five complete hook variants,
-   with at most five jobs running concurrently.
+1. **Titles.** One run returns exactly ten persisted title/angle rows.
+2. **Detail, on demand.** A second run develops **one** idea into all five hook
+   variants — and only when she opens that idea.
 
-Both run on `gpt-5-mini`, which since 2026-08-27 is the only model the interface
-offers: the method is read from files in a sandbox, and `gpt-5-nano` could not
-drive the shell that opens them — it wrote ten plausible titles without ever
-reading the method. See AGENTS.md, rule 4.
+**Why the detail phase is lazy.** The batch used to write all ten as soon as the
+titles landed. That is where nearly the whole cost of a run sits — $0.0733 of a
+$0.0770 batch, measured 2026-08-24 — and she develops one. The other nine were
+paid for, stored, and never opened. Everything a detail run needs is read back off
+the batch rather than held in memory, so it can be asked for days later, from a
+different replica, and produce what the batch would have produced then.
+
+Both phases run on `gpt-5-mini`, which since 2026-08-27 is the only model the
+interface offers: the method is read from files in a sandbox, and `gpt-5-nano`
+could not drive the shell that opens them — it wrote ten plausible titles without
+ever reading the method. See AGENTS.md, rule 4.
+
+**The two phases have different reasoning budgets, and that is a setting rather
+than a sentence in the skill.** Phase 1 stays at `"minimal"`: it opens no files,
+so there is nothing for extra reasoning tokens to buy. Phase 2 is at `"low"`,
+because it has two errands before it writes — the format's reference file and the
+source's tool — and at `minimal` 15 of 16 measured runs did exactly one of them
+and stopped themselves well under the turn limit. `parallel_tool_calls=True` is
+explicit for the same reason: the default is `None`, and `None` omits the field,
+so the model was never invited to batch its two errands into one turn.
 
 SSE publishes the durable states. Refresh reads the same batch from Neon. A failed
-idea retries without discarding the other nine. Ten concurrent detail calls were
-rejected by the real-stack probe because the Tier-1 token window dominated; five
-is therefore the explicit default rather than an arbitrary tuning value.
+idea retries without discarding the other nine.
 
-**Phase 1 — `propune-postari`.** Three questions, asked one at a time, none of them
-assumed: the **format** (Reel, Carousel, Stories), the **pillar**, and the **source**
-of the material. If she picks the books, she is offered 3–4 specific titles matched
-to her topic — never the list of 17 — plus "search all of them". Material is
-gathered *before* the proposals are written, not bolted on afterwards as a citation.
-Then ten proposals, numbered, each with a short title, the idea in one or two
-sentences, and five hooks, one of each type.
+**Phase 1 — `propune-postari`.** Ten proposals, each a short title plus the angle
+in a sentence or two. Ten and only ten, and different from each other by
+construction: `ANGLE_TYPES` gives ten archetypes for ten slots, so "make them
+different" stops being a request and becomes arithmetic. The hooks are *not* here
+— they belong to phase 2, one set of five per idea.
 
-**The fourth question** is which proposal to develop, and with which hook. She can
-pick several. The agent never picks for her.
+**Then she chooses** which proposal to develop. The agent never picks for her.
 
-**Phase 2 — `dezvolta-postarea`.** The chosen proposal becomes a full post: script
-shaped by the format, caption, 3–5 hashtags, and the CTA from her profile. It is
-shown whole in the chat and nothing is saved until she says yes. Then exactly one
-post is saved. The other nine proposals stay in `runs.output_message`, not in
-`posts` — the turn that produced them is the record of them.
+**Phase 2 — `dezvolta-postarea`.** The chosen proposal becomes a full post: hook,
+caption, 3–5 hashtags, the CTA from her profile, and at Carousel and Stories the
+script as well — five complete variants, one per hook type, from which she selects
+one. Nothing is saved until she says yes.
 
 ### The five pillars
 
 Positioning 🎯 · Education 📚 · Connection 🤝 · Conversion 💰 · Magnetism ✨
 
 They belong to the method, not to the client, which is why they live in
-`skills/propune-postari/references/piloni.md` and not in the database. If this
+`skills/propune-postari/SKILL.md` and not in the database. They used to be a
+`references/` file; they were folded into the body on 2026-08-27, under the rule
+that always-required method is body and only *conditional* method travels as a
+reference. `propune-postari` has no `references/` directory at all now. If this
 system reaches a second coach tomorrow, the pillars travel unchanged.
 
 ### The five hook types
@@ -235,17 +295,18 @@ a paper with a bibliography.
 
 **One agent instead of a crew.** The two phases were an obvious place to split into
 two agents. They are skills instead, because splitting means copying the
-30,000-character profile and the ten rules into a second context, and because the
+28,639-character profile and her voice rules into a second context, and because the
 handover between phase 1 and phase 2 is exactly where a rejected proposal list would
-get lost. The cost is real: a `SKILL.md` cannot *enforce* ten proposals. So the
-number is counted afterwards, in `tests/checks/paid/full_flow.py`, and judged in the evals.
+get lost. The cost is real: a `SKILL.md` cannot *enforce* ten proposals. What is
+genuinely checkable therefore moved into the **output schema**, where OpenAI
+enforces it while the model writes; the rest is judged in the evals.
 
 **Skills as folders, disclosed progressively.** The index — name, description, path —
 is always in context and costs almost nothing. The body opens when the task matches
 the description. The references open only when the body points at them. This means
 the description is not documentation, it is the trigger: it decides whether the skill
-fires at all. That is why three of the fifteen eval cases test descriptions rather
-than outputs.
+fires at all. `evals/route/` grades exactly that, square by square across the
+domain, and `evals/experiment.py` carries it as the `router` score.
 
 **Data only through MCP.** The worker could open a connection and query the profile
 directly in three lines. It does not, for two reasons. The agent has a shell inside
@@ -274,11 +335,23 @@ so the database can be asked which rows are stale.
 
 ## 6. What was deliberately not built
 
-- **Vector search over the posts.** At 26 rows, a `WHERE` on title, pillar and date
-  answers the question. It becomes worth it in the hundreds.
-- **Public registration.** Authentication exists, but access is intentionally
-  limited to two deployment-configured Google identities. Permanent content is
-  shared; unsaved batches and chat sessions are principal-owned.
+- **Vector search over the posts.** In the dozens, a `WHERE` on title, pillar and
+  date answers the question. It becomes worth it in the hundreds.
+- **Public registration.** Two identity providers are supported and neither of them
+  lets a stranger in. Google principals must be on the deployment allow-list.
+  Principals from the Entra external tenant named in
+  `AUTH_SELF_PROVISION_PROVIDERS` skip that list — membership of a directory only
+  Sorin can add people to *is* the list — and get a `clients` row on first request,
+  always role `user`, always the default allowance. That rests entirely on
+  self-enrolment being off in the tenant; adding Google to the same setting would
+  hand a studio to anyone with an email address. **Addresses are never matched
+  across providers**: the same string from Google and from the tenant is two people
+  with two studios. See [../plans/ACCOUNTS-OIDC.md](../plans/ACCOUNTS-OIDC.md).
+- **Anything shared between accounts.** Since 2026-08-21 the library is scoped too:
+  `documents.client_id` is NOT NULL and both readers join through `clients` on the
+  slug from the connection. A new account starts with an empty shelf on purpose —
+  the books are licensed material, and copying them onto a tester's shelf should
+  take a decision rather than a checkbox.
 - **Uploads and dictation.** The Library route and streaming chat exist, but
   original-file storage, extraction, embeddings for new files, chat attachments
   and Romanian audio transcription stay behind the later media checkpoint.
@@ -293,12 +366,23 @@ Not in a file of hand-written cases any more. Fifteen of those existed until the
 suite moved onto real traces; what replaced them measures the same failures against
 every combination the interface can produce, and against runs that actually
 happened. [../evals/README.md](../evals/README.md) is the map, and the group name
-is the question. One is live: `route/` — did it reach the method and the right
-tools. Three were removed on 2026-08-30 with their numbers already two
-architecture changes out of date — `runs/` (what a real run did, read back out of
-`public.traces`), `retrieval/` (does the shelf return the right book) and
-`output/` (is what it wrote any good). The README keeps their questions, which is
-what a rebuild needs; the code is in git at `0801cfe`.
+is the question.
+
+| Group | The question | Pyramid layer |
+|---|---|---|
+| `route/` | did it open the right `SKILL.md`, the right references, and call the right tool? | 4 — tool use |
+| `skill/` | did the search bring back material this brief can use? | 6 — RAG |
+| `path/` | does one request said ten ways walk one path? | 5 — trace |
+| `experiment.py` | all six scores against one Phoenix dataset, comparable over time | 8 — regression |
+
+`experiment.py` is the door: it imports the other three rather than restating
+them, so a label exists in exactly one place. Three further groups were removed on
+2026-08-30 with their numbers already two architecture changes out of date —
+`runs/` (what a real run did, read back out of `public.traces`), `retrieval/`
+(does the shelf return the right book) and `output/` (is what it wrote any good).
+The README keeps their questions, which is what a rebuild needs; the code is in
+git at `0801cfe`. **`output/` is the one that matters**: nothing automated grades
+what the studio writes today.
 
 The quiet failures are still the reason for all of it: a reference that never
 loaded, an invented page number, a quote attributed to a book that was only a

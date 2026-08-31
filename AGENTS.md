@@ -90,11 +90,14 @@ Six rules a new session must respect without asking again.
    `exec_command` twice with the command `bash`, read nothing, and produced ten
    plausible titles. `gpt-5-mini`, same request minutes later, ran
    `sed -n '1,200p'` over the whole `SKILL.md`. **Nano cannot drive this shape.**
-   `generator.py` logs a warning when a run wrote without opening the method —
-   the only place that question is asked today, since the half that asked it
-   afterwards off `public.traces` went on 2026-08-30. `evals/route/fidelity.py`
-   opens a real container and compares every file byte for byte, which is what
-   catches a mount that arrives truncated or re-encoded.
+   `generator.py` logs a warning when a run wrote without opening the method.
+   The same question is asked three more ways, and each catches something the
+   others cannot: `evals/route/references.py --traces` reads it back off
+   `public.traces` for runs that already happened, free and after the fact;
+   `evals/route/tool_usage.py` asks it of every square of the domain grid before
+   anything ships; and `evals/route/fidelity.py` opens a real container and
+   compares every file byte for byte, which is what catches a mount that arrives
+   truncated or re-encoded.
 
    **AND THE PROMPT IS NOT WHERE YOU FIX IT.** A generation run has to fetch two
    things before it writes — the format's reference file, and the source's tool
@@ -313,11 +316,18 @@ was built for.
 
 **Romanian, and never translated:**
 
-- `BASE_INSTRUCTIONS` in [worker.py](src/content_studio/worker.py) — the ten output rules
+- `BASE_INSTRUCTIONS` in [worker.py](src/content_studio/worker.py) — identity and
+  voice. **Not the ten output rules**: those left the prompt on 2026-08-24 and
+  were deleted on 2026-08-26, because a schema enforces them while the model
+  writes. The output contract is the skills plus `harness/generation.py`
+- `skill_method_note()` and `data_tool_note()` in the same file — the other two
+  parts of the system prompt
 - every file under `skills/` — the skill bodies, frontmatter and references
 - the MCP tool **descriptions and docstrings** in
   [mcp_server/server.py](src/content_studio/mcp_server/server.py)
-- everything `worker.py` prints — that terminal is the product
+- everything the interface shows her — the Blazor UI is the product now; there is
+  no terminal loop left in `worker.py`, only the agent definition the harness
+  builds from
 - `content/` — the profile, the posts, the books
 - the dictated sentences in
   [harness/conversations.py](src/content_studio/harness/conversations.py) — a button
@@ -408,12 +418,16 @@ uv run python tests/checks/safe/bootstrap.py
 ```
 
 Changing a skill, a tool description or the system prompt means the evals are
-the only real proof. There is **one group left**, `evals/route/` — did the run
-reach the method and call the right tools — and [evals/README.md](evals/README.md)
-is the map. The other three (`runs/`, `retrieval/`, `output/`) were removed on
+the only real proof. Three groups are live — `route/` (did it reach the method and
+call the right tools), `skill/` (did the search bring back usable material) and
+`path/` (does one request said ten ways walk one path) — and
+[`evals/experiment.py`](evals/experiment.py) runs all six of their scores against
+one Phoenix dataset in one pass. It **imports** the three rather than restating
+them, so a label lives in exactly one place. [evals/README.md](evals/README.md) is
+the map. Three older groups (`runs/`, `retrieval/`, `output/`) were removed on
 2026-08-30, deliberately and with their numbers already stale; the README records
 what each measured, so a rebuild starts from the question rather than from the
-code. Nothing else grades what the studio *writes* until one comes back.
+code. **Nothing grades what the studio *writes*** until `output/` comes back.
 
 The method reaches the container whole - one container, no model, no cost:
 
@@ -439,6 +453,14 @@ squares; `--all` is the whole grid and costs hours:
 
 ```bash
 uv run python evals/route/tool_usage.py
+```
+
+All six scores at once, against the Phoenix dataset, so two runs a week apart are
+a comparison rather than two report files. `--dry-run` builds the dataset and
+every label for free:
+
+```bash
+uv run python evals/experiment.py --dry-run
 ```
 
 Do not commit or push unless asked. The client's books stay out of git.

@@ -99,6 +99,35 @@ from content_studio.worker import (
 
 SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,200}$")
 
+#: What each backend probe in `/health` gets before it is called unreachable.
+#:
+#: THREE SECONDS WAS A WARM-PATH BUDGET ON A STACK THAT IS DESIGNED TO BE COLD.
+#: Everything here scales to zero on purpose - ACA replicas, and Neon's compute,
+#: which suspends after a few idle minutes - so the FIRST probe after a quiet
+#: hour pays every cold start at once, and that is exactly the probe somebody is
+#: watching.
+#:
+#: Both halves were measured failing on 2026-08-31:
+#:
+#: · Live on Azure, `/health` reported `mcp: nu răspunde (TimeoutError)` and
+#:   returned in 3.6s while the MCP container's own log showed every
+#:   `POST /mcp` answered `200 OK`. The probe opens a NEW streamable-HTTP
+#:   session each time - DNS, TCP, TLS, `initialize`,
+#:   `notifications/initialized`, `tools/list` - across the environment's
+#:   internal ingress. The server was never the problem; the budget was.
+#: · Locally, the first probe against a suspended Neon compute reported
+#:   `Postgres nu răspunde (TimeoutError)`; the second, warm, said `ready`.
+#:
+#: A studio that works reporting itself `degraded` is worse than a slow page:
+#: `/health` is the first thing anyone looks at, and `deploy.ps1`'s own health
+#: gate fails on it.
+#:
+#: The two probes run CONCURRENTLY now, so the endpoint costs the slower of them
+#: rather than their sum. That is what makes six affordable: the liveness probe
+#: in `infra/main.bicep` allows 10 seconds, and sequential 6 + 6 would restart a
+#: healthy container.
+HEALTH_PROBE_SECONDS = 6
+
 
 # The generic `except Exception` handlers below answer the browser with a short
 # Romanian sentence and the exception class name — deliberately, because the
@@ -319,31 +348,35 @@ class HarnessService:
         openai_ok = has_openai_key()
         skills_ok = SKILLS_DIR.is_dir()
 
-        database_ok = False
-        database_detail = self.database_error or "DATABASE_URL lipsește."
-        if self.engine is not None:
+        async def probe_database() -> tuple[bool, str]:
+            if self.engine is None:
+                return False, self.database_error or "DATABASE_URL lipsește."
             try:
-                async with asyncio.timeout(3):
+                async with asyncio.timeout(HEALTH_PROBE_SECONDS):
                     async with self.engine.connect() as conn:
                         await conn.execute(text("SELECT 1"))
-                database_ok = True
-                database_detail = "Conexiunea Postgres răspunde."
+                return True, "Conexiunea Postgres răspunde."
             except Exception as exc:  # noqa: BLE001
-                database_detail = f"Postgres nu răspunde ({type(exc).__name__})."
+                return False, f"Postgres nu răspunde ({type(exc).__name__})."
 
-        mcp_ok = False
-        mcp_detail = f"Configurat la {MCP_URL}, dar nu răspunde."
-        probe = self._data_mcp("health-probe")
-        try:
-            async with asyncio.timeout(3):
-                await probe.connect()
-                tools = await probe.list_tools()
-            mcp_ok = True
-            mcp_detail = f"Conectat; {len(tools)} unelte disponibile."
-        except Exception as exc:  # noqa: BLE001
-            mcp_detail = f"MCP nu răspunde ({type(exc).__name__})."
-        finally:
-            await probe.cleanup()
+        async def probe_mcp() -> tuple[bool, str]:
+            probe = self._data_mcp("health-probe")
+            try:
+                async with asyncio.timeout(HEALTH_PROBE_SECONDS):
+                    await probe.connect()
+                    tools = await probe.list_tools()
+                return True, f"Conectat; {len(tools)} unelte disponibile."
+            except Exception as exc:  # noqa: BLE001
+                return False, f"MCP nu răspunde ({type(exc).__name__})."
+            finally:
+                await probe.cleanup()
+
+        # Concurrent on purpose - see the note on the two budgets above. Neither
+        # coroutine raises, so `gather` cannot fail here; each returns its own
+        # verdict and its own sentence.
+        (database_ok, database_detail), (mcp_ok, mcp_detail) = await asyncio.gather(
+            probe_database(), probe_mcp()
+        )
 
         backends = {
             "openai": BackendHealth(

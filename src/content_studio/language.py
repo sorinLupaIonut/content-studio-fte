@@ -2,9 +2,9 @@
 
 The method is Romanian and stays Romanian: `BASE_INSTRUCTIONS`, every `SKILL.md`
 and every `references/` file. Those describe *how* the work is done — the voice,
-the pillars, the hook types, the ten output rules — and translating them would
-fork the source of truth in two, which is exactly what the language policy in
-AGENTS.md forbids.
+the pillars, the hook types, the shape of each format — and translating them
+would fork the source of truth in two, which is exactly what the language policy
+in AGENTS.md forbids.
 
 What varies is the language the answer comes out in. That is one appended block,
 not a second skill tree. The model reads the Romanian method and writes English,
@@ -33,9 +33,10 @@ DEFAULT_LANGUAGE: Language = "ro"
 
 LANGUAGES: tuple[Language, ...] = get_args(Language)
 
-# Rule 1 of BASE_INSTRUCTIONS says the answer is Romanian with diacritics. An
-# override has to contradict that in as many words, or the model splits the
-# difference and answers half in each.
+# BASE_INSTRUCTIONS says the answer is Romanian with diacritics, in its second
+# paragraph. An override has to contradict that in as many words, or the model
+# splits the difference and answers half in each. It is appended last, after the
+# profile, because the closer contradiction wins.
 ENGLISH_OVERRIDE = """\
 --- OUTPUT LANGUAGE: ENGLISH ---
 
@@ -58,8 +59,10 @@ above; every other rule stays exactly as written.
    vulnerable but firm, with the same authentic Christian perspective. Still no
    aggressive empowerment, still no marketing jargon, still no generic AI
    phrasing.
-5. Rule 7 holds with full force in English too: no invented testimonials, no
-   invented numbers, no masked quantifiers such as "many women" or "most people".
+5. The skill's rule about numbers holds with full force in English too: no
+   invented testimonials, no invented numbers, no masked quantifiers such as
+   "many women" or "most people". A number is allowed only when it counts the
+   points you are listing in the post yourself.
 6. Structured output — the fields of a saved post, a batch of proposals — keeps
    its English field names, as always. The prose values are now English.
 7. Controlled values are NOT prose and are NOT translated. `hook_type` stays

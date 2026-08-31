@@ -146,6 +146,8 @@ from content_studio.mcp_server.posts_store import (
 from content_studio.mcp_server.protocol import (
     CLIENT_HEADER,
     CONVERSATION_HEADER,
+    INTERNAL_UI_TOOLS,
+    MODEL_VISIBLE_TOOLS,
     OWNER_HEADER,
     profile_uri,
 )
@@ -1359,10 +1361,15 @@ def main() -> int:
     # network call per tool anyway.
     _engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
 
-    print(f"content-data · five agent tools + internal UI operations · "
+    # Counted off the constants, not typed out. This line said "five agent tools"
+    # while ten were registered - a hand-written number is a second source of
+    # truth for something the code already knows, and it drifted silently
+    # because nothing reads a banner.
+    print(f"content-data · {len(MODEL_VISIBLE_TOOLS)} agent tools + "
+          f"{len(INTERNAL_UI_TOOLS)} internal UI operations · "
           f"http://{MCP_HOST}:{MCP_PORT}/mcp")
     print(f"Database: {describe_database(url)}")
-    print("Leave it running and open the worker in another terminal.\n")
+    print("Leave it running and open the harness or a check in another terminal.\n")
 
     # stateless: every request is complete in itself, with no session kept between
     # them. The worker is a single process on the same machine — there is nothing
