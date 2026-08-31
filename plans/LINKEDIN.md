@@ -6,12 +6,21 @@ scrie fără să deschizi LinkedIn — și ca să ai de unde edita dacă vrei al
 | Unde | Ce e acolo | Poziția |
 |---|---|---|
 | **Featured** | link GitHub cu card și thumbnail, titlu „Content Studio FTE — a production Digital FTE agent" | **primul**, peste Digital FTE și Reading Room |
-| **Projects** | intrarea completă de mai jos, iul. 2026 – prezent, 5 skill-uri, media GitHub | **primul** |
+| **Projects** | intrarea completă de mai jos, iul. 2026 – prezent, 5 skill-uri, **diagrama stivei ca imagine** + linkul GitHub | **primul** |
 | **Skills** | LLM · Python · Software Architecture · PostgreSQL · Microsoft Azure, toate legate de proiect | — |
 
 **Editat pe 31 august, la cererea lui Sorin:** blocul de patru puncte se numea
 „What I'd want to be asked about" — suna a interviu pus in scena, nu a
 descriere de proiect. Se numeste „Key engineering decisions" acum.
+
+**Diagrama, ca imagine.** `docs/diagrams/02-deployed-stack.svg`, randată cu
+Chrome headless la 2× și urcată ca media pe intrarea din Projects, prima din
+listă — ca să se vadă legăturile fără să deschidă nimeni GitHub. Dacă o
+actualizezi, refaci PNG-ul așa:
+
+```
+chrome --headless=new --force-device-scale-factor=2 --window-size=1000,780        --screenshot=out.png file:///.../docs/diagrams/02-deployed-stack.svg
+```
 
 **Ce n-am atins:** headline-ul, banner-ul, About. Headline-ul tău spune deja
 „Agentic AI Engineer & Senior .NET Developer", iar banner-ul „AI workers you can
