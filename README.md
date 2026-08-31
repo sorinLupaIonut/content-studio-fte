@@ -9,21 +9,63 @@ chosen, and saves it only after a human says yes.
 Built on the OpenAI Agents SDK, a purpose-built MCP server, and Neon Postgres with
 pgvector. It runs in production for one client.
 
-> **🖼 [docs/DIAGRAMS.md](docs/DIAGRAMS.md) — start here if you have four minutes.**
-> Four diagrams: the architecture chosen and the four rejected, the deployed
-> topology and the three places it diverges from the reference stack, the
-> nine-layer eval pyramid with the one layer that is honestly empty, and what a
-> month actually costs.
->
-> **📄 [docs/CASE-STUDY.md](docs/CASE-STUDY.md) — the same ground in prose,** with
+> **📄 [docs/CASE-STUDY.md](docs/CASE-STUDY.md)** is the same ground in prose, with
 > the measurements behind each decision and five defects that only appeared
-> because something was measuring.
+> because something was measuring. The four diagrams below are explained one by
+> one in [docs/DIAGRAMS.md](docs/DIAGRAMS.md).
 
 > **A note on language.** The agent works in Romanian, because the person it works
 > for does. Everything the model reads at runtime — the system prompt, the tool
 > descriptions, every file under `skills/` — is Romanian, and so is the terminal
 > the client types into. Everything a developer reads — code, comments, docs,
 > tests — is English. That split is deliberate and enforced throughout.
+
+---
+
+## The project in four diagrams
+
+### 1 · The architecture that was chosen, and the four that were not
+
+![The five-question decision tree answered for this project: Q1 to Q3 lead to a single agent with ReAct and tools; the two additive layers are declined, each against a measurement](docs/diagrams/01-architecture-chosen.svg)
+
+Three answers were forced by the task, not by preference — the source chosen in the
+form decides which tools exist, so no fixed pipeline fits. The interesting half is
+the two layers that were **declined**: reflection, because the checkable criteria
+moved into the output schema (closest title pair **0.629 → 0.475**), and multi-agent,
+because splitting would copy a **28,639-character** profile into a second context for
+a **5–20×** multiplier.
+
+### 2 · The stack that runs, and the three places it diverges
+
+![The deployed topology: browser to Azure Container Apps ingress to the FastAPI harness, which opens one E2B container per run and reaches all data through a second internal-only container app running the MCP server](docs/diagrams/02-deployed-stack.svg)
+
+Same control-plane / execution-plane split as the reference stack. Three deliberate
+differences: a **second container app on internal ingress only** for the MCP data
+plane — architecture rule 1 made physical; **E2B instead of Cloudflare Sandbox and
+its bridge Worker**, one fewer network boundary; and **R2 refused outright**, because
+her posts are domain rows, not files — `/health` says so with the reason.
+
+The container holds no credentials and has no network. Everything the agent can
+reach, it reaches by asking the harness for a tool — and a write commits in the same
+transaction as its audit row, so a saved post with no trail cannot exist.
+
+### 3 · Eight layers of the eval pyramid built, one honestly empty
+
+![The nine-layer evaluation pyramid with eight layers built and layer three, output evals, marked empty in red; four defects on the right, each invisible to the layers below the one that found it](docs/diagrams/03-eval-pyramid.svg)
+
+Layer 3 — output evals — is empty, and saying so is more useful than letting a stale
+number stand in for it. The right-hand column is the argument for the rest: four
+defects, each invisible to every layer below the one that found it, and **not one of
+them raised an error.**
+
+### 4 · What a month actually costs
+
+![Monthly cost against developed ideas per month: a flat five-dollar fixed floor crossed by the variable line at about 227 ideas a month, with the planned ten-a-day workload just past the crossover](docs/diagrams/04-monthly-cost.svg)
+
+A developed idea costs about **$0.022** all-in against a **$5** fixed floor, so the two
+meet at ~227 ideas a month. Below that the lever is removing a line item; above it,
+the model dominates and the reference course's advice applies exactly. The model half
+got there by going from **$0.2490 to $0.0470 a batch** without changing the model.
 
 ---
 
@@ -53,30 +95,11 @@ and every one of them is visible in the code:
    *registration*, not inside the tool, so it protects every call the agent can
    make regardless of what the prompt says.
 
-## How it fits together
+## The surface the agent can see
 
-```mermaid
-flowchart TB
-    U["The client<br/>Blazor WASM, Romanian<br/>buttons + chat, one conversation"] --> H
-
-    subgraph proc["FastAPI harness — the agent runs here"]
-        H["SandboxAgent<br/>profile + voice + method note + tool note"]
-        A["audit.py<br/>own connection"]
-    end
-
-    H -->|"shell, into a container per run"| S["skills/ mounted at .agents/<br/>propune-postari · dezvolta-postarea + references/"]
-    H -->|"10 model-visible tools, HTTP"| M["MCP server<br/>content-data"]
-    H -.->|"gate: the four write tools"| G{"approve?"}
-    G -->|"no"| H
-
-    M --> DB[("Neon Postgres<br/>+ pgvector")]
-    A -.->|"trail only"| DB
-    H -.->|"conversation memory only"| DB
-```
-
-The dotted lines are the only direct database access the harness keeps: the SDK's
-own conversation state and the audit trail. The profile, the books and the posts —
-the business data — all travel through MCP. `worker.py` owns the agent
+The only direct database access the harness keeps is the SDK's own conversation
+state and the audit trail — the two dotted lines in diagram 2. The profile, the
+books and the posts all travel through MCP. `worker.py` owns the agent
 *definition* — the prompt assembly, the profile read, one gated turn — and every
 door builds its agent from it, so there is one agent and not three.
 
