@@ -348,6 +348,24 @@ class HarnessService:
         openai_ok = has_openai_key()
         skills_ok = SKILLS_DIR.is_dir()
 
+        # A TIMEOUT AND A REFUSAL ARE NOT THE SAME NEWS, and the first probe after
+        # a quiet hour is almost always the first. Both backends sleep on purpose
+        # - the MCP container scales to zero, Neon suspends its compute - and
+        # waking either takes longer than any budget this endpoint can afford,
+        # because `/health` has to answer inside the liveness probe's 10 seconds.
+        # Measured 2026-08-31 on the live deployment: one probe `degraded`, the
+        # next three `ready` in 0.6s. Saying "nu răspunde" for that is a false
+        # alarm on the one page an operator reads first.
+        def asleep_or_broken(exc: BaseException, what: str) -> str:
+            if isinstance(exc, TimeoutError):
+                return (
+                    f"{what} nu a răspuns în {HEALTH_PROBE_SECONDS}s. Cel mai"
+                    " probabil doarme (scale-to-zero) - o cerere reală îl"
+                    " pornește, cu răbdare. Dacă și a doua verificare spune la"
+                    " fel, atunci chiar e oprit."
+                )
+            return f"{what} nu răspunde ({type(exc).__name__})."
+
         async def probe_database() -> tuple[bool, str]:
             if self.engine is None:
                 return False, self.database_error or "DATABASE_URL lipsește."
@@ -357,7 +375,7 @@ class HarnessService:
                         await conn.execute(text("SELECT 1"))
                 return True, "Conexiunea Postgres răspunde."
             except Exception as exc:  # noqa: BLE001
-                return False, f"Postgres nu răspunde ({type(exc).__name__})."
+                return False, asleep_or_broken(exc, "Postgres")
 
         async def probe_mcp() -> tuple[bool, str]:
             probe = self._data_mcp("health-probe")
@@ -367,7 +385,7 @@ class HarnessService:
                     tools = await probe.list_tools()
                 return True, f"Conectat; {len(tools)} unelte disponibile."
             except Exception as exc:  # noqa: BLE001
-                return False, f"MCP nu răspunde ({type(exc).__name__})."
+                return False, asleep_or_broken(exc, "Serverul MCP")
             finally:
                 await probe.cleanup()
 
