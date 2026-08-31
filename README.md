@@ -9,11 +9,15 @@ chosen, and saves it only after a human says yes.
 Built on the OpenAI Agents SDK, a purpose-built MCP server, and Neon Postgres with
 pgvector. It runs in production for one client.
 
-> **📄 [docs/CASE-STUDY.md](docs/CASE-STUDY.md) — start here.** The architecture
-> that was chosen and the four that were rejected, the nine-layer eval pyramid
-> mapped layer by layer onto what is actually built, how one batch went from
-> $0.2490 to $0.0470, and five defects that only appeared because something was
-> measuring.
+> **🖼 [docs/DIAGRAMS.md](docs/DIAGRAMS.md) — start here if you have four minutes.**
+> Four diagrams: the architecture chosen and the four rejected, the deployed
+> topology and the three places it diverges from the reference stack, the
+> nine-layer eval pyramid with the one layer that is honestly empty, and what a
+> month actually costs.
+>
+> **📄 [docs/CASE-STUDY.md](docs/CASE-STUDY.md) — the same ground in prose,** with
+> the measurements behind each decision and five defects that only appeared
+> because something was measuring.
 
 > **A note on language.** The agent works in Romanian, because the person it works
 > for does. Everything the model reads at runtime — the system prompt, the tool
@@ -263,6 +267,8 @@ nothing automated grades what the studio *writes*. See
 - [docs/TESTING.md](docs/TESTING.md) — how to verify it, rung by rung
 - [docs/RUNBOOK.md](docs/RUNBOOK.md) — what to do when it breaks, written
   before it breaks
+- [docs/DIAGRAMS.md](docs/DIAGRAMS.md) — the four diagrams, explained: architecture,
+  topology, the eval pyramid, and the monthly bill
 - [docs/CASE-STUDY.md](docs/CASE-STUDY.md) — the engineering case study:
   architecture chosen vs. rejected, the eval pyramid, the cost work
 - [docs/manual.html](docs/manual.html) — the owner's manual: the whole system in

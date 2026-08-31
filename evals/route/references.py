@@ -38,14 +38,14 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio import enable_utf8_output
 from content_studio.config import SKILLS_DIR, MissingConfig, database_url
+
+# The shell tool's name lives in `sandbox.py`, with the container it belongs to:
+# `audit.py`, `generator.py` and this file all ask the same question of it.
+from content_studio.sandbox import SHELL_TOOL_NAME
 from content_studio.worker import reference_index
 
 MANIFEST = Path(__file__).with_name("references.json")
 
-#: The SDK's shell tool. Since the method moved into the sandbox this is the
-#: only way a `references/` file reaches the model, so it is the only span name
-#: worth counting.
-SHELL_TOOL_NAME = "exec_command"
 
 #: `public.traces` holds two kinds of row per run, and only one of them is ours:
 #: `close_run` writes `{"output": reply}`, and `RunTraceProcessor.on_trace_end`

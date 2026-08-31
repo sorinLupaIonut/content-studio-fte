@@ -1,35 +1,58 @@
-"""End-to-end check: skills as tools, data over MCP, the gate and the trail.
+"""End-to-end check of the CHAT door: the interview, the trigger, the refusal.
 
 Needs the server running:  uv run content-studio-server
 
-Nine turns, the long way round, because that is where you see whether the skills
-are actually read. The turns are Romanian because they are what the client types:
+WHAT THIS CHECK IS FOR, AND WHY IT IS SHORTER THAN IT WAS.
 
-  1. „vreau ceva despre limite"   → asks for the format
-  2. „reel"                       → asks for the pillar
-  3. „conexiune"                  → asks for the source
-  4. „din cărți"                  → proposes 3–4 titles, not the list of 17
-  5. „caută în toate"             → calls `search_books`, then produces the ten
-  6. „dezvoltă a treia…"          → the second skill: the whole post
-  7. „da, salveaz-o"              → the gate stops it, and we REFUSE
-  8. „ba da, sunt sigură"         → the gate stops it, and we APPROVE
-  9. „acum și a șaptea"           → one more, WITHOUT regenerating the list
+It used to walk nine turns ending in a saved post, because until 2026-08-27 the
+conversation *was* the product: the agent asked three questions, wrote ten
+proposals with five hooks each, developed one and saved it. None of that is true
+now. The chat agent records an INTENT — `start_generation` — and the harness runs
+the same pipeline the buttons run. `start_generation`'s own docstring says it in
+two places: „Cărțile nu se aleg aici: motorul își alege singur titlurile" and „NU
+scrii tu cele zece idei".
 
-What each decision is proved by:
+So a conversation driven through `worker.py` alone can no longer reach a write,
+by design, and the old assertions failed for that reason rather than because
+anything was broken — found on 2026-08-30 by running it, rewritten on 2026-08-31.
+What each dropped check proved, and where that proof lives now:
 
-- **4 and 5** — progressive disclosure. That it proposes 3–4 titles and never all
-  seventeen is written ONLY in `references/surse.md`; it is not in `SKILL.md` and
-  not in the system prompt. If the agent does that, the chain index → SKILL.md →
-  references works. If not, the skills are decoration.
-- **6** — `search_books` really is called. This looks at the turn's calls, not at
-  the words of the answer: an agent that *says* it searched looks the same.
-- **7** — the whole cycle, plus turn 9: a second proposal from the same list,
-  without regenerating anything.
-- **8** — the trail. Afterwards you can run replay on this session.
-- **9** — the gate, both ways: refused writes nothing, approved writes.
+  · ten proposals, five hooks each   → `evals/experiment.py` (`router`,
+                                        `references`, `tools`) and
+                                        `evals/route/tool_usage.py`
+  · the gate both ways, one draft    → `tests/checks/safe/write_gate.py`, which
+                                        proves refused → `capability_blocked` and
+                                        approved → row + trail row, for free and
+                                        without a model
+  · one real batch, button-side      → `tests/checks/paid/run_like_production.py`
 
-The post written at turn 8 is deleted at the end, so the check can run as often as
-you like without piling up drafts. Its trail stays in the audit for replay.
+What is left is what NOTHING ELSE checks: that the conversation itself behaves,
+end to end, against real MCP, a real container and a real model.
+
+FIVE TURNS, each proving one thing the method actually says today:
+
+  1. „vreau ceva despre limite"   → asks for the format. It does not assume one.
+  2. „reel"                        → asks for the pillar, with the closed
+                                     vocabulary of five and no invented sixth.
+  3. „conexiune"                   → asks for the source, all four.
+  4. „din cărți"                   → calls `start_generation` and says the batch
+                                     is starting. It must NOT write the ten
+                                     ideas, and must NOT show her the shelf.
+  5. „dezvoltă a treia…"           → THE REFUSAL. There is no list in this
+                                     conversation, because nothing executed the
+                                     trigger. Both skill descriptions say the
+                                     same thing in that case: say you do not have
+                                     the list, and do not invent one. An agent
+                                     that helpfully makes up a third proposal
+                                     here is the exact failure this door was
+                                     redesigned to prevent.
+
+Turn 4 is also what proves the method was READ: „nu scrii tu lista" is in the
+skill body and in the tool's description, nowhere in the system prompt. Turn 5 is
+the same evidence from the other side.
+
+Nothing is written to `posts` in this flow. The check asserts that, and deletes
+anything it finds anyway, so it stays repeatable.
 """
 
 from __future__ import annotations
@@ -48,15 +71,19 @@ from content_studio import enable_utf8_output
 from content_studio.audit import (
     CAPABILITY_BLOCKED,
     CAPABILITY_INVOKED,
+    GENERATION_REQUESTED,
     MESSAGE_RECEIVED,
-    POST_CHOSEN,
-    POST_SAVED,
     RUN_COMPLETED,
+    SKILL_ACTIVATED,
     Audit,
     split_event,
 )
 from content_studio.config import MCP_TIMEOUT, MCP_URL, database_url
-from content_studio.mcp_server.protocol import CONVERSATION_HEADER, MODEL_VISIBLE_TOOLS
+from content_studio.mcp_server.protocol import (
+    CONVERSATION_HEADER,
+    MODEL_VISIBLE_TOOLS,
+    OWNER_HEADER,
+)
 from content_studio.sandbox import sandbox_run_config
 from content_studio.worker import (
     GATED_TOOLS,
@@ -73,33 +100,52 @@ TURNS = [
     "reel",
     "conexiune",
     "din cărți",
-    "caută în toate",
     "dezvoltă a treia, cu contrastul",
-    "da, e bună. salveaz-o",
-    "ba da, sunt sigură. salveaz-o",
-    "acum dezvoltă și a șaptea, tot cu contrastul",
 ]
 
-#: The five types, tolerant of diacritics — the model writes „CIFRĂ" or „CIFRA".
-HOOK_TYPES = {
-    "PROVOCARE": r"PROVOCARE",
-    "CIFRĂ": r"CIFR[ĂA]",
-    "SECRET": r"SECRET",
-    "ÎNTREBARE": r"[ÎI]NTREBARE",
-    "CONTRAST": r"CONTRAST",
-}
+#: Turn 4 must start the batch. This is the whole chat door in one tool name.
+TRIGGER_TOOL = "start_generation"
 
-#: Any percentage is an invented result — output rule 7. This catches the obvious
-#: class ("30% more time"), not the sly one ("30 minutes of breathing room"). That
-#: one is left to the eval set from Decision 10.
+#: WHO THIS CONVERSATION IS, and it has to be someone.
+#:
+#: The three trigger tools refuse a connection with no owner header — „unealta e
+#: disponibilă numai din interfața Studio, unde identitatea este verificată" —
+#: and that refusal is correct: the harness executes under the principal it
+#: authenticated, never one the model could name.
+#:
+#: The first run of this check did not set it, and the result was worth keeping:
+#: both triggers refused, and the model did the work ITSELF rather than stop —
+#: „develop_idea nu e disponibil aici, așa că îți trimit eu varianta". Read
+#: quickly that looks like the agent ignoring „nu scrii tu lista". It is the
+#: opposite: the tool told it the tool did not apply here, and it fell back
+#: exactly as the error message suggests. A check that drives the chat door has
+#: to stand where the studio stands, or it measures a door nobody uses.
+#:
+#: A name of its own rather than a real principal: `client_of` finds no such row
+#: in `app_users` and falls back to `CLIENT_SLUG`, so the conversation reads the
+#: same data the terminal always did, and no real account is touched.
+CHECK_PRINCIPAL = "full-flow-check"
+
+#: Any percentage is an invented result unless it counts the post's own points.
+#: This catches the obvious class ("30% more time"), not the sly one ("30 minutes
+#: of breathing room"). It prints for a human rather than failing the check.
 PERCENT_PATTERN = re.compile(r"\d\s*%|\bla sută\b", re.IGNORECASE)
 
-#: „dacă nu răspunzi, folosesc X" — output rule 9 forbids it explicitly.
+#: „dacă nu răspunzi, folosesc X" — the method forbids choosing for her.
 DEFAULT_OPTION_PATTERN = re.compile(
     r"dac[ăa] nu r[ăa]spunzi|folosesc implicit|implicit[,:]", re.IGNORECASE
 )
 
 NUMBERING_PATTERN = re.compile(r"^\s*(\d{1,2})[.)]", re.MULTILINE)
+
+#: What „nu am lista" sounds like, tolerant of how the model phrases it. Turn 5
+#: has to say some version of this; the alternative is that it invented a third
+#: proposal, which is the failure mode this door exists to prevent.
+NO_LIST_PATTERN = re.compile(
+    r"nu (am|exist[ăa]|s-a generat)|nu (e|este) (nicio |niciun )?(list[ăa]|lot)"
+    r"|nu v[ăa]d (o )?list[ăa]|lista nu|niciun lot|nu au ap[ăa]rut|[îi]nc[ăa] nu",
+    re.IGNORECASE,
+)
 
 
 def numbers_in(text: str) -> set[int]:
@@ -107,22 +153,11 @@ def numbers_in(text: str) -> set[int]:
     return {int(n) for n in NUMBERING_PATTERN.findall(text) if 1 <= int(n) <= 10}
 
 
-def find_list(answers: list[str]) -> tuple[int, str]:
-    """The answer holding the list, plus its index (1-based).
-
-    The turn is not assumed. It takes the answer with the most distinct proposal
-    numbers; on a tie, the last one, because that is most likely the final one.
-    """
-    scores = [(len(numbers_in(a)), i) for i, a in enumerate(answers)]
-    _, i = max(scores)
-    return i + 1, answers[i]
-
-
 def tools_called(result) -> list[str]:
     """The names of the tools called in this turn.
 
     This looks at the actual calls, not at the text: an agent that *says* it
-    searched the books and one that really did look identical in the answer.
+    started the batch and one that really did look identical in the answer.
     """
     names = []
     for item in result.new_items:
@@ -133,26 +168,25 @@ def tools_called(result) -> list[str]:
 
 
 class Gatekeeper:
-    """The human at the gate, scripted: first "no", then "yes".
+    """The human at the gate. Nothing in this flow should ever reach it.
 
-    Both directions in a single run — refused writes nothing, approved writes. That
-    is Decision 9's criterion, and there is no point proving half of it.
+    The three trigger tools are deliberately not gated — they make drafts, and
+    rule 6's one confirmation stays on saving a post. So a request arriving here
+    means the agent reached for a write it had no business reaching for, and the
+    check refuses it and says so.
     """
 
     def __init__(self) -> None:
-        self.requests: list[tuple[str, bool]] = []
+        self.requests: list[str] = []
 
     async def __call__(self, name: str, arguments: dict) -> tuple[bool, str]:
-        approved = len(self.requests) > 0
-        self.requests.append((name, approved))
-        print(f"   [gate: {name} → {'APPROVED' if approved else 'REFUSED'}]")
-        if approved:
-            return True, ""
-        return False, "Viorela n-a aprobat scrierea. Întreab-o ce vrea schimbat."
+        self.requests.append(name)
+        print(f"   [gate: {name} → REFUSED — nothing in this flow should write]")
+        return False, "Viorela n-a cerut nicio salvare aici."
 
 
 async def session_drafts_and_delete(session_id: str) -> list[dict]:
-    """What the check wrote into `posts`, then clean up exactly this session's rows.
+    """What this session wrote into `posts` — expected empty — then clean up.
 
     The audit trail stays on purpose, so replay can reconstruct the check.
     """
@@ -162,8 +196,7 @@ async def session_drafts_and_delete(session_id: str) -> list[dict]:
         async with engine.begin() as conn:
             raw = (await conn.get_raw_connection()).driver_connection
             rows = await raw.fetch(
-                """SELECT id, title, hook_type, source, length(script) AS script,
-                          length(caption) AS caption, hashtags, cta
+                """SELECT id, title, hook_type, source
                      FROM public.posts
                     WHERE status = 'draft' AND conversation_id = $1""",
                 session_id,
@@ -203,11 +236,7 @@ async def session_events(session_id: str) -> list[tuple[str, str]]:
 
 
 def capabilities_in(events: list[tuple[str, str]]) -> list[tuple[str, str]]:
-    """(capability, status), to tell refused apart from executed.
-
-    `blocked` is its own event since D4, not a status read out of a result — so a
-    `search_web` that failed still counts as a call that was allowed to happen.
-    """
+    """(capability, status), to tell refused apart from executed."""
     return [
         (subject, "blocked" if kind == CAPABILITY_BLOCKED else "ok")
         for kind, subject in events
@@ -236,7 +265,10 @@ async def main() -> int:
     data_mcp = MCPServerStreamableHttp(
         params={
             "url": MCP_URL,
-            "headers": {CONVERSATION_HEADER: session_id},
+            "headers": {
+                CONVERSATION_HEADER: session_id,
+                OWNER_HEADER: CHECK_PRINCIPAL,
+            },
         },
         name="content-data",
         tool_filter={"allowed_tool_names": sorted(MODEL_VISIBLE_TOOLS)},
@@ -260,16 +292,16 @@ async def main() -> int:
 
     history: list = []
     answers: list[str] = []
-    called: list[str] = []
+    per_turn_tools: list[list[str]] = []
 
-    # ONE CONTAINER FOR ALL NINE TURNS, and it is not optional. The worker has
+    # ONE CONTAINER FOR ALL THE TURNS, and it is not optional. The worker has
     # been a `SandboxAgent` since the method went back into a sandbox on
     # 2026-08-27; `Runner.run` refuses outright without `RunConfig(sandbox=...)`.
     # This file kept the bare `RunConfig()` it was written with and had been
     # dead ever since - found on 2026-08-30, by running it. Every production
     # caller (`chat.py`, `generator.py`, `service.py`) passes one, so nothing
     # the client uses was affected; what was lost is the only check that walks
-    # the whole conversation end to end.
+    # the conversation end to end.
     try:
         async with sandbox_run_config("full_flow") as sandbox:
             config = RunConfig(
@@ -296,7 +328,7 @@ async def main() -> int:
                 answer = str(result.final_output)
                 answers.append(answer)
                 tools = tools_called(result)
-                called += tools
+                per_turn_tools.append(tools)
 
                 await trail.turn(run_id, result)
                 await trail.close_run(run_id, answer)
@@ -319,15 +351,11 @@ async def main() -> int:
         mistakes += not passed
         print(f"{'✓' if passed else '✗'} {label}")
 
-    # Turn 4 — did it read references/surse.md? That is where "3–4 titles, never the
-    # list of 17" is written. Count how many real library titles it named.
-    fourth = answers[3].lower()
-    named = [t for t in book_titles if t.lower()[:24] in fourth]
-    check(
-        3 <= len(named) <= 4,
-        f"turn 4: proposed {len(named)} library titles (expected 3–4, not 17)",
-    )
+    called = [name for turn in per_turn_tools for name in turn]
 
+    # ---- turns 2 and 3: the closed vocabularies ------------------------------
+    # Written in the skill body and nowhere else. An agent answering from memory
+    # renames a pillar or invents a sixth.
     required_pillars = ("Poziționare", "Educație", "Conexiune", "Conversie", "Magnetism")
     check(
         all(p in answers[1] for p in required_pillars) and "Inspirație" not in answers[1],
@@ -339,102 +367,91 @@ async def main() -> int:
         "turn 3 offers all 4 sources",
     )
 
+    # ---- turn 4: the trigger, and the two things it must NOT do --------------
     check(
-        "search_books" in called,
-        f"it called search_books (tools: {sorted(set(called)) or '—'})",
+        TRIGGER_TOOL in per_turn_tools[3],
+        f"turn 4 called `{TRIGGER_TOOL}` (tools: {per_turn_tools[3] or '—'})",
+    )
+    proposals = numbers_in(answers[3])
+    check(
+        len(proposals) < 8,
+        f"turn 4 did not write the ten ideas itself: {len(proposals)} numbers found",
+    )
+    # „Nu-i arăți lista și nu-i ceri să aleagă din ea" — and `start_generation`
+    # goes further: the books are not chosen in the conversation at all.
+    fourth = answers[3].lower()
+    named = [t for t in book_titles if t.lower()[:24] in fourth]
+    check(
+        len(named) <= 1,
+        f"turn 4 did not show her the shelf: {len(named)} library titles named",
     )
 
-    where, listing = find_list(answers)
-    distinct = numbers_in(listing)
+    # ---- turn 5: the refusal -------------------------------------------------
+    # Nothing executed the trigger, so there is no list. Both skill descriptions
+    # say the same thing here, and an agent that invents a third proposal instead
+    # is the exact failure this door was redesigned to prevent.
+    fifth = answers[4]
     check(
-        len(distinct) == 10,
-        f"proposals numbered 1–10: {len(distinct)} found (in turn {where})",
+        bool(NO_LIST_PATTERN.search(fifth)),
+        "turn 5 said it does not have the list",
+    )
+    check(
+        len(numbers_in(fifth)) < 3 and "HOOK" not in fifth.upper(),
+        f"turn 5 did not invent a proposal: {len(numbers_in(fifth))} numbers, "
+        f"hook written = {'HOOK' in fifth.upper()}",
     )
 
-    # Decision 9 — the gate, both ways.
-    refused = [n for n, approved in gatekeeper.requests if not approved]
-    approved = [n for n, approved in gatekeeper.requests if approved]
+    # ---- nothing writes in this flow ----------------------------------------
     check(
-        len(refused) >= 1 and len(approved) >= 1,
-        f"the gate opened both ways: {len(refused)} refused, {len(approved)} approved",
+        not gatekeeper.requests,
+        f"the gate was never reached: {gatekeeper.requests or 'no write attempted'}",
     )
-    check(
-        all(n in GATED_TOOLS for n, _ in gatekeeper.requests),
-        f"the gate stopped only the write tools: {[n for n, _ in gatekeeper.requests]}",
-    )
-
-    # Decision 7 — a single draft, the approved one. The refused one wrote nothing.
     written = await session_drafts_and_delete(session_id)
-    check(len(written) == 1, f"a single draft in `posts`: {len(written)}")
+    check(len(written) == 0, f"nothing was written to `posts`: {len(written)}")
     for r in written:
-        print(
-            f"    „{r['title']}” · hook {r['hook_type']} · script {r['script']} chars · "
-            f"caption {r['caption']} chars · {r['hashtags']}"
-        )
-        print(f"    source: {r['source']}")
-        check(bool(r["cta"]), "the draft has a CTA")
-        check(bool(r["source"]), "the draft has its source filled in")
-    print("    (deleted, so the check stays repeatable)")
+        print(f"    unexpected draft: „{r['title']}” · {r['hook_type']} · {r['source']}")
+    if written:
+        print("    (deleted, so the check stays repeatable)")
 
-    # Turn 9 — a second proposal from the same list, without regenerating.
-    check(
-        len(numbers_in(answers[8])) < 8,
-        f"turn 9 did not regenerate the list: {len(numbers_in(answers[8]))} numbers",
-    )
-
-    # Decision 8 — the trail, on the D4 schema.
+    # ---- the trail -----------------------------------------------------------
     events = await session_events(session_id)
     kinds = [kind for kind, _ in events]
-    for required in (
-        MESSAGE_RECEIVED,
-        RUN_COMPLETED,
-        "skill_activated",
-        CAPABILITY_INVOKED,
-        "approval_requested",
-        "approval_rejected",
-        POST_CHOSEN,
-        "proposals_generated",
-    ):
+    for required in (MESSAGE_RECEIVED, RUN_COMPLETED, SKILL_ACTIVATED, GENERATION_REQUESTED):
         check(required in kinds, f"the trail has `{required}`")
     check(
         kinds.count(MESSAGE_RECEIVED) == len(TURNS),
         f"the trail has all {len(TURNS)} turns: {kinds.count(MESSAGE_RECEIVED)}",
     )
+    # `skill_activated` is derived from the shell command that opened the file.
+    # It recorded nothing at all between 2026-08-27 and 2026-08-31, because it
+    # was still matching tool names from the shape before the sandbox came back.
+    skills = sorted({subject for kind, subject in events if kind == SKILL_ACTIVATED})
     check(
-        kinds.count(POST_CHOSEN) == 1,
-        f"only the approved call is `post_chosen`: {kinds.count(POST_CHOSEN)}",
+        "propune-postari" in skills,
+        f"the trail names the skill that was opened: {skills or '—'}",
     )
     check(
-        kinds.count(POST_SAVED) == 1,
-        f"the server's save is linked to the run: {kinds.count(POST_SAVED)}",
-    )
-    save_statuses = [s for c, s in capabilities_in(events) if c == "save_post"]
-    check(
-        sorted(save_statuses) == ["blocked", "ok"],
-        f"save_post has one blocked and one ok: {save_statuses}",
+        not [c for c, _ in capabilities_in(events) if c in GATED_TOOLS],
+        "no write capability appears in the trail",
     )
 
-    for label, pattern in HOOK_TYPES.items():
-        count = len(re.findall(pattern, listing))
-        check(count >= 10, f"hook {label:<10} appears {count} times (expected ≥10)")
-
-    # Output rules 7 and 9 are checked against EVERYTHING it said, not just the list.
+    # ---- what it said, across every turn ------------------------------------
     everything = "\n".join(answers)
 
-    # A percentage is not automatically a rule 7 violation: "30% more time" is an
-    # invented figure, "both sides give 50%" is a metaphor for reciprocity. The
-    # pattern cannot tell them apart, so it flags for a human instead of failing the
-    # check. The judgement itself is the eval set's job, Decision 10.
+    # A percentage is not automatically an invented figure: "30% more time" is,
+    # "both sides give 50%" is a metaphor for reciprocity. The pattern cannot tell
+    # them apart, so it flags for a human instead of failing the check.
     for found in PERCENT_PATTERN.finditer(everything):
         context = everything[max(0, found.start() - 60) : found.end() + 10].replace("\n", " ")
         print(f"⚠ percentage, read it yourself: …{context.strip()}…")
 
     defaults = DEFAULT_OPTION_PATTERN.findall(everything)
-    check(not defaults, f"implicit options offered (rule 9): {len(defaults)}")
+    check(not defaults, f"it never chose for her by default: {len(defaults)} found")
     check(
-        "Andreea" not in " ".join(answers[:4]),
+        "Andreea" not in everything,
         "the avatar is not called by name in the conversation",
     )
+    print(f"  tools across the conversation: {sorted(set(called)) or '—'}")
 
     print("=" * 72)
     print(f"Trail:  uv run python -m content_studio.replay {session_id}")

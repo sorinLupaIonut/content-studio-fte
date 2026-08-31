@@ -54,6 +54,17 @@ logger = logging.getLogger("content_studio.sandbox")
 #: nothing this project writes needs to repeat it.
 SKILLS_PATH = ".agents"
 
+#: The SDK's shell tool. Since the method moved back into the sandbox on
+#: 2026-08-27 this is the ONLY way a `SKILL.md` or a `references/` file reaches
+#: the model, which makes it the only call name worth reading when the question
+#: is "did this run open the method".
+#:
+#: It lives here rather than in the eval that first needed it, because three
+#: readers now ask that question - `audit.py` for the trail, `generator.py` for
+#: its warning, and `evals/route/` for the grade - and the day they disagree
+#: about the name is the day one of them silently answers "no" forever.
+SHELL_TOOL_NAME = "exec_command"
+
 
 #: What replaces the SDK's default sandbox prompt, and it is not an optimisation.
 #: `agents/sandbox/instructions/prompt.md` is Codex's coding-agent prompt - 16.9 KB

@@ -61,6 +61,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from content_studio.config import SKILLS_DIR
 from content_studio.observability import bind_run
+from content_studio.sandbox import SHELL_TOOL_NAME
 
 #: The tools that cross the MCP boundary. The rest (`exec_command` and everything
 #: sandbox-related) are system tools, not business capabilities.
@@ -123,15 +124,23 @@ ACCOUNT_PROVISIONED = "account_provisioned"
 #: the reader agrees on is the cheapest way to get both back out.
 SEPARATOR = ": "
 
-#: A skill is activated by CALLING ITS TOOL, and the tool is named after the
-#: folder. Read from disk so a new skill folder needs no edit here.
+#: The skill folder names, read from disk so a new skill needs no edit here.
 #:
-#: This was a regex over a shell command's arguments -
-#: `.agents/<name>/SKILL.md` - back when the skills were mounted in a sandbox.
-#: The sandbox went on 2026-08-24 and skill tools take no arguments at all, so
-#: it matched nothing and `public.runs` silently stopped recording any skill
-#: activation whatsoever. Same fault, same day, as the eval runner of the time.
-SKILL_TOOLS = frozenset(
+#: THIS DETECTION HAS NOW BEEN WRONG IN BOTH DIRECTIONS, and each time it failed
+#: the same way: silently, with `public.runs` simply never recording a skill
+#: activation again.
+#:
+#: It began as a regex over a shell command - `.agents/<name>/SKILL.md`. The
+#: sandbox was removed on 2026-08-24 and skills became tools, so the regex
+#: matched nothing. It was rewritten to match TOOL NAMES. The sandbox came back
+#: on 2026-08-27 and the tools went, so the tool-name match stopped matching -
+#: found on 2026-08-31, by running the end-to-end check rather than reading it.
+#:
+#: So it reads BOTH now, and that is not indecision: whichever way the method is
+#: delivered, one of the two is the truth and the other costs a set lookup. The
+#: shell half is the same derivation `evals/route/tool_usage.py` uses, which is
+#: what makes a skill counted here and a skill counted there the same number.
+SKILL_NAMES = frozenset(
     p.name for p in SKILLS_DIR.iterdir() if (p / "SKILL.md").is_file()
 ) if SKILLS_DIR.is_dir() else frozenset()
 
@@ -145,13 +154,17 @@ INSERT INTO public.agent_sessions (session_id) VALUES ($1)
 ON CONFLICT (session_id) DO NOTHING
 """
 
-#: `used_sandbox` is vestigial since the sandbox was removed on 2026-08-24. The
-#: column stays because dropping one from a live database is a migration, not a
-#: tidy-up, and the historical rows where it is true are real. Every new row is
-#: written false rather than left to a default that would keep claiming otherwise.
+#: `used_sandbox` was written `false` from 2026-08-24, when the sandbox was
+#: removed, and stayed false after 2026-08-27, when it came back and became
+#: MANDATORY - `Runner.run` refuses a `SandboxAgent` without one. So the column
+#: recorded the opposite of the truth for four days.
+#:
+#: It is `true` now, and it is a constant rather than a parameter on purpose:
+#: there is no code path left that can open a run without a container, so a
+#: caller that could pass `false` would only be able to pass a lie.
 OPEN_RUN_SQL = """
 INSERT INTO public.runs (id, session_id, input_message, used_sandbox)
-VALUES ($1, $2, $3, false)
+VALUES ($1, $2, $3, true)
 """
 
 CLOSE_RUN_SQL = """
@@ -453,8 +466,14 @@ class Audit:
         for call in calls_in(result):
             name, arguments = call["name"], call["arguments"]
 
-            if name in SKILL_TOOLS:
+            if name in SKILL_NAMES:
+                # Skills delivered as tools; the tool is named after the folder.
                 skills.add(name)
+            elif name == SHELL_TOOL_NAME:
+                # Skills delivered as files. The argument is the evidence: a
+                # shell call says nothing until you read which file it opened.
+                command = json.dumps(arguments or {}, ensure_ascii=False)
+                skills.update(n for n in SKILL_NAMES if f"{n}/SKILL.md" in command)
 
             if name not in MCP_TOOLS:
                 continue
