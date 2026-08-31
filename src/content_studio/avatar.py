@@ -39,6 +39,25 @@ AVATAR_SECTIONS = (
     "Credințele ei limitative (în cuvintele ei)",
 )
 
+#: The same five in a profile that is WRITTEN in English. The studio can be used
+#: in English since 2026-08-21, and a profile in English is a legitimate state,
+#: not a demo hack - the first one arrived on 2026-08-31.
+#:
+#: THIS IS WHY IT IS NOT OPTIONAL. `sections_of` skips a title it cannot find
+#: and `excerpt` returns "" rather than raising, both on purpose: a restructured
+#: profile must not stop the client generating. So an English profile scored
+#: 0 of 5 here, the block silently left the prompt, and the only symptom was
+#: the failure this module exists to fix - proposals true of any woman.
+#: Measured before the fix, on the translated profile: 8,923 characters of
+#: material in the Romanian one, 0 in the English one.
+AVATAR_SECTIONS_EN = (
+    "What does she want most right now?",
+    "What problems does she have right now?",
+    "What pain does she feel?",
+    "Her strongest fears",
+    "Her limiting beliefs (in her own words)",
+)
+
 #: What the writer is asked to do with the block. Written here, next to the
 #: material, because an instruction that lives three thousand tokens away from
 #: what it refers to is the arrangement this module exists to undo.
@@ -54,7 +73,10 @@ you started from, the proposal is not ready."""
 def sections_of(profile: str) -> list[str]:
     """The named sections, in order, silently skipping any that moved."""
     found: list[str] = []
-    for title in AVATAR_SECTIONS:
+    # Both languages, one pass. A profile is written in one of them, so the
+    # other simply finds nothing - which is the behaviour this loop already had
+    # for a section that moved.
+    for title in (*AVATAR_SECTIONS, *AVATAR_SECTIONS_EN):
         block = re.search(
             rf"^###\s+{re.escape(title)}\s*$(.*?)(?=^###\s|\Z)",
             profile,

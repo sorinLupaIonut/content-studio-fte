@@ -90,18 +90,54 @@ def serialize_blocks(blocks: list[ProfileBlock]) -> str:
 
 
 def category_for(parent: str, title: str) -> str:
+    """Which tab a profile section belongs under, by what its heading says.
+
+    ENGLISH KEYWORDS SIT BESIDE THE ROMANIAN ONES, since 2026-08-31, because a
+    profile can be written in English now. Without them every keyword rule fell
+    through and only the numbered-parent rules survived: measured on the first
+    English profile, six groups became three - 8 identity, 4 offer, 4 voice, 2
+    results, 14 ideal_client, 1 restrictions collapsed to 17 identity, 1 offer,
+    15 ideal_client. Nothing raised; the page just drew the wrong tabs.
+
+    No English word here matches a Romanian heading, so the Romanian behaviour
+    is exactly what it was. `usp` is the one token both languages share.
+
+    ONE SECTION LANDS DIFFERENTLY, and it is the Romanian side that is wrong:
+    `clienta ideală` does not match her actual heading, `Clienta ta ideală` -
+    there is a `ta` in the middle - so in Romanian that section falls through to
+    `identity`, while `ideal client` matches `Your ideal client` cleanly. Left
+    as it is deliberately: fixing the Romanian pattern would move a section
+    between two tabs on the client's own page, which is a change she did not
+    ask for and would notice.
+    """
     combined = f"{parent} {title}".lower()
     if parent.startswith("6."):
         return "ctas"
-    if "lucruri pe care nu" in combined:
+    if "lucruri pe care nu" in combined or "never say" in combined:
         return "restrictions"
-    if any(word in combined for word in ("vocea", "expresii", "tonul", "povestea")):
+    if any(
+        word in combined
+        for word in (
+            "vocea", "expresii", "tonul", "povestea",
+            "voice", "expressions", "tone", "story",
+        )
+    ):
         return "voice"
-    if any(word in combined for word in ("ofert", "servicii", "soluția", "usp")):
+    if any(
+        word in combined
+        for word in (
+            "ofert", "servicii", "soluția", "usp",
+            "offer", "services", "solution",
+        )
+    ):
         return "offer"
-    if parent.startswith(("2.", "3.")) or "clienta ideală" in combined:
+    if (
+        parent.startswith(("2.", "3."))
+        or "clienta ideală" in combined
+        or "ideal client" in combined
+    ):
         return "ideal_client"
-    if parent.startswith("4.") or "rezultat" in combined:
+    if parent.startswith("4.") or "rezultat" in combined or "result" in combined:
         return "results"
     return "identity"
 
