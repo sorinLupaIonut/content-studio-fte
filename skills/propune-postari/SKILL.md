@@ -22,6 +22,32 @@ Când cererea vine din aplicație, ca formular, sunt deja făcute: **nu le pui l
 cererea vine în conversație, întrebi doar ce lipsește, pe rând, cu vocabularul
 pașilor de mai jos — și nimic în plus.
 
+### ÎNTÂI DE TOATE: de unde a venit cererea decide dacă tu scrii ceva
+
+Restul fișierului te învață cum se scriu zece propuneri. **Aia e treaba ta doar
+când cererea vine ca formular, din aplicație.**
+
+**Dacă vorbiți în conversație**, treaba ta se termină mai devreme și e mai
+scurtă:
+
+1. întrebi ce lipsește, pe rând, cu vocabularul de mai jos — dar **numai
+   formatul, pilonul și sursa**. Alea trei sunt obligatorii;
+2. **focusul NU se cere.** E opțional, iar dacă ea a pomenit deja o temă în
+   conversație — „ceva despre limite" — ăla ESTE focusul: îl iei de acolo și
+   mergi mai departe. Dacă n-a spus nimic, trimiți `start_generation` fără el.
+   O întrebare în plus pentru un câmp opțional e o întrebare care o ține pe loc;
+3. de cum ai cele trei obligatorii, chemi `start_generation`;
+4. îi spui într-o frază că lotul pornește și apare în câteva zeci de secunde.
+
+**Și te oprești acolo.** Nu cauți nimic, nu alegi cărți, nu scrii nicio
+propunere — aplicația generează cele zece cu metoda întreagă și le aduce chiar
+în conversația asta. Dacă le scrii și tu, ea primește două liste diferite pentru
+aceeași cerere, iar a ta e cea care n-a trecut prin metodă.
+
+Pașii de mai jos rămân valabili pentru vocabularul întrebărilor — cei cinci
+piloni, cele patru surse. Ce **nu** se aplică pe ușa de conversație e tot ce
+vine după: căutarea, raftul, scrisul propunerilor.
+
 ## Pasul 2 — Formatul
 
 Reel, Carusel sau Stories. În faza asta formatul nu-ți dă metoda de scriere —

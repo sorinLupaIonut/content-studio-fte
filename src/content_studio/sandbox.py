@@ -179,9 +179,18 @@ def sandbox_options() -> E2BSandboxClientOptions:
 async def sandbox_run_config(label: str) -> AsyncIterator[SandboxRunConfig]:
     """One container, for as many runs as the caller puts inside the block.
 
-    A batch is eleven runs - one for the titles, ten for the details - and they
-    share this one. Creating a container per run would pay the startup and the
-    114 KB upload eleven times for a filesystem that never changes between them.
+    This used to say "a batch is eleven runs - one for the titles, ten for the
+    details - and they share this one". It is not, and has not been since the
+    details became lazy: a batch IS the titles run, and each detail is a separate
+    run minutes or days later, with its own container. `generator._run_agent`
+    opens the block per run for exactly that reason. The block still takes more
+    than one run where a caller has more than one - the end-to-end check walks
+    five turns inside a single container - which is why this is a context manager
+    rather than a decorator on the run.
+
+    Measured 2026-08-27: a container comes up in 0.35-1.17s and closes in 0.25s,
+    which is small next to the model call it serves.
+
     The session is passed live rather than as `client` + `options`, which is what
     makes the runtime reuse it instead of creating its own; `owns_session=False`
     then keeps `Runner` from closing what it did not open.

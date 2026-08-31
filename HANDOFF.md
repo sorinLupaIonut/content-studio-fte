@@ -187,12 +187,77 @@ method per book.
 
 ---
 
+## 2026-08-31, third pass — the end-to-end check, the diagrams, LinkedIn
+
+**The three stale assertions could not be repaired, only re-aimed.** They described
+a conversation that stopped existing on 2026-08-27: the chat agent records an
+INTENT (`start_generation`) and the harness runs the pipeline. So a flow driven
+through `worker.py` alone can no longer reach a write, by design. `full_flow.py` is
+five turns now — the closed vocabularies, the trigger, and the refusal when no list
+exists — and its docstring says where each dropped check's proof lives instead
+(`write_gate.py`, `experiment.py`, `run_like_production.py`).
+
+**`skill_activated` was fixed at the root, in `audit.py`, not in the test.** The
+detection has now been wrong in both directions: a shell regex until the sandbox
+was removed on 2026-08-24, then tool names until the sandbox came back on
+2026-08-27. It reads both. Two real runs confirm the trail names both skills.
+
+Two more found on the way: `used_sandbox` had been writing `false` for four days on
+runs that all had a container, and `SHELL_TOOL_NAME` lived in `evals/` while three
+readers ask the same question of it — it is in `sandbox.py` now.
+
+**The first run of the rewritten check was itself the lesson.** Without
+`OWNER_HEADER` the trigger tools refuse correctly, and the model does the work
+itself — „develop_idea nu e disponibil aici, așa că îți trimit eu varianta". That
+reads like an agent ignoring „nu scrii tu lista"; it is the opposite. A check that
+drives the chat door has to stand where the studio stands.
+
+**With the header set, it caught a real defect.** Turn 4 called `search_books` and
+wrote the ten ideas itself instead of delegating. Cause: one skill body serving two
+doors, and the body describes the generation door — the chat instruction lived only
+in the frontmatter and the tool docstring. `propune-postari/SKILL.md` now opens with
+an explicit branch: in conversation, ask what is missing, call `start_generation`,
+say one sentence, stop. `fidelity.py` still 7/7 after the edit.
+
+**Four diagrams** in `docs/diagrams/`, plain SVG with presentation attributes only
+so GitHub renders them, plus `docs/DIAGRAMS.md` explaining each. Linked first from
+the README.
+
+**LinkedIn is published.** Featured and Projects, both first. See
+[plans/LINKEDIN.md](plans/LINKEDIN.md) for exactly what the profile says.
+
+---
+
 ## Costs incurred today
 
 **2026-08-30:** roughly $0.35 in total — two Phoenix experiments ($0.10), four web
 searches ($0.04), one full flow of nine turns, one real batch of ten titles, plus
 the paid checks.
 
-**2026-08-31:** nothing. The currency pass used `ruff`, the 408 unit tests,
-`tests/checks/safe/prompt.py`, `evals/route/tool_usage.py --dry-run` and two
-read-only database queries. No model call, no container.
+**2026-08-31:** the currency pass cost nothing. The afternoon cost about $0.20 —
+three runs of `full_flow.py` (five real turns each, one container) and two
+`fidelity.py` runs, which use a container but no model.
+
+### What a month costs at the planned workload
+
+Ten developed ideas a day: **330 model runs and ~11 container-hours a month.**
+
+| | |
+|---|---|
+| OpenAI, gpt-5-mini | ~$5.70 |
+| Azure Container Registry, Basic | $5.00 |
+| E2B compute, per second | ~$1.29 |
+| ACA · Neon · App Insights · Phoenix · R2 | $0 |
+| **Total** | **≈ $12** |
+
+That is just past the crossover where the fixed floor stops dominating: a developed
+idea is ~$0.022 all-in against a $5 floor, so the two meet at ~227 ideas a month.
+
+**THE ONE OPEN NUMBER: the E2B free credit is spent.** Their own docs say adding a
+payment method unblocks the account and billing continues per second, which keeps
+that line at $1.29. At least one third-party comparison says the $150/month Pro
+plan is required instead. Both cannot be true and the difference is 10× the rest of
+the bill, so read it in the E2B dashboard rather than in anyone's blog. If Pro
+really is required, **Cloudflare Containers does the same job for $5/month plus
+~$1.14** at this volume — and it is the sandbox client the SDK ships alongside the
+current one, so the change is confined to `sandbox.py`.
