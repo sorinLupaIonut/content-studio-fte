@@ -219,9 +219,9 @@ if (-not $phoenixEndpoint) { $phoenixEndpoint = '' }
 if (-not $phoenixApiKey)   { $phoenixApiKey = '' }
 if (-not $phoenixProject)  { $phoenixProject = 'studio-viorela' }
 if ($phoenixApiKey) {
-    Write-Host ("Phoenix      : {0}, cheia citita din .env, netiparita" -f $phoenixProject)
+    Write-Host ("Phoenix      : {0}, key read from .env, not printed" -f $phoenixProject)
 } else {
-    Write-Host "Phoenix      : fara PHOENIX_API_KEY in .env; suprafata a patra ramane oprita"
+    Write-Host "Phoenix      : no PHOENIX_API_KEY in .env; the fourth surface stays off"
 }
 if ($selfProvisionProviders) {
     Write-Host ("Self-signup  : {0}" -f $selfProvisionProviders)
