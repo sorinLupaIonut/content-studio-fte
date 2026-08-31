@@ -152,6 +152,32 @@ class ProposedIdea(StrictContract):
     )
 
 
+def renumbered(ideas: list[Any]) -> list[Any]:
+    """Number the ten proposals 1..10 by position, in place.
+
+    THE ORDINAL IS A SLOT NUMBER, NOT CONTENT. It says which card this is and
+    which one she means when she says "develop the third"; nothing about the
+    idea depends on it. The list is already exactly ten - `min_length` and
+    `max_length` see to that - so the numbering is something this code can
+    simply write.
+
+    Until 2026-08-31 it was demanded of the model instead: ordinals that were
+    not literally `[1..10]` in that order raised, and ten good proposals died of
+    a numbering slip. A shuffle is honoured first, because a model that numbered
+    them 1..10 out of order expressed an order; anything else is renumbered by
+    position, because there is nothing else to go on and losing the batch helps
+    nobody.
+    """
+
+    ordinals = [idea.ordinal for idea in ideas]
+    if sorted(ordinals) == list(range(1, len(ideas) + 1)):
+        ideas.sort(key=lambda idea: idea.ordinal)
+    for position, idea in enumerate(ideas, 1):
+        if idea.ordinal != position:
+            idea.ordinal = position
+    return ideas
+
+
 class ProposedIdeas(StrictContract):
     """The ten, each on a different archetype.
 
@@ -173,8 +199,7 @@ class ProposedIdeas(StrictContract):
 
     @model_validator(mode="after")
     def exact_order(self) -> ProposedIdeas:
-        if [idea.ordinal for idea in self.ideas] != list(range(1, 11)):
-            raise ValueError("ideas must be ordered exactly from 1 to 10")
+        renumbered(self.ideas)
         return self
 
     @model_validator(mode="after")
@@ -204,9 +229,7 @@ class IdeaTitles(StrictContract):
 
     @model_validator(mode="after")
     def exact_order(self) -> IdeaTitles:
-        ordinals = [idea.ordinal for idea in self.ideas]
-        if ordinals != list(range(1, 11)):
-            raise ValueError("ideas must be ordered exactly from 1 to 10")
+        renumbered(self.ideas)
         return self
 
 
@@ -284,15 +307,32 @@ def checked_hashtags(values: list[str]) -> list[str]:
     return repaired
 
 
-def checked_hook_order(variants: list[Any]) -> None:
-    """All five hook types, once each, in the order the tabs are drawn."""
+def ordered_by_hook(variants: list[Any]) -> list[Any]:
+    """The five variants in tab order — sorted here rather than demanded above.
+
+    All five hook types, once each, is a CONTRACT: five variants that are really
+    five different openings is the whole point of the phase, and four of them
+    plus a repeat is a worse answer, not a differently-arranged one. That still
+    refuses.
+
+    The ORDER they arrive in is not a contract. It is the order the tabs are
+    drawn in, which this function can simply impose. Demanding it of the model
+    turned a permutation - every variant present, correct and paid for - into a
+    lost run. Same lesson as `checked_hashtags` above and as the title guard in
+    `generator.same_title`: refuse what is wrong, arrange what is merely untidy.
+    """
 
     hook_types = [variant.hook_type for variant in variants]
-    if hook_types != list(HOOK_TYPES):
+    if sorted(hook_types) != sorted(HOOK_TYPES):
+        missing = [h for h in HOOK_TYPES if h not in hook_types]
+        repeated = sorted({h for h in hook_types if hook_types.count(h) > 1})
         raise ValueError(
-            "variants must contain PROVOCARE, CIFRA, SECRET, INTREBARE and "
-            "CONTRAST in that order"
+            "the five variants are one per hook type: PROVOCARE, CIFRA, SECRET, "
+            f"INTREBARE, CONTRAST. missing: {missing or 'none'}; "
+            f"repeated: {repeated or 'none'}"
         )
+    by_hook = {variant.hook_type: variant for variant in variants}
+    return [by_hook[hook] for hook in HOOK_TYPES]
 
 
 class IdeaVariant(StrictContract):
@@ -418,7 +458,7 @@ class IdeaDetails(StrictContract):
 
     @model_validator(mode="after")
     def one_variant_per_hook_in_order(self) -> IdeaDetails:
-        checked_hook_order(self.variants)
+        self.variants = ordered_by_hook(self.variants)
         return self
 
 
@@ -431,7 +471,7 @@ class ProducedIdeaDetails(StrictContract):
 
     @model_validator(mode="after")
     def one_variant_per_hook_in_order(self) -> ProducedIdeaDetails:
-        checked_hook_order(self.variants)
+        self.variants = ordered_by_hook(self.variants)
         return self
 
 
@@ -444,7 +484,7 @@ class SilentReelDetails(StrictContract):
 
     @model_validator(mode="after")
     def one_variant_per_hook_in_order(self) -> SilentReelDetails:
-        checked_hook_order(self.variants)
+        self.variants = ordered_by_hook(self.variants)
         return self
 
 

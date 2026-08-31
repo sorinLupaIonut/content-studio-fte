@@ -95,12 +95,25 @@ class TheTenAreDifferent(unittest.TestCase):
         with self.assertRaises(ValidationError):
             ProposedIdeas.model_validate(_ten(types))
 
-    def test_still_exactly_ten_and_in_order(self) -> None:
+    def test_a_numbering_slip_is_renumbered_not_refused(self) -> None:
+        """Ten good proposals must not die of a duplicated ordinal.
+
+        Until 2026-08-31 this raised. The ordinal is the slot number - which
+        card, and which one she means by "develop the third" - so when the model
+        gets it wrong there is nothing to lose by writing it correctly, and ten
+        proposals to lose by refusing. What still has to hold is that the ten
+        arrive numbered 1..10, whoever did the numbering.
+        """
         payload = _ten(ANGLE_TYPES)
         payload["ideas"][4]["ordinal"] = 9  # type: ignore[index]
-        with self.assertRaises(ValidationError) as caught:
-            ProposedIdeas.model_validate(payload)
-        self.assertIn("exactly from 1 to 10", str(caught.exception))
+        titles = [idea["title"] for idea in payload["ideas"]]  # type: ignore[index]
+
+        result = ProposedIdeas.model_validate(payload)
+
+        self.assertEqual([idea.ordinal for idea in result.ideas], list(range(1, 11)))
+        # Nothing moved: a numbering this broken carries no order to honour, so
+        # the proposals stay in the order they were written.
+        self.assertEqual([idea.title for idea in result.ideas], titles)
 
 
 class WhatReachesTheStore(unittest.TestCase):

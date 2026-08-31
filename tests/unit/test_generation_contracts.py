@@ -255,11 +255,23 @@ class TestGenerationContracts(unittest.TestCase):
         with self.assertRaises(ValidationError):
             IdeaTitles(ideas=titles(9))
 
-    def test_rejects_out_of_order_titles(self) -> None:
+    def test_a_shuffle_is_honoured_not_refused(self) -> None:
+        """Ordinals that are a real 1..10 express an order; it is obeyed."""
         values = titles()
         values[0], values[1] = values[1], values[0]
+        first, second = values[0].title, values[1].title
+
+        result = IdeaTitles(ideas=values)
+
+        self.assertEqual([idea.ordinal for idea in result.ideas], list(range(1, 11)))
+        # Idea 1 was second in the list and goes back to the front.
+        self.assertEqual(result.ideas[0].title, second)
+        self.assertEqual(result.ideas[1].title, first)
+
+    def test_still_exactly_ten(self) -> None:
+        """Relaxing the ORDER must not have relaxed the count."""
         with self.assertRaises(ValidationError):
-            IdeaTitles(ideas=values)
+            IdeaTitles(ideas=titles(11))
 
     def test_accepts_exactly_the_five_hook_types(self) -> None:
         result = IdeaDetails(
@@ -270,8 +282,34 @@ class TestGenerationContracts(unittest.TestCase):
         self.assertEqual([v.hook_type for v in result.variants], list(HOOK_TYPES))
 
     def test_rejects_duplicate_hook_type(self) -> None:
+        """A repeat is a worse answer, not an untidy one. This still refuses."""
         values = [variant(name) for name in HOOK_TYPES]
         values[-1] = variant("PROVOCARE")
+        with self.assertRaises(ValidationError) as caught:
+            IdeaDetails(idea_ordinal=1, title="O idee completă", variants=values)
+        message = str(caught.exception)
+        # The refusal names what went wrong, so a retry is told something.
+        self.assertIn("PROVOCARE", message)
+        self.assertIn("CONTRAST", message)
+
+    def test_the_five_hooks_in_any_order_are_arranged_not_refused(self) -> None:
+        """Tab order is this code's to impose, and it costs a run to demand it.
+
+        All five present, each once, every one of them written and paid for -
+        arriving in a different order than the tabs are drawn. Until 2026-08-31
+        that raised and the whole idea was lost.
+        """
+        shuffled = list(reversed(HOOK_TYPES))
+        result = IdeaDetails(
+            idea_ordinal=1,
+            title="O idee completă",
+            variants=[variant(name) for name in shuffled],
+        )
+        self.assertEqual([v.hook_type for v in result.variants], list(HOOK_TYPES))
+
+    def test_a_missing_hook_type_is_still_refused(self) -> None:
+        values = [variant(name) for name in HOOK_TYPES]
+        values[2] = variant(HOOK_TYPES[0])
         with self.assertRaises(ValidationError):
             IdeaDetails(idea_ordinal=1, title="O idee completă", variants=values)
 

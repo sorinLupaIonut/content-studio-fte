@@ -658,7 +658,7 @@ class GenerationCoordinator:
             agent = self._detail_agent(
                 profile_md, data_mcp, request, language, batch_id
             )
-            await self._generate_one_detail(
+            written = await self._generate_one_detail(
                 batch_id,
                 request,
                 profile_md,
@@ -668,9 +668,20 @@ class GenerationCoordinator:
                 language,
                 conversation_session,
             )
+            # `_generate_one_detail` handles its own failure - it marks the idea
+            # and tells the conversation - so nothing is raised here, and until
+            # 2026-08-31 that meant the run was closed as `completed` while the
+            # idea it produced said `failed`. The run log was the one place a
+            # person looks to find out what happened, and it was answering with
+            # the opposite of what happened.
             if trail is not None:
                 with suppress(Exception):
-                    await trail.close_run(run_id, idea.title)
+                    if written:
+                        await trail.close_run(run_id, idea.title)
+                    else:
+                        await trail.failed(
+                            run_id, RuntimeError("the detail phase wrote nothing")
+                        )
         except asyncio.CancelledError:
             if trail is not None:
                 with suppress(Exception):
@@ -985,7 +996,13 @@ class GenerationCoordinator:
         drafts: GenerationDraftClient,
         language: Language = DEFAULT_LANGUAGE,
         conversation_session: str | None = None,
-    ) -> None:
+    ) -> bool:
+        """True when the five variants were stored; False when the idea failed.
+
+        Failure is handled here rather than raised: the idea is marked, the
+        conversation is told, and the caller decides what that means for the
+        run. Returning it is what lets the caller stop lying about the run.
+        """
         for attempt in (1, 2):
             await drafts.start_idea(batch_id, idea.ordinal)
             try:
@@ -1037,8 +1054,10 @@ class GenerationCoordinator:
                             "assistant",
                             safe_generation_error(exc),
                         )
-                    return
+                    return False
                 await asyncio.sleep(2)
+        # Both attempts were retryable and both failed: the loop simply ends.
+        return False
 
     @staticmethod
     def _phase_agent(profile_md, data_mcp, skill: str, language, **kwargs):
