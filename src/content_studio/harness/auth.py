@@ -169,7 +169,7 @@ class IdentityResolver:
         email = headers.get("x-ms-client-principal-name", "").strip().lower()
         provider = headers.get("x-ms-client-principal-idp", "google").strip() or "google"
         if not principal_id or not email:
-            raise IdentityError(401, "Autentificarea Azure lipsește sau este incompletă.")
+            raise IdentityError(401, "Azure authentication is missing or incomplete.")
 
         # Read again without the lowercasing: `email` is folded for comparison
         # against the allowlist, but this one is a label a person typed and ends
@@ -206,9 +206,9 @@ class IdentityResolver:
         elif settings.allowed_emails:
             allowed = email in settings.allowed_emails
         else:
-            raise IdentityError(503, "Allowlist-ul de autentificare nu este configurat.")
+            raise IdentityError(503, "The authentication allowlist is not configured.")
         if not allowed:
-            raise IdentityError(403, "Acest cont nu are acces la Studio Viorela.")
+            raise IdentityError(403, "This account has no access to Studio Viorela.")
 
         return Identity(
             principal_id=principal_id,

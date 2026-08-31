@@ -189,8 +189,8 @@ class TestSilentReelContract(unittest.TestCase):
             idea,
         )
 
-        self.assertIn("MUTE", reel)
-        self.assertNotIn("MUTE", carousel)
+        self.assertIn("SILENT", reel)
+        self.assertNotIn("SILENT", carousel)
         self.assertIn("`script`", carousel)
 
     def test_two_ideas_of_one_batch_share_everything_above_the_idea(self) -> None:
@@ -222,12 +222,12 @@ class TestSilentReelContract(unittest.TestCase):
         )
         # Everything above the idea is shared; the two part at the ordinal,
         # which is as late as this message can diverge.
-        self.assertGreaterEqual(shared, first.index("Ideea existentă, numărul"))
+        self.assertGreaterEqual(shared, first.index("The existing idea, number"))
 
     def test_the_idea_reaches_the_model_as_prose_and_not_as_json(self) -> None:
         # MEASURED, 2026-08-28, and it cost three runs to find. With the idea
-        # serialised as JSON and sitting last - right above "răspunde prin
-        # contractul structurat" - gpt-5-mini opened a caption string and never
+        # serialised as JSON and sitting last - right above "answer only
+        # through the structured contract" - gpt-5-mini opened a caption string and never
         # closed it: it wrote the rest of the answer as escaped JSON inside that
         # one field, then filled 200,000 characters of tabs until the 24,000
         # token ceiling. Twice out of twice. Moved back above the avatar block
@@ -240,8 +240,8 @@ class TestSilentReelContract(unittest.TestCase):
             ),
             IdeaTitle(ordinal=4, title="Un titlu", angle="Un unghi"),
         )
-        self.assertIn("Ideea existentă, numărul 4: Un titlu", prompt)
-        self.assertIn("Unghiul ei: Un unghi", prompt)
+        self.assertIn("The existing idea, number 4: Un titlu", prompt)
+        self.assertIn("Its angle: Un unghi", prompt)
         self.assertNotIn('{"ordinal"', prompt)
         self.assertNotIn("idea_ordinal\":", prompt)
 

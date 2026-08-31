@@ -223,7 +223,7 @@ def create_app(
             identity.principal_id
         )
         if account is None or not account.is_admin:
-            raise IdentityError(403, "Această pagină este numai pentru administrator.")
+            raise IdentityError(403, "this page is for the administrator only")
         return identity
 
     admin_dependency = Depends(administrator)

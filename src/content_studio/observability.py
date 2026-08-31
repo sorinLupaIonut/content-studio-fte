@@ -177,15 +177,15 @@ def configure(app: Any) -> dict[str, Any]:
             "ok": False,
             "phoenix": phoenix,
             "detail": (
-                "APPLICATIONINSIGHTS_CONNECTION_STRING lipsește; "
-                "urmele rămân doar în stdout și în Neon."
+                "APPLICATIONINSIGHTS_CONNECTION_STRING is missing; "
+                "traces stay in stdout and in Neon only."
             ),
         }
     if _configured:
         return {
             "ok": True,
             "phoenix": phoenix,
-            "detail": "Application Insights primește urmele.",
+            "detail": "Application Insights receives the traces.",
         }
 
     try:
@@ -199,7 +199,7 @@ def configure(app: Any) -> dict[str, Any]:
         return {
             "ok": False,
             "phoenix": phoenix,
-            "detail": f"Pachetele de telemetrie lipsesc ({exc.name}).",
+            "detail": f"The telemetry packages are missing ({exc.name}).",
         }
 
     configure_azure_monitor(
@@ -263,7 +263,7 @@ def configure(app: Any) -> dict[str, Any]:
     return {
         "ok": True,
         "phoenix": phoenix,
-        "detail": "Application Insights primește urmele.",
+        "detail": "Application Insights receives the traces.",
     }
 
 
@@ -430,12 +430,12 @@ def configure_phoenix() -> dict[str, Any]:
         return {
             "ok": False,
             "detail": (
-                "PHOENIX_COLLECTOR_ENDPOINT sau PHOENIX_API_KEY lipsește; "
-                "urmele agentului rămân în public.traces."
+                "PHOENIX_COLLECTOR_ENDPOINT or PHOENIX_API_KEY is missing; "
+                "the agent's traces stay in public.traces."
             ),
         }
     if _phoenix_provider is not None:
-        return {"ok": True, "detail": f"Phoenix primește urmele ({PHOENIX_PROJECT_NAME})."}
+        return {"ok": True, "detail": f"Phoenix receives the traces ({PHOENIX_PROJECT_NAME})."}
 
     try:
         from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
@@ -444,7 +444,7 @@ def configure_phoenix() -> dict[str, Any]:
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError as exc:  # pragma: no cover - a partial install
-        return {"ok": False, "detail": f"Pachetele Phoenix lipsesc ({exc.name})."}
+        return {"ok": False, "detail": f"The Phoenix packages are missing ({exc.name})."}
 
     try:
         provider = TracerProvider(
@@ -477,11 +477,11 @@ def configure_phoenix() -> dict[str, Any]:
             tracer_provider=provider, exclusive_processor=False
         )
     except Exception as exc:  # noqa: BLE001 - never let telemetry refuse a boot
-        return {"ok": False, "detail": f"Phoenix nu a putut fi pornit ({exc})."}
+        return {"ok": False, "detail": f"Phoenix could not be started ({exc})."}
 
     _phoenix_provider = provider
     log.info("observability: Phoenix wired, project=%s", PHOENIX_PROJECT_NAME)
-    return {"ok": True, "detail": f"Phoenix primește urmele ({PHOENIX_PROJECT_NAME})."}
+    return {"ok": True, "detail": f"Phoenix receives the traces ({PHOENIX_PROJECT_NAME})."}
 
 
 def shutdown_phoenix() -> None:

@@ -76,18 +76,18 @@ AngleType = Literal[
 #: tokens higher up is the arrangement that produced two delegation ideas in one
 #: batch of ten.
 ANGLE_TYPE_BRIEF = (
-    "Tiparul acestei propuneri. Fiecare dintre cele zece îl folosește pe al său, "
-    "o singură dată — sunt exact zece tipare pentru zece propuneri. "
-    "DURERE: numești durerea și o recunoști, fără soluție încă. "
-    "MIT: răstorni o credință în care ea crede de mult. "
-    "METODA: pașii concreți, în ordine. "
-    "POVESTE: experiența ta, la persoana întâi. "
-    "GRESEALA: ce face ea fără să-și dea seama că o costă. "
-    "INAINTE_DUPA: cele două stări, una lângă alta. "
-    "CULISE: cum se lucrează de fapt, ce nu se vede. "
-    "DOVADA: rezultatul unui om real. "
-    "OBIECTIE: răspunsul la «da, dar…». "
-    "RITUAL: un gest mic, repetabil, de făcut azi."
+    "This proposal's archetype. Each of the ten uses its own, once only — "
+    "there are exactly ten archetypes for ten proposals. "
+    "DURERE: you name the pain and acknowledge it, no solution yet. "
+    "MIT: you overturn a belief she has held for a long time. "
+    "METODA: the concrete steps, in order. "
+    "POVESTE: your own experience, in the first person. "
+    "GRESEALA: what she does without realising what it costs her. "
+    "INAINTE_DUPA: the two states, side by side. "
+    "CULISE: how the work actually goes, what is not seen. "
+    "DOVADA: one real person's result. "
+    "OBIECTIE: the answer to «da, dar…». "
+    "RITUAL: a small, repeatable gesture, to do today."
 )
 
 StreamEventType = Literal[
@@ -144,10 +144,10 @@ class ProposedIdea(StrictContract):
         min_length=3,
         max_length=600,
         description=(
-            "Unghiul, în una-două fraze curgătoare: ce durere atinge și ce "
-            "promite. PROZĂ, NU ETICHETE: niciun «Durerea:», niciun "
-            "«promisiunea:», niciun două-puncte care anunță ce urmează, și "
-            "nu numi tiparul ales. Se citește ca o frază spusă cuiva."
+            "The angle, in one or two flowing sentences: which pain it touches "
+            "and what it promises. PROSE, NOT LABELS: no «Durerea:», no "
+            "«promisiunea:», no colon announcing what follows, and do not name "
+            "the archetype you chose. It reads like a sentence said to someone."
         ),
     )
 
@@ -239,8 +239,8 @@ HASHTAG_PATTERN = r"^#\S+$"
 HASHTAG_FIELD = {
     "items": {"type": "string", "pattern": HASHTAG_PATTERN},
     "description": (
-        "Trei până la cinci hashtaguri. Fiecare începe cu # și e un singur "
-        "cuvânt lipit, fără spații: #grijadetine, nu «#grijade tine»."
+        "Three to five hashtags. Each starts with # and is a single joined "
+        "word, no spaces: #grijadetine, not «#grijade tine»."
     ),
 }
 
@@ -549,16 +549,16 @@ def use_skill_note(skill: str) -> str:
     the sentence next to it says to open everything in one round.
     """
 
-    return f"""Metoda ta e în fișierul `{SKILLS_PATH}/{skill}/SKILL.md`.
-Deschide-l cu shell-ul ÎNAINTE de orice altceva, citește-l întreg și urmează-l.
-Nu scrii nimic înainte de a-l fi citit.
+    return f"""Your method is in the file `{SKILLS_PATH}/{skill}/SKILL.md`.
+Open it with the shell BEFORE anything else, read it whole, and follow it.
+You write nothing before you have read it.
 
-Metoda nu se termină acolo: unde îți spune să deschizi o referință din
-`{SKILLS_PATH}/{skill}/references/`, o deschizi, tot înainte de a scrie. Le
-deschizi pe toate cele cerute de cererea asta deodată, într-o singură rundă,
-nu una pe tură — dar numai pe ele. O referință pe care metoda n-o cere pentru
-alegerile astea nu se deschide: un pas sărit e metodă neaplicată, iar un fișier
-citit degeaba e material pe care n-ai voie să-l folosești."""
+The method does not end there: where it tells you to open a reference from
+`{SKILLS_PATH}/{skill}/references/`, you open it, also before writing. You open
+all the ones THIS REQUEST calls for at once, in a single round, not one per
+turn — but only those. A reference the method does not call for given these
+choices is not opened: a skipped step is method not applied, and a file read
+for nothing is material you are not allowed to use."""
 
 
 # WHY THE VARYING LINES SIT LAST IN BOTH PROMPTS BELOW, and it is the cache.
@@ -601,43 +601,47 @@ def title_prompt(
 
     return f"""{use_skill_note("propune-postari")}
 
-Formatul, pilonul și sursa sunt deja alese de ea — nu le pui la îndoială, nu ceri
-confirmare și nu întrebi nimic. Materialul ți-l aduci singur, cu uneltele, după
-regula sursei din metodă — ÎNAINTE să scrii, și numai din sursa aleasă.
+The format, the pillar and the source are already chosen by her — you do not
+question them, you do not ask for confirmation, and you ask nothing at all. You
+fetch your own material, with the tools, following the method's source rule —
+BEFORE you write, and only from the chosen source.
 
 {avatar.brief(profile_md)}
 
-Cele zece propuneri stau în același focus, dar fiecare pornește din alt loc:
-contractul îți cere un `angle_type` diferit la fiecare, iar tiparul îl alegi
-înainte de titlu, nu după. Două propuneri care spun același lucru cu alte
-cuvinte sunt o propunere, nu două.
+The ten proposals stay within the same focus, but each starts from a different
+place: the contract asks you for a different `angle_type` on every one, and you
+choose the archetype before the title, not after. Two proposals that say the
+same thing in different words are one proposal, not two.
 
 Format: {request.format}
 Pilon: {request.pillar}
 Sursă: {request.source}
-Focus: {request.focus or "fără focus suplimentar"}
+Focus: {request.focus or "no extra focus"}
 
-Răspunde numai prin contractul structurat cerut de aplicație.
+Answer only through the structured contract the application asks for.
 {task_note(language)}"""
 
 
 #: What the model has to know about a Reel that the schema alone cannot say.
 #: The schema can withhold the script; only this can explain why, and what the
 #: caption has to absorb because of it.
-SILENT_REEL_BRIEF = """Reel-urile ei sunt MUTE: filmează fără să vorbească, cu text pe ecran.
-Deci varianta NU are script și NU are bloc de producție — nu le scrie și nu le
-inventa, contractul nici nu le acceptă.
+SILENT_REEL_BRIEF = """Her Reels are SILENT: she films without speaking, with text on screen.
+So the variant has NO script and NO production block — do not write them and do
+not invent them; the contract does not even accept them.
 
-Tot ce ar fi spus cu vocea intră în `caption`. Captionul e lung, 650–1200 de
-semne: intră direct în ideea din hook, o desfășoară în 2–4 paragrafe scurte, așa
-cum i-ar fi povestit unei prietene, și se închide cu întrebarea de engagement.
-Nu e un rezumat de două fraze și nu repetă hook-ul cuvânt cu cuvânt.
+Everything that would have been said out loud goes into `caption`. The caption
+is long, 650–1200 characters: it goes straight into the idea from the hook,
+unfolds it over 2–4 short paragraphs, the way she would have told a friend, and
+closes with the engagement question. It is not a two-sentence summary and it
+does not repeat the hook word for word.
 
-`hook` rămâne scurt: e textul care apare pe ecran în primele două secunde."""
+`hook` stays short: it is the text that appears on screen in the first two
+seconds."""
 
 #: The produced formats keep the method they already had.
-PRODUCED_BRIEF = """Varianta are `script` și `format_details` complete, potrivite formatului ales.
-Captionul rămâne scurt, 2–4 fraze, cu întrebarea de engagement la final."""
+PRODUCED_BRIEF = """The variant has `script` and `format_details` complete, suited to
+the chosen format.
+The caption stays short, 2–4 sentences, with the engagement question at the end."""
 
 
 def format_brief(format: FormatChoice) -> str:
@@ -663,11 +667,11 @@ def detail_prompt(
 
     return f"""{use_skill_note("dezvolta-postarea")}
 
-Ideea ţi se dă mai jos, întreagă — nu o cauți în conversație și nu alegi alta.
-Cele cinci variante pornesc din același unghi, dar hook-ul și construcția
-fiecăreia sunt realmente diferite, nu aceeași propoziție reformulată.
-Materialul ți-l aduci singur, cu uneltele, după regula sursei din metodă —
-numai din sursa aleasă de ea.
+The idea is given to you below, whole — you do not look for it in the
+conversation and you do not pick another. The five variants start from the same
+angle, but each one's hook and construction are genuinely different, not the
+same sentence rephrased. You fetch your own material, with the tools, following
+the method's source rule — only from the source she chose.
 
 {avatar.brief(profile_md)}
 
@@ -676,13 +680,14 @@ numai din sursa aleasă de ea.
 Format: {request.format}
 Pilon: {request.pillar}
 Sursă: {request.source}
-Focus: {request.focus or "fără focus suplimentar"}
+Focus: {request.focus or "no extra focus"}
 
-Ideea existentă, numărul {idea.ordinal}: {idea.title}
-Unghiul ei: {idea.angle}
+The existing idea, number {idea.ordinal}: {idea.title}
+Its angle: {idea.angle}
 
-Dezvoltă exact ideea de mai sus. Răspunde numai prin contractul structurat cerut
-de aplicație; `idea_ordinal` este {idea.ordinal} și `title` se copiază literal.
+Develop exactly the idea above. Answer only through the structured contract the
+application asks for; `idea_ordinal` is {idea.ordinal} and `title` is copied
+literally.
 {task_note(language)}"""
 
 

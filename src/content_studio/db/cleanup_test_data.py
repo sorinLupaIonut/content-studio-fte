@@ -61,8 +61,8 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # `traces`, `audit_log` and `artifacts` all carry a foreign key to `runs`,
     # so they go first or `runs` does not go at all. Found the hard way: the
     # first version listed only `traces` and the delete failed on `audit_log`.
-    ("istoricul de rulări", ("traces", "audit_log", "artifacts", "runs")),
-    ("contorul de consum", ("usage_events",)),
+    ("the run history", ("traces", "audit_log", "artifacts", "runs")),
+    ("the usage meter", ("usage_events",)),
 )
 
 #: Named so the script can say what it is protecting, rather than only what it
@@ -125,9 +125,9 @@ async def run(args: argparse.Namespace) -> int:
 
     skip: set[str] = set()
     if args.keep_usage:
-        skip.add("contorul de consum")
+        skip.add("the usage meter")
     if args.keep_runs:
-        skip.add("istoricul de rulări")
+        skip.add("the run history")
     groups = [(label, tables) for label, tables in GROUPS if label not in skip]
 
     engine = create_async_engine(url, connect_args=connect_args, pool_pre_ping=True)
@@ -141,14 +141,14 @@ async def run(args: argparse.Namespace) -> int:
                 for table in tables:
                     n = await _count(conn, table)
                     before[table] = n
-                    shown = "tabel absent" if n < 0 else f"{n:>7,} rânduri"
+                    shown = "table absent" if n < 0 else f"{n:>7,} rows"
                     print(f"    {table:<22} {shown}")
             total = sum(n for n in before.values() if n > 0)
-            print(f"\n  total de șters: {total:,} rânduri")
+            print(f"\n  to delete in total: {total:,} rows")
 
             if not args.confirm:
                 print(
-                    "\nNimic șters. Repetă cu --confirm dacă numerele sunt bune."
+                    "\nNothing deleted. Repeat with --confirm if the numbers look right."
                 )
                 return 0
 
@@ -167,7 +167,7 @@ async def run(args: argparse.Namespace) -> int:
                         if before.get(table, -1) < 0:
                             continue
                         await conn.execute(DELETE_SQL.format(table=table))
-                        print(f"  șters  {table}")
+                        print(f"  deleted  {table}")
 
             print()
             for _label, tables in groups:
@@ -175,12 +175,12 @@ async def run(args: argparse.Namespace) -> int:
                     if before.get(table, -1) < 0:
                         continue
                     n = await _count(conn, table)
-                    print(f"    {table:<22} {n:>7,} rânduri rămase")
+                    print(f"    {table:<22} {n:>7,} rows left")
     finally:
         await engine.dispose()
 
-    print("\nGata. Bugetul fiecărui cont pornește iar de la zero." if not args.keep_usage
-          else "\nGata. `usage_events` a rămas neatins.")
+    print("\nDone. Every account's allowance starts from zero again." if not args.keep_usage
+          else "\nDone. `usage_events` was left untouched.")
     return 0
 
 

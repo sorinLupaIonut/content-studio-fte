@@ -446,9 +446,9 @@ def verdict(route: Route, expected: Expectation) -> dict[str, Any]:
     absent = [r for r in expected.references_required if r not in route.references]
     extra = [r for r in expected.references_forbidden if r in route.references]
     if absent:
-        missing.append(f"referințe cerute, nedeschise: {absent}")
+        missing.append(f"references asked for, not opened: {absent}")
     if extra:
-        surplus.append(f"referințe deschise degeaba: {extra}")
+        surplus.append(f"references opened for nothing: {extra}")
 
     tools_missing = [t for t in expected.tools_required if t not in route.tools]
     tools_extra = [t for t in expected.tools_forbidden if t in route.tools]
@@ -456,14 +456,14 @@ def verdict(route: Route, expected: Expectation) -> dict[str, Any]:
         t in route.tools for t in expected.tools_any_of
     )
     if tools_missing:
-        missing.append(f"unelte cerute, nechemate: {tools_missing}")
+        missing.append(f"tools asked for, not called: {tools_missing}")
     if tools_extra:
-        surplus.append(f"unelte din altă sursă: {tools_extra}")
+        surplus.append(f"tools from another source: {tools_extra}")
     if none_of_any:
         missing.append(f"niciuna din uneltele sursei: {list(expected.tools_any_of)}")
 
     if route.error:
-        missing.append(f"rularea a eșuat: {route.error}")
+        missing.append(f"the run failed: {route.error}")
 
     failed = bool(route.error)
     return {
@@ -482,16 +482,16 @@ def verdict(route: Route, expected: Expectation) -> dict[str, Any]:
 def show_labels(cases: list[Case]) -> None:
     # References last, and unbounded: at Reel there are four of them, and a
     # column that truncates the label is a table that hides the expectation.
-    print(f"{'caz':<46}{'skill':<19}{'unelte':<38}referințe cerute")
+    print(f"{'case':<46}{'skill':<19}{'tools':<38}references asked for")
     print(RULE)
     for case in cases:
         expected = case.expected
         refs = ", ".join(r.split("/")[-1] for r in expected.references_required) or "—"
         tools = ", ".join(expected.tools_required or expected.tools_any_of) or "—"
         if expected.tools_any_of:
-            tools = f"oricare din: {tools}"
+            tools = f"any of: {tools}"
         print(f"{case.id:<46}{expected.skill:<19}{tools:<38}{refs}")
-    print(f"\n{len(cases)} cazuri. Niciun model, niciun container, niciun cost.")
+    print(f"\n{len(cases)} cases. No model, no container, no cost.")
 
 
 def by_axis(findings: list[dict[str, Any]]) -> None:
@@ -551,8 +551,11 @@ async def run_grid(cases: list[Case], spec: dict[str, Any], concurrency: int) ->
         await data_mcp.connect()
         _, profile_md = await read_profile(data_mcp)
     except Exception as e:  # noqa: BLE001
-        print(f"Serverul MCP nu răspunde la {MCP_URL}: {type(e).__name__}: {e}", file=sys.stderr)
-        print("  Pornește `uv run content-studio-server` în alt terminal.", file=sys.stderr)
+        print(
+            f"The MCP server does not answer at {MCP_URL}: {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        print("  Start `uv run content-studio-server` in another terminal.", file=sys.stderr)
         return 2
 
     # Built without `__init__` for the same reason `run_like_production.py` does
@@ -639,7 +642,7 @@ async def run_grid(cases: list[Case], spec: dict[str, Any], concurrency: int) ->
 
     print(
         f"\ntool_usage: {passed}/{len(findings)}"
-        f"  ·  router {rate('router')}  referințe {rate('references')}"
+        f"  ·  router {rate('router')}  references {rate('references')}"
         f"  unelte {rate('tools')}"
         f"  ·  {out.relative_to(ROOT)}"
     )
@@ -672,17 +675,17 @@ def main() -> int:
         # NO SILENT CAPS. A run that quietly dropped 90% of the grid reads
         # exactly like a run that covered it.
         print(
-            f"Coloana vertebrală: {len(cases)} din {len(full)} pătrate — câte unul"
-            f" pentru fiecare etichetă distinctă (fază × format × sursă), cu"
-            f" pilonul și focusul rotite prin ele.\n"
-            f"Restul de {len(full) - len(cases)} au aceeași etichetă ca unul de"
-            f" mai jos; `--all` le rulează pe toate.\n"
+            f"The spine: {len(cases)} of {len(full)} squares — one for each"
+            f" distinct label (phase × format × source), with the"
+            f" pillar and the focus rotated through them.\n"
+            f"The other {len(full) - len(cases)} carry the same label as one"
+            f" below; `--all` runs every one.\n"
         )
     if args.dry_run:
         show_labels(cases)
         return 0
     if not cases:
-        print("Niciun caz nu se potrivește filtrelor.", file=sys.stderr)
+        print("No case matches the filters.", file=sys.stderr)
         return 2
 
     # The spans go to Phoenix like any run's — Neon is the record of what

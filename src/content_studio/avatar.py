@@ -42,13 +42,13 @@ AVATAR_SECTIONS = (
 #: What the writer is asked to do with the block. Written here, next to the
 #: material, because an instruction that lives three thousand tokens away from
 #: what it refers to is the arrangement this module exists to undo.
-AVATAR_ASK = """Fiecare propunere pleacă de la UN rând anume de mai sus — o frică, o credință
-sau o durere scrisă acolo, în cuvintele ei — și îl atinge în situația concretă
-în care apare. Nu scrii despre „limite" sau „grija de sine" în general: alegi
-rândul, apoi scrii postarea care i-l atinge.
+AVATAR_ASK = """Every proposal starts from ONE particular line above — a fear, a belief or a
+pain written there, in her own words — and touches it in the concrete situation
+where it shows up. You do not write about „limite" or „grija de sine" in
+general: you pick the line, then you write the post that touches it.
 
-Un text adevărat pentru orice femeie e adevărat pentru niciuna. Dacă nu poți
-numi rândul din care ai pornit, propunerea nu e gata."""
+A text that is true for any woman is true for none. If you cannot name the line
+you started from, the proposal is not ready."""
 
 
 def sections_of(profile: str) -> list[str]:
@@ -85,7 +85,7 @@ def brief(profile: str) -> str:
     if not material:
         return ""
     return (
-        "AVATARUL PENTRU CARE SE SCRIE — Andreea, 25–45 de ani. Astea sunt "
-        "durerile, fricile și credințele ei, scrise de clientă:\n\n"
+        "THE AVATAR THIS IS WRITTEN FOR — Andreea, 25–45 years old. These are "
+        "her pains, fears and beliefs, written by the client:\n\n"
         f"{material}\n\n{AVATAR_ASK}"
     )

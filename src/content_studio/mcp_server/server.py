@@ -164,8 +164,8 @@ enable_utf8_output()
 server = MCPServer(
     "content-data",
     instructions=(
-        "Datele Viorelei: biblioteca ei de 17 cărți, postările deja scrise și "
-        "profilul ei de brand."
+        "Viorela's data: her library of 17 books, the posts already written, "
+        "and her brand profile."
     ),
 )
 
@@ -198,7 +198,7 @@ PROFILE_SQL = "SELECT id, name, profile_md FROM public.clients WHERE slug = $1"
     profile_uri("{slug}"),
     name="profil-client",
     title="Profilul complet al clientei",
-    description="Bootstrap intern pentru system prompt; nu este unealtă a agentului.",
+    description="Internal bootstrap for the system prompt; not an agent tool.",
     mime_type="application/json",
 )
 async def client_profile(slug: str) -> str:
@@ -250,20 +250,20 @@ async def search_books(
     titles: list[str] | None = None,
     limit: int = 6,
 ) -> list[dict]:
-    """Caută după înțeles în cărțile din biblioteca clientei.
+    """Search the client's library by meaning.
 
-    `description` e ce cauți, ca frază în română. `description_en` e aceeași
-    căutare formulată de tine în engleză: raftul e bilingv, iar o carte
-    engleză rămâne aproape invizibilă pentru o formulare românească fără ea.
-    Căutarea merge cu amândouă și păstrează, pentru fiecare pasaj, potrivirea
-    mai bună dintre cele două.
+    `description` is what you are looking for, as a sentence in Romanian.
+    `description_en` is the same search phrased by you in English: the shelf is
+    bilingual, and an English book stays nearly invisible to a Romanian phrasing
+    without it. The search runs with both and keeps, for each passage, the better
+    match of the two.
 
-    `titles` restrânge căutarea la anumite cărți, cu titlul exact; lipsă
-    înseamnă tot raftul. `limit` e câte pasaje vrei, între 1 și 20.
+    `titles` narrows the search to particular books, by exact title; absent means
+    the whole shelf. `limit` is how many passages you want, between 1 and 20.
 
-    Fiecare pasaj vine cu textul lui și cu proveniența: titlul, autorul,
-    pagina sau capitolul. `score` spune cât de aproape e pasajul de ce ai
-    cerut, între 0 și 1.
+    Every passage arrives with its text and with its provenance: the title, the
+    author, the page or the chapter. `score` says how close the passage is to what
+    you asked for, between 0 and 1.
     """
     limit = max(1, min(limit, 20))
     # The client rides the connection, like every other tool here. The books are
@@ -385,25 +385,26 @@ async def search_web(
     description: str,
     limit: int = 5,
 ) -> list[dict]:
-    """Caută pe internet material actual, după înțeles.
+    """Search the internet for current material, by meaning.
 
-    `description` e ce cauți, ca frază în română. `limit` e câte fragmente
-    vrei, între 1 și 8.
+    `description` is what you are looking for, as a sentence in Romanian. `limit`
+    is how many fragments you want, between 1 and 8.
 
-    Fiecare fragment vine cu textul lui, luat din pagina citită, și cu
-    proveniența: titlul paginii, linkul ei, publicația și data, când pagina o
-    arată.
+    Every fragment arrives with its text, taken from the page as it was read, and
+    with its provenance: the page title, its link, the publication and the date,
+    when the page shows one.
     """
     query = description.strip()
     if not query:
         return []
     limit = max(1, min(limit, 8))
-    prompt = f"""Caută pe web material pe tema: {query!r}.
+    prompt = f"""Search the web for material on: {query!r}.
 
-Întoarce cel mult {limit} fragmente, fiecare dintr-o pagină pe care chiar ai
-citit-o. `text` e un pasaj scurt din pagină, în cuvintele paginii, nu un rezumat
-al tău. `title` e titlul paginii, `url` linkul ei, `site` publicația, iar
-`published` data publicării dacă apare în pagină, altfel șir gol."""
+Return at most {limit} fragments, each from a page you actually read. `text` is
+a short passage from the page, in the page's own words, not a summary of yours.
+`title` is the page's title, `url` its link, `site` the publication, and
+`published` the publication date if the page shows one, otherwise an empty
+string."""
     response = await AsyncOpenAI().responses.parse(
         model=WEB_SEARCH_MODEL,
         tools=[{"type": "web_search", "search_context_size": "low"}],
@@ -439,11 +440,11 @@ async def list_posts(
     since: str | None = None,
     limit: int = 20,
 ) -> list[dict]:
-    """Postările deja scrise, cele mai noi întâi.
+    """The posts already written, newest first.
 
-    Pentru „am mai scris despre asta?" și pentru „ce am dat luna asta".
-    `pillar` și `format` caută pe bucată de text, nu pe potrivire exactă.
-    `since` e o dată, în forma 2026-07-01.
+    For „am mai scris despre asta?" and for „ce am dat luna asta".
+    `pillar` and `format` match on a piece of text, not on an exact match.
+    `since` is a date, in the form 2026-07-01.
     """
     limit = max(1, min(limit, 100))
     from_date = date.fromisoformat(since) if since else None
@@ -512,8 +513,8 @@ def owner_of(ctx: Context) -> str:
     owner = _header(ctx, OWNER_HEADER)
     if not owner:
         raise ValueError(
-            "Unealta e disponibilă numai din interfața Studio, unde identitatea "
-            "este verificată. Din terminal folosește `save_post`."
+            "The tool is available only from the Studio interface, where the "
+            "identity is verified. From a terminal, use `save_post`."
         )
     return owner
 
@@ -567,17 +568,18 @@ async def save_post(
     # only because a parameter with a default cannot precede one without.
     script: str | None = None,
 ) -> dict:
-    """Salvează postarea confirmată de Viorela. UNA singură, cea aleasă.
+    """Save the post Viorela confirmed. ONE only, the one she chose.
 
-    Nu o chema până nu i-ai arătat postarea întreagă în chat și nu ți-a spus „da"
-    (regula 10). Celelalte nouă propuneri nu se salvează.
+    Do not call it until you have shown her the whole post in the chat and she has
+    said „da" (rule 10). The other nine proposals are not saved.
 
-    `source` e obligatoriu și spune adevărul: titlul și pagina cărții, linkul, sau
-    „din memorie 🧠 (profil + avatar), fără sursă externă".
-    `hook_type` e unul din PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST.
-    `hashtags` e un singur șir, cu spații între ele: „#burnout #limite".
-    `script` se completează doar la Carusel și Stories. Reel-urile ei sunt mute:
-    acolo lași `script` gol, iar tot ce s-ar fi spus stă în `caption`.
+    `source` is required and tells the truth: the book's title and page, the link,
+    or „din memorie 🧠 (profil + avatar), fără sursă externă".
+    `hook_type` is one of PROVOCARE, CIFRĂ, SECRET, ÎNTREBARE, CONTRAST.
+    `hashtags` is a single string, with spaces between them: „#burnout #limite".
+    `script` is filled in for Carusel and Stories only. Her Reels are silent:
+    there you leave `script` empty, and everything that would have been said sits
+    in `caption`.
     """
     conversation_id = conversation_of(ctx)
     fields = {
@@ -623,15 +625,15 @@ async def save_post(
 
 @server.tool()
 async def save_posts_batch(variant_ids: list[str], ctx: Context) -> dict:
-    """Salvează definitiv postările pe care Viorela le-a ales în interfață.
+    """Save for good the posts Viorela chose in the interface.
 
-    O chemi o singură dată, cu exact lista de `variant_ids` primită de la
-    aplicație, în aceeași ordine. Nu inventa id-uri, nu adăuga și nu scoate
-    niciunul, și nu rescrie conținutul: textul salvat este exact varianta pe care
-    a citit-o și a ales-o ea.
+    You call it once, with exactly the list of `variant_ids` the application gave
+    you, in the same order. Do not invent ids, do not add or remove any, and do
+    not rewrite the content: the text saved is exactly the variant she read and
+    chose.
 
-    Se salvează toate sau niciuna. O variantă care nu e marcată ca aleasă, nu e
-    gata, sau nu e din lotul contului ei, oprește tot lotul.
+    All of them save, or none does. A variant that is not marked as chosen, is not
+    ready, or is not from her account's batch stops the whole batch.
     """
     conversation_id = conversation_of(ctx)
     owner_principal_id = owner_of(ctx)
@@ -675,16 +677,17 @@ async def update_post(
     format_details: dict,
     ctx: Context,
 ) -> dict:
-    """Înlocuiește o postare salvată cu versiunea rescrisă în interfață.
+    """Replace a saved post with the version rewritten in the interface.
 
-    Trimiți conținutul COMPLET, exact cum ți l-a dat aplicația, inclusiv câmpurile
-    neschimbate. Nu reformula nimic: ce trimiți înlocuiește tot ce era acolo.
+    You send the COMPLETE content, exactly as the application gave it to you,
+    including the unchanged fields. Do not rephrase anything: what you send
+    replaces everything that was there.
 
-    ATENȚIE: versiunea veche NU se mai păstrează nicăieri. Se aplică doar după ce
-    Viorela confirmă la poartă.
+    CAREFUL: the old version is NOT kept anywhere. It applies only after Viorela
+    confirms at the gate.
 
-    `hook_type` e unul din PROVOCARE, CIFRA, SECRET, INTREBARE, CONTRAST.
-    `hashtags` e o listă de 3–5 etichete, fiecare începând cu #.
+    `hook_type` is one of PROVOCARE, CIFRA, SECRET, INTREBARE, CONTRAST.
+    `hashtags` is a list of 3–5 tags, each starting with #.
     """
     conversation_id = conversation_of(ctx)
     content = SavedPostContent.model_validate(
@@ -743,21 +746,22 @@ def replace_section(profile: str, section: str, new_text: str) -> str:
 
     existing = "\n".join(f"  · {h.group(1)}" for h in headings)
     raise ValueError(
-        f"Nu există o secțiune care să conțină {section!r} în profil.\n"
-        f"Secțiunile de azi sunt:\n{existing}"
+        f"There is no section containing {section!r} in the profile.\n"
+        f"Today's sections are:\n{existing}"
     )
 
 
 @server.tool()
 async def update_profile(section: str, new_text: str, ctx: Context) -> dict:
-    """Rescrie o secțiune din profilul Viorelei. Doar la cererea ei explicită.
+    """Rewrite one section of Viorela's profile. Only when she asks explicitly.
 
-    `section` e o bucată din titlul secțiunii, așa cum apare în profil („Oferte",
-    „CTA"). `new_text` e corpul întreg al secțiunii, fără linia de titlu — ce
-    trimiți înlocuiește tot ce era acolo, deci scrie-l complet, nu doar adaosul.
+    `section` is a piece of the section's title, as it appears in the profile
+    („Oferte", „CTA"). `new_text` is the section's whole body, without the title
+    line — what you send replaces everything that was there, so write it in full,
+    not just the addition.
 
-    ATENȚIE: ce era înainte NU se mai păstrează nicăieri. Cere-i confirmarea pe
-    textul întreg înainte să chemi unealta.
+    CAREFUL: what was there before is NOT kept anywhere. Ask her to confirm the
+    whole text before you call the tool.
     """
     # Until D4 the previous text was kept in `audit_log.payload`, and a mistaken
     # rewrite could be undone from the trail. The course's trail has no payload
@@ -801,16 +805,17 @@ async def start_generation(
     ctx: Context,
     focus: str | None = None,
 ) -> dict:
-    """Pornește lotul de 10 idei pentru Viorela, cu metoda întreagă a aplicației.
+    """Start Viorela's batch of 10 ideas, with the application's whole method.
 
-    O chemi NUMAI după ce ea a ales formatul, pilonul și sursa — dacă lipsește
-    vreuna, o întrebi întâi, cu vocabularul închis al skill-ului. `focus` e tema
-    ei, dacă a dat una; nu inventa un focus. Cărțile nu se aleg aici: motorul
-    își alege singur titlurile de pe raft, potrivite pe temă.
+    You call it ONLY after she has chosen the format, the pillar and the source —
+    if one is missing, you ask her first, with the skill's closed vocabulary.
+    `focus` is her theme, if she gave one; do not invent a focus. The books are not
+    chosen here: the engine picks the fitting titles off the shelf itself.
 
-    NU scrii tu cele zece idei: aplicația le generează și le aduce în
-    conversație și în interfață. După ce chemi unealta, îi spui doar că lotul
-    pornește și apare în câteva zeci de secunde. Un lot nou închide lotul vechi.
+    You do NOT write the ten ideas: the application generates them and brings them
+    into the conversation and into the interface. After you call the tool, you only
+    tell her the batch is starting and appears in a few tens of seconds. A new
+    batch closes the old one.
     """
     # The identity is enforced, not used: the harness executes under the same
     # principal it authenticated, never one the model could influence.
@@ -836,39 +841,41 @@ async def start_generation(
         "source": request.source,
         "focus": request.focus,
         "note": (
-            "Lotul pornește acum; cele zece idei apar în conversație și în "
-            "interfață în câteva zeci de secunde. Nu le scrie tu."
+            "The batch is starting now; the ten ideas appear in the conversation "
+            "and in the interface within a few tens of seconds. Do not write them "
+            "yourself."
         ),
     }
 
 
 @server.tool()
 async def develop_idea(idea: int, ctx: Context) -> dict:
-    """Dezvoltă o idee din lotul curent: aplicația scrie cele cinci variante.
+    """Develop one idea from the current batch: the application writes the five variants.
 
-    `idea` e numărul propunerii din listă, 1–10 — „a treia” înseamnă 3. O chemi
-    când Viorela alege ce propunere dezvoltăm. NU scrii tu variantele: aplicația
-    le generează cu metoda formatului și le aduce în conversație și în
-    interfață. Dacă nu există un lot în conversație, unealta îți spune — atunci
-    îi propui întâi cele zece idei, nu ghicești o listă.
+    `idea` is the proposal's number in the list, 1–10 — „a treia” means 3. You call
+    it when Viorela chooses which proposal we develop. You do NOT write the
+    variants: the application generates them with the format's method and brings
+    them into the conversation and into the interface. If there is no batch in the
+    conversation, the tool tells you — then you offer her the ten ideas first, you
+    do not guess a list.
     """
     owner = owner_of(ctx)
     conversation_id = conversation_of(ctx)
     if not 1 <= idea <= 10:
-        raise ValueError("Ideea se alege cu un număr între 1 și 10.")
+        raise ValueError("The idea is chosen with a number between 1 and 10.")
     async with connection() as conn:
         batch = await load_current_batch(conn, owner)
     if batch is None:
         raise ValueError(
-            "Nu există un lot de idei în conversația asta. Propune-i întâi "
-            "cele zece, cu start_generation."
+            "There is no batch of ideas in this conversation. Offer her the ten "
+            "first, with start_generation."
         )
     found = next(
         (item for item in batch.get("ideas", []) if int(item["ordinal"]) == idea),
         None,
     )
     if found is None:
-        raise ValueError(f"Lotul curent nu are ideea {idea}.")
+        raise ValueError(f"the current batch has no idea {idea}.")
     async with connection() as conn:
         await conn.execute(
             AUDIT_SQL,
@@ -881,39 +888,39 @@ async def develop_idea(idea: int, ctx: Context) -> dict:
         "title": found["title"],
         "already_ready": found.get("status") == "ready",
         "note": (
-            "Cele cinci variante apar în conversație și în interfață în câteva "
-            "zeci de secunde. Nu le scrie tu."
+            "The five variants appear in the conversation and in the interface "
+            "within a few tens of seconds. Do not write them yourself."
         ),
     }
 
 
 @server.tool()
 async def select_variant(idea: int, hook_type: str, ctx: Context) -> dict:
-    """Marchează varianta aleasă de Viorela dintr-o idee dezvoltată.
+    """Mark the variant Viorela chose from a developed idea.
 
-    `idea` e numărul ideii, 1–10. `hook_type` e numele hook-ului variantei,
-    exact unul din: PROVOCARE, CIFRA, SECRET, INTREBARE, CONTRAST — „a doua”
-    din lista arătată înseamnă al doilea hook din ordinea afișată. Alegerea se
-    vede imediat în interfață; salvarea definitivă rămâne pasul ei, cu
-    confirmare.
+    `idea` is the idea's number, 1–10. `hook_type` is the variant's hook name,
+    exactly one of: PROVOCARE, CIFRA, SECRET, INTREBARE, CONTRAST — „a doua” from
+    the list she was shown means the second hook in the displayed order. The choice
+    shows in the interface immediately; saving for good stays her step, with a
+    confirmation.
     """
     owner = owner_of(ctx)
     conversation_id = conversation_of(ctx)
     hook = hook_type.strip().upper()
     if hook not in HOOK_TYPES:
         raise ValueError(
-            "hook_type trebuie să fie unul din: " + ", ".join(HOOK_TYPES)
+            "hook_type must be one of: " + ", ".join(HOOK_TYPES)
         )
     async with connection() as conn:
         batch = await load_current_batch(conn, owner)
     if batch is None:
-        raise ValueError("Nu există un lot curent din care să aleagă.")
+        raise ValueError("There is no current batch to choose from.")
     found = next(
         (item for item in batch.get("ideas", []) if int(item["ordinal"]) == idea),
         None,
     )
     if found is None:
-        raise ValueError(f"Lotul curent nu are ideea {idea}.")
+        raise ValueError(f"the current batch has no idea {idea}.")
     variant = next(
         (
             item
@@ -924,8 +931,8 @@ async def select_variant(idea: int, hook_type: str, ctx: Context) -> dict:
     )
     if variant is None or variant.get("status") != "ready":
         raise ValueError(
-            f"Ideea {idea} nu are varianta {hook} pregătită. "
-            "Dezvolt-o întâi cu develop_idea."
+            f"Idea {idea} has no {hook} variant ready. "
+            "Develop it first with develop_idea."
         )
     async with connection() as conn:
         result = await select_variant_store(conn, UUID(str(variant["id"])), owner)
@@ -961,7 +968,7 @@ async def ui_create_generation_batch(
     source_packet: dict | None = None,
     model: str | None = None,
 ) -> dict:
-    """Creează intern lotul curent al interfeței; nu este unealtă a agentului."""
+    """Create the interface's current batch, internally; not an agent tool."""
     conversation_id = conversation_of(ctx)
     request = GenerationBatchRequest.model_validate(
         {
@@ -994,7 +1001,7 @@ async def ui_create_generation_batch(
 async def ui_put_generation_titles(
     batch_id: str, ideas: list[dict], ctx: Context
 ) -> dict:
-    """Persistă intern exact cele zece titluri validate; nu este pentru agent."""
+    """Persist exactly the ten validated titles, internally; not for the agent."""
     conversation_id = conversation_of(ctx)
     value = IdeaTitles.model_validate({"ideas": ideas})
     async with connection() as conn:
@@ -1011,7 +1018,7 @@ async def ui_put_generation_titles(
 async def ui_start_generation_idea(
     batch_id: str, ordinal: int, ctx: Context
 ) -> dict:
-    """Marchează intern o idee ca în lucru; nu este pentru agent."""
+    """Mark an idea as in progress, internally; not for the agent."""
     conversation_id = conversation_of(ctx)
     async with connection() as conn:
         result = await start_idea(conn, UUID(batch_id), ordinal)
@@ -1027,7 +1034,7 @@ async def ui_start_generation_idea(
 async def ui_complete_generation_idea(
     batch_id: str, idea: dict, ctx: Context
 ) -> dict:
-    """Persistă intern cele cinci variante complete; nu este pentru agent."""
+    """Persist the five complete variants, internally; not for the agent."""
     conversation_id = conversation_of(ctx)
     value = IdeaDetails.model_validate(idea)
     async with connection() as conn:
@@ -1048,7 +1055,7 @@ async def ui_fail_generation_idea(
     retryable: bool,
     ctx: Context,
 ) -> dict:
-    """Înregistrează intern eșecul sigur al unei idei; nu este pentru agent."""
+    """Record one idea's settled failure, internally; not for the agent."""
     conversation_id = conversation_of(ctx)
     async with connection() as conn:
         result = await fail_idea(
@@ -1064,7 +1071,7 @@ async def ui_fail_generation_idea(
 
 @server.tool()
 async def ui_fail_generation_batch(batch_id: str, error: str, ctx: Context) -> dict:
-    """Înregistrează intern eșecul lotului înainte de titluri; nu este pentru agent."""
+    """Record the batch's failure before any title, internally; not for the agent."""
     conversation_id = conversation_of(ctx)
     safe_error = " ".join(error.split())[:180] or "generation failed"
     async with connection() as conn:
@@ -1081,7 +1088,7 @@ async def ui_fail_generation_batch(batch_id: str, error: str, ctx: Context) -> d
 async def ui_select_generation_variant(
     variant_id: str, owner_principal_id: str, ctx: Context
 ) -> dict:
-    """Alege intern o singură variantă pregătită; nu este pentru agent."""
+    """Choose one ready variant, internally; not for the agent."""
     conversation_id = conversation_of(ctx)
     async with connection() as conn:
         result = await select_variant_store(
@@ -1102,7 +1109,7 @@ async def ui_patch_generation_variant(
     content: dict,
     ctx: Context,
 ) -> dict:
-    """Înlocuiește intern un draft validat complet; nu este unealtă a agentului."""
+    """Replace a fully validated draft, internally; not an agent tool."""
     conversation_id = conversation_of(ctx)
     value = IdeaVariant.model_validate(content)
     async with connection() as conn:
@@ -1121,7 +1128,7 @@ async def ui_patch_generation_variant(
 async def ui_cancel_generation_batch(
     batch_id: str, owner_principal_id: str, ctx: Context
 ) -> dict:
-    """Oprește intern lotul curent al identității; nu este pentru agent."""
+    """Stop the identity's current batch, internally; not for the agent."""
     conversation_id = conversation_of(ctx)
     async with connection() as conn:
         result = await cancel_batch(conn, UUID(batch_id), owner_principal_id)
@@ -1135,21 +1142,21 @@ async def ui_cancel_generation_batch(
 
 @server.tool()
 async def ui_get_generation_batch(batch_id: str) -> dict:
-    """Citește intern un lot și variantele lui; nu este pentru agent."""
+    """Read one batch and its variants, internally; not for the agent."""
     async with connection() as conn:
         return await load_batch(conn, UUID(batch_id))
 
 
 @server.tool()
 async def ui_get_current_generation_batch(owner_principal_id: str) -> dict:
-    """Citește intern lotul curent al identității; nu este pentru agent."""
+    """Read the identity's current batch, internally; not for the agent."""
     async with connection() as conn:
         return {"batch": await load_current_batch(conn, owner_principal_id)}
 
 
 @server.tool()
 async def ui_current_conversation(owner_principal_id: str, ctx: Context) -> dict:
-    """Conversația activă a contului; o creează la prima cerere. Nu e pentru agent."""
+    """The account's active conversation, created on first request. Not for the agent."""
     conversation_id = conversation_of(ctx)
     client_slug = await client_of(ctx)
     async with connection() as conn:
@@ -1167,8 +1174,8 @@ async def ui_current_conversation(owner_principal_id: str, ctx: Context) -> dict
 
 @server.tool()
 async def ui_new_conversation(owner_principal_id: str, ctx: Context) -> dict:
-    """Arhivează conversația activă și începe una nouă; lotul vechi iese din
-    interfață în aceeași tranzacție. Nu este pentru agent."""
+    """Archive the active conversation and start a new one; the old batch leaves
+    the interface in the same transaction. Not for the agent."""
     conversation_id = conversation_of(ctx)
     client_slug = await client_of(ctx)
     async with connection() as conn:
@@ -1187,7 +1194,7 @@ async def ui_new_conversation(owner_principal_id: str, ctx: Context) -> dict:
 async def ui_bind_conversation_batch(
     owner_principal_id: str, batch_id: str, ctx: Context
 ) -> dict:
-    """Leagă intern lotul de conversația activă a contului; nu este pentru agent."""
+    """Bind the batch to the account's active conversation; not for the agent."""
     async with connection() as conn:
         row = await bind_conversation_batch(
             conn, owner_principal_id=owner_principal_id, batch_id=UUID(batch_id)
@@ -1197,7 +1204,7 @@ async def ui_bind_conversation_batch(
 
 @server.tool()
 async def ui_list_library(ctx: Context) -> dict:
-    """Listează intern cărțile selectabile; nu expune corpul documentelor."""
+    """List the selectable books, internally; does not expose document bodies."""
     client_slug = await client_of(ctx)
     async with connection() as conn:
         return {"items": await list_library(conn, client_slug)}
@@ -1205,7 +1212,7 @@ async def ui_list_library(ctx: Context) -> dict:
 
 @server.tool()
 async def ui_list_saved_posts(ctx: Context, limit: int = 100) -> dict:
-    """Citește intern postările scrise în studio; nu este pentru agent."""
+    """Read the posts written in the studio, internally; not for the agent."""
     client_slug = await client_of(ctx)
     async with connection() as conn:
         return {"items": await list_saved_posts(conn, client_slug, limit)}
@@ -1213,7 +1220,7 @@ async def ui_list_saved_posts(ctx: Context, limit: int = 100) -> dict:
 
 @server.tool()
 async def ui_get_saved_post(post_id: str, ctx: Context) -> dict:
-    """Citește intern o singură postare salvată; nu este pentru agent."""
+    """Read a single saved post, internally; not for the agent."""
     client_slug = await client_of(ctx)
     async with connection() as conn:
         return {"post": await load_saved_post(conn, client_slug, UUID(post_id))}
@@ -1221,7 +1228,7 @@ async def ui_get_saved_post(post_id: str, ctx: Context) -> dict:
 
 @server.tool()
 async def ui_resolve_account(principal_id: str) -> dict:
-    """Rezolvă intern contul unei identități; nu este pentru agent.
+    """Resolve an identity's account, internally; not for the agent.
 
     Takes the principal as an argument rather than off the connection because
     the admin page will need to ask about somebody other than the caller. It is
@@ -1244,7 +1251,7 @@ async def ui_record_usage(
     cost_micros: int,
     cached_input_tokens: int = 0,
 ) -> dict:
-    """Înregistrează intern consumul unui apel; nu este pentru agent."""
+    """Record one call's usage, internally; not for the agent."""
     async with connection() as conn:
         row_id = await record_usage(
             conn,
@@ -1262,7 +1269,7 @@ async def ui_record_usage(
 
 @server.tool()
 async def ui_get_budget(client_slug: str) -> dict:
-    """Citește intern limita și consumul unui cont; nu este pentru agent."""
+    """Read an account's allowance and usage, internally; not for the agent."""
     async with connection() as conn:
         budget = await load_budget(conn, client_slug)
     return {"budget": budget.as_dict() if budget is not None else None}
@@ -1270,7 +1277,7 @@ async def ui_get_budget(client_slug: str) -> dict:
 
 @server.tool()
 async def ui_set_budget(client_slug: str, budget_micros: int) -> dict:
-    """Schimbă intern limita unui cont; nu este pentru agent."""
+    """Change an account's allowance, internally; not for the agent."""
     async with connection() as conn:
         value = await set_budget(conn, client_slug, budget_micros)
     return {"budget_micros": value}
@@ -1278,21 +1285,21 @@ async def ui_set_budget(client_slug: str, budget_micros: int) -> dict:
 
 @server.tool()
 async def ui_set_account_disabled(principal_id: str, disabled: bool) -> dict:
-    """Suspendă sau reactivează intern un cont; nu este pentru agent."""
+    """Suspend or reactivate an account, internally; not for the agent."""
     async with connection() as conn:
         return {"account": await set_disabled(conn, principal_id, disabled)}
 
 
 @server.tool()
 async def ui_list_usage() -> dict:
-    """Listează intern consumul tuturor conturilor; nu este pentru agent."""
+    """List every account's usage, internally; not for the agent."""
     async with connection() as conn:
         return {"items": await all_usage(conn)}
 
 
 @server.tool()
 async def ui_list_accounts() -> dict:
-    """Listează intern conturile provizionate; nu este pentru agent."""
+    """List the provisioned accounts, internally; not for the agent."""
     async with connection() as conn:
         return {"items": await list_accounts(conn)}
 
@@ -1305,7 +1312,7 @@ async def ui_provision_account(
     display_name: str = "",
     client_slug: str = "",
 ) -> dict:
-    """Creează intern studioul unui principal la prima lui logare; nu este pentru agent.
+    """Create a principal's studio on their first sign-in; not for the agent.
 
     Only reached for providers named in AUTH_SELF_PROVISION_PROVIDERS, which the
     harness checks before calling - a directory only Sorin can add people to.

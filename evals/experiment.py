@@ -265,12 +265,12 @@ def router(output: dict[str, Any], expected: dict[str, Any]) -> dict[str, Any]:
     """Did it open the right `SKILL.md`? A failure here is the frontmatter."""
 
     if output.get("error"):
-        return {"score": 0.0, "label": "picat", "explanation": output["error"]}
+        return {"score": 0.0, "label": "failed", "explanation": output["error"]}
     wanted = expected["skill"]
     ok = wanted in (output.get("skills") or [])
     return {
         "score": 1.0 if ok else 0.0,
-        "label": "corect" if ok else "greșit",
+        "label": "correct" if ok else "wrong",
         "explanation": (
             f"a deschis {output.get('skills') or '—'}; se cerea {wanted}/SKILL.md"
         ),
@@ -282,19 +282,19 @@ def references(output: dict[str, Any], expected: dict[str, Any]) -> dict[str, An
     """All the `references/` its format calls for, and none of the others."""
 
     if output.get("error"):
-        return {"score": 0.0, "label": "picat", "explanation": output["error"]}
+        return {"score": 0.0, "label": "failed", "explanation": output["error"]}
     opened = output.get("references") or []
     absent = [r for r in expected["references_required"] if r not in opened]
     extra = [r for r in expected["references_forbidden"] if r in opened]
     reasons = []
     if absent:
-        reasons.append(f"cerute, nedeschise: {absent}")
+        reasons.append(f"asked for, not opened: {absent}")
     if extra:
-        reasons.append(f"deschise degeaba: {extra}")
+        reasons.append(f"opened for nothing: {extra}")
     return {
         "score": 0.0 if reasons else 1.0,
-        "label": "greșit" if reasons else "corect",
-        "explanation": "; ".join(reasons) or f"a deschis {opened or '—'}",
+        "label": "wrong" if reasons else "correct",
+        "explanation": "; ".join(reasons) or f"opened {opened or '—'}",
     }
 
 
@@ -303,7 +303,7 @@ def tools(output: dict[str, Any], expected: dict[str, Any]) -> dict[str, Any]:
     """The search tool the source asks for, and no tool from another source."""
 
     if output.get("error"):
-        return {"score": 0.0, "label": "picat", "explanation": output["error"]}
+        return {"score": 0.0, "label": "failed", "explanation": output["error"]}
     called = output.get("tools") or []
     missing = [t for t in expected["tools_required"] if t not in called]
     extra = [t for t in expected["tools_forbidden"] if t in called]
@@ -311,15 +311,15 @@ def tools(output: dict[str, Any], expected: dict[str, Any]) -> dict[str, Any]:
     none_of_any = bool(any_of) and not any(t in called for t in any_of)
     reasons = []
     if missing:
-        reasons.append(f"cerute, nechemate: {missing}")
+        reasons.append(f"asked for, not called: {missing}")
     if extra:
-        reasons.append(f"din altă sursă: {extra}")
+        reasons.append(f"from another source: {extra}")
     if none_of_any:
-        reasons.append(f"niciuna din: {any_of}")
+        reasons.append(f"none of: {any_of}")
     return {
         "score": 0.0 if reasons else 1.0,
-        "label": "greșit" if reasons else "corect",
-        "explanation": "; ".join(reasons) or f"a chemat {called or '—'}",
+        "label": "wrong" if reasons else "correct",
+        "explanation": "; ".join(reasons) or f"called {called or '—'}",
     }
 
 
@@ -363,7 +363,7 @@ def relevance_evaluator(tool: str, avatar: str):
             # look like a failed search.
             return {
                 "label": "—",
-                "explanation": f"Rularea n-a chemat {tool}; nimic de judecat.",
+                "explanation": f"The run did not call {tool}; nothing to judge.",
             }
 
         verdicts: list[str] = []
@@ -374,7 +374,7 @@ def relevance_evaluator(tool: str, avatar: str):
                     "format": input["format"],
                     "pillar": input["pillar"],
                     "source": input["source"],
-                    "focus": input["focus"] or "— (fără focus; pilonul și avatarul)",
+                    "focus": input["focus"] or "— (no focus; the pillar and the avatar)",
                     "avatar": avatar,
                     "description": search["description"],
                     "material": search["material"],
@@ -391,7 +391,7 @@ def relevance_evaluator(tool: str, avatar: str):
         return {
             "score": 1.0 if got == wanted else 0.0,
             "label": got,
-            "explanation": f"se aștepta {wanted}. " + " | ".join(why),
+            "explanation": f"expected {wanted}. " + " | ".join(why),
         }
 
     return relevance
@@ -412,13 +412,13 @@ def convergence_evaluator(optimal: int):
         if not turns:
             return {
                 "score": 0.0,
-                "label": "picat",
+                "label": "failed",
                 "explanation": output.get("error") or "niciun pas",
             }
         return {
             "score": round(min(optimal / turns, 1.0), 3),
-            "label": f"{turns} pași",
-            "explanation": f"cel mai scurt drum corect: {optimal} pași",
+            "label": f"{turns} steps",
+            "explanation": f"shortest correct path: {optimal} steps",
         }
 
     return convergence
@@ -494,7 +494,7 @@ def show(findings: list[dict[str, Any]], url: str) -> None:
     """The report, in Romanian — the terminal is read by the client too."""
 
     print(f"\n{RULE}")
-    header = f"{'caz':<24}{'pași':>5}"
+    header = f"{'case':<24}{'steps':>5}"
     for name in NAMES:
         header += f"{name.replace('relevance_', 'rel.'):>13}"
     print(header)
@@ -507,14 +507,14 @@ def show(findings: list[dict[str, Any]], url: str) -> None:
         print(line)
 
     print(f"\n{RULE}")
-    print(f"{'evaluare':<20}{'reușite':>12}{'rata':>9}   ce spune")
+    print(f"{'evaluator':<20}{'passed':>12}{'rate':>9}   what it says")
     print("-" * 96)
     meaning = {
         "router": "a deschis SKILL.md-ul fazei",
-        "references": "exact referințele formatului",
-        "tools": "unealta pe care o cere sursa",
-        "relevance_books": "ce a întors raftul, judecat",
-        "relevance_web": "ce a întors web-ul, judecat",
+        "references": "exactly the format's references",
+        "tools": "the tool the source asks for",
+        "relevance_books": "what the shelf returned, judged",
+        "relevance_web": "what the web returned, judged",
         "convergence": "drum scurt / cel mai scurt corect",
     }
     for name in NAMES:
@@ -541,11 +541,11 @@ def show(findings: list[dict[str, Any]], url: str) -> None:
     # searches nothing leaves the judge nothing to read. So the forbidden half
     # of `tools` is exercised here only where a source forbids the OTHER tool.
     print(
-        "\nCe NU acoperă setul ăsta: sursa `Memorie` (regula «nu chema nimic»)."
+        "\nWhat this set does NOT cover: the `Memorie` source (the «call nothing» rule)."
         "\n  uv run python evals/route/tool_usage.py --source Memorie"
     )
     if url:
-        print(f"\nÎn Phoenix: {url}")
+        print(f"\nIn Phoenix: {url}")
 
 
 def report(findings: list[dict[str, Any]], meta: dict[str, Any]) -> Path:
@@ -588,8 +588,11 @@ async def run(
         await data_mcp.connect()
         _, profile_md = await read_profile(data_mcp)
     except Exception as e:  # noqa: BLE001
-        print(f"Serverul MCP nu răspunde la {MCP_URL}: {type(e).__name__}: {e}", file=sys.stderr)
-        print("  Pornește `uv run content-studio-server` în alt terminal.", file=sys.stderr)
+        print(
+            f"The MCP server does not answer at {MCP_URL}: {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        print("  Start `uv run content-studio-server` in another terminal.", file=sys.stderr)
         return 2
 
     # Built without `__init__` for the same reason `tool_usage.run_grid` does it:
@@ -653,8 +656,8 @@ async def run(
             # run there is no floor, and dividing by the shortest path outright
             # would score every honest run against one that did nothing.
             print(
-                "\nNicio rulare n-a trecut ruta întreagă — nu există optim de"
-                " împărțit. Convergența nu se calculează.",
+                "\nNo run walked the whole route — there is no optimum to"
+                " divide by. Convergence is not computed.",
                 file=sys.stderr,
             )
         else:
@@ -690,22 +693,22 @@ async def run(
 
 
 def show_labels(chosen: list[dict[str, Any]]) -> None:
-    print(f"{'caz':<24}{'fază':<9}{'skill':<19}{'unelte':<38}referințe cerute")
+    print(f"{'case':<24}{'phase':<9}{'skill':<19}{'tools':<38}references asked for")
     print(RULE)
     for row in chosen:
         wanted = row["output"]
         refs = ", ".join(r.split("/")[-1] for r in wanted["references_required"]) or "—"
         tools_ = ", ".join(wanted["tools_required"]) or ""
         if wanted["tools_any_of"]:
-            tools_ = f"oricare din: {', '.join(wanted['tools_any_of'])}"
+            tools_ = f"any of: {', '.join(wanted['tools_any_of'])}"
         print(
             f"{row['input']['case']:<24}{row['input']['phase']:<9}"
             f"{wanted['skill']:<19}{tools_ or '—':<38}{refs}"
         )
     witness = [r["input"]["case"] for r in chosen if r["output"]["relevance"] != "relevant"]
     print(
-        f"\n{len(chosen)} cazuri. Niciun model, niciun container, niciun cost."
-        f"\nMartor negativ (se așteaptă `irelevant`): {', '.join(witness) or '—'}"
+        f"\n{len(chosen)} cases. No model, no container, no cost."
+        f"\nNegative witness (`irelevant` expected): {', '.join(witness) or '—'}"
     )
 
 
@@ -744,7 +747,7 @@ def main() -> int:
         return 0
 
     if not (PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY):
-        print("Phoenix nu e configurat: PHOENIX_COLLECTOR_ENDPOINT sau cheia lipsește.")
+        print("Phoenix is not configured: PHOENIX_COLLECTOR_ENDPOINT or the key is missing.")
         return 1
 
     # The agent's own spans go to Phoenix like any run's. Inside an experiment
@@ -755,7 +758,7 @@ def main() -> int:
     # having the spans hang off the experiment run they belong to.
     phoenix = configure_phoenix()
     print(f"phoenix   {phoenix['detail']}")
-    print(f"judecător {EVAL_JUDGE_MODEL}")
+    print(f"judge {EVAL_JUDGE_MODEL}")
     try:
         return asyncio.run(
             run(chosen, name, max(1, args.concurrency), max(1, args.repetitions))

@@ -23,6 +23,7 @@ from content_studio.audit import Audit
 from content_studio.config import CHAT_MODEL
 from content_studio.harness.conversations import USER_MESSAGE_MARKER
 from content_studio.harness.drafts import GenerationDraftClient
+from content_studio.harness.errors import RefusalError
 from content_studio.harness.generation import IdeaVariant, StreamEvent, StrictContract
 from content_studio.harness.posts import SavedPostContent
 from content_studio.language import DEFAULT_LANGUAGE, Language, normalise
@@ -185,9 +186,9 @@ class ReplyJsonStream:
 #: from growing a script onto a silent reel. `content-data` refuses such a patch
 #: anyway — saying it here means the rewrite succeeds instead of being rejected.
 SILENT_REEL_TARGET = (
-    " Ținta este un reel mut: nu are script și nu are bloc de producție. "
-    "Lasă `script` și `format_details` absente; tot ce ar fi fost spus stă în "
-    "`caption`, care rămâne lung."
+    " The target is a silent reel: it has no script and no production block. "
+    "Leave `script` and `format_details` absent; everything that would have been "
+    "said sits in `caption`, which stays long."
 )
 
 
@@ -209,33 +210,34 @@ def chat_prompt(
 
     if target_context is None:
         target = (
-            "Nu există o țintă selectată în interfață. Fluxul de producție "
-            "trece prin unelte, nu prin scrisul tău: idei noi → "
+            "There is no target selected in the interface. The production flow "
+            "goes through tools, not through your writing: new ideas → "
             "`start_generation`; „dezvoltă a treia” → `develop_idea`; „aleg "
-            "varianta cu CIFRA” / „a doua” → `select_variant`. Nu scrie tu "
-            "liste, variante sau postări în locul lor — aplicația le "
-            "generează și le arată. Dacă cere modificarea unei postări deja "
-            "salvate, cere-i să o deschidă întâi în aplicație; nu ghici."
+            "varianta cu CIFRA” / „a doua” → `select_variant`. Do not write "
+            "lists, variants or posts in their place — the application "
+            "generates them and shows them. If she asks to change a post that "
+            "is already saved, ask her to open it in the application first; do "
+            "not guess."
         )
     elif target_context.get("kind") == "saved_post":
         target = (
-            "Ținta activă este o postare deja salvată, verificată de aplicație. "
-            "Dacă utilizatoarea cere rescrierea, întoarce în `patch` conținutul "
-            "COMPLET al aceleiași postări, inclusiv câmpurile neschimbate. "
-            "`target_id` rămâne identic. Nu chema o unealtă de scriere: modificarea "
-            "rămâne o ciornă în browser până când ea apasă „Salvează modificările” "
-            "și confirmă la poartă."
+            "The active target is a post that is already saved, verified by the "
+            "application. If the user asks for a rewrite, return in `patch` the "
+            "COMPLETE content of that same post, including the unchanged fields. "
+            "`target_id` stays identical. Do not call a writing tool: the change "
+            "stays a draft in the browser until she presses „Salvează "
+            "modificările” and confirms at the gate."
             + _silent(target_context)
             + "\n"
             + json.dumps(target_context, ensure_ascii=False)
         )
     else:
         target = (
-            "Ținta activă a fost verificată de aplicație. Poți răspunde despre ea. "
-            "Dacă utilizatoarea cere rescrierea, întoarce în `patch` conținutul "
-            "COMPLET al aceleiași variante, inclusiv câmpurile neschimbate. "
-            "`target_id` și `hook_type` rămân identice. Nu chema o unealtă de "
-            "scriere: acesta este încă un draft nesalvat."
+            "The active target has been verified by the application. You may "
+            "answer about it. If the user asks for a rewrite, return in `patch` "
+            "the COMPLETE content of that same variant, including the unchanged "
+            "fields. `target_id` and `hook_type` stay identical. Do not call a "
+            "writing tool: this is still an unsaved draft."
             + _silent(target_context)
             + "\n"
             + json.dumps(target_context, ensure_ascii=False)
@@ -251,10 +253,11 @@ def chat_prompt(
         "material, not the language of your answer."
     )
     return f"""{reply_line}
-Textul pentru utilizatoare stă în `reply`. `patch` este null dacă nu rescrii
-ținta. Nu include JSON, câmpuri tehnice sau explicații despre patch în `reply`.
+The text for the user goes in `reply`. `patch` is null if you are not
+rewriting the target. Do not include JSON, technical fields or explanations
+about the patch in `reply`.
 
-CONTEXT ȚINTĂ:
+TARGET CONTEXT:
 {target}
 
 {USER_MESSAGE_MARKER}
@@ -293,11 +296,11 @@ class _LiveChatRun:
             self.condition.notify_all()
 
 
-class ChatAccessError(RuntimeError):
+class ChatAccessError(RefusalError):
     """A run does not belong to the authenticated principal."""
 
 
-class ActiveChatError(RuntimeError):
+class ActiveChatError(RefusalError):
     """One identity already has a response streaming."""
 
 
@@ -404,7 +407,9 @@ class ChatCoordinator:
         active_id = self._active.get(principal_id)
         active = self._runs.get(active_id) if active_id else None
         if active is not None and not active.terminal:
-            raise ActiveChatError("Există deja un răspuns în curs. Oprește-l înainte.")
+            raise ActiveChatError(
+                "an answer is already in flight; stop it first", "chat_busy"
+            )
 
         # Since 2026-08-27 the harness passes the active conversation's session,
         # so chat and buttons share one thread. The per-principal digest stays
@@ -412,7 +417,7 @@ class ChatCoordinator:
         session_id = session_id or self.session_id(principal_id)
         run_id = await trail.open_run(session_id, request.message)
         if run_id is None:
-            raise RuntimeError("run-ul de chat nu a putut primi un ID durabil")
+            raise RuntimeError("the chat run could not be given a durable id")
         state = _LiveChatRun(
             principal_id=principal_id,
             run_id=run_id,
@@ -655,7 +660,7 @@ class ChatCoordinator:
             await trail.failed(state.run_id, exc)
             await state.publish(
                 "error",
-                {"detail": f"Răspunsul nu a putut fi terminat ({type(exc).__name__})."},
+                {"detail": f"the answer could not be finished ({type(exc).__name__})"},
             )
         finally:
             state.result = None
@@ -701,7 +706,10 @@ class ChatCoordinator:
     def _owned(self, principal_id: str, run_id: str) -> _LiveChatRun:
         state = self._runs.get(run_id)
         if state is None or state.principal_id != principal_id:
-            raise ChatAccessError("Run-ul de chat nu aparține contului autentificat.")
+            raise ChatAccessError(
+                "the chat run does not belong to the authenticated account",
+                "chat_run_not_owned",
+            )
         return state
 
     def _task_done(

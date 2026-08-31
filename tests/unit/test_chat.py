@@ -72,8 +72,8 @@ class TestChatContracts(unittest.TestCase):
 
     def test_general_rewrite_prompt_forbids_guessing(self) -> None:
         prompt = chat_prompt("Rescrie-l", None)
-        self.assertIn("nu ghici", prompt)
-        self.assertIn("patch` este null", prompt)
+        self.assertIn("do not guess", prompt)
+        self.assertIn("`patch` is null", prompt)
 
     def test_target_prompt_contains_only_server_context(self) -> None:
         prompt = chat_prompt(

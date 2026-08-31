@@ -66,7 +66,7 @@ async def run() -> int:
     findings: list[dict] = []
     wanted = expected()
     if not wanted:
-        print("Niciun skill pe disc - nu e nimic de masurat.")
+        print("No skill on disk - there is nothing to measure.")
         return 1
 
     client = E2BSandboxClient()

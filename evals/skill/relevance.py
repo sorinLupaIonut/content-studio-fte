@@ -180,7 +180,7 @@ def asked_for(value: object) -> str:
         return str(raw)
     parts = [str(args.get("description", "")).strip()]
     if args.get("titles"):
-        parts.append(f"(cărți alese: {', '.join(args['titles'])})")
+        parts.append(f"(books chosen: {', '.join(args['titles'])})")
     return " ".join(part for part in parts if part)
 
 
@@ -262,7 +262,7 @@ def unpack(frame: pd.DataFrame, graded: pd.DataFrame) -> pd.DataFrame:
 
 def show(frame: pd.DataFrame, judged: bool) -> None:
     """The report, in Romanian — the terminal is read by the client too."""
-    print(f"\n{'unealtă':<13} {'format':<8} {'pilon':<12} {'sursă':<9} {'':<3} ce a cerut")
+    print(f"\n{'tool':<13} {'format':<8} {'pillar':<12} {'source':<9} {'':<3} what it asked for")
     print("-" * 108)
     for _, row in frame.iterrows():
         verdict = ""
@@ -277,16 +277,16 @@ def show(frame: pd.DataFrame, judged: bool) -> None:
 
     if not judged:
         empty = int((frame["returned_chars"] == 0).sum())
-        print(f"{len(frame)} căutări de judecat. {empty} au întors zero caractere.")
-        print("Niciun judecător chemat, niciun cost.")
+        print(f"{len(frame)} searches to judge. {empty} returned zero characters.")
+        print("No judge called, no cost.")
         return
 
     for tool in TOOLS:
         half = frame[frame["tool"] == tool]
         if len(half):
             good = int((half["score"] == 1.0).sum())
-            print(f"{tool:<14} relevanță {good}/{len(half)}")
-    print(f"{'TOTAL':<14} relevanță {int((frame['score'] == 1.0).sum())}/{len(frame)}")
+            print(f"{tool:<14} relevance {good}/{len(half)}")
+    print(f"{'TOTAL':<14} relevance {int((frame['score'] == 1.0).sum())}/{len(frame)}")
 
 
 def report(frame: pd.DataFrame, judged: bool) -> Path:
@@ -327,14 +327,14 @@ def main() -> int:
     args = parser.parse_args()
 
     if not (PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY):
-        print("Phoenix nu e configurat: PHOENIX_COLLECTOR_ENDPOINT sau cheia lipsește.")
+        print("Phoenix is not configured: PHOENIX_COLLECTOR_ENDPOINT or the key is missing.")
         return 1
 
     frame = cases(args.minutes, args.limit)
     if args.tool and len(frame):
         frame = frame[frame["tool"] == args.tool]
     if not len(frame):
-        print(f"Nicio căutare în ultimele {args.minutes} de minute.")
+        print(f"No search in the last {args.minutes} minutes.")
         return 0
 
     if args.dry_run:
@@ -360,7 +360,7 @@ def main() -> int:
         for detail in frame.loc[frame["score"].isna(), "execution_details"].head(3):
             print(f"  {str(detail)[:200]}")
         if unreadable == len(frame):
-            print("Niciun verdict citit — nu raportez un scor.")
+            print("No verdict read — no score reported.")
             print(f"Raport: {report(frame, judged=True)}")
             return 1
 
@@ -375,7 +375,7 @@ def main() -> int:
             annotation_name="relevance",
             annotator_kind="LLM",
         )
-        print(f"\n{len(annotations)} verdicte urcate pe span-uri în Phoenix.")
+        print(f"\n{len(annotations)} verdicts uploaded onto spans in Phoenix.")
 
     print(f"Raport: {report(frame, judged=True)}")
     return 0

@@ -297,7 +297,7 @@ class TheVerdictSplitsIntoThree(unittest.TestCase):
             self.LABEL,
         )
         self.assertEqual(scored["tools"], 0.0)
-        self.assertTrue(any("altă sursă" in reason for reason in scored["surplus"]))
+        self.assertTrue(any("another source" in reason for reason in scored["surplus"]))
 
     def test_any_of_is_satisfied_by_either_and_by_neither_it_is_not(self) -> None:
         label = Expectation(

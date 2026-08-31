@@ -153,7 +153,7 @@ def manifest() -> tuple[list[Phrasing], dict[str, str]]:
             source=request["source"],
             focus=request["focus"],
         ),
-        why="Ancora: exact ce trimite butonul. Construită, nu copiată.",
+        why="The anchor: exactly what the button sends. Built, not copied.",
     )
     rest = [Phrasing(id=p["id"], text=p["text"], why=p.get("why")) for p in spec["phrasings"]]
     return [dictated, *rest], request
@@ -208,7 +208,7 @@ async def walk(
     if result.interruptions:
         # A gated tool was reached. Nothing here can answer it, and a suspended
         # run has no path length worth comparing.
-        return Walk(error="a cerut aprobare la poartă")
+        return Walk(error="asked for approval at the gate")
 
     intent, accepted = None, False
     for name, arguments, output in trigger_calls(result):
@@ -288,12 +288,12 @@ def agrees(intent: dict[str, Any] | None, request: dict[str, str]) -> tuple[bool
     """
 
     if intent is None:
-        return False, ["nu a chemat start_generation"]
+        return False, ["did not call start_generation"]
     wrong = []
     for axis in ("format", "pillar", "source"):
         got = intent.get(axis)
         if got != request[axis]:
-            wrong.append(f"{axis}: {got!r} în loc de {request[axis]!r}")
+            wrong.append(f"{axis}: {got!r} instead of {request[axis]!r}")
     if not survived(intent.get("focus"), request["focus"]):
         wrong.append(f"focus pierdut: {intent.get('focus')!r}")
     return not wrong, wrong
@@ -307,7 +307,7 @@ def report(findings: list[dict[str, Any]], request: dict[str, str]) -> int:
         # NEVER PRINT A SCORE THAT COULD NOT BE COMPUTED. An optimal of zero
         # would make every convergence 0.0, which reads exactly like ten runs
         # that all wandered.
-        print("\nNiciun drum de măsurat — toate formulările au picat.", file=sys.stderr)
+        print("\nNo path to measure — every phrasing failed.", file=sys.stderr)
         return 1
 
     # THE OPTIMUM IS THE CHEAPEST CORRECT PATH, NOT THE CHEAPEST PATH.
@@ -322,18 +322,18 @@ def report(findings: list[dict[str, Any]], request: dict[str, str]) -> int:
     correct = [f for f in walked if f["agreement"]]
     if not correct:
         print(
-            "\nNiciun drum nu a înregistrat cererea — nu există optim de"
-            " împărțit. Convergența nu se poate calcula.",
+            "\nNo path recorded the request — there is no optimum to"
+            " divide by. Convergence cannot be computed.",
             file=sys.stderr,
         )
         return 1
     optimal = min(f["turns"] for f in correct)
     print(f"\n{RULE}")
     print(
-        f"Cel mai scurt drum CORECT: {optimal} pași, dintre cele {len(correct)}"
-        f" care au înregistrat cererea. Nota = {optimal} / pașii tăi.\n"
+        f"Shortest CORRECT path: {optimal} steps, out of the {len(correct)}"
+        f" that recorded the request. Score = {optimal} / your steps.\n"
     )
-    print(f"{'formulare':<18}{'pași':>6}{'convergență':>14}{'metodă':>9}   acord")
+    print(f"{'phrasing':<18}{'steps':>6}{'convergence':>14}{'method':>9}   agreement")
     print(f"{'-' * 96}")
     for finding in findings:
         if not finding["turns"]:
@@ -353,8 +353,8 @@ def report(findings: list[dict[str, Any]], request: dict[str, str]) -> int:
     scores = [f["convergence"] for f in findings if f.get("convergence") is not None]
     agreed = sum(1 for f in findings if f["agreement"])
     print(f"\n{RULE}")
-    print(f"convergență    media {sum(scores) / len(scores):.3f} pe {len(scores)} drumuri")
-    print(f"acord          {agreed}/{len(findings)} au înregistrat exact cererea")
+    print(f"convergence    mean {sum(scores) / len(scores):.3f} over {len(scores)} paths")
+    print(f"agreement      {agreed}/{len(findings)} recorded exactly the request")
     blind = [f["id"] for f in walked if not f["opened_method"]]
     if blind:
         # THE SHORTEST PATH IS NOT AUTOMATICALLY THE BEST ONE HERE. Trajectory.py
@@ -364,7 +364,7 @@ def report(findings: list[dict[str, Any]], request: dict[str, str]) -> int:
         # it would set `optimal` and score 1.000 while every honest run scored
         # below it. Printed, never folded into the score: what to do about it is
         # a decision, not an arithmetic.
-        print(f"fără metodă    {len(blind)} — {', '.join(blind)}  (drum scurt din motiv prost)")
+        print(f"no method      {len(blind)} — {', '.join(blind)}  (a short path for a bad reason)")
     if len(walked) < len(findings):
         print(f"picate         {len(findings) - len(walked)}")
 
@@ -410,8 +410,11 @@ async def run_all(chosen: list[Phrasing], request: dict[str, str], concurrency: 
         await data_mcp.connect()
         _, profile_md = await read_profile(data_mcp)
     except Exception as e:  # noqa: BLE001
-        print(f"Serverul MCP nu răspunde la {MCP_URL}: {type(e).__name__}: {e}", file=sys.stderr)
-        print("  Pornește `uv run content-studio-server` în alt terminal.", file=sys.stderr)
+        print(
+            f"The MCP server does not answer at {MCP_URL}: {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        print("  Start `uv run content-studio-server` in another terminal.", file=sys.stderr)
         return 2
 
     findings: list[dict[str, Any]] = []
@@ -429,7 +432,7 @@ async def run_all(chosen: list[Phrasing], request: dict[str, str], concurrency: 
         mark = "✗" if result.error else ("✓" if agreement else "~")
         print(
             f"{mark} [{done:>2}/{len(chosen)}] {phrasing.id:<18}{seconds:>5.0f}s  "
-            f"{result.turns:>3} pași  {result.error or ''}"
+            f"{result.turns:>3} steps  {result.error or ''}"
         )
         findings.append(
             {
@@ -474,11 +477,11 @@ def main() -> int:
     if args.ids:
         unknown = set(args.ids) - {p.id for p in chosen}
         if unknown:
-            raise SystemExit(f"Formulări necunoscute: {sorted(unknown)}")
+            raise SystemExit(f"Unknown phrasings: {sorted(unknown)}")
         chosen = [p for p in chosen if p.id in args.ids]
 
     wanted = ", ".join(f"{k}={v}" for k, v in request.items())
-    print(f"Aceeași cerere, {len(chosen)} formulări — {wanted}\n{RULE}")
+    print(f"The same request, {len(chosen)} phrasings — {wanted}\n{RULE}")
     for i, phrasing in enumerate(chosen, 1):
         print(f"  {i:>2}. {phrasing.id:<18} {phrasing.text}")
     print(RULE)

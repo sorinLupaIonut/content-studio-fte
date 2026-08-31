@@ -137,7 +137,7 @@ class TestThePromptDescribesTheMethodThatExists(unittest.TestCase):
         # `propune-postari/SKILL.md` reached 245. Nothing raises: the schema
         # still produces ten well-formed proposals out of a method whose last
         # three steps never arrived.
-        self.assertIn("cat fișier", SANDBOX_INSTRUCTIONS)
+        self.assertIn("cat file", SANDBOX_INSTRUCTIONS)
         self.assertNotRegex(SANDBOX_INSTRUCTIONS, r"sed\s+-n|head\s+-|tail\s+-")
 
     def test_no_skill_is_longer_than_the_shortest_plausible_truncation(self):

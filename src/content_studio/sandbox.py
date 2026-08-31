@@ -91,28 +91,31 @@ SHELL_TOOL_NAME = "exec_command"
 #: line range in the span. An example that teaches a truncating command is a
 #: bug with a very long fuse.
 SANDBOX_INSTRUCTIONS = """\
-Lucrezi într-un container Linux. Metoda ta e acolo, în fișiere, sub `.agents/` —
-un folder pentru fiecare skill, cu `SKILL.md` și, unde e cazul, `references/`.
+You are working inside a Linux container. Your method is there, in files, under
+`.agents/` — one folder per skill, with `SKILL.md` and, where there is one,
+`references/`.
 
-Le citești cu `exec_command`, așa: `cat fișier`. ÎNTREG, dintr-o singură dată.
-Nu citești un interval de linii și nu te opri la un număr rotund — un fișier
-citit pe jumătate e metodă aplicată pe jumătate, iar partea care lipsește nu
-te anunță că lipsește. Nu-l cauți prin tot containerul și nu ghici ce scrie
-în el.
+You read them with `exec_command`, like this: `cat file`. WHOLE, in one go. You
+do not read a range of lines and you do not stop at a round number — a file read
+halfway is method applied halfway, and the missing part does not announce that
+it is missing. You do not go looking for it across the container and you do not
+guess what it says.
 
-Ceri tot ce-ți trebuie DEODATĂ, în aceeași tură. Mai multe fișiere intră într-o
-singură comandă — `cat fișier1 fișier2` — iar uneltele pleacă în paralel cu
-citirea și una cu alta. Ce ai de adus îl știi din cerere, de la început: nu
-aștepta să se întoarcă primul lucru ca să-l ceri pe al doilea. Fiecare tură în
-plus e un drum în plus, iar drumurile ți se termină înaintea răbdării — un
-model care aduce pe rând se trezește scriind cu jumătate din material.
+You ask for everything you need AT ONCE, in the same turn. Several files fit in
+one command — `cat file1 file2` — and the tools go out in parallel with the
+reading and with each other. What you have to fetch you know from the request,
+from the start: do not wait for the first thing to come back before asking for
+the second. Every extra turn is an extra trip, and the trips run out before your
+patience does — a model that fetches one at a time ends up writing with half the
+material.
 
-Containerul e o bibliotecă, nu un atelier: nu scrii fișiere, nu instalezi nimic,
-nu rulezi programe. Nu ai internet acolo — la date ajungi prin uneltele tale,
-niciodată din shell.
+The container is a library, not a workshop: you do not write files, you do not
+install anything, you do not run programs. You have no internet there — you
+reach data through your tools, never from the shell.
 
-Nu scrii preambuluri, nu anunți ce urmează să faci și nu-ți rezumi munca la
-final. Răspunzi exact ce ți s-a cerut, în forma cerută."""
+You write no preambles, you do not announce what you are about to do, and you do
+not summarise your work at the end. You answer exactly what was asked, in the
+form asked for."""
 
 
 def skills_capability() -> Skills:
@@ -126,7 +129,7 @@ def skills_capability() -> Skills:
     without a restart - the contract rule 4 has always had.
     """
     if not SKILLS_DIR.is_dir():
-        raise MissingConfig(f"Nu exista folderul de skill-uri: {SKILLS_DIR}")
+        raise MissingConfig(f"The skills folder does not exist: {SKILLS_DIR}")
     return Skills(from_=LocalDir(src=SKILLS_DIR), skills_path=SKILLS_PATH)
 
 
@@ -197,8 +200,8 @@ async def sandbox_run_config(label: str) -> AsyncIterator[SandboxRunConfig]:
     """
     if not E2B_API_KEY:
         raise MissingConfig(
-            "E2B_API_KEY lipseste: metoda se citeste dintr-un sandbox si fara cheie"
-            " nu poate fi pornit niciunul."
+            "E2B_API_KEY is missing: the method is read from a sandbox, and"
+            " without the key none can be started."
         )
     client = E2BSandboxClient()
     session = await client.create(manifest=sandbox_manifest(), options=sandbox_options())

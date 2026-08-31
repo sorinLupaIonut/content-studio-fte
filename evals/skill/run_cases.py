@@ -135,7 +135,7 @@ def show(case: Case, route: Route, seconds: float, index: int, total: int) -> di
     """One case's line, then one line per search under it."""
 
     if route.error:
-        print(f"✗ [{index:>2}/{total}] {case.id:<24} {seconds:>5.0f}s  RULARE PICATĂ")
+        print(f"✗ [{index:>2}/{total}] {case.id:<24} {seconds:>5.0f}s  RUN FAILED")
         print(f"        {route.error}")
     else:
         print(
@@ -144,7 +144,7 @@ def show(case: Case, route: Route, seconds: float, index: int, total: int) -> di
             f"  focus: {case.focus or '—'}"
         )
         if not route.searches:
-            print("        (nicio căutare)")
+            print("        (no search)")
     for search in route.searches:
         worked, size, line = summarise(search)
         mark = "✓" if worked else "✗"
@@ -186,16 +186,16 @@ def report(findings: list[dict[str, Any]]) -> None:
             print(f"{tool:<15} niciun apel")
             continue
         worked = sum(s["worked"] for s in mine)
-        print(f"{tool:<15} {worked}/{len(mine)} apeluri au întors material")
+        print(f"{tool:<15} {worked}/{len(mine)} calls returned material")
 
     failed = [f for f in findings if f["error"]]
     if failed:
-        print(f"\nRulări picate: {len(failed)} — {', '.join(f['case'] for f in failed)}")
+        print(f"\nFailed runs: {len(failed)} — {', '.join(f['case'] for f in failed)}")
     # A run that searched nothing leaves nothing for the judge, so it shrinks
     # the sample without ever showing up as a low score.
     quiet = [f for f in findings if not f["error"] and not f["searches"]]
     if quiet:
-        print(f"Rulări fără nicio căutare: {len(quiet)} — {', '.join(f['case'] for f in quiet)}")
+        print(f"Runs with no search at all: {len(quiet)} — {', '.join(f['case'] for f in quiet)}")
 
     REPORTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y-%m-%d-%H%M")
@@ -233,8 +233,11 @@ async def run_all(chosen: list[Case], spec: dict[str, Any], concurrency: int) ->
         await data_mcp.connect()
         _, profile_md = await read_profile(data_mcp)
     except Exception as e:  # noqa: BLE001
-        print(f"Serverul MCP nu răspunde la {MCP_URL}: {type(e).__name__}: {e}", file=sys.stderr)
-        print("  Pornește `uv run content-studio-server` în alt terminal.", file=sys.stderr)
+        print(
+            f"The MCP server does not answer at {MCP_URL}: {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        print("  Start `uv run content-studio-server` in another terminal.", file=sys.stderr)
         return 2
 
     # Built without `__init__` for the same reason `tool_usage.run_grid` does it:
