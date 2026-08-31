@@ -176,7 +176,11 @@ else if (_batch is not null)
                        develops one idea. *@
                     @if (idea.Status == "waiting")
                     {
-                        <div class="idea-waiting-hint">@T[Copy.DevelopHint]</div>
+                        <div class="idea-develop">
+                            <button class="button button-primary" type="button"
+                                    disabled="@_busy" @onclick="() => DevelopAsync(idea)">@T[Copy.DevelopAction]</button>
+                            <small>@T[Copy.DevelopActionNote]</small>
+                        </div>
                     }
                     @if (idea.Status == "generating")
                     {
@@ -357,6 +361,7 @@ else if (_batch is not null)
     protected override async Task OnInitializedAsync()
     {
         Events.EventReceived += OnGenerationEventAsync;
+        Events.ActivityReceived += OnGenerationActivityAsync;
         Events.ConnectionInterrupted += OnConnectionInterruptedAsync;
         ContextState.GenerationPatched += OnGenerationPatchedAsync;
         ContextState.ConversationReset += OnConversationResetAsync;
@@ -384,10 +389,7 @@ else if (_batch is not null)
         try
         {
             _batch = (await Api.GetCurrentGenerationAsync()).Batch;
-            if (_batch is not null && !IsTerminal(_batch.Status))
-            {
-                await Events.ConnectAsync(Api.GenerationEventsUrl(_batch.Id));
-            }
+            await WatchAsync();
         }
         catch (Exception ex)
         {
@@ -509,6 +511,18 @@ else if (_batch is not null)
             }
             StateHasChanged();
         });
+    }
+
+    // Deliberately NOT a batch refresh. Every other event on this stream means
+    // "something changed, go and read it"; an errand is the thing itself, and
+    // refreshing for each one would be an HTTP round trip per tool call.
+    private Task OnGenerationActivityAsync(string payload)
+    {
+        if (_disposed)
+        {
+            return Task.CompletedTask;
+        }
+        return ContextState.NotifyGenerationActivityAsync(payload);
     }
 
     private Task OnConversationResetAsync()
@@ -678,13 +692,14 @@ else if (_batch is not null)
 
         _expandedIdeas.Add(idea.Id);
         SetChatTarget(idea);
-        // Opening a card is what pays for it. Only when there is nothing to
-        // show: a second open of a finished idea must not buy it twice, and the
-        // server refuses that anyway.
-        if (idea.Status == "waiting")
-        {
-            await DevelopAsync(idea);
-        }
+        // OPENING A CARD NO LONGER BUYS ONE. It did until 2026-08-31, and the
+        // only thing that said so was a line of grey text underneath - so a
+        // header that looked like every other expander spent a model call. The
+        // click that costs money is now a button that says what it does; this
+        // one just opens the card. `DevelopAsync` is still idempotent and the
+        // server still refuses a second buy, but neither is the reason: the
+        // reason is that she should be able to look without paying.
+        await Task.CompletedTask;
     }
 
     private async Task DevelopAsync(GenerationIdeaDto idea)
@@ -703,6 +718,10 @@ else if (_batch is not null)
             // corrects this within a second either way.
             idea.Status = "generating";
             await Api.DevelopGenerationIdeaAsync(_batch.Id, idea.Ordinal);
+            // The batch is `ready` by now on every idea after the first few, so
+            // the stream from page load is closed or was never opened. Without
+            // this the card writes in silence and only a reload shows the result.
+            await WatchAsync();
             // The click was dictated into the conversation as her sentence.
             await ContextState.NotifyConversationChangedAsync();
         }
@@ -714,6 +733,29 @@ else if (_batch is not null)
         finally
         {
             _busy = false;
+        }
+    }
+
+    /// <summary>Open the event stream when there is anything left to report.</summary>
+    /// <remarks>
+    /// NOT `!IsTerminal(status)`, which is what this was until 2026-08-31. A
+    /// batch turns `ready` while nine ideas are still undeveloped, and she
+    /// develops them one at a time from that state - so the condition that
+    /// decides whether to watch has to look at the ideas, not at the word on
+    /// the batch. `ConnectAsync` disconnects first, so calling it again is how
+    /// a stream is re-opened rather than doubled.
+    /// </remarks>
+    private async Task WatchAsync()
+    {
+        if (_batch is null)
+        {
+            return;
+        }
+        var working = !IsTerminal(_batch.Status)
+            || _batch.Ideas.Any(idea => idea.Status is "generating" or "retrying");
+        if (working)
+        {
+            await Events.ConnectAsync(Api.GenerationEventsUrl(_batch.Id));
         }
     }
 
@@ -799,6 +841,7 @@ else if (_batch is not null)
     {
         _disposed = true;
         Events.EventReceived -= OnGenerationEventAsync;
+        Events.ActivityReceived -= OnGenerationActivityAsync;
         Events.ConnectionInterrupted -= OnConnectionInterruptedAsync;
         ContextState.GenerationPatched -= OnGenerationPatchedAsync;
         ContextState.ConversationReset -= OnConversationResetAsync;

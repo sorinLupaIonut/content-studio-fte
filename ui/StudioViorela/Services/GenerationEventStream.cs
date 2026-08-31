@@ -11,6 +11,9 @@ public sealed class GenerationEventStream(IJSRuntime js) : IAsyncDisposable
     public event Func<string, Task>? EventReceived;
     public event Func<Task>? ConnectionInterrupted;
 
+    /// <summary>Raw JSON for one line of what the run is doing right now.</summary>
+    public event Func<string, Task>? ActivityReceived;
+
     public async Task ConnectAsync(string url)
     {
         await DisconnectAsync();
@@ -26,6 +29,15 @@ public sealed class GenerationEventStream(IJSRuntime js) : IAsyncDisposable
         if (EventReceived is not null)
         {
             await EventReceived.Invoke(eventType);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnGenerationActivity(string payload)
+    {
+        if (ActivityReceived is not null)
+        {
+            await ActivityReceived.Invoke(payload);
         }
     }
 

@@ -96,6 +96,10 @@ StreamEventType = Literal[
     "titles.ready",
     "idea.ready",
     "idea.failed",
+    # What a run is doing while it does it - see `generator.ActivityLog`. The
+    # only event on this stream that carries the thing itself rather than a
+    # nudge to go and re-read the batch.
+    "activity",
     "ui.patch",
     "approval.required",
     "completed",

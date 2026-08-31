@@ -73,6 +73,28 @@
                 </article>
                 }
             }
+
+            @* Live, and never stored. A generation run is silent until it lands
+               - the conversation is told afterwards - and this is the ninety
+               seconds in between. The rows clear the moment the real message
+               arrives, so nothing is ever shown twice. *@
+            @if (_activity.Count > 0)
+            {
+                <div class="chat-activity" role="status">
+                    <small>@T[Copy.ActivityHeading]</small>
+                    @foreach (var line in _activity)
+                    {
+                        <div class="chat-activity-row @(line.Done ? "done" : null)">
+                            <span class="chat-activity-mark">@(line.Done ? "✓" : "·")</span>
+                            <span>@Values.ActivityLabel(T, line.Code)</span>
+                            @if (line.Done && line.Empty)
+                            {
+                                <em>@T[Copy.ActivityEmpty]</em>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
 
         @if (_connectionNote is not null)
@@ -109,6 +131,7 @@
     private bool _open;
     private bool _busy;
     private bool _disposed;
+    private readonly List<ActivityRow> _activity = [];
 
     protected override void OnInitialized()
     {
@@ -116,6 +139,64 @@
         Events.ConnectionInterrupted += OnInterruptedAsync;
         ContextState.Changed += OnContextChanged;
         ContextState.ConversationChanged += OnConversationChangedAsync;
+        ContextState.GenerationActivity += OnGenerationActivityAsync;
+    }
+
+    // READ WITH `JsonDocument`, NOT `Deserialize<T>`. Blazor publishes trimmed,
+    // and reflection-based deserialisation into a type nothing else references
+    // loses its properties to the trimmer - silently, and in a way that looks
+    // like a feature half working rather than one that never read its input.
+    // Measured on 2026-08-31: every row rendered as the fallback word and none
+    // was ever ticked off, because `Code` and `State` came back null. There is
+    // no `[JsonSerializable]` context in this project to add these to, and four
+    // fields do not need one.
+    private Task OnGenerationActivityAsync(string payload)
+    {
+        if (_disposed)
+        {
+            return Task.CompletedTask;
+        }
+        return InvokeAsync(() =>
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(payload);
+                // The frame, then the errand: `encode_sse` wraps every event.
+                if (!document.RootElement.TryGetProperty("payload", out var line))
+                {
+                    return;
+                }
+                var state = line.TryGetProperty("state", out var s) ? s.GetString() : null;
+                if (state == "done")
+                {
+                    // `of` names the row this finishes. An unknown one means the
+                    // drawer opened mid-run and never saw the start — drop it
+                    // rather than draw a tick with nothing above it.
+                    var of = line.TryGetProperty("of", out var o) ? o.GetInt32() : 0;
+                    var started = _activity.FirstOrDefault(row => row.Seq == of);
+                    if (started is not null)
+                    {
+                        started.Done = true;
+                        started.Empty = line.TryGetProperty("empty", out var e)
+                            && e.ValueKind == JsonValueKind.True;
+                    }
+                }
+                else
+                {
+                    _activity.Add(new ActivityRow
+                    {
+                        Seq = line.TryGetProperty("seq", out var q) ? q.GetInt32() : 0,
+                        Code = line.TryGetProperty("code", out var c) ? c.GetString() : null
+                    });
+                }
+            }
+            catch (JsonException)
+            {
+                // Decoration on a working page. A malformed line is not worth an
+                // error in her chat.
+            }
+            StateHasChanged();
+        });
     }
 
     private async Task ToggleAsync()
@@ -183,7 +264,16 @@
 
     private Task OnConversationChangedAsync()
     {
-        if (_disposed || !_open)
+        if (_disposed)
+        {
+            return Task.CompletedTask;
+        }
+        // The witnessed message is what the errands were standing in for, so
+        // they go when it arrives. Cleared even with the drawer shut: a run
+        // watched from behind a closed drawer would otherwise leave its rows to
+        // greet her the next time she opens it, describing work long finished.
+        _activity.Clear();
+        if (!_open)
         {
             return Task.CompletedTask;
         }
@@ -357,7 +447,17 @@
         Events.ConnectionInterrupted -= OnInterruptedAsync;
         ContextState.Changed -= OnContextChanged;
         ContextState.ConversationChanged -= OnConversationChangedAsync;
+        ContextState.GenerationActivity -= OnGenerationActivityAsync;
         await Events.DisconnectAsync();
+    }
+
+    /// <summary>One errand as it is drawn: a start, later ticked off.</summary>
+    private sealed class ActivityRow
+    {
+        public int Seq { get; set; }
+        public string? Code { get; set; }
+        public bool Done { get; set; }
+        public bool Empty { get; set; }
     }
 
     private sealed class ChatMessageView(string role, string text)

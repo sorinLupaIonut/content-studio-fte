@@ -9,6 +9,7 @@ import logging
 import time
 import unicodedata
 import uuid
+from collections import deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from types import SimpleNamespace
@@ -246,6 +247,65 @@ def describe_batch(request: GenerationBatchRequest) -> str:
     return " — ".join(parts)
 
 
+#: What the interface calls each errand. The tool NAMES are the contract with
+#: the model and never move; these are what a person reads, so they are codes
+#: and `Copy.cs` chooses the words - the same rule as a refusal she reads.
+ACTIVITY_CODES = {
+    "search_books": "books",
+    "search_web": "web",
+    "exec_command": "method",
+    "write_stdin": "method",
+}
+
+
+class ActivityLog:
+    """The errands of one batch, while they happen. Append-only, and forgotten.
+
+    Two rows per errand rather than one mutated row: a reader asks for
+    everything after a sequence number, so a line that changed in place would
+    never be sent again. `done` carries `of`, the sequence of the `running` line
+    it finishes, and the interface pairs them.
+
+    Bounded because it must be: a batch that somehow never ends must not grow a
+    list until the process dies. Old lines fall off the front; the interface has
+    already drawn them.
+    """
+
+    def __init__(self, keep: int = 60) -> None:
+        self._lines: deque[dict[str, Any]] = deque(maxlen=keep)
+        self._sequence = 0
+
+    def started(self, tool_name: str) -> int:
+        self._sequence += 1
+        self._lines.append(
+            {
+                "seq": self._sequence,
+                "code": ACTIVITY_CODES.get(tool_name, "tool"),
+                "tool": tool_name,
+                "state": "running",
+            }
+        )
+        return self._sequence
+
+    def finished(self, of: int, *, empty: bool) -> None:
+        self._sequence += 1
+        self._lines.append(
+            {
+                "seq": self._sequence,
+                "of": of,
+                "state": "done",
+                "empty": empty,
+            }
+        )
+
+    def since(self, sequence: int) -> list[dict[str, Any]]:
+        return [line for line in self._lines if line["seq"] > sequence]
+
+    @property
+    def sequence(self) -> int:
+        return self._sequence
+
+
 class _MeteredRun(RunHooks):
     """Keep hold of the run context so a FAILED run can still be metered.
 
@@ -264,8 +324,13 @@ class _MeteredRun(RunHooks):
 
     """
 
-    def __init__(self) -> None:
+    def __init__(self, activity: ActivityLog | None = None) -> None:
         self.context: Any | None = None
+        self._activity = activity
+        # Keyed by the tool object: the SDK hands back the same instance on end,
+        # and a run makes several calls to one tool - `search_books` twice is two
+        # rows, so a name would collide where an identity does not.
+        self._open: dict[int, int] = {}
 
     async def on_llm_start(self, context, agent, *args, **kwargs) -> None:  # noqa: ARG002
         self.context = context
@@ -278,6 +343,21 @@ class _MeteredRun(RunHooks):
 
     async def on_agent_end(self, context, agent, output) -> None:  # noqa: ARG002
         self.context = context
+
+    async def on_tool_start(self, context, agent, tool) -> None:  # noqa: ARG002
+        if self._activity is not None:
+            self._open[id(tool)] = self._activity.started(getattr(tool, "name", "tool"))
+
+    async def on_tool_end(self, context, agent, tool, result) -> None:  # noqa: ARG002
+        if self._activity is None:
+            return
+        started = self._open.pop(id(tool), None)
+        if started is None:
+            return
+        # "Came back with nothing" is worth showing: a search that returned no
+        # passage is the difference between a run that had material and one that
+        # wrote from memory, and it is invisible in a spinner.
+        self._activity.finished(started, empty=not str(result or "").strip())
 
     def spent(self) -> Any | None:
         """Something shaped like a run result, for `Accounts.record_run`.
@@ -317,6 +397,10 @@ class GenerationCoordinator:
         # does not stop it: both requests read `waiting` before either writes
         # `generating`.
         self._idea_tasks: dict[tuple[UUID, int], asyncio.Task[None]] = {}
+        #: One activity log per batch, live only - see `ActivityLog`. Bounded
+        #: in `activity_for`, because a process that never restarts would
+        #: otherwise keep one entry per batch ever generated.
+        self._activity: dict[str, ActivityLog] = {}
 
     async def close(self) -> None:
         tasks = list(self._tasks.values())
@@ -733,8 +817,24 @@ class GenerationCoordinator:
         last_signature: str | None = None
         seen_ideas: dict[str, str] = {}
         last_heartbeat = time.monotonic()
+        activity_at = 0
         try:
             while True:
+                # Drained BEFORE the batch is read, so the last errands of a
+                # run still go out on the pass that sees it finish and
+                # returns. `.get`, never `activity_for`: a reader must not
+                # bring a log into existence for a batch nothing is running.
+                log = self._activity.get(str(batch_id))
+                if log is not None and log.sequence > activity_at:
+                    for line in log.since(activity_at):
+                        sequence += 1
+                        yield StreamEvent(
+                            sequence=sequence,
+                            event="activity",
+                            batch_id=batch_id,
+                            payload=line,
+                        )
+                    activity_at = log.sequence
                 raw = await drafts.get(batch_id)
                 self._ensure_owner(raw, principal_id)
                 public = public_batch(raw)
@@ -787,6 +887,19 @@ class GenerationCoordinator:
                     "cancelled": "cancelled",
                     "replaced": "cancelled",
                 }.get(batch_status)
+                # A BATCH IS `ready` LONG BEFORE THE WORK IS. It flips as soon as
+                # the titles and a few details are in, and she develops the rest
+                # afterwards - so closing here left every later idea with no
+                # stream at all: no `idea.ready`, no activity, a card that sits
+                # on "generating" until the page is reloaded by hand. Found in
+                # the browser on 2026-08-31, with idea 5 writing and nothing
+                # able to say so. The stream ends when nothing is running, not
+                # when a status word says so.
+                if terminal_event is not None and any(
+                    str(idea.get("status")) in {"generating", "retrying"}
+                    for idea in ideas
+                ):
+                    terminal_event = None
                 if terminal_event is not None:
                     sequence += 1
                     yield StreamEvent(
@@ -1075,6 +1188,19 @@ class GenerationCoordinator:
     ):
         return await self._run_agent(agent, prompt, output_type, label, group)
 
+    #: How many batches keep an activity log. Only the current one is ever read
+    #: - the stream closes with its batch - so this is a floor for "the reader
+    #: is a little behind", not a history anybody browses.
+    ACTIVITY_LOGS_KEPT = 8
+
+    def activity_for(self, group: str) -> ActivityLog:
+        """The log of one batch, made on first use and eventually dropped."""
+        if group not in self._activity:
+            while len(self._activity) >= self.ACTIVITY_LOGS_KEPT:
+                self._activity.pop(next(iter(self._activity)))
+            self._activity[group] = ActivityLog()
+        return self._activity[group]
+
     async def _run_agent(
         self,
         agent,
@@ -1122,7 +1248,7 @@ class GenerationCoordinator:
         # $0.1019 and recorded $0.0770. The gap scales with the failure rate,
         # which is exactly backwards for a budget meant to stop runaway
         # spending: the worse an account behaves, the less of it the gate sees.
-        metered = _MeteredRun()
+        metered = _MeteredRun(self.activity_for(group))
         try:
             result = await asyncio.wait_for(
                 Runner.run(

@@ -47,6 +47,26 @@ public sealed class StudioContextState(LanguageState language)
     public event Func<Task>? ConversationChanged;
     public event Func<Task>? ConversationReset;
 
+    // What a generation run is doing right now — one line per errand, live and
+    // never stored. The generator page receives it (it owns that stream) and the
+    // drawer draws it, so it travels through here like the other two. It is
+    // deliberately NOT part of `ConversationChanged`: that one means "the
+    // transcript grew, go and read it", and an errand is not a message.
+    public event Func<string, Task>? GenerationActivity;
+
+    public async Task NotifyGenerationActivityAsync(string payload)
+    {
+        if (GenerationActivity is null)
+        {
+            return;
+        }
+        foreach (var handler in GenerationActivity.GetInvocationList()
+                     .Cast<Func<string, Task>>())
+        {
+            await handler(payload);
+        }
+    }
+
     public async Task NotifyConversationChangedAsync()
     {
         if (ConversationChanged is null)

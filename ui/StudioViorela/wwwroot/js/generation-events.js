@@ -6,6 +6,11 @@ const eventTypes = [
     "titles.ready",
     "idea.ready",
     "idea.failed",
+    // Carries a payload rather than a nudge, and is the only one that does:
+    // every other event means "something changed, go and read it", while this
+    // one IS the thing. Refreshing the batch for each errand would be an HTTP
+    // round trip per tool call.
+    "activity",
     "completed",
     "cancelled",
     "error"
@@ -27,6 +32,10 @@ export function connect(url, dotnet) {
     for (const type of eventTypes) {
         source.addEventListener(type, event => {
             if (typeof event.data !== "string") {
+                return;
+            }
+            if (type === "activity") {
+                dotnet.invokeMethodAsync("OnGenerationActivity", event.data);
                 return;
             }
             dotnet.invokeMethodAsync("OnGenerationEvent", type);

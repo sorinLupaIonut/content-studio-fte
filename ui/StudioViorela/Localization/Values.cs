@@ -157,6 +157,20 @@ public static class Values
     /// one way this can fail quietly — see the test in
     /// `tests/unit/test_failure_diagnosis.py` that reads this file.
     /// </summary>
+    /// <summary>One errand of a run, in the reader's language.</summary>
+    /// <remarks>
+    /// An unknown code falls back to the generic word rather than printing
+    /// itself: this is decoration on a working page, and a raw `exec_command`
+    /// in the middle of her chat would be worse than a vague one.
+    /// </remarks>
+    public static string ActivityLabel(Translator t, string? code) => code switch
+    {
+        "books" => t[Copy.ActivityBooks],
+        "web" => t[Copy.ActivityWeb],
+        "method" => t[Copy.ActivityMethod],
+        _ => t[Copy.ActivityTool]
+    };
+
     public static string GenerationError(Translator t, string? code)
     {
         if (string.IsNullOrWhiteSpace(code))

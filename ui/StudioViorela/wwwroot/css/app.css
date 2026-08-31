@@ -777,6 +777,21 @@ select:disabled {
     font-size: .78rem;
 }
 
+/* The one control on a card that spends money, and the only one that has to
+   look like a decision. Same left inset as .idea-waiting-hint and .idea-error so
+   the states still read as one column. */
+.idea-develop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 18px 15px 70px;
+}
+
+.idea-develop small {
+    color: var(--muted);
+    font-size: .78rem;
+}
+
 /* The line under a card that has titles but no variants yet. Same left inset as
    .idea-error so the three states read as one column, not three. */
 .idea-waiting-hint {
@@ -1261,6 +1276,51 @@ select:disabled {
 
 /* The middle tier of the transcript: a tool call is part of the real
    conversation, shown as one quiet, collapsed row. */
+/* What a generation run is doing, while it does it. Quieter than a message on
+   purpose: it is not part of the transcript and it disappears when the real one
+   arrives, so it must not compete with what stays. */
+.chat-activity {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-width: 88%;
+    padding: 8px 10px;
+    border: 1px dashed var(--line);
+    border-radius: 9px;
+    font-size: .72rem;
+    opacity: .85;
+}
+
+.chat-activity > small {
+    color: var(--plum);
+    font-weight: 700;
+    letter-spacing: .04em;
+}
+
+.chat-activity-row {
+    display: flex;
+    gap: 7px;
+    align-items: baseline;
+    color: var(--muted);
+}
+
+/* A finished errand stops asking for attention but stays readable: she should be
+   able to see what it did, not just what it is doing. */
+.chat-activity-row.done {
+    opacity: .62;
+}
+
+.chat-activity-mark {
+    width: .8em;
+    flex: none;
+    text-align: center;
+}
+
+.chat-activity-row em {
+    font-style: normal;
+    opacity: .8;
+}
+
 .chat-tool {
     max-width: 88%;
     padding: 6px 10px;

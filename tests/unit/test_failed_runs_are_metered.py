@@ -69,8 +69,17 @@ class RecordingAccounts:
 
 
 def coordinator(accounts) -> G.GenerationCoordinator:
+    """A coordinator with only what the metering path reads.
+
+    `__new__` rather than the constructor: building a real one wants two MCP
+    factories, an audit and a conversation log, none of which this is about.
+    The price is that a new field on the run path has to be named here too -
+    `_activity` arrived on 2026-08-31 - and the test failing loudly when that
+    happens is the point of not using a mock that answers everything.
+    """
     coord = G.GenerationCoordinator.__new__(G.GenerationCoordinator)
     coord._accounts = accounts
+    coord._activity = {}
     return coord
 
 

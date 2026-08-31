@@ -123,6 +123,28 @@ public static class Copy
     public static readonly Phrase DevelopWorking = new(
         "Scriu cele 5 variante…", "Writing the 5 variants…");
     public static readonly Phrase DevelopRetry = new("Încearcă din nou", "Try again");
+    // The card header has always been clickable and nothing said so. An explicit
+    // control says what the click BUYS - five variants, a model call - which the
+    // old hint could only imply from underneath.
+    public static readonly Phrase DevelopAction =
+        new("Dezvoltă ideea", "Write this idea");
+    public static readonly Phrase DevelopActionNote =
+        new("5 variante", "5 variants");
+
+    // ---- what a run is doing, while it does it ------------------------------
+    // Codes on the wire, words here: the same rule as a refusal she reads. The
+    // tool NAMES are the model's contract and never appear on the page.
+    public static readonly Phrase ActivityBooks =
+        new("caută în cărți", "searching the books");
+    public static readonly Phrase ActivityWeb =
+        new("caută pe internet", "searching the web");
+    public static readonly Phrase ActivityMethod =
+        new("citește metoda", "reading the method");
+    public static readonly Phrase ActivityTool = new("lucrează", "working");
+    public static readonly Phrase ActivityEmpty =
+        new("nimic găsit", "came back empty");
+    public static readonly Phrase ActivityHeading =
+        new("Ce face acum", "What it is doing");
     public static readonly Phrase FieldPillar = new("Pilon", "Pillar");
     public static readonly Phrase FieldFormat = new("Format", "Format");
 
