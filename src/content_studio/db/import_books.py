@@ -63,11 +63,22 @@ PAGE_MARKER = re.compile(r"<!--\s*pagina\s+(\d+)\s*-->")
 HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$")
 H1 = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 
-FIND_SQL = (
-    "SELECT id, metadata->>'sha256' AS sha FROM public.documents "
-    "WHERE source='library' AND title=$1"
-)
-DELETE_SQL = "DELETE FROM public.documents WHERE source='library' AND title=$1"
+# BOTH ARE SCOPED BY CLIENT, and that is not decoration. Since
+# `db.share_books` exists, one title lives on several shelves: an unscoped
+# `WHERE title = $1` would find a tester's copy, decide the book had changed,
+# and then DELETE every client's copy of it while re-inserting only one. A
+# quiet un-sharing, on the day a book is edited.
+FIND_SQL = """
+SELECT d.id, d.metadata->>'sha256' AS sha
+  FROM public.documents d
+  JOIN public.clients  c ON c.id = d.client_id
+ WHERE d.source = 'library' AND d.title = $1 AND c.slug = $2
+"""
+DELETE_SQL = """
+DELETE FROM public.documents
+ WHERE source = 'library' AND title = $1
+   AND client_id = (SELECT id FROM public.clients WHERE slug = $2)
+"""
 # The owner comes from `CLIENT_SLUG`, resolved here rather than passed in: this
 # script is run from a terminal by whoever owns the books, and a books importer
 # that takes an owner as an argument is a books importer that can put somebody
@@ -174,7 +185,7 @@ async def import_book(conn, client: AsyncOpenAI, path: Path, rewrite: bool) -> t
     text = raw.decode("utf-8")
     title, author = title_and_author(text)
 
-    existing = await conn.fetchrow(FIND_SQL, title)
+    existing = await conn.fetchrow(FIND_SQL, title, CLIENT_SLUG)
     if existing and existing["sha"] == sha and not rewrite:
         return "unchanged", 0
 
@@ -184,7 +195,7 @@ async def import_book(conn, client: AsyncOpenAI, path: Path, rewrite: bool) -> t
         return "empty, skipped", 0
 
     if existing:
-        await conn.execute(DELETE_SQL, title)
+        await conn.execute(DELETE_SQL, title, CLIENT_SLUG)
 
     metadata = {
         "sha256": sha,
