@@ -1148,7 +1148,14 @@ class GenerationCoordinator:
                             ],
                         ),
                     )
-                return
+                # NOT a bare `return`. It was one from 2026-08-31 until the same
+                # day, in a function annotated `-> bool` whose caller reads the
+                # answer to decide whether the run is closed or failed: `None` is
+                # falsy, so eight developed ideas with five variants each were
+                # each recorded as a failed run. Nothing caught it: no test
+                # read the value, and ruff was not asked the question. It is
+                # asked now - RET502, enabled in `pyproject.toml` for this.
+                return True
             except asyncio.CancelledError:
                 raise
             except BaseException as exc:  # noqa: BLE001 - per-idea isolation

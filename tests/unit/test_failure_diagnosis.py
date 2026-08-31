@@ -13,6 +13,7 @@ thing that has to be fixed, and an unrecognised one says so instead of guessing.
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import sys
 import unittest
@@ -136,3 +137,90 @@ class ClientFacingGenerationErrorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheRecordSaysWhy(unittest.TestCase):
+    """A failed run has to carry its own message, not only its family name.
+
+    The bug this holds, found on 2026-08-31 by trying to explain one real
+    `ValueError` on a Reel run and being unable to. Every surface behaved as
+    designed and the answer was still nowhere: the SDK spans carry no message,
+    the audit event carries `type(e).__name__`, `generation_ideas.last_error`
+    carries a code on purpose (a stored sentence cannot be reworded in her
+    language later) and `runs.output_message` is deliberately NULL, that being
+    the half she would read.
+
+    `ValueError` is the family name of two completely different faults here,
+    which is what made it unanswerable: pydantic's `ValidationError` is a
+    SUBCLASS of `ValueError`, so "the model wrote a different title" and "the
+    schema refused a field" arrive under one word.
+    """
+
+    def setUp(self) -> None:
+        from content_studio.audit import Audit
+
+        self.written: list[tuple[str, tuple]] = []
+        self.events: list[str] = []
+        trail = Audit.__new__(Audit)
+
+        async def record(sql, *parameters):
+            self.written.append((sql, parameters))
+
+        async def event(run_id, kind, subject=None):
+            self.events.append(f"{kind}:{subject}")
+
+        trail._write = record
+        trail.event = event
+        self.trail = trail
+
+    def failure_rows(self) -> list[dict]:
+        import json
+
+        from content_studio.audit import TRACE_SQL
+
+        return [
+            json.loads(parameters[1])["failure"]
+            for sql, parameters in self.written
+            if sql == TRACE_SQL and "failure" in parameters[1]
+        ]
+
+    def test_the_message_is_stored_beside_the_type(self) -> None:
+        asyncio.run(self.trail.failed("run-1", ValueError("detail output changed the identity")))
+        rows = self.failure_rows()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["type"], "ValueError")
+        self.assertIn("changed the identity", rows[0]["message"])
+
+    def test_a_refused_field_is_distinguishable_from_a_changed_title(self) -> None:
+        """Both are `ValueError`. Only the message separates them."""
+        from pydantic import ValidationError
+
+        from content_studio.harness.generation import IdeaVariant
+
+        try:
+            IdeaVariant(hook_type="PROVOCARE", hook="x", caption="ok", hashtags=[], cta="go")
+        except ValidationError as exc:
+            refused = exc
+        self.assertIsInstance(refused, ValueError)
+        asyncio.run(self.trail.failed("run-2", refused))
+        message = self.failure_rows()[0]["message"]
+        self.assertIn("hashtags", message)
+        self.assertIn("hook", message)
+
+    def test_the_run_is_still_marked_failed_and_the_event_still_written(self) -> None:
+        """The diagnostic is an addition. It must not displace either of them."""
+        from content_studio.audit import FAIL_RUN_SQL
+
+        asyncio.run(self.trail.failed("run-3", RuntimeError("boom")))
+        self.assertIn(FAIL_RUN_SQL, [sql for sql, _ in self.written])
+        self.assertEqual(len(self.events), 1)
+        self.assertIn("RuntimeError", self.events[0])
+
+    def test_a_long_validation_error_is_truncated_not_dropped(self) -> None:
+        asyncio.run(self.trail.failed("run-4", ValueError("x" * 9_000)))
+        self.assertEqual(len(self.failure_rows()[0]["message"]), 4_000)
+
+    def test_a_run_that_was_never_opened_writes_no_row(self) -> None:
+        """`run_id` is None when the audit could not open the run at all."""
+        asyncio.run(self.trail.failed(None, ValueError("nowhere to hang it")))
+        self.assertEqual(self.failure_rows(), [])

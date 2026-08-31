@@ -354,9 +354,38 @@ class Audit:
         await self._write(EVENT_SQL, run_id, event_name(kind, subject))
 
     async def failed(self, run_id: str | None, e: Exception) -> None:
-        """The turn died. `output_message` stays NULL, which is the visible half."""
+        """The turn died. `output_message` stays NULL, which is the visible half.
+
+        The other half is a third kind of trace row. `close_run` writes what was
+        answered and `sdk_trace` writes how it was reached; this writes why it
+        stopped, under the same `run_id`, so the three are one story.
+
+        WHY IT IS HERE AND NOT IN THE LOG. It was in the log only until
+        2026-08-31, when a `ValueError` on a real Reel run could not be explained
+        from anything this project keeps: the spans carry no message, the audit
+        event carries the exception's TYPE, `generation_ideas.last_error` carries
+        a code by design - a stored sentence cannot be reworded in her language
+        later - and `output_message` is deliberately NULL. Everything was working
+        as designed and the answer was still unreachable without Application
+        Insights, which is a different account and a fight. A type without a
+        message names the family, not the fault.
+
+        `str(e)` and nothing richer: a pydantic `ValidationError` renders every
+        rejected field here, and `ValidationError` IS a subclass of `ValueError`,
+        so this row is the only thing that separates "the model wrote a different
+        title" from "the schema refused a field". Truncated because a validation
+        error over a five-variant contract can run to thousands of characters and
+        this is a diagnostic, not an archive.
+        """
         if run_id is not None:
             await self._write(FAIL_RUN_SQL, run_id)
+            # `_write` swallows and reports its own failures, so a diagnostic
+            # that cannot be stored never costs the audit event below.
+            await self._write(
+                TRACE_SQL,
+                run_id,
+                _json({"failure": {"type": type(e).__name__, "message": str(e)[:4000]}}),
+            )
         await self.event(run_id, GUARDRAIL_TRIPPED, type(e).__name__)
 
     # ---- the approval gate --------------------------------------------------

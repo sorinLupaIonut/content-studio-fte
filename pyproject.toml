@@ -78,7 +78,15 @@ extend-exclude = ["content"]
 # I    import order, so diffs stay small
 # UP   modern syntax for the Python this project requires
 # B    bugbear: the mistakes that survive review
-select = ["E", "F", "I", "UP", "B"]
+# RET  for one rule in it: RET502, the bare `return` in a function that returns
+#      a value elsewhere. On 2026-08-31 one on the success path of
+#      `_generate_one_detail() -> bool` made eight developed ideas each record a
+#      FAILED run - the content was fine, the log said the opposite. Nothing
+#      else in the repository trips these, so it costs nothing to keep.
+#      Its autofix is WRONG for that shape - it writes `return None`, which
+#      keeps the bug - so never `--fix` this one blind. The rule earns its place
+#      by asking the question, not by answering it.
+select = ["E", "F", "I", "UP", "B", "RET"]
 
 [tool.ruff.lint.per-file-ignores]
 # The check scripts print wide report lines on purpose; wrapping them would make
