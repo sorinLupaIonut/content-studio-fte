@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import time
+import unicodedata
 import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
@@ -200,6 +201,37 @@ def retryable_generation_error(exc: BaseException) -> bool:
         marker in message
         for marker in ("rate limit", "invalid json", "structured output", "timeout")
     ) or isinstance(exc, asyncio.TimeoutError)
+
+
+#: The punctuation a model swaps without meaning to. A title written
+#: `„Ritualul de 60 de secunde"` and sent back as `"Ritualul de 60 de secunde"`
+#: is the same title; the strict equality that guarded this until 2026-08-31
+#: called it a different idea and threw away five variants that had already been
+#: written and paid for. It happened once in production, on a Carusel.
+#:
+#: THE ORDINAL IS THE IDENTITY; THE TITLE IS AN ECHO. `idea_ordinal` says which
+#: of the ten this is, and it stays exact - a wrong one means the model developed
+#: the wrong idea, which is a real fault worth losing the run over. The title is
+#: the same string handed back, so it is worth checking that the model did not
+#: invent a different idea for the slot, and not worth losing the run over a
+#: quotation mark. Both halves of that sentence are the reason this is a fold and
+#: not a `==`, and the reason it is not simply deleted either.
+_TYPOGRAPHY = (
+    {ord(ch): '"' for ch in "\u201e\u201c\u201d\u00ab\u00bb"}
+    | {ord(ch): "'" for ch in "\u2018\u2019"}
+    | {ord(ch): "-" for ch in "\u2013\u2014\u2212"}
+    | {ord("\u2026"): "..."}
+)
+
+
+def same_title(written: str, stored: str) -> bool:
+    """The same title, allowing for punctuation the model re-typed its own way."""
+
+    def fold(text: str) -> str:
+        folded = unicodedata.normalize("NFC", text).translate(_TYPOGRAPHY)
+        return " ".join(folded.split()).casefold()
+
+    return fold(written) == fold(stored)
 
 
 def describe_batch(request: GenerationBatchRequest) -> str:
@@ -964,8 +996,14 @@ class GenerationCoordinator:
                     f"{batch_id}-idea-{idea.ordinal}-attempt-{attempt}",
                     str(batch_id),
                 )
-                if value.idea_ordinal != idea.ordinal or value.title != idea.title:
+                if value.idea_ordinal != idea.ordinal or not same_title(
+                    value.title, idea.title
+                ):
                     raise ValueError("detail output changed the persisted idea identity")
+                # The stored title wins. It matched apart from punctuation, and
+                # the row should keep the string the batch was written with
+                # rather than the model's re-typing of it.
+                value = value.model_copy(update={"title": idea.title})
                 await drafts.complete_idea(batch_id, value)
                 if self._conversations is not None:
                     await self._conversations.witness(
