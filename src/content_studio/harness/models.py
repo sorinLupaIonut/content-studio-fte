@@ -46,6 +46,18 @@ class RunResponse(BaseModel):
     status: Literal["completed", "pending"]
     output: str | None = None
     requests: list[ToolApprovalRequest] = Field(default_factory=list)
+    #: Did the approved write actually land? None when the question does not
+    #: apply or could not be answered.
+    #:
+    #: `status` CANNOT ANSWER IT. A run finishes `completed` when the AGENT
+    #: finishes, and an agent whose tool refuses does not crash - it reads the
+    #: refusal and writes a sentence about it. On 2026-08-31 the profile page
+    #: reported "the change was saved" for every save it had ever offered, while
+    #: `update_profile` was raising on all of them: the agent handled the error,
+    #: the run completed, and the only place the truth existed was
+    #: `runs.output_message`. A gate that reports a write it did not make is
+    #: worse than one that refuses out loud.
+    applied: bool | None = None
 
 
 class PendingResponse(BaseModel):

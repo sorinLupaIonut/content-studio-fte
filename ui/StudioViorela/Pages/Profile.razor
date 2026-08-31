@@ -170,9 +170,20 @@ else
             var result = await Api.DecideAsync(_pending, approved);
             _pending = null;
             _activeKey = null;
-            _message = approved && result.Status == "completed"
-                ? T[Copy.ChangeSaved]
-                : T[Copy.ChangeCancelledShort];
+            // `Applied == false` is a write that was approved, ran, and did
+            // not land. Saying "saved" there is the one outcome worse than an
+            // error, and it is what this page said for every save it ever
+            // offered until 2026-08-31.
+            if (approved && result.Applied == false)
+            {
+                _error = T[Copy.ChangeNotApplied];
+            }
+            else
+            {
+                _message = approved && result.Status == "completed"
+                    ? T[Copy.ChangeSaved]
+                    : T[Copy.ChangeCancelledShort];
+            }
             if (approved)
             {
                 await LoadAsync();

@@ -476,6 +476,8 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
 | The English label for a domain value | `ui/.../Localization/Values.cs` | `conversations.ENGLISH_LABELS` mirrors it; `test_value_labels.py` reads the C# and holds them equal |
 | The provenance line under a post | `generation.SOURCE_LINE`, on the field | not the skill's literal, and not `SourceChoice` |
+| Which headings a profile has | `mcp_server.PROFILE_HEADING`, `harness/profile.HEADING` | BOTH read `#{2,3}`; the tool read `##` only until 2026-08-31 and could not save one card the page offered |
+| Whether an approved write landed | `RunResponse.applied` | `status` says the AGENT finished, not that the tool succeeded |
 | A refusal the client reads | a `code` from `harness/errors.py`, worded in `Copy.cs` | never an English sentence on her page, never a Romanian one on his |
 | Why a generated idea failed | `generation_ideas.last_error`, a code | the card prints the column verbatim; a stored sentence cannot be translated later |
 | That the language split holds | `tests/checks/safe/language_split.py` | diacritics alone miss a third of it |

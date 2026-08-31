@@ -179,6 +179,15 @@ public sealed class RunResponseDto
 
     [JsonPropertyName("requests")]
     public List<ToolApprovalDto> Requests { get; set; } = [];
+
+    /// <summary>
+    /// Did the approved write actually land? Null when the question does not
+    /// apply. <see cref="Status"/> cannot answer it: a run is "completed" when
+    /// the AGENT finishes, and an agent whose tool refuses reads the refusal
+    /// and writes a sentence about it rather than failing.
+    /// </summary>
+    [JsonPropertyName("applied")]
+    public bool? Applied { get; set; }
 }
 
 public sealed class ToolApprovalDto

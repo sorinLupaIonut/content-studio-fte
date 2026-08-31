@@ -597,7 +597,9 @@ class HarnessService:
             "call another tool and do not assume the save is approved; the "
             "application's gate will ask the user to confirm.\n\n"
             f"SECTION: {section.update_name}\n"
-            "EXACT TEXT BETWEEN THE DELIMITERS:\n"
+            "EXACT TEXT BETWEEN THE DELIMITERS. The delimiter lines mark where "
+            "the text starts and ends and are NOT part of it: send what is "
+            "between them, without the tags.\n"
             "<profile-section>\n"
             f"{new_text}\n"
             "</profile-section>"
@@ -1210,7 +1212,22 @@ class HarnessService:
                     session=session,
                     run_config=self._run_config(session_id, sandbox),
                 )
-            return await self._finish(run_id, session_id, result, trail)
+            response = await self._finish(run_id, session_id, result, trail)
+            # Was the approved write actually written? Asked by comparing the
+            # profile to what it was a moment ago, not by reading the agent's
+            # prose or the run's status - both of which said "fine" while
+            # `update_profile` was refusing every call (see `RunResponse.applied`).
+            # The read is the same MCP resource this method already opened.
+            if any(
+                decision.approved and str(stored.get("tool_name")) == "update_profile"
+                for decision, stored in matched.values()
+            ):
+                try:
+                    _, after = await read_profile(data_mcp, current_client())
+                    response.applied = after != profile_md
+                except Exception:  # noqa: BLE001 - unknown beats a false claim
+                    response.applied = None
+            return response
         except HarnessError:
             raise
         except Exception as exc:  # noqa: BLE001

@@ -51,5 +51,84 @@ class TestReplaceSection(unittest.TestCase):
         self.assertIn("Vocea ta", str(caught.exception))
 
 
+#: The shape the CLIENT'S profile actually has: six numbered `##` parts with the
+#: real sections as `###` inside them. The fixture above has no `###` at all,
+#: which is exactly why nothing here failed while every save in the interface was
+#: raising - `replace_section` matched `^##` only, and every editable card on the
+#: page is a `###`. A test document that does not look like the real document is
+#: a test that agrees with itself.
+REAL_SHAPE = """# Profilul tău — Fundația
+
+## 1. Brandul tău
+
+Introducerea părții.
+
+### Numele tău
+
+Viorela Lupa
+
+### Nișa ta
+
+Life coaching.
+
+## 2. Nișa ta — în detaliu
+
+### Cine este clienta ideală?
+
+Femei 25–45.
+"""
+
+
+class TestTheTwoHeadingLevels(unittest.TestCase):
+    def test_a_subsection_can_be_replaced(self) -> None:
+        result = replace_section(REAL_SHAPE, "Numele tău", "Viorela Lupa (nou)")
+
+        self.assertIn("### Numele tău\n\nViorela Lupa (nou)", result)
+        self.assertNotIn("\nViorela Lupa\n", result)
+        # Its neighbours are untouched, above and below.
+        self.assertIn("Introducerea părții.", result)
+        self.assertIn("Life coaching.", result)
+        self.assertIn("Femei 25–45.", result)
+
+    def test_replacing_a_part_does_not_swallow_its_subsections(self) -> None:
+        """A `##` body ends at the first `###` under it, not at the next `##`."""
+        result = replace_section(REAL_SHAPE, "1. Brandul tău", "Altă introducere.")
+
+        self.assertIn("Altă introducere.", result)
+        self.assertNotIn("Introducerea părții.", result)
+        self.assertIn("### Numele tău", result)
+        self.assertIn("Viorela Lupa", result)
+
+    def test_an_exact_title_beats_a_substring_elsewhere(self) -> None:
+        """`Nișa ta` is a `###` and is also inside `## 2. Nișa ta — în detaliu`."""
+        result = replace_section(REAL_SHAPE, "Nișa ta", "Altceva.")
+
+        self.assertIn("### Nișa ta\n\nAltceva.", result)
+        self.assertIn("## 2. Nișa ta — în detaliu", result)
+        self.assertIn("Femei 25–45.", result)
+
+    def test_the_harness_scaffolding_never_reaches_the_document(self) -> None:
+        """The prompt wraps the exact text in `<profile-section>` tags so the
+        model can see where it starts. The model copied them into the profile
+        the first time a save ever got this far - the heading bug above had
+        hidden it. A prompt asks; this makes sure."""
+        result = replace_section(
+            REAL_SHAPE,
+            "Numele tău",
+            "<profile-section>\nViorela Lupa\n</profile-section>",
+        )
+
+        self.assertNotIn("profile-section", result)
+        self.assertIn("### Numele tău\n\nViorela Lupa\n", result)
+
+    def test_the_error_lists_both_levels(self) -> None:
+        with self.assertRaises(ValueError) as caught:
+            replace_section(REAL_SHAPE, "Tarife", "…")
+
+        message = str(caught.exception)
+        self.assertIn("Numele tău", message)
+        self.assertIn("1. Brandul tău", message)
+
+
 if __name__ == "__main__":
     unittest.main()

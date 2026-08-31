@@ -726,25 +726,62 @@ UPDATE public.clients SET profile_md = $2, updated_at = NOW() WHERE id = $1
 """
 
 
+#: Both heading levels the profile uses. `##` are the six numbered parts, `###`
+#: are the sections inside them.
+#:
+#: IT WAS `^##` UNTIL 2026-08-31, AND THAT MADE THIS TOOL UNABLE TO EDIT ANYTHING
+#: THE INTERFACE OFFERS. `harness/profile.py` reads `#{2,3}` and shows the `###`
+#: sections as the editable cards - every card on the page. This matched only the
+#: `##` parents, so every save raised "there is no section named …", in both
+#: languages, for as long as the page has existed. The run still finished
+#: `completed`, because the agent handled the tool error and wrote a sentence
+#: about it, and the page said "the change was saved". Found on 2026-08-31 by
+#: editing a name in the browser and then reading `clients.updated_at`, which had
+#: not moved.
+#:
+#: Horizontal whitespace only after the hashes. `\s` would swallow the blank
+#: lines after the heading and then add extra spacing on rewrite.
+PROFILE_HEADING = re.compile(r"^(#{2,3})[ \t]+(.+?)[ \t]*$", re.MULTILINE)
+
+#: The wrapper the harness puts around the exact text it wants written back, so
+#: the model can see where the section starts and ends. It is scaffolding, and
+#: the model copied it into the document the first time a save ever reached this
+#: function (2026-08-31 — every earlier save had failed on the heading level
+#: above, so nobody had seen it). A prompt asks; this makes sure. The client's
+#: profile is a document she reads, and it does not carry our tags.
+SCAFFOLD = re.compile(r"</?profile-section>", re.IGNORECASE)
+
+
+def without_scaffolding(new_text: str) -> str:
+    return SCAFFOLD.sub("", new_text).strip()
+
+
 def replace_section(profile: str, section: str, new_text: str) -> str:
-    """Replace the body of a `## …` section, leaving the rest of the profile alone.
+    """Replace the body of a `##` or `###` section, leaving the rest alone.
 
     The section heading keeps whatever the profile says, not what the model wrote —
     otherwise a difference in diacritics or an emoji would rewrite the heading.
+
+    A section's body ends at the NEXT heading of either level, so replacing a
+    `##` part rewrites its own introduction and never swallows the `###` sections
+    underneath it.
     """
-    # Horizontal whitespace only around the heading. `\s` would swallow the blank
-    # lines after it and then add extra spacing on rewrite.
-    headings = list(re.finditer(r"^##[ \t]+(.+?)[ \t]*$", profile, re.MULTILINE))
+    new_text = without_scaffolding(new_text)
+    headings = list(PROFILE_HEADING.finditer(profile))
     wanted = section.strip().lower()
 
-    for i, heading in enumerate(headings):
-        if wanted not in heading.group(1).lower():
-            continue
-        start = heading.end()
+    # Exact title first, substring second. "Your niche" names a `###` section and
+    # is also inside the `## 2. Your niche — in detail` part; the one the caller
+    # typed in full is the one they meant.
+    exact = [i for i, h in enumerate(headings) if h.group(2).strip().lower() == wanted]
+    loose = [i for i, h in enumerate(headings) if wanted in h.group(2).lower()]
+
+    for i in exact or loose:
+        start = headings[i].end()
         end = headings[i + 1].start() if i + 1 < len(headings) else len(profile)
         return profile[:start] + "\n\n" + new_text.strip() + "\n\n" + profile[end:]
 
-    existing = "\n".join(f"  · {h.group(1)}" for h in headings)
+    existing = "\n".join(f"  · {h.group(2)}" for h in headings)
     raise ValueError(
         f"There is no section containing {section!r} in the profile.\n"
         f"Today's sections are:\n{existing}"
