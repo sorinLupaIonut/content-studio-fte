@@ -1136,7 +1136,12 @@ select:disabled {
     right: 0;
     display: grid;
     grid-template-rows: auto auto 1fr auto;
-    width: min(430px, 100vw);
+    /* `100%` and not `100vw`: on a fixed element a percentage resolves against
+       the layout viewport, while `100vw` counts the classic scrollbar too. Anchored
+       to `right: 0`, those extra pixels hang off the LEFT edge - and a left overflow
+       is not scrollable, so that strip of the drawer is simply unreachable. Measured
+       on 2026-08-31: 408px of drawer in 393px of usable width. */
+    width: min(430px, 100%);
     height: 100dvh;
     background: var(--surface);
     box-shadow: -20px 0 60px rgba(0, 0, 0, .55);
