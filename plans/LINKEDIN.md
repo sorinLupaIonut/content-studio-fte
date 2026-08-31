@@ -9,6 +9,10 @@ scrie fără să deschizi LinkedIn — și ca să ai de unde edita dacă vrei al
 | **Projects** | intrarea completă de mai jos, iul. 2026 – prezent, 5 skill-uri, media GitHub | **primul** |
 | **Skills** | LLM · Python · Software Architecture · PostgreSQL · Microsoft Azure, toate legate de proiect | — |
 
+**Editat pe 31 august, la cererea lui Sorin:** blocul de patru puncte se numea
+„What I'd want to be asked about" — suna a interviu pus in scena, nu a
+descriere de proiect. Se numeste „Key engineering decisions" acum.
+
 **Ce n-am atins:** headline-ul, banner-ul, About. Headline-ul tău spune deja
 „Agentic AI Engineer & Senior .NET Developer", iar banner-ul „AI workers you can
 audit — every action traced, every claim verified" — proiectul ăsta e chiar dovada
@@ -39,7 +43,7 @@ model-visible tools and 25 internal · Neon Postgres + pgvector, 18 tables · sk
 as editable folders mounted into an E2B container per run · .NET 10 Blazor
 WebAssembly + FastAPI · OpenTelemetry to Application Insights and Arize Phoenix.
 
-What I'd want to be asked about:
+Key engineering decisions:
 
 • Architecture selection, with the rejections written down. Single agent + ReAct,
   with the plan supplied as a read-only skill folder the domain expert edits
