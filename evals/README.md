@@ -89,13 +89,21 @@ rephrasing. The optimum is taken over correct runs for the reason written into
 **shorter** path, and `min(turns)` outright would let a run that did nothing set
 the floor.
 
-**The last two are the only ones that read the text**, and they are judged by
-**DeepSeek**, not `EVAL_JUDGE_MODEL`. `config.py` made that call before the group
-existed: a grader from the same lineage as the author marks its own work. Which
-tool was called is not a question `gpt-5-mini` has a stylistic stake in; whether
-this Romanian reads as native is entirely one. Measured on the controls,
-2026-09-01 — `voice` 20/20 and `human` 20/20 for DeepSeek, against gpt-5's 18/20
-on `voice`, where it rejected two of her own published pieces.
+**The last two are the only ones that read the text.** They judge with
+`EVAL_JUDGE_MODEL` like everything else — which is the family that writes the
+posts, and that objection was taken seriously enough to test rather than argue.
+`config.py` names DeepSeek precisely to avoid it; it was wired in and run
+against both control sets on 2026-09-01, with the rubrics de-leaked first:
+
+| | deepseek-chat | gpt-5-mini |
+|---|---|---|
+| `voice` | 4/4 planted, **16/16** hers | 4/4 planted, 15/16 hers |
+| `human` | **2/4** planted, 15/16 hers | 4/4 planted, 14/16 hers |
+
+DeepSeek judges her voice better and cannot do `human` at all — it passed a
+caption taken verbatim from a real run, noting „practică a refuza" was odd and
+then excusing it. One judge, then, and the independence is bought back by the
+controls instead. `--judge deepseek` re-runs either metric through it.
 
 They also **skip a `titluri` case**, which writes titles and angles and has no
 hook to read — a scoreless skip, the same rule `relevance_*` follows for a tool
@@ -395,6 +403,30 @@ and the rubric was retuned against her own writing until it was not.
 needs: the generated rows carry no expected score, so paying for them while
 tuning buys nothing.
 
+**One judged pass is a sample, not a verdict.** The same rubric and the same
+judge scored the planted set 4/4 and then 3/4 on identical input — and since one
+missed plant voids the whole run, that flip is the difference between a metric
+that reports and one that refuses to. `--repeat N` grades every row N times and
+keeps the majority, with `agreement` carried beside the score so a row the judge
+is genuinely torn about is visible instead of rounded into confidence. Use it
+for any number that has to hold up.
+
+**A loanword is not a translation artefact.** On a majority of three the rubric
+rejected four of her sixteen published pieces, three for the same reason: the
+phrase „people pleasing". Measured against her corpus — „burnout" in 13 of 27
+posts, „coach" in 18 — that is her professional vocabulary, and Romanian
+coaching writing borrows it untranslated. A criterion that calls an author's own
+field terminology foreign is wrong about the language; correcting it is not the
+same as tuning until the controls pass, and the difference is whether you can
+show the corpus.
+
+**A negative control must be one nobody can defend.** The case that flipped was
+one written here — „Ia o respirație adâncă. Nu ești singură în această
+călătorie…", called a stack of calques. Two different judges read it as natural
+and they had a point: that register is ordinary in Romanian self-help writing
+now. It was replaced with an agreement error („3 pași care te VA ajuta"), which
+is not a matter of taste.
+
 ### One question each, and no rule layer
 
 Both metrics are a single question put to a judge. There was a deterministic
@@ -413,21 +445,25 @@ the writing flags the author's best work and calls it a finding.**
 letters `ş`/`ţ` into Romanian that otherwise uses `ș`/`ț` — measured over the 60
 ready variants and her 27 posts: three generated captions mix them, one at 8
 against 9 inside a single caption, and none of hers do. Six lines of `str.count`
-caught every one. It was planted as a control instead, and **DeepSeek passed it
-twice** — the second time with the character scan as the literal first line of
-the rubric. That is not a wording problem: `Eşti` and `Ești` are two different
+caught every one. It was planted as a control instead and the judge passed it
+twice, the second time with the character scan as the literal first line of the
+rubric. That is not a wording problem: `Eşti` and `Ești` are two different
 tokens, and a judge reads tokens. The control was removed rather than left
 permanently failing, and **nothing catches that fault now.**
+
+**And a rubric must not quote its own controls.** `human` originally named „mai
+puțin oboseală" — the exact phrase inside a planted case — and scored 4/4. With
+a different specimen of the same fault it scored 2/4 on the same judge. The
+first number was recall, not measurement. `tests/unit/test_rubrics_do_not_leak.py`
+holds both rubrics to that, over the whole control set.
 
 ### What it does not do
 
 - **n = 10.** Ten frozen variants, two fields. A sample, not a verdict.
-- **The judge is DeepSeek, deliberately.** `config.py` chose it and kept the
-  address through the group's absence, because a grader from the same lineage as
-  the author marks its own work. Measured on the controls: DeepSeek 20/20 on
-  both metrics, gpt-5 18/20 on `voice`, where it rejected two of her own
-  published pieces. The independent judge is also the cheaper one and, here, the
-  better one — but it cannot see characters, as the section above records.
+- **The judge writes in the same family as the author**, and the controls are
+  the only thing standing between that and self-congratulation. Read them first,
+  every time. The table above is what an independent judge scored; re-make it
+  with `--judge deepseek` whenever a rubric changes shape.
 - **It does not read spans.** It reads finished text, so it needs no Phoenix and
   no time window. It is not part of `experiment.py` yet.
 

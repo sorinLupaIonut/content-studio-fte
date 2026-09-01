@@ -193,6 +193,15 @@ def her_own(limit: int = 8) -> list[Case]:
 #: are deliberately fluent: a negative control that is obviously broken tests
 #: nothing, because a judge that only catches gibberish would pass it too.
 #:
+#: FLUENT, BUT NOT ARGUABLE — and the difference cost a run to learn. The first
+#: `planted-human-1` was „Ia o respirație adâncă. Nu ești singură în această
+#: călătorie…”, called a stack of calques. Two different judges read it as
+#: natural, and they had a case: that register is ordinary in Romanian self-help
+#: writing now. A negative control a competent speaker could defend is not a
+#: control, it is a coin — it flipped between two runs of the SAME rubric and
+#: judge and took the whole metric to FAIL with it. Its replacement turns on an
+#: agreement error („3 pași care te VA ajuta”), which nobody defends.
+#:
 #: The voice half plants rules from her profile's „Lucruri pe care nu le spui
 #: niciodată” and „Tonul tău”. The human half plants what a machine translating
 #: into Romanian does: calques, agreement slips, telegraphic lists.
@@ -245,10 +254,10 @@ PLANTED_VOICE: list[tuple[str, str, str]] = [
 PLANTED_HUMAN: list[tuple[str, str, str]] = [
     (
         "hook",
-        "Ia o respirație adâncă. Nu ești singură în această călătorie — și "
-        "asta este perfect în regulă.",
-        "three calques in one line: take a deep breath (Romanian says „respiră "
-        "adânc”), the self-help „journey”, and „that is perfectly okay”",
+        "Simți că ești blocată? Iată 3 pași care te va ajuta să te miști "
+        "înainte chiar de azi.",
+        "an agreement error a native cannot make — „3 pași care te VA ajuta” for "
+        "„care te VOR ajuta” — plus „să te miști înainte” for move forward",
     ),
     (
         "hook",
@@ -316,48 +325,85 @@ def frame_for(
 def judge_llm(override: str | None = None) -> tuple[LLM, str]:
     """The grader for both output metrics, and its name for the report.
 
-    DEEPSEEK, AND NOT THE FAMILY THAT WRITES THE POSTS. `config.py` made this
-    decision before this group existed and kept the address after the group was
-    removed, with the reason written next to it: a grader from the same lineage
-    as the author marks its own work. That is a caveat for a route score — which
-    tool was called is not a question a model has a stylistic stake in — and the
-    entire failure mode for these two, which ask whether Romanian reads as
-    native and whether it sounds like one particular woman. Asking `gpt-5-mini`
-    to fault `gpt-5-mini`'s Romanian is asking it to fault its own dialect.
+    `gpt-5-mini`, the same judge as every other group, and it is chosen on
+    evidence rather than convenience — the evidence being that the alternative
+    was tried properly and lost.
 
-    IT IS ONLY WORTH ANYTHING IF IT CAN ACTUALLY JUDGE ROMANIAN, and that is not
-    assumed here — it is measured, every run, by the controls. See
-    `controls_verdict`: her own published writing has to pass and the planted
-    violations have to fail, or the run prints no score at all. A judge that
-    cannot tell those apart is not a cheaper judge, it is no judge.
+    THE OBJECTION IS REAL: this is the family that WRITES the posts, and a
+    grader from the author's own lineage marks its own work. `config.py` names
+    DeepSeek for exactly that reason and kept the address through this group's
+    absence. It was wired in on 2026-09-01 and measured on the controls, with
+    both rubrics de-leaked so the numbers mean generalisation:
 
-    Falls back to `EVAL_JUDGE_MODEL` with no key configured, rather than
-    refusing: an empty address has always meant the judged metrics degrade, not
-    that the suite stops.
+        metric   deepseek-chat            gpt-5-mini
+        voice    4/4 planted, 16/16 hers  4/4 planted, 15/16 hers
+        human    2/4 planted, 15/16 hers  4/4 planted, 14/16 hers
+
+    DeepSeek is the better judge of her VOICE and cannot do `human` at all: it
+    passed two planted violations, one of them a caption taken verbatim from a
+    real run — it noticed „practică a refuza” was odd, then excused it. An
+    independent judge that cannot tell translated Romanian from native is not a
+    second opinion, it is a coin.
+
+    So: one judge, and the controls are what stop that being self-congratulation.
+    `--judge deepseek` still runs the whole thing through DeepSeek, which is how
+    the table above was made and how it should be re-made if either rubric
+    changes shape.
     """
 
-    # An override names an OpenAI-family model, so it also answers the question
-    # "is this the rubric's ceiling or this judge's?" — which is worth asking
-    # before rewriting a rubric for the fourth time.
-    if override:
-        return LLM(provider="openai", model=override), override
+    if override in {"deepseek", DEEPSEEK_MODEL} and DEEPSEEK_API_KEY:
+        client_kwargs = {"base_url": DEEPSEEK_BASE_URL, "api_key": DEEPSEEK_API_KEY}
+        return (
+            LLM(
+                provider="openai",
+                model=DEEPSEEK_MODEL,
+                sync_client_kwargs=client_kwargs,
+                async_client_kwargs=client_kwargs,
+            ),
+            DEEPSEEK_MODEL,
+        )
 
-    if not DEEPSEEK_API_KEY:
-        return LLM(provider="openai", model=EVAL_JUDGE_MODEL), EVAL_JUDGE_MODEL
-
-    client_kwargs = {"base_url": DEEPSEEK_BASE_URL, "api_key": DEEPSEEK_API_KEY}
-    return (
-        LLM(
-            provider="openai",
-            model=DEEPSEEK_MODEL,
-            sync_client_kwargs=client_kwargs,
-            async_client_kwargs=client_kwargs,
-        ),
-        DEEPSEEK_MODEL,
-    )
+    model = override or EVAL_JUDGE_MODEL
+    return LLM(provider="openai", model=model), model
 
 
 # ---- shared plumbing ---------------------------------------------------------
+
+
+def judge_repeatedly(frame: pd.DataFrame, evaluator, metric: str, times: int):
+    """Grade every row `times` times and keep the majority verdict.
+
+    ONE JUDGED PASS IS A SAMPLE, NOT A VERDICT, and this file learned it the
+    expensive way. The same rubric and the same judge scored the planted set 4/4
+    and then 3/4 on identical input — and because a single missed plant voids
+    the whole run, that flip is the difference between a metric that reports and
+    a metric that refuses to. The repo already knows this shape: `route/` says
+    n=1 per square is a sample too.
+
+    The mean of the 0/1 scores is kept next to the verdict as `agreement`, so a
+    row the judge is genuinely torn about (0.5) is visible rather than rounded
+    away into a confident-looking answer.
+    """
+
+    from phoenix.evals import evaluate_dataframe  # local: keeps the import cost off callers
+
+    runs = [
+        unpack(frame, evaluate_dataframe(frame, [evaluator]), metric)
+        for _ in range(max(1, times))
+    ]
+    out = runs[-1].copy()
+    if len(runs) == 1:
+        out["agreement"] = 1.0
+        return out
+
+    scored = pd.DataFrame([run["score"] for run in runs])
+    mean = scored.mean(axis=0, skipna=True)
+    out["score"] = [None if pd.isna(v) else float(v >= 0.5) for v in mean]
+    # 1.0 when every pass agreed, 0.5 when they split evenly.
+    out["agreement"] = [
+        None if pd.isna(v) else max(v, 1.0 - v) for v in mean
+    ]
+    return out
 
 
 def unpack(frame: pd.DataFrame, graded: pd.DataFrame, metric: str) -> pd.DataFrame:

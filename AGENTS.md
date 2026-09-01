@@ -515,7 +515,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Whether the Romanian reads as a person's | `evals/output/human.py` | the cedilla mix is free and certain; the calques need a judge |
 | Whether an output metric may be believed at all | `output/cases.py` → `controls_verdict` | her own posts must pass and planted violations must fail, or the run prints no score |
 | Which models an account may choose | `config.models_for(slug)` | asked by `/api/me` to draw the picker and again by the start endpoint to honour one |
-| What grades the writing | DeepSeek, via `config.DEEPSEEK_*` | never the family that writes: mini grading mini's Romanian marks its own homework. Measured 2026-09-01 — DeepSeek 20/20 on both control sets, gpt-5 18/20 on `voice` |
+| What grades the writing | `EVAL_JUDGE_MODEL`, checked by the controls | it IS the family that writes, and that was tested rather than argued: DeepSeek (`--judge deepseek`) judges her voice better, 16/16 against 15/16, and caught 2 of 4 planted violations on `human` against mini's 4/4. One judge; the controls buy the independence back |
 
 ## Conventions
 
@@ -584,11 +584,30 @@ best work. What that costs is written in the README: nothing now catches the
 legacy cedilla letters (`ş`/`ţ`) that real output mixes into Romanian, because a
 judge reads tokens and `Eşti` and `Ești` are two of them.
 
+**A RUBRIC MUST NOT QUOTE ITS OWN CONTROLS.** `human` named „mai puțin oboseală"
+— the exact phrase inside a planted case — and scored 4/4. Given a different
+specimen of the same fault it scored 2/4 on the same judge: the first number was
+a string match, not a measurement. `tests/unit/test_rubrics_do_not_leak.py` holds
+both rubrics to that. Stripping the examples out entirely is the other ditch —
+it took `human` from 4/4 to 2/4 and passed the real production caption. Name the
+kind of fault, with a specimen the controls do not contain.
+
 The rows that would be judged, free, before paying:
 
 ```bash
 uv run python evals/output/human.py --dry-run
 ```
+
+**One judged pass is a sample, not a verdict.** The same rubric and the same
+judge scored the planted set 4/4 and then 3/4 on identical input. Since one
+missed plant voids the run, that flip decides whether a metric reports at all —
+so `--repeat N` grades every row N times and keeps the majority, carrying
+`agreement` beside the score. Use it for any number that has to hold up. The
+same caveat `route/` already writes about n=1 per square.
+
+**A negative control must be one nobody can defend.** The case that flipped was
+written here and was arguable — two judges read it as natural Romanian and had a
+point. Replaced with an agreement error, which is not a matter of taste.
 
 **A metric that fails its own controls prints no result.** Both grade her own
 published posts (expected good) and planted violations (expected bad) alongside

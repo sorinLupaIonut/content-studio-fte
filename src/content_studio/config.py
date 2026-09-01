@@ -257,10 +257,19 @@ PHOENIX_PROJECT_NAME = os.getenv("PHOENIX_PROJECT_NAME", "studio-viorela").strip
 # the posts. A grader from the same lineage as the author marks its own work -
 # the bias the eval course names first. DeepSeek shares no training lineage with
 # gpt-5, which is the whole reason it is here; the price is a side benefit.
-# Never read by the worker: nothing the client runs depends on it. Its only
-# reader, `evals/output/`, was removed on 2026-08-30; the address is kept here
-# because the judge is a decision, not a folder, and empty has always meant the
-# judged metrics are skipped rather than failed.
+# Never read by the worker: nothing the client runs depends on it. Its reader,
+# `evals/output/`, came back on 2026-09-01 — and then measured this address
+# against the family it was meant to replace, on both control sets:
+#
+#     metric   deepseek-chat            gpt-5-mini
+#     voice    4/4 planted, 16/16 hers  4/4 planted, 15/16 hers
+#     human    2/4 planted, 15/16 hers  4/4 planted, 14/16 hers
+#
+# DeepSeek judges her VOICE better and cannot judge `human` at all: it passed
+# two planted violations, one a caption taken verbatim from a real run. So the
+# default judge is `EVAL_JUDGE_MODEL` after all, the independence is bought back
+# by the controls instead, and this stays reachable — `--judge deepseek` — as
+# the second opinion that made the table above.
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip()
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat").strip()

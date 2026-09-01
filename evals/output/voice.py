@@ -22,11 +22,15 @@ ONE QUESTION, PUT TO A JUDGE. No rule layer beside it — see `cases.py` for the
 word list that was tried and measured and deleted, and for why: her own
 published posts break four of the ten rules her profile states.
 
-THE JUDGE IS DEEPSEEK, and it is not a cost decision. `config.py` chose it
-before this group existed: a grader from the same lineage as the author marks
-its own work. Whether it can actually judge Romanian is not assumed — the
-controls test it every run, and if her own writing fails or a planted violation
-passes, no score is printed at all.
+THE JUDGE IS `EVAL_JUDGE_MODEL`, and the objection to that is real: it is the
+family that writes the posts. `config.py` names DeepSeek for exactly that
+reason, it was wired in and measured on 2026-09-01, and it judges HER VOICE
+better — 16/16 of her own pieces against 15/16. It lost on the other metric, so
+both use one judge; see `cases.judge_llm` for the table. `--judge deepseek`
+re-runs this through it.
+
+What buys the independence back is the controls, which run every time: if her
+own writing fails or a planted violation passes, no score is printed at all.
 """
 
 from __future__ import annotations
@@ -36,7 +40,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from phoenix.evals import create_classifier, evaluate_dataframe
+from phoenix.evals import create_classifier
 
 from content_studio import enable_utf8_output
 from content_studio.config import CONTENT_DIR
@@ -50,8 +54,8 @@ from evals.output.cases import (  # noqa: E402
     controls_verdict,
     frame_for,
     judge_llm,
+    judge_repeatedly,
     report,
-    unpack,
 )
 
 enable_utf8_output()
@@ -188,6 +192,12 @@ def main() -> int:
     parser.add_argument(
         "--judge", help="grade with this OpenAI model instead of the default judge"
     )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        help="grade every row N times and keep the majority; the judge is stochastic",
+    )
     args = parser.parse_args()
 
     frame = frame_for("voice", controls=not args.no_controls, only=args.field)
@@ -216,8 +226,7 @@ def main() -> int:
         choices={"hers": 1.0, "generic": 0.0},
     )
     print(f"judge: {judge_name}")
-    graded = evaluate_dataframe(frame, [evaluator])
-    frame = unpack(frame, graded, "voice")
+    frame = judge_repeatedly(frame, evaluator, "voice", args.repeat)
 
     unreadable = int(frame["score"].isna().sum())
     if unreadable:

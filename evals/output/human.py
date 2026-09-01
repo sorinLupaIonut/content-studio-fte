@@ -25,10 +25,13 @@ twice, the second time with the character scan as the literal first line of the
 rubric. `Eşti` and `Ești` are two tokens and a judge reads tokens. Asking it to
 look at characters made the rubric longer and caught nothing.
 
-THE JUDGE IS DEEPSEEK — `config.py` chose it, and the reason is written there:
-asking `gpt-5-mini` whether this Romanian reads as machine-written is asking it
-to fault its own dialect. Whether DeepSeek can tell native Romanian from
-translated is measured every run by the controls, never assumed.
+THE JUDGE IS `EVAL_JUDGE_MODEL`, which is the family that writes the posts, and
+that objection was taken seriously enough to test. DeepSeek — named in
+`config.py` precisely to avoid it — caught 2 of 4 planted violations here, one
+of them a caption taken verbatim from a real run: it noticed „practică a
+refuza” was odd and then excused it. An independent judge that cannot tell
+translated Romanian from native is not a second opinion. `gpt-5-mini` catches
+4 of 4, so it judges, and the controls are what keep that honest.
 """
 
 from __future__ import annotations
@@ -38,7 +41,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from phoenix.evals import create_classifier, evaluate_dataframe
+from phoenix.evals import create_classifier
 
 from content_studio import enable_utf8_output
 
@@ -50,12 +53,21 @@ from evals.output.cases import (  # noqa: E402
     controls_verdict,
     frame_for,
     judge_llm,
+    judge_repeatedly,
     report,
-    unpack,
 )
 
 enable_utf8_output()
 
+#: THE LOANWORD CLAUSE IS A CORRECTION, NOT A CONCESSION. Judged on a majority
+#: of three, the rubric rejected four of her sixteen published pieces and three
+#: of them for the same reason: the phrase „people pleasing". Measured against
+#: her own corpus before the clause was written — „burnout" in 13 of 27 posts
+#: (36 times), „coach" in 18, „people pleasing" in 4 — the term is her
+#: professional vocabulary. A criterion that calls an author's own field
+#: terminology a translation artefact is wrong about the language, and fixing it
+#: is not the same as tuning until the controls pass.
+#:
 #: EVERY EXAMPLE BELOW IS DELIBERATELY *NOT* ONE OF THE CONTROL TEXTS.
 #:
 #: An earlier version quoted „mai puțin oboseală" — the exact phrase inside
@@ -100,6 +112,13 @@ you the KIND of fault — the text in front of you will have different ones:
    aphorism with a dash in the middle, a list where a sentence belonged.
 5. It does not stop where a person would stop. A closing flourish bolted on
    after the piece had already ended.
+
+A BORROWED WORD IS NOT A FAULT. Romanian coaching and wellbeing writing uses
+English terms untranslated — burnout, coaching, self-care, mindset, people
+pleasing — and so does this author: „burnout" appears in thirteen of her
+twenty-seven published posts. That is vocabulary, not translationese. What makes
+a text translated is the SENTENCE built around the word, never the word itself.
+Never let a loanword decide this.
 
 ONE IS ENOUGH. Do not weigh the faults against the fluency and settle on an
 average — a caption can flow beautifully for four sentences and still have been
@@ -187,6 +206,12 @@ def main() -> int:
     parser.add_argument(
         "--judge", help="grade with this OpenAI model instead of the default judge"
     )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        help="grade every row N times and keep the majority; the judge is stochastic",
+    )
     args = parser.parse_args()
 
     frame = frame_for("human", controls=not args.no_controls, only=args.field)
@@ -209,8 +234,7 @@ def main() -> int:
         choices={"human": 1.0, "translated": 0.0},
     )
     print(f"judge: {judge_name}")
-    graded = evaluate_dataframe(frame, [evaluator])
-    frame = unpack(frame, graded, "human")
+    frame = judge_repeatedly(frame, evaluator, "human", args.repeat)
 
     unreadable = int(frame["score"].isna().sum())
     if unreadable:

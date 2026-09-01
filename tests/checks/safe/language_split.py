@@ -114,11 +114,12 @@ ALLOWED_SUBSTRINGS = (
     # whether the topic reached the tool. Words used as data, not as prose.
     "ăâîșşțţĂÂÎȘŞȚŢ",
     "fara de a si cu la in pe sa",
-    # More data about Romanian itself, in `evals/output/`: the two legacy
-    # cedilla letters named in a finding, and one specimen of the agreement
-    # error the rubric asks the judge to catch. Both are exhibits.
-    "(ş/ţ)",
-    "mai puțin oboseală",
+    # More data about Romanian itself, in `evals/output/`: specimens of the
+    # faults the rubric asks the judge to catch, quoted so it knows the KIND.
+    # They are exhibits of broken Romanian, not prose written in it — and they
+    # are deliberately NOT the control texts, which is its own rule and its own
+    # test (`tests/unit/test_rubrics_do_not_leak.py`).
+    "mai mult energie",
     # The name of the pre-rename Romanian table, which `db/apply.py` looks for
     # so it can tell the operator which migration has not been run.
     "postari",

@@ -35,8 +35,9 @@ THE EIGHT SCORES, and where each one already lived:
 THE LAST TWO ARE THE ONLY ONES THAT READ THE TEXT. The other six grade the route
 to the writing, and all six were green on the day the client's wife read a hook
 and a caption and said neither sounded like Viorela, nor like a person. They
-judge with DeepSeek rather than `EVAL_JUDGE_MODEL`, and they skip a `titluri`
-case, which has no hook to read — both explained where they are defined.
+skip a `titluri` case, which has no hook to read, and they carry their own
+control set — her own published writing has to pass and planted violations have
+to fail, or the score is not printed.
 
 THE LABELS ARE COMPOSED, NEVER COPIED. The cases are `evals/skill/cases.json`
 — ten of them, and its own header says why ten and why those. The route half of
@@ -456,20 +457,14 @@ def convergence_evaluator(optimal: int):
 #   · They SKIP on a `titluri` case. Phase 1 writes titles and angles; there is
 #     no hook and no caption to read. A zero there would be a metric punishing a
 #     run for doing exactly what it was asked.
-#   · They judge with DEEPSEEK, not `EVAL_JUDGE_MODEL`. `config.py` made that
-#     decision before this group existed and kept the address after the group
-#     was removed: a grader from the same lineage as the author marks its own
-#     work. Which tool was called is not a question `gpt-5-mini` has a stylistic
-#     stake in; whether this Romanian reads as native is entirely one.
+#   · They judge with `EVAL_JUDGE_MODEL`, like the rest — but only after the
+#     alternative was tried and measured. A grader from the author's own lineage
+#     marks its own work, so `config.py`'s DeepSeek address was wired in and run
+#     against both control sets on 2026-09-01: DeepSeek judges her voice better
+#     (16/16 against 15/16) and cannot judge `human` at all (2/4 planted caught
+#     against 4/4), passing a caption taken verbatim from a real run. What buys
+#     the independence back is the controls, which run every time.
 #
-#     Measured on the controls, 2026-09-01, because that claim is worth nothing
-#     unless DeepSeek can actually judge Romanian: `voice` 20/20 and `human`
-#     20/20, against gpt-5's 18/20 on `voice` — it rejected two of her own
-#     published pieces. The cheaper, independent judge is also the better one
-#     here. One thing it cannot do: see characters. A planted cedilla mix
-#     (`ş`/`ţ` for `ș`/`ț`) passed twice, once with the character scan as the
-#     literal first line of the rubric — `Eşti` and `Ești` are two tokens, and a
-#     judge reads tokens.
 #   · The rubrics are IMPORTED from `evals/output/`, never restated. That is the
 #     same rule this file already follows for `run_case` and `JUDGE_PROMPT`: a
 #     score printed here and a score printed by the standalone script have to be
