@@ -18,6 +18,7 @@ from content_studio.config import (
     HARNESS_PORT,
     UI_DEV_ORIGINS,
     UI_STATIC_DIR,
+    models_for,
 )
 from content_studio.debug import attach_if_requested
 from content_studio.harness.accounts import BudgetExhausted
@@ -330,6 +331,7 @@ def create_app(
             is_admin=account.is_admin if account is not None else False,
             client_slug=account.client_slug if account is not None else None,
             client_name=account.client_name if account is not None else None,
+            models=list(models_for(account.client_slug if account else None)),
         )
 
     @app.get("/api/me/usage")
@@ -513,6 +515,22 @@ def create_app(
         request: Request,
         identity: Identity = identity_dependency,
     ) -> dict:
+        # The model is the one field on this request that costs different money
+        # per token, and it arrives from a browser. `ModelChoice` has already
+        # checked that the NAME is a model this deployment prices; this checks
+        # that THIS ACCOUNT may spend at that rate. The two are separate
+        # questions and only the second one knows who is asking.
+        if body.model is not None:
+            account = await request.app.state.harness.accounts.account_for(
+                identity.principal_id
+            )
+            allowed = models_for(account.client_slug if account else None)
+            if body.model not in allowed:
+                raise CodedError(
+                    403,
+                    f"model {body.model!r} is not available to this account",
+                    "model_not_allowed",
+                )
         batch = await request.app.state.harness.start_generation(
             identity.principal_id, body
         )

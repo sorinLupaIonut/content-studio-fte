@@ -99,6 +99,15 @@ class MeResponse(BaseModel):
     is_admin: bool = False
     client_slug: str | None = None
     client_name: str | None = None
+    # Which models this account may ask a batch to be written with. One entry
+    # means no choice, and the interface draws no picker for it - which is what
+    # every account had before 2026-09-01 and what every account but the
+    # client's own still has.
+    #
+    # A HINT FOR THE INTERFACE, exactly like `is_admin` above. The start
+    # endpoint asks `config.models_for` again before it honours a model name,
+    # because a picker that is not drawn is not a permission.
+    models: list[str] = Field(default_factory=list)
 
 
 ProfileGroup = Literal[

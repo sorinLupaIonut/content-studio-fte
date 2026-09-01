@@ -261,10 +261,20 @@ Since 2026-08-21 the studio is multi-tenant in fact, not only in the schema.
   again inside the task that writes it.
 - **The user is shown a percentage and nothing else.** The split is server-side,
   in `/api/me/usage`; hiding a figure in the interface would not hide it. The
-  model picker used to follow the same rule — its labels said how carefully the
-  thing was written, never what it cost — and it came down on 2026-08-27 when
-  nano was removed and it was left offering one option. The rule is written
-  where the picker was, in `Values.cs`, for whoever brings a second model.
+  model picker follows the same rule and always did: its labels say how
+  carefully the thing is written, never what it costs. It came down on
+  2026-08-27 when nano was removed and it was left offering one option, and it
+  came back on 2026-09-01 with `gpt-5` beside `gpt-5-mini` — „Normal" and „Mai
+  atent", both true, neither a price. `tests/unit/test_model_choice.py` fails on
+  a label containing „scump", „cheap", a currency or „premium".
+- **Only her account may choose, and the interface is not what decides that.**
+  `config.models_for(slug)` is asked twice — by `/api/me`, to know whether to
+  draw the picker, and again by the start endpoint before it honours a model
+  name that arrived from a browser. A control that is not drawn is not a
+  permission, the same rule `MeResponse.is_admin` is written under. It is her
+  account and no other because gpt-5 costs five times mini per token, and a
+  tester who picked it out of curiosity would spend a lifetime allowance in two
+  batches and be told only that nothing starts any more.
 - **A run that fails still spent the money, and the meter has to see it.** Until
   2026-08-24 metering happened only after `Runner.run` returned, so a missed
   structured contract or a turn limit left no `usage_events` row. Measured
@@ -500,6 +510,12 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Whose profile a harness read returns | `current_client()`, passed into `read_profile` | `client_of(ctx)` scopes tools, not resources |
 | Which providers carry their own allowlist | `config.py` → `AUTH_SELF_PROVISION_PROVIDERS` | decided once, in `auth.py` |
 | Who owns which books | `documents.client_id` | scoped in the SQL, not in the caller |
+| How she writes — her phrases, her tone, her limits | `voice.py`, lifted from her profile | shown to the WRITER and to the JUDGE from one place; `test_voice_block.py` fails on a second copy |
+| Whether what it wrote sounds like her | `evals/output/voice.py` | a rubric calibrated against her own published posts, not against taste |
+| Whether the Romanian reads as a person's | `evals/output/human.py` | the cedilla mix is free and certain; the calques need a judge |
+| Whether an output metric may be believed at all | `output/cases.py` → `controls_verdict` | her own posts must pass and planted violations must fail, or the run prints no score |
+| Which models an account may choose | `config.models_for(slug)` | asked by `/api/me` to draw the picker and again by the start endpoint to honour one |
+| What grades the writing | `config.OUTPUT_JUDGE_MODEL`, gpt-5 | never `EVAL_JUDGE_MODEL`: mini grading mini's Romanian marks its own homework |
 
 ## Conventions
 
@@ -542,16 +558,42 @@ uv run python tests/checks/safe/bootstrap.py
 ```
 
 Changing a skill, a tool description or the system prompt means the evals are
-the only real proof. Three groups are live — `route/` (did it reach the method and
-call the right tools), `skill/` (did the search bring back usable material) and
-`path/` (does one request said ten ways walk one path) — and
-[`evals/experiment.py`](evals/experiment.py) runs all six of their scores against
-one Phoenix dataset in one pass. It **imports** the three rather than restating
-them, so a label lives in exactly one place. [evals/README.md](evals/README.md) is
-the map. Three older groups (`runs/`, `retrieval/`, `output/`) were removed on
-2026-08-30, deliberately and with their numbers already stale; the README records
-what each measured, so a rebuild starts from the question rather than from the
-code. **Nothing grades what the studio *writes*** until `output/` comes back.
+the only real proof. Four groups are live — `route/` (did it reach the method and
+call the right tools), `skill/` (did the search bring back usable material),
+`path/` (does one request said ten ways walk one path) and, since 2026-09-01,
+`output/` (does what it wrote sound like her, and like a person) —
+and [`evals/experiment.py`](evals/experiment.py) runs six scores from the first
+three against one Phoenix dataset in one pass. It **imports** them rather than
+restating them, so a label lives in exactly one place.
+[evals/README.md](evals/README.md) is the map. `runs/` and `retrieval/` are
+still out, removed on 2026-08-30 with their numbers already stale; the README
+records what each measured, so a rebuild starts from the question rather than
+from the code.
+
+**`output/` is the only group that reads the text.** The other three grade the
+route to it, and all three were green on the day the client's wife read a hook
+and a caption and said neither sounded like Viorela, nor like a person. It is
+not in `experiment.py`: it reads finished text out of the database rather than
+spans, so it needs no Phoenix and no time window.
+
+Its free layer costs nothing and finds real defects — legacy cedilla letters
+mixed into Romanian, the words her profile forbids:
+
+```bash
+uv run python evals/output/human.py --dry-run
+```
+
+**A metric that fails its own controls prints no result.** Both grade her own
+published posts (expected good) and planted violations (expected bad) alongside
+the measurement, and `controls_verdict` refuses the summary when either
+disagrees. `voice` failed exactly that way on its first judged run — it called
+11 of her 16 published pieces generic, because the rubric asked for a
+distinctive SUBJECT and her real hooks name ordinary experiences. Retune the
+rubric against her own writing, cheaply, before paying for the measurement:
+
+```bash
+uv run python evals/output/voice.py --controls-only
+```
 
 The method reaches the container whole - one container, no model, no cost:
 

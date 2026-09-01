@@ -55,7 +55,26 @@
                 }
             </select>
         </label>
+        @* Only her account has more than one, so only her account sees this.
+           The server sends the list and checks it again on start: a select that
+           is not drawn is not a permission. *@
+        @if (_models.Count > 1)
+        {
+            <label>
+                <span>@T[Copy.FieldModel]</span>
+                <select @bind="_model" disabled="@_busy">
+                    @foreach (var value in _models)
+                    {
+                        <option value="@value">@Values.ModelLabel(T, value)</option>
+                    }
+                </select>
+            </label>
+        }
     </div>
+    @if (_models.Count > 1)
+    {
+        <p class="field-note">@T[Copy.ModelNote]</p>
+    }
 
     @* No book picker any more (2026-08-27): the agent chooses its own titles
        off the shelf, following the skill. What remains of the old fieldset is
@@ -322,6 +341,12 @@ else if (_batch is not null)
     private string _source = "Memorie";
     private string _pillar = "Educație";
     private string _format = "Reel";
+    // Empty until /api/me answers, and one entry for every account but hers —
+    // so the picker is absent by default and appears only when the server has
+    // actually offered a choice. A failed read leaves it empty, which sends no
+    // model name at all and lets the deployment default stand.
+    private List<string> _models = [];
+    private string? _model;
     private string? _focus;
     private string? _error;
     private bool _busy;
@@ -365,7 +390,25 @@ else if (_batch is not null)
         Events.ConnectionInterrupted += OnConnectionInterruptedAsync;
         ContextState.GenerationPatched += OnGenerationPatchedAsync;
         ContextState.ConversationReset += OnConversationResetAsync;
-        await Task.WhenAll(LoadLibraryAsync(), LoadCurrentAsync());
+        await Task.WhenAll(LoadLibraryAsync(), LoadCurrentAsync(), LoadModelsAsync());
+    }
+
+    /// <summary>Which models this account may pick between, if more than one.</summary>
+    private async Task LoadModelsAsync()
+    {
+        try
+        {
+            _models = (await Api.GetMeAsync()).Models;
+            _model = _models.FirstOrDefault();
+        }
+        catch (Exception)
+        {
+            // Deliberately silent, and deliberately not `_error`. The picker is
+            // an extra; failing to learn about it must not put a red banner over
+            // a generator that works perfectly on the default model.
+            _models = [];
+            _model = null;
+        }
     }
 
     private async Task LoadLibraryAsync()
@@ -440,6 +483,9 @@ else if (_batch is not null)
                 Pillar = _pillar,
                 Source = _source,
                 Focus = _focus,
+                // Null unless a picker was actually drawn, which keeps every
+                // other account sending exactly what it sent before.
+                Model = _models.Count > 1 ? _model : null,
                 ReplaceCurrent = replace
             });
             _batch = envelope.Batch;

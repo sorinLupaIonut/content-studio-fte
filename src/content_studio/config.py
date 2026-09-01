@@ -112,10 +112,53 @@ GENERATION_DETAIL_MODEL = os.getenv("GENERATION_DETAIL_MODEL", "gpt-5-mini")
 #: most expensive rate in its table - so an unchecked one would be a typo that
 #: silently drains an allowance. First entry is the default.
 #:
-#: One entry since nano was removed. That is deliberate rather than temporary:
-#: the picker offers what can actually do the work, and a second name would have
-#: to earn its place by driving the sandbox shell, not by being cheaper.
-GENERATION_MODELS: tuple[str, ...] = ("gpt-5-mini",)
+#: One entry from 2026-08-27 until 2026-09-01, and the sentence that stood here
+#: said a second name would have to earn its place by driving the sandbox shell
+#: rather than by being cheaper. `gpt-5` earns it from the other direction: it
+#: is not cheaper, it is the same family one tier up, and it is here to answer a
+#: question mini cannot be argued out of.
+#:
+#: The question is the client's. Her wife read a hook and a caption in Romanian
+#: on 2026-09-01 and said neither sounded like her, nor like a person. Two evals
+#: now measure that (`evals/output/`), and the fix they graded — lifting her
+#: voice sections into the prompt — is a change to the INPUT. Whether the
+#: remaining gap is the input or the writer is a different question, and the
+#: only way to answer it is to run the same brief through a bigger model.
+#:
+#: First entry is the default, and it stays mini: this is an experiment the
+#: client opts into, not a new floor. gpt-5 costs five times mini per token —
+#: which is exactly why `MODEL_CHOICE_CLIENTS` below is not everybody.
+GENERATION_MODELS: tuple[str, ...] = ("gpt-5-mini", "gpt-5")
+
+#: Which accounts may choose. Everyone else gets `GENERATION_MODELS[0]` and no
+#: picker, which is what every account had until now.
+#:
+#: NOT AN INTERFACE DECISION. A hidden control is not a permission — the same
+#: rule `MeResponse.is_admin` is written under — so `/api/me` only says whether
+#: to DRAW the picker, and `models_for` below is what the start endpoint asks
+#: before it honours a model name that arrived from a browser.
+#:
+#: It is her account and no other on purpose. The budget is a lifetime
+#: allowance in a database, and a tester who picked the expensive model out of
+#: curiosity would spend theirs in two batches and be told nothing except that
+#: nothing starts any more.
+MODEL_CHOICE_CLIENTS: tuple[str, ...] = tuple(
+    slug.strip()
+    for slug in os.getenv("MODEL_CHOICE_CLIENTS", CLIENT_SLUG).split(",")
+    if slug.strip()
+)
+
+
+def models_for(client_slug: str | None) -> tuple[str, ...]:
+    """Which models this account may ask for. The whole list, or just the default.
+
+    One answer, asked by both doors: `/api/me` draws the picker from it and the
+    start endpoint refuses anything not in it. A second copy of this rule is a
+    second chance to disagree with itself.
+    """
+    if client_slug and client_slug in MODEL_CHOICE_CLIENTS:
+        return GENERATION_MODELS
+    return GENERATION_MODELS[:1]
 
 # Chat is separate from bulk generation so its latency/quality can be tuned
 # without silently changing either half of the accepted hybrid topology.
@@ -129,6 +172,18 @@ CHAT_MODEL = os.getenv("CHAT_MODEL", MODEL)
 #: borderline verdict with that in mind, and set EVAL_JUDGE_MODEL=gpt-5 in `.env`
 #: for a run whose numbers have to hold up.
 EVAL_JUDGE_MODEL = os.getenv("EVAL_JUDGE_MODEL", "gpt-5-mini")
+
+#: The judge for `evals/output/` — the group that grades the WRITING, added
+#: 2026-09-01. Deliberately not `EVAL_JUDGE_MODEL`, and deliberately not the
+#: writer's own model.
+#:
+#: The caveat above is a caveat for a route score and a fatal flaw here. Those
+#: metrics ask which tool was called, which a model has no stylistic stake in.
+#: These two ask "does this sound like a person, writing Romanian, in this
+#: woman's voice" — and a judge is being asked to fault exactly the phrasing it
+#: would have produced itself. Mini grading mini's Romanian is the writer
+#: marking its own homework in the one subject it is failing.
+OUTPUT_JUDGE_MODEL = os.getenv("OUTPUT_JUDGE_MODEL", "gpt-5")
 
 #: Storing and searching must use the SAME model — architecture rule 3.
 EMBEDDING_MODEL = "text-embedding-3-small"

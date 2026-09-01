@@ -243,6 +243,8 @@ public sealed class StudioApiClient(HttpClient http, LanguageState language)
                         return Tr[Copy.AccountNotProvisioned];
                     case "active_batch":
                         return Tr[Copy.ActiveBatch];
+                    case "model_not_allowed":
+                        return Tr[Copy.ModelNotAllowed];
                     case "variant_not_ready":
                         return Tr[Copy.VariantNotReady];
                     case "variant_not_in_batch":

@@ -37,15 +37,26 @@ public static class Values
         _ => value
     };
 
-    // There is no model picker here since 2026-08-27: nano was removed after it
-    // failed to drive the sandbox shell, and a select with one option is a
-    // control that promises a choice it cannot give. The server picks.
+    // The model picker came back on 2026-09-01, and with it the rule that was
+    // written here for whoever brought a second model: THE LABELS SAY HOW
+    // CAREFULLY THE THING IS WRITTEN, NEVER WHAT IT COSTS. The studio shows a
+    // tester a percentage of their allowance and never a figure, and a picker
+    // reading "cheap / expensive" would undo that in one glance.
     //
-    // If a second model ever earns its place, the rule that governed the labels
-    // comes back with it: they say how carefully the thing is written, never
-    // what it costs. The studio shows a tester a percentage of their allowance
-    // and never a figure, and a picker reading "cheap / expensive" would undo
-    // that in one glance.
+    // So: "Normal" and "Mai atent". Both are true, neither is a price. The
+    // second one really does take longer and read more closely; that it also
+    // costs five times as much is the server's business and the admin page's.
+    //
+    // The VALUES are model ids and never translate — they are the API contract,
+    // like Pilon and Format. Only these labels do. The list itself comes from
+    // the server (`/api/me` → models), so a model added in `config.py` needs a
+    // line here and nothing else.
+    public static string ModelLabel(Translator t, string value) => value switch
+    {
+        "gpt-5-mini" => t.Pick("Normal", "Normal"),
+        "gpt-5" => t.Pick("Mai atent", "More careful"),
+        _ => value
+    };
 
     public static readonly string[] Formats = ["Reel", "Carusel", "Stories"];
 

@@ -55,6 +55,12 @@ ALLOWED_FILES = {
     "src/content_studio/language.py",
     # Parsing patterns for her own markdown, and comments quoting it.
     "src/content_studio/db/seed.py",
+    # The fixtures of `evals/output/`: her own published hooks and captions,
+    # the words her profile forbids, and four planted fragments of deliberately
+    # bad Romanian. Every Romanian string in this file is the THING BEING
+    # GRADED, not prose about it - an English-only rule here would mean a
+    # metric for Romanian writing with no Romanian to measure.
+    "evals/output/cases.py",
 }
 
 #: Individual strings that stay Romanian inside an English file. Each is a VALUE
@@ -80,6 +86,15 @@ ALLOWED_SUBSTRINGS = (
     "Ce dureri simte?",
     "Fricile ei cele mai puternice",
     "Credințele ei limitative (în cuvintele ei)",
+    # The same, for the four sections `voice.py` lifts. Keys, like the five
+    # above, and quoted by the judge's rubric so it can name what it grades.
+    "Vocea ta",
+    "Expresii pe care le folosești des",
+    "Lucruri pe care nu le spui niciodată",
+    "Tonul tău",
+    # Shortened deliberately: the rubric wraps this line, and a fragment
+    # that spans a newline matches nothing.
+    "Exemple de hook-uri",
     # Things she types, quoted so the model recognises them.
     "dezvoltă a treia",
     "aleg varianta cu CIFRA",
@@ -99,6 +114,11 @@ ALLOWED_SUBSTRINGS = (
     # whether the topic reached the tool. Words used as data, not as prose.
     "ăâîșşțţĂÂÎȘŞȚŢ",
     "fara de a si cu la in pe sa",
+    # More data about Romanian itself, in `evals/output/`: the two legacy
+    # cedilla letters named in a finding, and one specimen of the agreement
+    # error the rubric asks the judge to catch. Both are exhibits.
+    "(ş/ţ)",
+    "mai puțin oboseală",
     # The name of the pre-rename Romanian table, which `db/apply.py` looks for
     # so it can tell the operator which migration has not been run.
     "postari",

@@ -147,6 +147,12 @@ public static class Copy
         new("Ce face acum", "What it is doing");
     public static readonly Phrase FieldPillar = new("Pilon", "Pillar");
     public static readonly Phrase FieldFormat = new("Format", "Format");
+    // The picker's own label and the one line under it. Both say how carefully
+    // the thing is written and neither says what it costs — see Values.cs.
+    public static readonly Phrase FieldModel = new("Scriere", "Writing");
+    public static readonly Phrase ModelNote = new(
+        "„Mai atent” scrie mai încet și citește mai atent metoda. Merită încercat pe o idee, ca să compari.",
+        "“More careful” writes more slowly and reads the method more closely. Worth trying on one idea, to compare.");
 
     public static readonly Phrase LibraryLoading =
         new("Se încarcă biblioteca…", "Loading the library…");
@@ -461,6 +467,9 @@ public static class Copy
     // falls back to the generic sentence — which is exactly what makes it easy
     // to forget, and why the English page used to say "cererea a eșuat" for
     // nine different refusals that each had something specific to say.
+    public static readonly Phrase ModelNotAllowed = new(
+        "Contul tău nu poate alege modelul acesta.",
+        "Your account cannot choose that model.");
     public static readonly Phrase ActiveBatch = new(
         "Ai deja un lot curent. Confirmă înlocuirea lui ca să continui.",
         "You already have a current batch. Confirm replacing it to continue.");

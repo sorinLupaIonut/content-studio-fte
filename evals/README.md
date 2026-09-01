@@ -9,22 +9,30 @@ made of, and each is still runnable on its own when only one question is open.
 | a `SKILL.md`, a `references/` file, a frontmatter description | did it reach the method and call the right tools? | [`route/`](#route--did-it-reach-the-method) |
 | the search rule, a tool's contract, the shelf | was the search any good? | [`skill/`](#skill--was-the-search-any-good) |
 | the chat prompt, a trigger tool, a dictated sentence | does one request said ten ways walk one path? | [`path/`](#path--does-it-converge) |
+| the profile, the writing prompts, the schemas, the model | does the writing sound like her, and like a person? | [`output/`](#output--is-the-writing-any-good) |
 
 The two are halves of one question and they fail differently: `route/` reads the
 call's NAME, `skill/` reads what came back. A tool called correctly that returned
 nothing scores 1.0 in the first and 0.0 in the second, which is the whole reason
 the second exists.
 
-Three more groups asked the remaining questions and were removed on 2026-08-30
-with their numbers already stale. What each one measured is kept at the bottom,
-under [What used to be here](#what-used-to-be-here) — a rebuild should start from
-the question, not from the old code.
+Three groups were removed on 2026-08-30 with their numbers already stale, and
+`output/` is the first one back — rebuilt on 2026-09-01 from the question rather
+than from the old code, which is what the section at the bottom is for. What the
+other two measured is still kept there, under
+[What used to be here](#what-used-to-be-here).
+
+**`output/` is the only group that grades the writing.** The other three grade
+the route to it, and all three were green on the day the client's wife said the
+Romanian did not sound like a person.
 
 Every eval writes `evals/reports/<name>-<stamp>.json`. That folder is gitignored on
 purpose — a graded report is evidence of a moment, not source.
 
-**Run the free ones first.** Two of the three below cost nothing and each can
-invalidate a paid run before you pay for it.
+**Run the free ones first.** Several of the runs below cost nothing — the two
+`--dry-run` label passes, `route/references.py`, `route/fidelity.py`, and the
+whole deterministic layer of `output/` — and each can invalidate a paid run
+before you pay for it.
 
 ---
 
@@ -311,6 +319,97 @@ string exists here.
 
 A `metodă` column says whether each run opened `SKILL.md`, so a short path can be
 told from a blind one.
+
+---
+
+## `output/` — is the writing any good?
+
+Back on 2026-09-01, with two of the metrics it used to have and a reason nothing
+in the suite could have produced: **the client's wife read a hook and a caption
+in Romanian and said they did not sound like Viorela, and did not sound like a
+person.** Every other group was green at the time, and correctly so — they grade
+the route to the writing, never the writing.
+
+Two metrics, one per half of what she said, because the two fail differently and
+are fixed in different files:
+
+| metric | question | where a failure gets fixed |
+|---|---|---|
+| `voice` | does it sound like HER? | the profile sections `voice.py` lifts, and the prompt that carries them |
+| `human` | does it sound like A PERSON writing Romanian? | the writer — the model, its brief, or its temperature |
+
+Both are graded on `hook` and `caption` separately: those are the two fields she
+named, and a hook is one line that fails by being generic while a caption is a
+page that fails by being assembled.
+
+```bash
+uv run python evals/output/human.py --dry-run
+```
+
+The rows plus the whole free layer, at no cost. Read this first — the character
+tells below are certain, and they find things before a judge is ever called.
+
+```bash
+uv run python evals/output/voice.py
+uv run python evals/output/human.py
+```
+
+The judgement. About $0.30 a metric.
+
+### The controls are the point
+
+Each metric grades three kinds of row, and the third is the reason to believe
+the first two:
+
+- **generated** — real variants out of `generation_variants`, frozen into
+  `cases.json` by `seed.py`. The measurement. No expected score.
+- **her own** — hooks and captions out of `content/posts/`, which she wrote and
+  published. **Expected 1.0.**
+- **planted** — fluent fragments written in `cases.py`, each breaking one named
+  rule from her profile. **Expected 0.0.**
+
+If a control disagrees, the run says `controls FAIL` and **the generated numbers
+are not a result** — `controls_verdict` refuses the summary rather than printing
+a score nobody should read. That is not hypothetical: `voice` failed its own
+controls on its first judged run, calling 11 of her 16 published pieces generic,
+because the rubric demanded a distinctive SUBJECT and her real hooks name
+ordinary experiences. The 0/20 it printed for generated output was meaningless,
+and the rubric was retuned against her own writing until it was not.
+
+`--controls-only` runs just the controls, which is what rubric calibration
+needs: the generated rows carry no expected score, so paying for them while
+tuning buys nothing.
+
+### The free layer, and why the word list is short
+
+Both metrics run a deterministic pass first — no model, no cost, and more
+certain than the judge:
+
+- `human` → **the cedilla mix.** `ţ` (U+0163) and `ş` (U+015F) are Turkish
+  letters kept in legacy Romanian codepages; correct Romanian is `ț` (U+021B)
+  and `ș` (U+0219). A person's keyboard emits one of the two. Measured over the
+  60 ready variants and her 27 posts: three generated captions mix them, one at
+  8 against 9 inside a single caption, and **none of hers do**. It also catches
+  the non-breaking hyphen, which no Romanian keyboard has.
+- `voice` → **six words** her profile forbids and her posts never use.
+
+The word list is six long because it was MEASURED, not read. Her profile says
+plainly that she does not use „trebuie" — and her own published posts use it 21
+times, one of them titled „trebuie vs vreau". „problemă", „peste noapte" and
+percentages failed the same way. A list built by reading the profile would have
+flagged her best work and called it a finding; `cases.py` records all ten
+candidates and which four did not survive.
+
+### What it does not do
+
+- **n = 10.** Ten frozen variants, two fields. A sample, not a verdict.
+- **The judge is `gpt-5`, deliberately** (`config.OUTPUT_JUDGE_MODEL`). Every
+  other group defaults to `EVAL_JUDGE_MODEL`, and the caveat there — a judge on
+  the writer's own model scores its own phrasing as good — is a caveat for a
+  route score and the whole failure mode here. Mini grading mini's Romanian is
+  the writer marking its own homework in the one subject it is failing.
+- **It does not read spans.** It reads finished text, so it needs no Phoenix and
+  no time window. It is not part of `experiment.py` yet.
 
 ---
 

@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from content_studio import avatar
+from content_studio import avatar, voice
 from content_studio.language import DEFAULT_LANGUAGE, Language, task_note
 from content_studio.sandbox import SKILLS_PATH
 
@@ -524,7 +524,13 @@ def detail_output_type(format: FormatChoice) -> type[StrictContract]:
 #: Anything else is a 422 at the edge instead of an unpriced model reaching
 #: `pricing.py`, which charges what it does not recognise at the most expensive
 #: rate in its table. `None` means the deployment default.
-ModelChoice = Literal["gpt-5-mini"]
+#:
+#: THIS IS THE SHAPE CHECK, NOT THE PERMISSION. It says gpt-5 is a real model
+#: name; it cannot say whether the account that sent it may spend at that rate.
+#: `config.models_for(slug)` answers that, and the start endpoint asks it —
+#: keeping the two apart is what stops a browser on any account posting the
+#: expensive name and being served.
+ModelChoice = Literal["gpt-5-mini", "gpt-5"]
 
 
 class GenerationBatchRequest(StrictContract):
@@ -636,9 +642,15 @@ for nothing is material you are not allowed to use."""
 # full price on every one of the ten ideas, though it is identical in all ten.
 #
 # The lines are now ordered by how often each one changes - per client (the
-# avatar block), then per batch (the format brief and the four choices), then
-# per run (the idea). The idea also ends up next to the instruction that uses
-# it, which is the better place for it anyway.
+# avatar and voice blocks), then per batch (the format brief and the four
+# choices), then per run (the idea). The idea also ends up next to the
+# instruction that uses it, which is the better place for it anyway.
+#
+# `voice.brief` joined the per-client tier on 2026-09-01 and belongs there for
+# the same reason the avatar does: it is cut from the profile, so it is byte
+# for byte identical across every run of one client and every idea of one
+# batch. Placed anywhere below the varying lines it would be paid at full price
+# ten times a batch, which is exactly the mistake this comment records.
 #
 # WHAT THIS DOES NOT BUY. The ten details are lazy - separate runs "minutes or
 # days apart" - and a cache entry expires after minutes of inactivity. This is
@@ -668,6 +680,8 @@ fetch your own material, with the tools, following the method's source rule —
 BEFORE you write, and only from the chosen source.
 
 {avatar.brief(profile_md)}
+
+{voice.brief(profile_md)}
 
 The ten proposals stay within the same focus, but each starts from a different
 place: the contract asks you for a different `angle_type` on every one, and you
@@ -735,6 +749,8 @@ same sentence rephrased. You fetch your own material, with the tools, following
 the method's source rule — only from the source she chose.
 
 {avatar.brief(profile_md)}
+
+{voice.brief(profile_md)}
 
 {format_brief(request.format)}
 

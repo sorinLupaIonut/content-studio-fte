@@ -40,6 +40,18 @@ public sealed class MeDto
 
     [JsonPropertyName("client_name")]
     public string? ClientName { get; set; }
+
+    /// <summary>
+    /// Which models this account may ask a batch to be written with, default
+    /// first. One entry means no choice and no picker, which is what every
+    /// account gets except the client's own.
+    ///
+    /// A HINT, like <see cref="IsAdmin"/>: the server checks again before it
+    /// honours a model name, so an empty or short list here hides a control
+    /// rather than granting one.
+    /// </summary>
+    [JsonPropertyName("models")]
+    public List<string> Models { get; set; } = [];
 }
 
 /// <summary>
@@ -373,12 +385,13 @@ public sealed class GenerationStartDto
     [JsonPropertyName("replace_current")]
     public bool ReplaceCurrent { get; set; }
 
-    // No `model` here since 2026-08-27. The request may still carry one — the
-    // server field is optional and one per batch, because details are written
-    // when she opens an idea, long after this request is gone — but the
-    // interface has nothing to say about it: there is one model that can drive
-    // the sandbox, and a picker with one option is a control that does nothing.
-    // The server resolves the name and stores it on the batch row.
+    // Back on 2026-09-01, after a year of one option. It is optional and it is
+    // per BATCH, not per request: the details are written when she opens an
+    // idea, long after this request is gone, so the name has to survive on the
+    // batch row. Null means "whatever the deployment defaults to", which is
+    // what every account without a picker sends.
+    [JsonPropertyName("model")]
+    public string? Model { get; set; }
 
     /// <summary>Interface language, which the agent answers and writes in.</summary>
     [JsonPropertyName("language")]
