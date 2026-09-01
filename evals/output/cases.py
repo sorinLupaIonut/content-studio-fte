@@ -12,28 +12,24 @@ Three kinds of row, and the third is the reason to believe the first two:
     profile. **Expected 0.0.** Nine cases that all come out `hers` look the same
     whether the metric works or the judge says yes to anything.
 
-THE CONTROLS ARE NOT DECORATION, and this file has already been paid for once.
-The first draft of `voice.py` carried a word list — the „Lucruri pe care nu le
-spui niciodată” section of her profile says in as many words that she does not
-use „trebuie”. Measured against her own 27 published posts before it shipped:
+BOTH METRICS ARE ONE QUESTION EACH, PUT TO A JUDGE. There is no rule layer
+beside them and there is not going to be one — Sorin's call, 2026-09-01, and the
+afternoon before it is the argument. A word list was tried first, built by
+reading the „Lucruri pe care nu le spui niciodată” section of her profile, which
+says in as many words that she does not use „trebuie”. Measured against her own
+27 published posts before it shipped:
 
-    trebuie       11/27 of her posts     UNUSABLE
-    problemă       2/27                  UNUSABLE
-    peste noapte   2/27                  UNUSABLE
-    percentages    3/27                  UNUSABLE
-    pacient        0/27                  safe
-    diagnostic     0/27                  safe
-    boală          0/27                  safe
-    garantez       0/27                  safe
-    promit         0/27                  safe
-    rețetă         0/27                  safe
+    trebuie       11/27 of her posts     her own work would have failed
+    problemă       2/27                  the same
+    peste noapte   2/27                  the same
+    percentages    3/27                  the same
 
-One of her posts is titled „trebuie vs vreau”. Four of the five generated uses
-were `nu trebuie` — permissive, the opposite of the obligation she avoids. A
-banned-word list built by reading her profile and not measuring it would have
-flagged her best work and called that a finding. What survived that measurement
-is `BANNED` below; everything else is a question for a judge, which is why there
-is a judge.
+One of her posts is titled „trebuie vs vreau”, and four of the five generated
+uses were `nu trebuie` — permissive, the opposite of the obligation she avoids.
+Six candidates did survive that measurement, and they were still deleted: six
+words is a rule that catches almost nothing while looking like a safety net, and
+the judge already catches every one of them with the reason attached. Voice and
+idiom are judgements. Ask a judge, and check the judge with controls.
 """
 
 from __future__ import annotations
@@ -47,8 +43,15 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from phoenix.evals import LLM
 
-from content_studio.config import CONTENT_DIR
+from content_studio.config import (
+    CONTENT_DIR,
+    DEEPSEEK_API_KEY,
+    DEEPSEEK_BASE_URL,
+    DEEPSEEK_MODEL,
+    EVAL_JUDGE_MODEL,
+)
 
 HERE = Path(__file__).resolve().parent
 REPORTS = HERE.parent / "reports"
@@ -57,33 +60,6 @@ POSTS = CONTENT_DIR / "posts"
 
 #: The two fields the client's wife named, and the two this group grades.
 FIELDS = ("hook", "caption")
-
-#: Words her profile forbids AND her own published posts never use. The second
-#: half of that sentence is what makes the list usable — see the module
-#: docstring for the ten that were tested and the four that did not survive.
-#: She is a coach, not a doctor, and she promises no outcomes.
-BANNED: dict[str, str] = {
-    r"\bpacien[tț]": "„pacient” — she is a coach, not a clinician",
-    r"\bdiagnostic": "„diagnostic” — outside her expertise, by her own rule",
-    r"\bboal[ăa]\b|\bboli\b": "„boală” — medical framing she never uses",
-    r"\bgarant(ez|ăm|ez[- ]|ia|ie)": "a guarantee — she promises no outcomes",
-    r"\bpromit\b": "„promit” — she promises nothing she cannot honour",
-    r"\bre[țt]et[ăa]\b": "a „rețetă” — she refuses quick recipes explicitly",
-}
-
-#: Romanian written with the LEGACY cedilla letters instead of the comma-below
-#: ones. Objective, not a matter of taste: `ţ` (U+0163) and `ş` (U+015F) are the
-#: Turkish letters, kept in old Romanian codepages; correct Romanian is `ț`
-#: (U+021B) and `ș` (U+0219). Nobody typing Romanian produces both in one
-#: paragraph.
-#:
-#: Measured 2026-09-01 over the 60 ready variants in the database and her 27
-#: published posts: 3 generated variants mix the two — one of them 8 cedilla
-#: against 9 comma inside a single caption — and NONE of her own posts do. All
-#: three were hers, and they are the ones her wife was reading.
-CEDILLA = "ţŢşŞ"
-COMMA_BELOW = "țȚșȘ"
-
 
 @dataclass
 class Case:
@@ -219,8 +195,19 @@ def her_own(limit: int = 8) -> list[Case]:
 #:
 #: The voice half plants rules from her profile's „Lucruri pe care nu le spui
 #: niciodată” and „Tonul tău”. The human half plants what a machine translating
-#: into Romanian does: calques, agreement slips, and the cedilla mix measured on
-#: real output.
+#: into Romanian does: calques, agreement slips, telegraphic lists.
+#:
+#: ONE FAULT IS DELIBERATELY ABSENT, and it is the one that started this. Real
+#: output mixes the legacy cedilla letters `ş`/`ţ` into Romanian that otherwise
+#: uses `ș`/`ț` — measured 2026-09-01: 3 of 60 ready variants, one at 8 against
+#: 9 inside a single caption, and 0 of her 27 published posts. It was planted
+#: here and DeepSeek passed it twice, the second time with the character scan as
+#: the literal first instruction in the rubric. That is not a wording problem:
+#: `Eşti` and `Ești` are two different tokens, and a judge reads tokens. A
+#: control that cannot be met teaches nothing and voids every run, so it is
+#: gone — and with it, the studio's only way of catching that fault. Six lines
+#: of `str.count` would do it; Sorin declined a rule layer on 2026-09-01, with
+#: this cost stated.
 PLANTED_VOICE: list[tuple[str, str, str]] = [
     (
         "hook",
@@ -258,8 +245,10 @@ PLANTED_VOICE: list[tuple[str, str, str]] = [
 PLANTED_HUMAN: list[tuple[str, str, str]] = [
     (
         "hook",
-        "Eşti obosită de a fi mereu persoana care rezolvă totul pentru toţi?",
-        "cedilla mix (ş/ţ), plus „de a fi” — an English gerund carried straight across",
+        "Ia o respirație adâncă. Nu ești singură în această călătorie — și "
+        "asta este perfect în regulă.",
+        "three calques in one line: take a deep breath (Romanian says „respiră "
+        "adânc”), the self-help „journey”, and „that is perfectly okay”",
     ),
     (
         "hook",
@@ -321,19 +310,44 @@ def frame_for(
     return pd.DataFrame([case.row() for case in cases])
 
 
-# ---- the deterministic layer -------------------------------------------------
+# ---- the judge ---------------------------------------------------------------
 
 
-def banned_hits(text: str) -> list[str]:
-    """Which of her never-words this text uses. Free, and never a judgement."""
-    return [why for pattern, why in BANNED.items() if re.search(pattern, text, re.I)]
+def judge_llm() -> tuple[LLM, str]:
+    """The grader for both output metrics, and its name for the report.
 
+    DEEPSEEK, AND NOT THE FAMILY THAT WRITES THE POSTS. `config.py` made this
+    decision before this group existed and kept the address after the group was
+    removed, with the reason written next to it: a grader from the same lineage
+    as the author marks its own work. That is a caveat for a route score — which
+    tool was called is not a question a model has a stylistic stake in — and the
+    entire failure mode for these two, which ask whether Romanian reads as
+    native and whether it sounds like one particular woman. Asking `gpt-5-mini`
+    to fault `gpt-5-mini`'s Romanian is asking it to fault its own dialect.
 
-def cedilla_mix(text: str) -> tuple[int, int]:
-    """(legacy cedilla letters, correct comma-below letters) in this text."""
+    IT IS ONLY WORTH ANYTHING IF IT CAN ACTUALLY JUDGE ROMANIAN, and that is not
+    assumed here — it is measured, every run, by the controls. See
+    `controls_verdict`: her own published writing has to pass and the planted
+    violations have to fail, or the run prints no score at all. A judge that
+    cannot tell those apart is not a cheaper judge, it is no judge.
+
+    Falls back to `EVAL_JUDGE_MODEL` with no key configured, rather than
+    refusing: an empty address has always meant the judged metrics degrade, not
+    that the suite stops.
+    """
+
+    if not DEEPSEEK_API_KEY:
+        return LLM(provider="openai", model=EVAL_JUDGE_MODEL), EVAL_JUDGE_MODEL
+
+    client_kwargs = {"base_url": DEEPSEEK_BASE_URL, "api_key": DEEPSEEK_API_KEY}
     return (
-        sum(text.count(char) for char in CEDILLA),
-        sum(text.count(char) for char in COMMA_BELOW),
+        LLM(
+            provider="openai",
+            model=DEEPSEEK_MODEL,
+            sync_client_kwargs=client_kwargs,
+            async_client_kwargs=client_kwargs,
+        ),
+        DEEPSEEK_MODEL,
     )
 
 

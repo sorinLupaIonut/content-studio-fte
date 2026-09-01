@@ -36,7 +36,7 @@ before you pay for it.
 
 ---
 
-## `experiment.py` — one dataset, six scores
+## `experiment.py` — one dataset, eight scores
 
 ```bash
 uv run python evals/experiment.py --dry-run
@@ -48,7 +48,7 @@ The dataset and every label on it, free. No model, no container, no upload.
 uv run python evals/experiment.py
 ```
 
-Ten generation runs against one Phoenix dataset, graded six ways in one place.
+Ten generation runs against one Phoenix dataset, graded eight ways in one place.
 Costs the ten runs plus the judge.
 
 | score | question | it came from |
@@ -59,6 +59,8 @@ Costs the ten runs plus the judge.
 | `relevance_books` | was what the shelf returned any good? | `skill/` |
 | `relevance_web` | was what the web returned any good? | `skill/` |
 | `convergence` | how long was the path, against the shortest correct one? | `path/`, adapted |
+| `voice` | does what it WROTE sound like her? | `output/` |
+| `human` | does it sound like a Romanian wrote it? | `output/` |
 
 **Why it exists.** `route/` and `skill/` measured the same runs and could not be
 read together: `run_cases.py` made spans and `relevance.py` read whatever spans
@@ -86,6 +88,19 @@ rephrasing. The optimum is taken over correct runs for the reason written into
 `path/convergence.py`: the named failure mode of this project produces a
 **shorter** path, and `min(turns)` outright would let a run that did nothing set
 the floor.
+
+**The last two are the only ones that read the text**, and they are judged by
+**DeepSeek**, not `EVAL_JUDGE_MODEL`. `config.py` made that call before the group
+existed: a grader from the same lineage as the author marks its own work. Which
+tool was called is not a question `gpt-5-mini` has a stylistic stake in; whether
+this Romanian reads as native is entirely one. Measured on the controls,
+2026-09-01 — `voice` 20/20 and `human` 20/20 for DeepSeek, against gpt-5's 18/20
+on `voice`, where it rejected two of her own published pieces.
+
+They also **skip a `titluri` case**, which writes titles and angles and has no
+hook to read — a scoreless skip, the same rule `relevance_*` follows for a tool
+the source told it not to call. Of the ten cases, three reach them; `--dry-run`
+prints which, and how many judge calls that is, before anything is spent.
 
 **Relevance is two evaluators, and that is what makes it cheap.** Each judges
 only its own tool's searches and returns a **scoreless skip** — not a zero — when
@@ -346,15 +361,15 @@ page that fails by being assembled.
 uv run python evals/output/human.py --dry-run
 ```
 
-The rows plus the whole free layer, at no cost. Read this first — the character
-tells below are certain, and they find things before a judge is ever called.
+Every row that would be judged, at no cost. Read it first — a case set that has
+drifted is visible with the naked eye, before anybody pays to have it graded.
 
 ```bash
 uv run python evals/output/voice.py
 uv run python evals/output/human.py
 ```
 
-The judgement. About $0.30 a metric.
+The judgement. A few cents a metric on DeepSeek.
 
 ### The controls are the point
 
@@ -380,34 +395,39 @@ and the rubric was retuned against her own writing until it was not.
 needs: the generated rows carry no expected score, so paying for them while
 tuning buys nothing.
 
-### The free layer, and why the word list is short
+### One question each, and no rule layer
 
-Both metrics run a deterministic pass first — no model, no cost, and more
-certain than the judge:
+Both metrics are a single question put to a judge. There was a deterministic
+pass beside them for one afternoon and it is gone — Sorin's call, 2026-09-01 —
+and the argument that produced it is worth keeping:
 
-- `human` → **the cedilla mix.** `ţ` (U+0163) and `ş` (U+015F) are Turkish
-  letters kept in legacy Romanian codepages; correct Romanian is `ț` (U+021B)
-  and `ș` (U+0219). A person's keyboard emits one of the two. Measured over the
-  60 ready variants and her 27 posts: three generated captions mix them, one at
-  8 against 9 inside a single caption, and **none of hers do**. It also catches
-  the non-breaking hyphen, which no Romanian keyboard has.
-- `voice` → **six words** her profile forbids and her posts never use.
+A word list for `voice` was built by reading the „Lucruri pe care nu le spui
+niciodată" section of her profile, which says plainly that she does not use
+„trebuie". Measured against her own 27 published posts before it shipped, her
+own work used it **21 times**, one post titled „trebuie vs vreau". „problemă",
+„peste noapte" and percentages failed the same way. Four of ten candidates were
+things she does constantly. **A rule read off a profile and not measured against
+the writing flags the author's best work and calls it a finding.**
 
-The word list is six long because it was MEASURED, not read. Her profile says
-plainly that she does not use „trebuie" — and her own published posts use it 21
-times, one of them titled „trebuie vs vreau". „problemă", „peste noapte" and
-percentages failed the same way. A list built by reading the profile would have
-flagged her best work and called it a finding; `cases.py` records all ten
-candidates and which four did not survive.
+**What removing it cost, stated plainly.** Real output mixes the legacy cedilla
+letters `ş`/`ţ` into Romanian that otherwise uses `ș`/`ț` — measured over the 60
+ready variants and her 27 posts: three generated captions mix them, one at 8
+against 9 inside a single caption, and none of hers do. Six lines of `str.count`
+caught every one. It was planted as a control instead, and **DeepSeek passed it
+twice** — the second time with the character scan as the literal first line of
+the rubric. That is not a wording problem: `Eşti` and `Ești` are two different
+tokens, and a judge reads tokens. The control was removed rather than left
+permanently failing, and **nothing catches that fault now.**
 
 ### What it does not do
 
 - **n = 10.** Ten frozen variants, two fields. A sample, not a verdict.
-- **The judge is `gpt-5`, deliberately** (`config.OUTPUT_JUDGE_MODEL`). Every
-  other group defaults to `EVAL_JUDGE_MODEL`, and the caveat there — a judge on
-  the writer's own model scores its own phrasing as good — is a caveat for a
-  route score and the whole failure mode here. Mini grading mini's Romanian is
-  the writer marking its own homework in the one subject it is failing.
+- **The judge is DeepSeek, deliberately.** `config.py` chose it and kept the
+  address through the group's absence, because a grader from the same lineage as
+  the author marks its own work. Measured on the controls: DeepSeek 20/20 on
+  both metrics, gpt-5 18/20 on `voice`, where it rejected two of her own
+  published pieces. The independent judge is also the cheaper one and, here, the
+  better one — but it cannot see characters, as the section above records.
 - **It does not read spans.** It reads finished text, so it needs no Phoenix and
   no time window. It is not part of `experiment.py` yet.
 

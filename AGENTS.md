@@ -515,7 +515,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Whether the Romanian reads as a person's | `evals/output/human.py` | the cedilla mix is free and certain; the calques need a judge |
 | Whether an output metric may be believed at all | `output/cases.py` → `controls_verdict` | her own posts must pass and planted violations must fail, or the run prints no score |
 | Which models an account may choose | `config.models_for(slug)` | asked by `/api/me` to draw the picker and again by the start endpoint to honour one |
-| What grades the writing | `config.OUTPUT_JUDGE_MODEL`, gpt-5 | never `EVAL_JUDGE_MODEL`: mini grading mini's Romanian marks its own homework |
+| What grades the writing | DeepSeek, via `config.DEEPSEEK_*` | never the family that writes: mini grading mini's Romanian marks its own homework. Measured 2026-09-01 — DeepSeek 20/20 on both control sets, gpt-5 18/20 on `voice` |
 
 ## Conventions
 
@@ -576,8 +576,15 @@ and a caption and said neither sounded like Viorela, nor like a person. It is
 not in `experiment.py`: it reads finished text out of the database rather than
 spans, so it needs no Phoenix and no time window.
 
-Its free layer costs nothing and finds real defects — legacy cedilla letters
-mixed into Romanian, the words her profile forbids:
+Both are ONE question put to a judge, and there is no rule layer beside them —
+Sorin's call, 2026-09-01. A word list was tried and measured first: her profile
+says she never uses „trebuie", and her own published posts use it 21 times. A
+rule read off a profile and not measured against the writing flags the author's
+best work. What that costs is written in the README: nothing now catches the
+legacy cedilla letters (`ş`/`ţ`) that real output mixes into Romanian, because a
+judge reads tokens and `Eşti` and `Ești` are two of them.
+
+The rows that would be judged, free, before paying:
 
 ```bash
 uv run python evals/output/human.py --dry-run

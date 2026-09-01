@@ -173,18 +173,6 @@ CHAT_MODEL = os.getenv("CHAT_MODEL", MODEL)
 #: for a run whose numbers have to hold up.
 EVAL_JUDGE_MODEL = os.getenv("EVAL_JUDGE_MODEL", "gpt-5-mini")
 
-#: The judge for `evals/output/` — the group that grades the WRITING, added
-#: 2026-09-01. Deliberately not `EVAL_JUDGE_MODEL`, and deliberately not the
-#: writer's own model.
-#:
-#: The caveat above is a caveat for a route score and a fatal flaw here. Those
-#: metrics ask which tool was called, which a model has no stylistic stake in.
-#: These two ask "does this sound like a person, writing Romanian, in this
-#: woman's voice" — and a judge is being asked to fault exactly the phrasing it
-#: would have produced itself. Mini grading mini's Romanian is the writer
-#: marking its own homework in the one subject it is failing.
-OUTPUT_JUDGE_MODEL = os.getenv("OUTPUT_JUDGE_MODEL", "gpt-5")
-
 #: Storing and searching must use the SAME model — architecture rule 3.
 EMBEDDING_MODEL = "text-embedding-3-small"
 

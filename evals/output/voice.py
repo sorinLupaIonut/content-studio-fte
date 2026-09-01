@@ -18,22 +18,15 @@ shows them to the judge. Imported from `content_studio.voice`, never copied:
 what the WRITER is shown and what the JUDGE looks for must be the same text, or
 this metric grades a specification the studio was never given.
 
-TWO LAYERS, AND THE CHEAP ONE RUNS FIRST.
+ONE QUESTION, PUT TO A JUDGE. No rule layer beside it — see `cases.py` for the
+word list that was tried and measured and deleted, and for why: her own
+published posts break four of the ten rules her profile states.
 
-  · `banned` — free, certain, no judgement. Six words her profile forbids and
-    her own 27 published posts never use. The list is short because it was
-    measured rather than read: four obvious candidates, „trebuie” among them,
-    turned out to be things she does constantly. See `cases.py`.
-  · `voice` — the judge, for everything a word list cannot see: whether the
-    warmth is hers, whether it teaches without obliging, whether it could have
-    been written for any coach with a different name at the bottom.
-
-THE JUDGE IS gpt-5 BY DEFAULT, AND THAT IS THE POINT OF THE METRIC. AGENTS.md
-warns that a judge on the writer's own model scores its own phrasing as good,
-because it is the phrasing it would have chosen. For a metric whose entire
-question is „does this read as written by a person with this voice”, that is not
-a caveat, it is the failure mode. `OUTPUT_JUDGE_MODEL` in `config.py` is gpt-5
-for this reason; set it to something cheaper only for a smoke test.
+THE JUDGE IS DEEPSEEK, and it is not a cost decision. `config.py` chose it
+before this group existed: a grader from the same lineage as the author marks
+its own work. Whether it can actually judge Romanian is not assumed — the
+controls test it every run, and if her own writing fails or a planted violation
+passes, no score is printed at all.
 """
 
 from __future__ import annotations
@@ -43,10 +36,10 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import create_classifier, evaluate_dataframe
 
 from content_studio import enable_utf8_output
-from content_studio.config import CONTENT_DIR, OUTPUT_JUDGE_MODEL
+from content_studio.config import CONTENT_DIR
 from content_studio.voice import excerpt as voice_excerpt
 
 # Same shape `experiment.py` uses to reach across groups: the repo root on the
@@ -54,9 +47,9 @@ from content_studio.voice import excerpt as voice_excerpt
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from evals.output.cases import (  # noqa: E402
-    banned_hits,
     controls_verdict,
     frame_for,
+    judge_llm,
     report,
     unpack,
 )
@@ -116,15 +109,6 @@ Write your reasoning first — quoting what decided it — then the label on its
 """
 
 
-def free_layer(frame: pd.DataFrame) -> pd.DataFrame:
-    """Her never-words, per row. No model, no cost."""
-    out = frame.copy()
-    hits = [banned_hits(text) for text in out["text"]]
-    out["banned"] = ["; ".join(hit) for hit in hits]
-    out["banned_ok"] = [not hit for hit in hits]
-    return out
-
-
 def breakdown(measured: pd.DataFrame, metric: str, verb: str) -> None:
     """The measurement, split by field and — when there is one — by tag.
 
@@ -150,10 +134,9 @@ def breakdown(measured: pd.DataFrame, metric: str, verb: str) -> None:
 
 
 def show(frame: pd.DataFrame, judged: bool) -> None:
-    print(f"\n{'kind':<10} {'field':<8} {'hook type':<11} {'free':<5} {'voice':<6} text")
-    print("-" * 108)
+    print(f"\n{'kind':<10} {'field':<8} {'hook type':<11} {'voice':<6} text")
+    print("-" * 100)
     for _, row in frame.iterrows():
-        free = "ok" if row["banned_ok"] else "BAN"
         verdict = ""
         if judged:
             if row.get("score") is None or pd.isna(row.get("score")):
@@ -166,14 +149,9 @@ def show(frame: pd.DataFrame, judged: bool) -> None:
         snippet = row["text"][:44].replace("\n", " ")
         print(
             f"{row['kind']:<10} {row['field']:<8} {str(row['hook_type']):<11} "
-            f"{free:<5} {verdict:<6} {snippet}…"
+            f"{verdict:<6} {snippet}…"
         )
     print()
-
-    banned = frame[~frame["banned_ok"]]
-    print(f"banned words   {len(frame) - len(banned)}/{len(frame)} clean")
-    for _, row in banned.iterrows():
-        print(f"    {row['case_id']}: {row['banned']}")
 
     if not judged:
         print(f"\n{len(frame)} rows would be judged. No judge called, no cost.")
@@ -200,7 +178,6 @@ def main() -> int:
     parser.add_argument(
         "--controls-only", action="store_true", help="calibrate the rubric, cheaply"
     )
-    parser.add_argument("--judge", default=OUTPUT_JUDGE_MODEL, help="the judging model")
     args = parser.parse_args()
 
     frame = frame_for("voice", controls=not args.no_controls, only=args.field)
@@ -215,19 +192,20 @@ def main() -> int:
         print("The profile carries none of the voice sections — nothing to grade against.")
         return 1
     frame["voice"] = voice
-    frame = free_layer(frame)
 
     if args.dry_run:
         show(frame, judged=False)
         print(f"\nReport: {report('voice', frame.drop(columns=['voice']), None)}")
         return 0
 
+    llm, judge_name = judge_llm()
     evaluator = create_classifier(
         name="voice",
         prompt_template=JUDGE_PROMPT,
-        llm=LLM(provider="openai", model=args.judge),
+        llm=llm,
         choices={"hers": 1.0, "generic": 0.0},
     )
+    print(f"judge: {judge_name}")
     graded = evaluate_dataframe(frame, [evaluator])
     frame = unpack(frame, graded, "voice")
 
@@ -241,7 +219,7 @@ def main() -> int:
             return 1
 
     show(frame, judged=True)
-    print(f"\nReport: {report('voice', frame.drop(columns=['voice']), args.judge)}")
+    print(f"\nReport: {report('voice', frame.drop(columns=['voice']), judge_name)}")
     believable, _ = controls_verdict(frame)
     return 0 if believable else 1
 

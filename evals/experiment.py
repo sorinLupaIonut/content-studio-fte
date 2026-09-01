@@ -1,4 +1,4 @@
-"""One dataset, one experiment, six scores — the whole suite on the button door.
+"""One dataset, one experiment, eight scores — the whole suite on the button door.
 
     uv run content-studio-server                       # terminal 1
     uv run python evals/experiment.py --dry-run        # the dataset and its labels, free
@@ -21,7 +21,7 @@ Everything here is the button: `GenerationBatchRequest`, the coordinator's own
 is imported from `route/tool_usage.py` rather than rewritten, so what runs here
 is what runs on a click.
 
-THE SIX SCORES, and where each one already lived:
+THE EIGHT SCORES, and where each one already lived:
 
   · **router**          did it open the right `SKILL.md`?            `route/`
   · **references**      exactly the `references/` its format needs?  `route/`
@@ -29,6 +29,14 @@ THE SIX SCORES, and where each one already lived:
   · **relevance_books** was what the shelf returned any good?        `skill/`
   · **relevance_web**   was what the web returned any good?          `skill/`
   · **convergence**     how long was the path, against the shortest correct one?
+  · **voice**           does what it WROTE sound like her?           `output/`
+  · **human**           does it sound like a Romanian wrote it?      `output/`
+
+THE LAST TWO ARE THE ONLY ONES THAT READ THE TEXT. The other six grade the route
+to the writing, and all six were green on the day the client's wife read a hook
+and a caption and said neither sounded like Viorela, nor like a person. They
+judge with DeepSeek rather than `EVAL_JUDGE_MODEL`, and they skip a `titluri`
+case, which has no hook to read — both explained where they are defined.
 
 THE LABELS ARE COMPOSED, NEVER COPIED. The cases are `evals/skill/cases.json`
 — ten of them, and its own header says why ten and why those. The route half of
@@ -111,12 +119,20 @@ from content_studio.observability import (
     phoenix_api_base,
     shutdown_phoenix,
 )
+from content_studio.voice import excerpt as voice_excerpt
 from content_studio.worker import read_profile
 
 # Running this file as a script puts `evals/` on the path, not the repo root.
 # Same three lines, same reason, as `route/tool_usage.py`.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# The two output rubrics are IMPORTED, never restated: a score printed here and
+# a score printed by `evals/output/voice.py` have to be the same question, or
+# two numbers will be compared under one name. Same rule this file already
+# follows for `run_case` and `relevance.JUDGE_PROMPT`.
+from evals.output.cases import judge_llm  # noqa: E402
+from evals.output.human import JUDGE_PROMPT as HUMAN_PROMPT  # noqa: E402
+from evals.output.voice import JUDGE_PROMPT as VOICE_PROMPT  # noqa: E402
 from evals.route.tool_usage import Case, expectation, grid, run_case  # noqa: E402
 from evals.skill.relevance import (  # noqa: E402
     JUDGE_PROMPT,
@@ -241,6 +257,10 @@ def task_output(case: Case, route) -> dict[str, Any]:
         "tools": route.tools,
         "commands": route.commands,
         "error": route.error,
+        # What the run WROTE. Empty on a `titluri` case, and the two output
+        # evaluators skip rather than score zero on that — the same rule
+        # `relevance_*` follows for a tool the source told it not to call.
+        "written": route.written,
         "searches": [
             {
                 "tool": search["tool"],
@@ -424,6 +444,137 @@ def convergence_evaluator(optimal: int):
     return convergence
 
 
+# ---- the two that read what was WRITTEN -------------------------------------
+#
+# The other five grade the route to the writing. These grade the writing, and
+# they exist because the client's wife read a hook and a caption in Romanian on
+# 2026-09-01 and said neither sounded like Viorela, nor like a person — while
+# every route score was green.
+#
+# THREE THINGS SET THEM APART FROM THE FIVE ABOVE, all deliberate:
+#
+#   · They SKIP on a `titluri` case. Phase 1 writes titles and angles; there is
+#     no hook and no caption to read. A zero there would be a metric punishing a
+#     run for doing exactly what it was asked.
+#   · They judge with DEEPSEEK, not `EVAL_JUDGE_MODEL`. `config.py` made that
+#     decision before this group existed and kept the address after the group
+#     was removed: a grader from the same lineage as the author marks its own
+#     work. Which tool was called is not a question `gpt-5-mini` has a stylistic
+#     stake in; whether this Romanian reads as native is entirely one.
+#
+#     Measured on the controls, 2026-09-01, because that claim is worth nothing
+#     unless DeepSeek can actually judge Romanian: `voice` 20/20 and `human`
+#     20/20, against gpt-5's 18/20 on `voice` — it rejected two of her own
+#     published pieces. The cheaper, independent judge is also the better one
+#     here. One thing it cannot do: see characters. A planted cedilla mix
+#     (`ş`/`ţ` for `ș`/`ț`) passed twice, once with the character scan as the
+#     literal first line of the rubric — `Eşti` and `Ești` are two tokens, and a
+#     judge reads tokens.
+#   · The rubrics are IMPORTED from `evals/output/`, never restated. That is the
+#     same rule this file already follows for `run_case` and `JUDGE_PROMPT`: a
+#     score printed here and a score printed by the standalone script have to be
+#     the same question, or two numbers wearing one name will be compared.
+#
+# COST: one judge call per variant per field, so a five-variant detail case
+# costs ten calls per metric. `--dry-run` prints the count before anything is
+# spent.
+
+_OUTPUT_CLASSIFIERS: dict[str, Any] = {}
+
+
+def output_judge(metric: str, prompt: str, choices: dict[str, float]):
+    """One classifier per output metric, built once and reused.
+
+    `judge_llm` is imported rather than rebuilt so this file and the standalone
+    scripts cannot end up asking two different models the same question.
+    """
+
+    if metric not in _OUTPUT_CLASSIFIERS:
+        llm, _ = judge_llm()
+        _OUTPUT_CLASSIFIERS[metric] = create_classifier(
+            name=metric,
+            prompt_template=prompt,
+            llm=llm,
+            choices=choices,
+        )
+    return _OUTPUT_CLASSIFIERS[metric]
+
+
+def written_evaluator(metric: str, prompt: str, choices: dict[str, float], **fixed):
+    """A judged column over every hook and caption one run produced.
+
+    `fixed` is whatever the rubric needs beyond the text itself — `voice` wants
+    her voice block, `human` wants nothing. Aggregated the way `relevance` is:
+    the run passes only if every piece of writing in it did, because one good
+    caption does not excuse four that read as translated.
+    """
+
+    @create_evaluator(kind="LLM", name=metric)
+    async def evaluate(output: dict[str, Any]) -> dict[str, Any]:
+        written = output.get("written") or []
+        if not written:
+            # NO SCORE, not a zero — see the block comment above.
+            return {
+                "label": "—",
+                "explanation": "The run wrote no hook or caption; nothing to judge.",
+            }
+
+        verdicts: list[str] = []
+        why: list[str] = []
+        for variant in written:
+            for field_name in ("hook", "caption"):
+                text = (variant.get(field_name) or "").strip()
+                if not text:
+                    continue
+                scores = await output_judge(metric, prompt, choices).async_evaluate(
+                    {"field": field_name, "text": text, **fixed}
+                )
+                first = scores[0] if scores else None
+                label = getattr(first, "label", None) or "unread"
+                verdicts.append(label)
+                if choices.get(label, 0.0) < 1.0:
+                    # Only the failures are worth the width: a run where
+                    # everything passed says so in its score.
+                    why.append(
+                        f"{variant.get('hook_type', '?')}/{field_name}: "
+                        f"{(getattr(first, 'explanation', '') or '')[:120]}"
+                    )
+
+        if not verdicts:
+            return {"label": "—", "explanation": "Nothing readable to judge."}
+
+        good = sum(1 for label in verdicts if choices.get(label, 0.0) == 1.0)
+        passed = good == len(verdicts)
+        return {
+            "score": 1.0 if passed else 0.0,
+            "label": f"{good}/{len(verdicts)}",
+            "explanation": " | ".join(why) if why else "every piece passed",
+        }
+
+    return evaluate
+
+
+def voice_evaluator(voice_block: str):
+    """`voice` — does what it wrote sound like HER?
+
+    The block is her own four profile sections, read once by the caller and
+    handed in, exactly as `relevance_evaluator` takes the avatar.
+    """
+
+    return written_evaluator(
+        "voice",
+        VOICE_PROMPT,
+        {"hers": 1.0, "generic": 0.0},
+        voice=voice_block,
+    )
+
+
+def human_evaluator():
+    """`human` — does it read as Romanian a person wrote, not translated into?"""
+
+    return written_evaluator("human", HUMAN_PROMPT, {"human": 1.0, "translated": 0.0})
+
+
 # ---- reading the results ----------------------------------------------------
 
 
@@ -487,7 +638,19 @@ def summarise(ran: dict[str, Any], rows_by_case: dict[str, dict[str, Any]]) -> l
     return findings
 
 
-NAMES = ("router", "references", "tools", "relevance_books", "relevance_web", "convergence")
+NAMES = (
+    "router",
+    "references",
+    "tools",
+    "relevance_books",
+    "relevance_web",
+    "convergence",
+    # The two that read the text. Last on purpose: the report reads left to
+    # right as "did it reach the method, was the material any good, how long did
+    # it take, and is what came out worth reading".
+    "voice",
+    "human",
+)
 
 
 def show(findings: list[dict[str, Any]], url: str) -> None:
@@ -516,6 +679,8 @@ def show(findings: list[dict[str, Any]], url: str) -> None:
         "relevance_books": "what the shelf returned, judged",
         "relevance_web": "what the web returned, judged",
         "convergence": "short path / the shortest correct one",
+        "voice": "the hook and caption sound like her",
+        "human": "the Romanian reads as a person's",
     }
     for name in NAMES:
         scored = [f["scores"][name] for f in findings if f["scores"].get(name) is not None]
@@ -612,7 +777,12 @@ async def run(
     client = AsyncClient(
         base_url=phoenix_api_base(PHOENIX_COLLECTOR_ENDPOINT), api_key=PHOENIX_API_KEY
     )
-    avatar = avatar_excerpt(PROFILE.read_text(encoding="utf-8"))
+    profile_text = PROFILE.read_text(encoding="utf-8")
+    avatar = avatar_excerpt(profile_text)
+    # Her voice, read once and handed to the judge — the same four sections the
+    # WRITER is shown, from the same module, so the two cannot drift.
+    voice_block = voice_excerpt(profile_text)
+    _, output_judge_name = judge_llm()
     stamp = datetime.now(UTC).strftime("%Y-%m-%d-%H%M")
 
     try:
@@ -639,10 +809,19 @@ async def run(
                 tools,
                 relevance_evaluator("search_books", avatar),
                 relevance_evaluator("search_web", avatar),
+                # The two that read what was WRITTEN, not the route to it.
+                # They skip on a `titluri` case, which has no hook or caption.
+                voice_evaluator(voice_block),
+                human_evaluator(),
             ],
             experiment_name=f"generare-{stamp}",
-            experiment_description="route + relevance, one run per case",
-            experiment_metadata={"judge": EVAL_JUDGE_MODEL},
+            experiment_description="route + relevance + output, one run per case",
+            experiment_metadata={
+                "judge": EVAL_JUDGE_MODEL,
+                # Named separately because it IS separate, on purpose: the
+                # output metrics are graded outside the family that writes.
+                "output_judge": output_judge_name,
+            },
             concurrency=concurrency,
             timeout=TASK_TIMEOUT,
             repetitions=repetitions,
@@ -706,9 +885,19 @@ def show_labels(chosen: list[dict[str, Any]]) -> None:
             f"{wanted['skill']:<19}{tools_ or '—':<38}{refs}"
         )
     witness = [r["input"]["case"] for r in chosen if r["output"]["relevance"] != "relevant"]
+    # Only a `detalii` case writes a hook and a caption, so only those reach the
+    # two output metrics — and how many judge calls that is, is worth knowing
+    # before anything is spent rather than after.
+    writing = [r["input"]["case"] for r in chosen if r["input"]["phase"] == "detalii"]
+    _, output_judge_name = judge_llm()
     print(
         f"\n{len(chosen)} cases. No model, no container, no cost."
         f"\nNegative witness (`irelevant` expected): {', '.join(witness) or '—'}"
+        f"\n\n`voice` and `human` read only what was written, so they judge the"
+        f" {len(writing)} `detalii` case(s): {', '.join(writing) or '—'}."
+        f"\nThe other {len(chosen) - len(writing)} return a scoreless skip."
+        f"\nJudge: {output_judge_name}. At five variants x two fields that is"
+        f" {len(writing) * 5 * 2} calls per metric."
     )
 
 

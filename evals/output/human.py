@@ -1,6 +1,6 @@
 """Metric `human` — does it read as Romanian written by a person?
 
-    uv run python evals/output/human.py --dry-run   # the rows and the free layer
+    uv run python evals/output/human.py --dry-run   # the rows it would judge, free
     uv run python evals/output/human.py             # judges. Costs a few cents.
     uv run python evals/output/human.py --field caption
 
@@ -14,32 +14,16 @@ internet (that is `voice`); a text can hit every one of her signature phrases
 and still read as machine output (that is this one). Grading them as one number
 would say a post is bad without saying which way.
 
-TWO LAYERS, AND THE FREE ONE IS THE MORE CERTAIN.
+ONE QUESTION, PUT TO A JUDGE, and the question is narrow on purpose: not whether
+the writing is good, not whether it suits her, only whether the Romanian is
+native. The faults it looks for are calques („la sfârșitul zilei", „fii sigură
+că"), agreement slips („mai puțin oboseală"), telegraphic colon-lists, and the
+aphorism bolted on after the closing question.
 
-  · `tells` — deterministic, no model, no cost. Chiefly the CEDILLA MIX: `ţ`
-    (U+0163) and `ş` (U+015F) are Turkish letters kept in legacy Romanian
-    codepages, while correct Romanian is `ț` (U+021B) and `ș` (U+0219). A
-    person typing Romanian produces one of the two, consistently, because their
-    keyboard emits one of the two. A model producing both inside one paragraph
-    is not making a stylistic choice.
-
-    Measured 2026-09-01 across the 60 ready variants in the database and her 27
-    published posts: three generated captions mix them — one at 8 cedilla
-    against 9 comma-below — and NONE of hers do. All three were Viorela's, and
-    they are the ones her wife was reading. It also catches the non-breaking
-    hyphen (U+2011), which no Romanian keyboard has.
-
-  · `human` — the judge, for what no character test can see: calques, agreement
-    slips, telegraphic colon-lists, and the closing-flourish aphorism.
-
-WHY THE FREE LAYER IS NOT THE WHOLE METRIC. It is certain but narrow: it proves
-a machine touched the text and cannot tell you that „mai puțin oboseală" is
-wrong, that „practică a refuza" is not a Romanian construction, or that „Te
-întreb din prietenie" is a sentence nobody says. Those need a reader.
-
-THE JUDGE IS gpt-5 BY DEFAULT — see `config.OUTPUT_JUDGE_MODEL`. Asking
-`gpt-5-mini` whether this Romanian reads as machine-written is asking it to
-fault its own dialect.
+THE JUDGE IS DEEPSEEK — `config.py` chose it, and the reason is written there:
+asking `gpt-5-mini` whether this Romanian reads as machine-written is asking it
+to fault its own dialect. Whether DeepSeek can tell native Romanian from
+translated is measured every run by the controls, never assumed.
 """
 
 from __future__ import annotations
@@ -49,28 +33,23 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import create_classifier, evaluate_dataframe
 
 from content_studio import enable_utf8_output
-from content_studio.config import OUTPUT_JUDGE_MODEL
 
 # Same shape `experiment.py` uses to reach across groups: the repo root on the
 # path, then the sibling by its full name, so one file owns the cases.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from evals.output.cases import (  # noqa: E402
-    cedilla_mix,
     controls_verdict,
     frame_for,
+    judge_llm,
     report,
     unpack,
 )
 
 enable_utf8_output()
-
-#: A hyphen no Romanian keyboard produces. It arrives from a model that has read
-#: a lot of typeset English, and it survives into the caption she publishes.
-NON_BREAKING_HYPHEN = "‑"
 
 JUDGE_PROMPT = """You are reading ONE piece of Romanian text and answering a single
 question: was this written by a Romanian speaker, or translated into Romanian?
@@ -86,6 +65,10 @@ be a fragment; that is its form, not a fault.
 THE TEXT
 {text}
 
+Spelling and diacritics are not your question — a text written without any
+diacritics at all is perfectly normal Romanian, and this author writes that way
+sometimes. Judge the language, not the typing.
+
 Answer "human" only if ALL of these hold:
 
 1. The grammar is Romanian. Agreement holds (a Romanian writes „mai puțină
@@ -99,33 +82,10 @@ Answer "human" only if ALL of these hold:
    aphorism with a dash in the middle, then another list.
 4. It ends where a person would end it. Not with a bolted-on flourish after the
    closing question, and not with a summary of what was just said.
-
 Answer "translated" if any one of them fails. Quote the phrase that decided it.
 
-Ignore spelling of diacritics: a separate check already handles that, and it is
-not your question. Write your reasoning first, then the label on its own.
+Write your reasoning first, then the label on its own.
 """
-
-
-def free_layer(frame: pd.DataFrame) -> pd.DataFrame:
-    """The character tells. No model, no cost, no judgement."""
-    out = frame.copy()
-    findings: list[str] = []
-    clean: list[bool] = []
-    for text in out["text"]:
-        legacy, correct = cedilla_mix(text)
-        notes: list[str] = []
-        if legacy and correct:
-            notes.append(f"mixes {legacy} legacy cedilla with {correct} comma-below")
-        elif legacy:
-            notes.append(f"{legacy} legacy cedilla letters (ş/ţ), not Romanian")
-        if NON_BREAKING_HYPHEN in text:
-            notes.append("non-breaking hyphen (U+2011), absent from any Romanian keyboard")
-        findings.append("; ".join(notes))
-        clean.append(not notes)
-    out["tells"] = findings
-    out["tells_ok"] = clean
-    return out
 
 
 def breakdown(measured: pd.DataFrame, metric: str, verb: str) -> None:
@@ -153,10 +113,9 @@ def breakdown(measured: pd.DataFrame, metric: str, verb: str) -> None:
 
 
 def show(frame: pd.DataFrame, judged: bool) -> None:
-    print(f"\n{'kind':<10} {'field':<8} {'hook type':<11} {'free':<5} {'human':<7} text")
-    print("-" * 108)
+    print(f"\n{'kind':<10} {'field':<8} {'hook type':<11} {'human':<7} text")
+    print("-" * 100)
     for _, row in frame.iterrows():
-        free = "ok" if row["tells_ok"] else "TELL"
         verdict = ""
         if judged:
             if row.get("score") is None or pd.isna(row.get("score")):
@@ -168,14 +127,9 @@ def show(frame: pd.DataFrame, judged: bool) -> None:
         snippet = row["text"][:42].replace("\n", " ")
         print(
             f"{row['kind']:<10} {row['field']:<8} {str(row['hook_type']):<11} "
-            f"{free:<5} {verdict:<7} {snippet}…"
+            f"{verdict:<7} {snippet}…"
         )
     print()
-
-    tells = frame[~frame["tells_ok"]]
-    print(f"character tells  {len(frame) - len(tells)}/{len(frame)} clean")
-    for _, row in tells.iterrows():
-        print(f"    {row['case_id']}: {row['tells']}")
 
     if not judged:
         print(f"\n{len(frame)} rows would be judged. No judge called, no cost.")
@@ -202,7 +156,6 @@ def main() -> int:
     parser.add_argument(
         "--controls-only", action="store_true", help="calibrate the rubric, cheaply"
     )
-    parser.add_argument("--judge", default=OUTPUT_JUDGE_MODEL, help="the judging model")
     args = parser.parse_args()
 
     frame = frame_for("human", controls=not args.no_controls, only=args.field)
@@ -212,19 +165,19 @@ def main() -> int:
         print("No case. Seed one with: uv run python evals/output/seed.py --write")
         return 1
 
-    frame = free_layer(frame)
-
     if args.dry_run:
         show(frame, judged=False)
         print(f"\nReport: {report('human', frame, None)}")
         return 0
 
+    llm, judge_name = judge_llm()
     evaluator = create_classifier(
         name="human",
         prompt_template=JUDGE_PROMPT,
-        llm=LLM(provider="openai", model=args.judge),
+        llm=llm,
         choices={"human": 1.0, "translated": 0.0},
     )
+    print(f"judge: {judge_name}")
     graded = evaluate_dataframe(frame, [evaluator])
     frame = unpack(frame, graded, "human")
 
@@ -237,7 +190,7 @@ def main() -> int:
             return 1
 
     show(frame, judged=True)
-    print(f"\nReport: {report('human', frame, args.judge)}")
+    print(f"\nReport: {report('human', frame, judge_name)}")
     believable, _ = controls_verdict(frame)
     return 0 if believable else 1
 

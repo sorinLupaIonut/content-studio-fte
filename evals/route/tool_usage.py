@@ -307,8 +307,39 @@ class Route:
     #: is where the run already is. `route.tools` says a tool was called; a
     #: search that timed out is in both, and only this one can tell you so.
     searches: list[dict[str, Any]] = field(default_factory=list)
+    #: What the run WROTE, one entry per variant: hook type, hook, caption.
+    #: Empty on a `titluri` run, which produces titles and angles and has no
+    #: hook to grade — the two output evaluators skip on that rather than
+    #: scoring it zero.
+    #:
+    #: Collected here for the same reason `searches` is: this is where the run
+    #: already is. The route verdict does not read it and must not — `route/`
+    #: grades whether the method was reached, and a beautifully written post
+    #: that skipped its reference file is still a route failure.
+    written: list[dict[str, Any]] = field(default_factory=list)
     turns: int = 0
     error: str | None = None
+
+
+def written_from(result) -> list[dict[str, Any]]:
+    """The five variants a detail run produced, as plain dicts.
+
+    Duck-typed rather than matched against the three detail contracts: they are
+    `SilentReelDetails` and `ProducedIdeaDetails`, they differ in whether a
+    variant carries a script, and the only thing wanted here is the half that is
+    identical in both. A titles run has no `variants` and yields [].
+    """
+
+    final = getattr(result, "final_output", None)
+    variants = getattr(final, "variants", None) or []
+    return [
+        {
+            "hook_type": getattr(variant, "hook_type", ""),
+            "hook": getattr(variant, "hook", "") or "",
+            "caption": getattr(variant, "caption", "") or "",
+        }
+        for variant in variants
+    ]
 
 
 def route_from(result) -> Route:
@@ -413,7 +444,9 @@ async def run_case(
                     ),
                     timeout=RUN_TIMEOUT_SECONDS,
                 )
-            return route_from(result)
+            route = route_from(result)
+            route.written = written_from(result)
+            return route
         except asyncio.CancelledError:
             raise
         except BaseException as exc:  # noqa: BLE001 - one square must not stop the grid
