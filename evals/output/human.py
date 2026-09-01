@@ -14,11 +14,16 @@ internet (that is `voice`); a text can hit every one of her signature phrases
 and still read as machine output (that is this one). Grading them as one number
 would say a post is bad without saying which way.
 
-ONE QUESTION, PUT TO A JUDGE, and the question is narrow on purpose: not whether
-the writing is good, not whether it suits her, only whether the Romanian is
-native. The faults it looks for are calques („la sfârșitul zilei", „fii sigură
-că"), agreement slips („mai puțin oboseală"), telegraphic colon-lists, and the
-aphorism bolted on after the closing question.
+ONE QUESTION, PUT TO A JUDGE, and it is deliberately the plain one: DOES IT
+SOUND GOOD? Not correct, not on topic, not suited to her — `voice.py` asks that.
+Just whether a Romanian reading it would think a person wrote it.
+
+Spelling and diacritics are explicitly out of scope, and that is Sorin's call of
+2026-09-01 rather than an oversight. It was tried the other way: a planted
+cedilla mix (`ş`/`ţ` for `ș`/`ț`) sat in the controls and the judge passed it
+twice, the second time with the character scan as the literal first line of the
+rubric. `Eşti` and `Ești` are two tokens and a judge reads tokens. Asking it to
+look at characters made the rubric longer and caught nothing.
 
 THE JUDGE IS DEEPSEEK — `config.py` chose it, and the reason is written there:
 asking `gpt-5-mini` whether this Romanian reads as machine-written is asking it
@@ -51,11 +56,24 @@ from evals.output.cases import (  # noqa: E402
 
 enable_utf8_output()
 
-JUDGE_PROMPT = """You are reading ONE piece of Romanian text and answering a single
-question: was this written by a Romanian speaker, or translated into Romanian?
+#: EVERY EXAMPLE BELOW IS DELIBERATELY *NOT* ONE OF THE CONTROL TEXTS.
+#:
+#: An earlier version quoted „mai puțin oboseală" — the exact phrase inside
+#: `planted-human-4` — and scored 4/4 on the planted set. That is not a metric
+#: passing, it is a rubric reciting its own answer key: the judge only had to
+#: match a string it had been handed. Stripping the anchors out entirely was
+#: tried next and went the other way, 2/4, passing the real production caption.
+#:
+#: So the faults are named with DIFFERENT specimens of the same kinds. A control
+#: that passes now means the judge generalised from „mai mult energie" to „mai
+#: puțin oboseală", which is the thing actually being claimed.
+JUDGE_PROMPT = """You are reading ONE piece of Romanian social-media copy and answering
+one question: DOES IT SOUND GOOD?
 
-You are NOT grading whether it is good, whether it is on topic, or whether it
-suits its author. Only whether the Romanian is native.
+Not whether it is correct. Not whether it is on topic. Not whether it suits its
+author — a separate metric asks that. Only whether a Romanian reading this would
+think "a person wrote this", rather than "this was translated" or "a machine
+assembled this".
 
 THE FIELD: {field}
 A `hook` is one line — the text on screen in the first two seconds of a silent
@@ -65,26 +83,36 @@ be a fragment; that is its form, not a fault.
 THE TEXT
 {text}
 
-Spelling and diacritics are not your question — a text written without any
-diacritics at all is perfectly normal Romanian, and this author writes that way
-sometimes. Judge the language, not the typing.
+Answer "human" if it reads naturally: the phrasing is what a Romanian would
+actually say, the sentences carry each other, and nothing makes you stop and
+re-read because the words sit oddly together.
 
-Answer "human" only if ALL of these hold:
+Answer "translated" if any of these gives it away. The examples are only to show
+you the KIND of fault — the text in front of you will have different ones:
 
-1. The grammar is Romanian. Agreement holds (a Romanian writes „mai puțină
-   oboseală", never „mai puțin oboseală"), and the constructions are ones the
-   language actually uses.
-2. No calques. „La sfârșitul zilei", „fii sigură că" for make sure, „moduri
-   cheie", „a realiza" in the sense of to realise, „ia-ți înapoi puterea" —
-   these are English sentences wearing Romanian words.
-3. It is written, not assembled. A person writes in sentences that carry each
-   other. A machine writes „Rezultatul:" followed by three nouns, then an
-   aphorism with a dash in the middle, then another list.
-4. It ends where a person would end it. Not with a bolted-on flourish after the
-   closing question, and not with a summary of what was just said.
-Answer "translated" if any one of them fails. Quote the phrase that decided it.
+1. Agreement or form that slips. „mai mult energie" for „mai multă energie";
+   „două zi"; a feminine subject with a masculine adjective.
+2. An English expression carried across word for word. „face sens" for it makes
+   sense; „aplică pentru" a job; „sunt bun la" for I am good at.
+3. A construction Romanian does not use. „a practica ceva" where a person would
+   say „a exersa"; an infinitive where the language wants a subjunctive.
+4. Assembled rather than written. A colon followed by three bare nouns, an
+   aphorism with a dash in the middle, a list where a sentence belonged.
+5. It does not stop where a person would stop. A closing flourish bolted on
+   after the piece had already ended.
 
-Write your reasoning first, then the label on its own.
+ONE IS ENOUGH. Do not weigh the faults against the fluency and settle on an
+average — a caption can flow beautifully for four sentences and still have been
+assembled. If you catch yourself writing "slightly unusual", "a bit odd", or "a
+Romanian would more likely say", you have already found it: that is the answer,
+and the label is "translated". A native writer does not produce phrases their
+own readers have to excuse.
+
+Spelling, punctuation and diacritics are NOT the question. Plenty of Romanians
+write without diacritics entirely; that is never a fault and never decides this.
+Judge how it SOUNDS.
+
+Quote the phrase that decided it, then give the label on its own line.
 """
 
 
@@ -156,6 +184,9 @@ def main() -> int:
     parser.add_argument(
         "--controls-only", action="store_true", help="calibrate the rubric, cheaply"
     )
+    parser.add_argument(
+        "--judge", help="grade with this OpenAI model instead of the default judge"
+    )
     args = parser.parse_args()
 
     frame = frame_for("human", controls=not args.no_controls, only=args.field)
@@ -170,7 +201,7 @@ def main() -> int:
         print(f"\nReport: {report('human', frame, None)}")
         return 0
 
-    llm, judge_name = judge_llm()
+    llm, judge_name = judge_llm(args.judge)
     evaluator = create_classifier(
         name="human",
         prompt_template=JUDGE_PROMPT,

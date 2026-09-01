@@ -313,7 +313,7 @@ def frame_for(
 # ---- the judge ---------------------------------------------------------------
 
 
-def judge_llm() -> tuple[LLM, str]:
+def judge_llm(override: str | None = None) -> tuple[LLM, str]:
     """The grader for both output metrics, and its name for the report.
 
     DEEPSEEK, AND NOT THE FAMILY THAT WRITES THE POSTS. `config.py` made this
@@ -335,6 +335,12 @@ def judge_llm() -> tuple[LLM, str]:
     refusing: an empty address has always meant the judged metrics degrade, not
     that the suite stops.
     """
+
+    # An override names an OpenAI-family model, so it also answers the question
+    # "is this the rubric's ceiling or this judge's?" — which is worth asking
+    # before rewriting a rubric for the fourth time.
+    if override:
+        return LLM(provider="openai", model=override), override
 
     if not DEEPSEEK_API_KEY:
         return LLM(provider="openai", model=EVAL_JUDGE_MODEL), EVAL_JUDGE_MODEL

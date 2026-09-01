@@ -58,6 +58,12 @@ enable_utf8_output()
 
 PROFILE = CONTENT_DIR / "profile.md"
 
+#: THE TWO HOOKS QUOTED BELOW ARE NOT CONTROL ROWS, and that is deliberate. An
+#: earlier version quoted „Porți epuizarea ca pe o medalie.” and „Spuneam DA la
+#: toată lumea.” — both of which `her_own()` hands to the judge as positive
+#: controls. A rubric that quotes its own answer key does not measure a judge,
+#: it measures whether the judge can match a string. These two come from posts
+#: `her_own(limit=8)` does not reach.
 JUDGE_PROMPT = """You are grading ONE piece of Romanian social-media copy against the
 voice of the woman it is written for. She is a coach for women in burnout. This
 is not a quality contest and not a grammar check — the only question is whether
@@ -88,9 +94,10 @@ as much of your attention as the three above:
 
   · A COMMON SUBJECT. Naming an experience thousands of women share is what a
     hook is for. Her own published hooks are ordinary burnout observations —
-    „Porți epuizarea ca pe o medalie.”, „Spuneam DA la toată lumea.” What makes
-    them hers is the handling: the admission that follows („Știu. Am purtat-o și
-    eu.”), the invitation, the question. Judge the handling, not the topic.
+    „Corpul tău îți spune NU de ceva vreme. Întrebarea e dacă vrei să-l auzi.”,
+    „Nu e ghinion că răcești fix în concediu.” What makes them hers is the
+    handling: the turn into a question, the admission that she has been there
+    too, the invitation. Judge the handling, not the topic.
   · MISSING SIGNATURE PHRASES. She does not stamp them onto every post, and a
     hook is one line with no room for them. Their absence is not evidence.
   · PLAIN WRITING. She is not trying to be clever, and she writes some hooks
@@ -178,6 +185,9 @@ def main() -> int:
     parser.add_argument(
         "--controls-only", action="store_true", help="calibrate the rubric, cheaply"
     )
+    parser.add_argument(
+        "--judge", help="grade with this OpenAI model instead of the default judge"
+    )
     args = parser.parse_args()
 
     frame = frame_for("voice", controls=not args.no_controls, only=args.field)
@@ -198,7 +208,7 @@ def main() -> int:
         print(f"\nReport: {report('voice', frame.drop(columns=['voice']), None)}")
         return 0
 
-    llm, judge_name = judge_llm()
+    llm, judge_name = judge_llm(args.judge)
     evaluator = create_classifier(
         name="voice",
         prompt_template=JUDGE_PROMPT,
