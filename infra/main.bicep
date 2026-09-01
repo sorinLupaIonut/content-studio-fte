@@ -35,6 +35,9 @@ param selfProvisionProviders string = ''
 @description('Bulk generation and chat model. Matches the default in config.py.')
 param model string = 'gpt-5-mini'
 
+@description('Client slugs allowed to pick the writing model in the interface. Everyone else is served GENERATION_MODELS[0] and sees no picker. Comma-separated; empty falls back to CLIENT_SLUG alone.')
+param modelChoiceClients string = 'viorela,sorin'
+
 @secure()
 @description('Neon pooled endpoint — what the running app uses.')
 param databaseUrl string
@@ -353,6 +356,17 @@ resource harness 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'MODEL'
               value: model
+            }
+            // The picker is scoped here rather than left to the default in
+            // `config.py`, which is CLIENT_SLUG alone. Two names on purpose:
+            // hers, because the comparison is about HER output, and the
+            // owner's, because otherwise the only person who could confirm the
+            // control renders at all is the client herself. Testers are
+            // deliberately absent - gpt-5 costs five times mini per token and a
+            // lifetime allowance would go in two batches.
+            {
+              name: 'MODEL_CHOICE_CLIENTS'
+              value: modelChoiceClients
             }
             {
               name: 'DATABASE_URL'

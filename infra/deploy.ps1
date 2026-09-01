@@ -202,6 +202,10 @@ if ($clientOwnerEmail) {
 # without being named in AUTH_ALLOWED_EMAILS, and gets a studio written on its
 # first request. Empty is the safe default and leaves every door as it was.
 $selfProvisionProviders = $dotenv['AUTH_SELF_PROVISION_PROVIDERS']
+# Empty here lets the template's own default stand, which is where the
+# list is written; .env only overrides it for a one-off deployment.
+$modelChoiceClients = $dotenv['MODEL_CHOICE_CLIENTS']
+if (-not $modelChoiceClients) { $modelChoiceClients = 'viorela,sorin' }
 # Carried through for the same reason as the Google one: bicep declares the
 # secrets list, and a declared list is the whole truth to ARM. Left out here,
 # this deployment would delete the secret that Easy Auth's studio-account
@@ -350,6 +354,7 @@ $parameters = @{
         allowedEmails     = @{ value = $AllowedEmails }
         clientOwnerEmail  = @{ value = $clientOwnerEmail }
         selfProvisionProviders = @{ value = $selfProvisionProviders }
+        modelChoiceClients = @{ value = $modelChoiceClients }
         model             = @{ value = $Model }
         databaseUrl       = @{ value = $dotenv['DATABASE_URL'] }
         databaseUrlDirect = @{ value = $dotenv['DATABASE_URL_DIRECT'] }
