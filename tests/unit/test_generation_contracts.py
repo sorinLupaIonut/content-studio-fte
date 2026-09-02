@@ -123,6 +123,18 @@ class TestSilentReelContract(unittest.TestCase):
                 source="din memorie",
             )
 
+    def test_the_blank_lines_a_floor_is_padded_with_do_not_survive(self) -> None:
+        """The model reaches 650 by adding newlines; she pastes those in."""
+        padded = SilentReelVariant(
+            hook_type="PROVOCARE",
+            hook="Hook",
+            caption=LONG_CAPTION + "\n" * 19,
+            hashtags=["#limite", "#burnout", "#coaching"],
+            cta="Salvează postarea.",
+            source="din memorie",
+        )
+        self.assertEqual(padded.caption, LONG_CAPTION.strip())
+
     def test_five_silent_variants_still_cover_the_five_hooks(self) -> None:
         result = SilentReelDetails(
             idea_ordinal=1,

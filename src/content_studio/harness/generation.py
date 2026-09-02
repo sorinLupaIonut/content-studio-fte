@@ -366,6 +366,24 @@ def checked_hashtags(values: list[str]) -> list[str]:
     return repaired
 
 
+def trimmed_caption(value: str) -> str:
+    """The caption without the whitespace the model pads it with.
+
+    `min_length` counts characters and a newline is a character, so a Reel
+    caption that has said everything at 631 and owes 650 is finished with
+    nineteen blank lines. Counted over the ten Reel captions of two real runs:
+    three of them, each landing on exactly the floor - 650 with 19 spare, 651
+    with 14, 650 with 7. She pastes that into Instagram.
+
+    Same rule as `checked_hashtags` and `ordered_by_hook`: refuse what is wrong,
+    tidy what is merely untidy. It runs AFTER the length constraint on purpose -
+    trimming first would fail the contract and buy a retry, and a caption
+    nineteen characters short of a floor nobody counts is the better of the two.
+    """
+
+    return value.strip()
+
+
 def ordered_by_hook(variants: list[Any]) -> list[Any]:
     """The five variants in tab order — sorted here rather than demanded above.
 
@@ -414,6 +432,11 @@ class IdeaVariant(StrictContract):
     source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
     format_details: FormatDetails | None = None
 
+    @field_validator("caption")
+    @classmethod
+    def caption_carries_no_padding(cls, value: str) -> str:
+        return trimmed_caption(value)
+
     @field_validator("hashtags")
     @classmethod
     def hashtag_shape(cls, values: list[str]) -> list[str]:
@@ -446,6 +469,11 @@ class ProducedVariant(StrictContract):
     cta: str = Field(min_length=2, max_length=1_000, description=CTA_LINE)
     source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
     format_details: FormatDetails
+
+    @field_validator("caption")
+    @classmethod
+    def caption_carries_no_padding(cls, value: str) -> str:
+        return trimmed_caption(value)
 
     @field_validator("hashtags")
     @classmethod
@@ -505,6 +533,11 @@ class SilentReelVariant(StrictContract):
     )
     cta: str = Field(min_length=2, max_length=1_000, description=CTA_LINE)
     source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
+
+    @field_validator("caption")
+    @classmethod
+    def caption_carries_no_padding(cls, value: str) -> str:
+        return trimmed_caption(value)
 
     @field_validator("hashtags")
     @classmethod
