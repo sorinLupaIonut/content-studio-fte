@@ -231,7 +231,15 @@ def same_title(written: str, stored: str) -> bool:
 
     def fold(text: str) -> str:
         folded = unicodedata.normalize("NFC", text).translate(_TYPOGRAPHY)
-        return " ".join(folded.split()).casefold()
+        # AND THE OUTER PAIR CAN BE GONE ENTIRELY, not merely re-typed. Counted
+        # on 2026-09-02 across every idea this studio has ever developed: of the
+        # four whose stored title was itself a quotation - „Dacă mă schimb, mă
+        # vor respinge” - three failed here, against none of the 27 titles
+        # written without quotes. Faza 2 echoes the phrase and drops the marks
+        # around it, which is the same title by the rule above: the ordinal is
+        # the identity. Each of those three cost five variants already written
+        # and paid for, twice over, because the attempt is retried.
+        return " ".join(folded.split()).casefold().strip("\"'")
 
     return fold(written) == fold(stored)
 

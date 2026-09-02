@@ -28,6 +28,21 @@ class SameTitle(unittest.TestCase):
             )
         )
 
+    def test_a_title_that_is_itself_a_quotation(self) -> None:
+        """The marks dropped, not swapped — 3 of the 4 real failures, all of it."""
+        self.assertTrue(
+            same_title(
+                "Dacă mă schimb, mă vor respinge",
+                "„Dacă mă schimb, mă vor respinge”",
+            )
+        )
+        self.assertTrue(
+            same_title(
+                "Ritualul de 60 de secunde: înainte să spui «da»",
+                "„Ritualul de 60 de secunde: înainte să spui «da»”",
+            )
+        )
+
     def test_dash_and_ellipsis(self) -> None:
         self.assertTrue(same_title("Trei pași — blând", "Trei pași - blând"))
         self.assertTrue(same_title("Și apoi…", "Și apoi..."))
