@@ -5,9 +5,11 @@ Three kinds of row, and the third is the reason to believe the first two:
   · `generated` — real variants, read out of `generation_variants` and frozen
     into `cases.json`. The measurement. No expected score: this is the thing
     under test.
-  · `her own` — hooks and captions out of `content/posts/`, which she wrote and
+  · `her own` — hooks and captions out of `content/corpus/`, which she wrote and
     published. **Expected 1.0.** A metric that fails her own work is measuring
-    its own taste, not hers.
+    its own taste, not hers. They were read out of `content/posts/` until
+    2026-09-01, when those turned out to be the studio's own output — see
+    `CORPUS` below for what that cost.
   · `planted` — fragments written here, each breaking one named rule from her
     profile. **Expected 0.0.** Nine cases that all come out `hers` look the same
     whether the metric works or the judge says yes to anything.
@@ -17,15 +19,12 @@ beside them and there is not going to be one — Sorin's call, 2026-09-01, and t
 afternoon before it is the argument. A word list was tried first, built by
 reading the „Lucruri pe care nu le spui niciodată” section of her profile, which
 says in as many words that she does not use „trebuie”. Measured against her own
-27 published posts before it shipped:
-
-    trebuie       11/27 of her posts     her own work would have failed
-    problemă       2/27                  the same
-    peste noapte   2/27                  the same
-    percentages    3/27                  the same
-
-One of her posts is titled „trebuie vs vreau”, and four of the five generated
-uses were `nu trebuie` — permissive, the opposite of the obligation she avoids.
+published writing before it shipped, and the count held when the real corpus
+replaced the fake one: 13 of her 56 captions use „trebuie”, 24 times in all —
+„Trăiești o viață
+întreagă din «trebuie»” is her subject, not her fault. Four of the five
+generated uses were `nu trebuie` — permissive, the opposite of the obligation
+she avoids.
 Six candidates did survive that measurement, and they were still deleted: six
 words is a rule that catches almost nothing while looking like a safety net, and
 the judge already catches every one of them with the reason attached. Voice and
@@ -56,7 +55,6 @@ from content_studio.config import (
 HERE = Path(__file__).resolve().parent
 REPORTS = HERE.parent / "reports"
 FROZEN = HERE / "cases.json"
-POSTS = CONTENT_DIR / "posts"
 
 #: The two fields the client's wife named, and the two this group grades.
 FIELDS = ("hook", "caption")
@@ -119,66 +117,141 @@ def generated() -> list[Case]:
 
 # ---- control 1: her own published writing ------------------------------------
 
-#: The caption block of one of her posts: `## Caption` to the next heading.
-OWN_CAPTION = re.compile(r"^##\s+Caption\s*$(.*?)(?=^##\s|\Z)", re.M | re.S)
-
-#: A hook line in one of her posts. She writes them under the hook type, quoted,
-#: and TWO details of the real files each cost a silent miss before this matched
-#: anything:
-#:
-#:   · the colon is INSIDE the bold — `**PROVOCARE:** „…`, 62 of them across the
-#:     27 files, never `**PROVOCARE**:`
-#:   · the quote OPENS with „ (U+201E) and CLOSES with a plain ASCII `"`. She
-#:     types the Romanian opener and lets the editor close it.
-#:
-#: Both versions returned zero hooks and printed a clean report over it, which
-#: is the same failure this whole group exists to catch: the hook half of both
-#: metrics had no positive control, so nothing would have objected if the judge
-#: called every hook she ever wrote generic.
-OWN_HOOK = re.compile(
-    r"\*\*(?:PROVOCARE|CIFR[ĂA]|SECRET|[ÎI]NTREBARE|CONTRAST)[:\s]*\*\*"
-    r"[^„]{0,40}„([^”\"]+)[”\"]"
-)
-
-#: Below this a caption is a fragment, not a caption. Her shortest published one
-#: runs 261 characters; 200 keeps that and drops the stray one-line blocks.
+#: Below this a caption is a fragment, not a caption. In her real corpus the two
+#: shortest run 117 and 233 characters, so 200 keeps everything she wrote at
+#: length and drops the one that is a single line.
 OWN_CAPTION_FLOOR = 200
 
 
-def her_own(limit: int = 8) -> list[Case]:
-    """Positive controls: text she wrote and published. Expected 1.0.
+#: HER REAL CORPUS, AND THE REASON IT IS NOT `content/posts/`. Until 2026-09-01
+#: the positive controls were read from `content/posts/*.md`, which look like
+#: published posts and are not: they carry „## Cele 5 hook-uri (câte unul din
+#: fiecare tip)" and „⭐ *(recomandat)*" — they are THE STUDIO'S OWN OUTPUT,
+#: saved. Sorin said so, and the files say so on their second heading.
+#:
+#: EVERY METRIC IN THIS DIRECTORY HAD THEREFORE BEEN VALIDATED AGAINST THE THING
+#: IT EXISTS TO GRADE. Worse, a rubric tuned until it ACCEPTS those controls is a
+#: rubric taught to accept generated Romanian, which is the opposite of the job.
+#: What that cost is written where the conventions were: five rules read off the
+#: fake corpus, of which three were exactly backwards. See `CAPTION_CLOSE`.
+CORPUS = CONTENT_DIR / "corpus"
 
-    Read from disk rather than from `posts` in Neon, so the controls need no
-    database and no server — and so they are the same files a reader can open
-    next to a verdict they doubt.
-    """
-    cases: list[Case] = []
-    for path in sorted(POSTS.glob("*.md")):
+#: One example out of a corpus file: a `HOOK:` line, an optional `REVEAL:` line,
+#: and the `CAPTION:` that follows. Three parts, not two — the REVEAL is a real
+#: slot in her posts and the studio has no field for it, which is its own open
+#: question. The reveal is skipped rather than read: nothing grades it yet.
+CORPUS_EXAMPLE = re.compile(
+    r"^HOOK:\s*(?P<hook>.+?)\s*$.*?^CAPTION:\s*(?P<caption>.+?)\s*$",
+    re.M | re.S,
+)
+
+
+#: THE CORPUS IS SPLIT THREE WAYS, AND THE SLICES MUST NOT TOUCH.
+#:
+#:   · ANCHOR  — shown to the JUDGE as what her writing looks like. Her profile
+#:               cannot do this job: it says she promises no „rețete rapide", and
+#:               46 of her 56 published captions are numbered lists or points
+#:               behind markers. Judged
+#:               against the profile alone the metric rejected six of her own
+#:               posts for being lists, which is her most common format.
+#:   · SPECIMEN — shown to the WRITER, out of her profile. `shown_to_the_writer`.
+#:   · CONTROL  — everything left, and the only slice `her_own` returns.
+#:
+#: A judge shown the text it is about to grade is measuring recall. A writer
+#: shown it is being graded on copying. Three disjoint slices is the only
+#: arrangement where neither happens, and `test_corpus_slices.py` holds them
+#: apart.
+ANCHORS_PER_THEME = 2
+
+
+def _corpus_blocks() -> list[tuple[str, int, str, str]]:
+    """(theme, index, hook, caption) for every example in her corpus."""
+    out: list[tuple[str, int, str, str]] = []
+    for path in sorted(CORPUS.glob("*.md")):
         text = path.read_text(encoding="utf-8")
-        caption = OWN_CAPTION.search(text)
-        if caption:
-            body = caption.group(1).strip()
-            if len(body) > OWN_CAPTION_FLOOR:
-                cases.append(
-                    Case(
-                        case_id=f"own-{path.stem}-caption",
-                        kind="her own",
-                        field="caption",
-                        text=body,
-                        expected=1.0,
-                        meta={"title": path.stem},
-                    )
+        for index, block in enumerate(CORPUS_EXAMPLE.finditer(text), start=1):
+            out.append(
+                (
+                    path.stem,
+                    index,
+                    block.group("hook").strip(),
+                    block.group("caption").strip(),
                 )
-        hook = OWN_HOOK.search(text)
-        if hook:
+            )
+    return out
+
+
+def anchor_examples() -> list[tuple[str, str]]:
+    """(hook, caption) pairs the judge may see. Never graded."""
+    return [
+        (hook, caption)
+        for theme, index, hook, caption in _corpus_blocks()
+        if index <= ANCHORS_PER_THEME
+    ]
+
+
+def anchor_block() -> str:
+    """The anchors as one block, ready to interpolate into a rubric."""
+    return "\n\n".join(
+        f"HOOK: {hook}\nCAPTION: {caption}" for hook, caption in anchor_examples()
+    )
+
+
+def shown_to_the_writer() -> str:
+    """The specimen block out of her profile, or empty when she has none.
+
+    DERIVED, NOT LISTED. A hand-kept list of "the posts used as examples" would
+    be a second copy of a choice she makes in her profile, and it would stop
+    agreeing with it the first time she swaps one. Reading the section is the
+    same answer with nothing to maintain.
+    """
+    from content_studio.voice import specimens
+
+    profile = CONTENT_DIR / "profile.md"
+    if not profile.exists():
+        return ""
+    return specimens(profile.read_text(encoding="utf-8"))
+
+
+def her_own(limit: int = 8) -> list[Case]:
+    """Positive controls: text SHE wrote and published. Expected 1.0.
+
+    Read from disk rather than from Neon, so the controls need no database and
+    no server — and so they are the same files a reader can open next to a
+    verdict they doubt.
+
+    ANYTHING THE WRITER WAS SHOWN IS NOT A CONTROL. If her profile carries
+    specimens, `voice.brief` puts them in the writing prompt, and grading the
+    writer on text it was handed measures recall rather than voice — the same
+    leak `test_rubrics_do_not_leak.py` guards on the rubric side.
+    """
+    shown = shown_to_the_writer()
+    cases: list[Case] = []
+    for theme, index, hook, caption in _corpus_blocks():
+        if index <= ANCHORS_PER_THEME:
+            continue  # the judge is shown this one; see ANCHORS_PER_THEME
+        if shown and caption[:120] in shown:
+            continue  # the writer was given this one; see the docstring
+        if len(caption) > OWN_CAPTION_FLOOR:
             cases.append(
                 Case(
-                    case_id=f"own-{path.stem}-hook",
+                    case_id=f"own-{theme}-{index}-caption",
+                    kind="her own",
+                    field="caption",
+                    text=caption,
+                    expected=1.0,
+                    meta={"title": f"{theme} {index}"},
+                )
+            )
+        if hook and hook != "—":
+            cases.append(
+                Case(
+                    case_id=f"own-{theme}-{index}-hook",
                     kind="her own",
                     field="hook",
-                    text=hook.group(1).strip(),
+                    text=hook,
                     expected=1.0,
-                    meta={"title": path.stem},
+                    meta={"title": f"{theme} {index}"},
                 )
             )
     by_field: dict[str, list[Case]] = {"hook": [], "caption": []}
@@ -455,7 +528,8 @@ def unpack(frame: pd.DataFrame, graded: pd.DataFrame, metric: str) -> pd.DataFra
 #:
 #: Her stated voice and her published corpus DIVERGE, and this is the second
 #: time measuring found it — the first was „trebuie”, forbidden in the profile
-#: and used 21 times in her posts. A control set drawn from real writing carries
+#: and used 24 times, across 13 of her 56 captions. A control set drawn from real
+#: writing carries
 #: real exceptions, so a metric tuned until it accepts every one of them is a
 #: metric tuned to stop objecting.
 #:

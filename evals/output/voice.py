@@ -51,6 +51,7 @@ from content_studio.voice import excerpt as voice_excerpt
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from evals.output.cases import (  # noqa: E402
+    anchor_block,
     controls_verdict,
     frame_for,
     judge_llm,
@@ -62,62 +63,67 @@ enable_utf8_output()
 
 PROFILE = CONTENT_DIR / "profile.md"
 
-#: THE TWO HOOKS QUOTED BELOW ARE NOT CONTROL ROWS, and that is deliberate. An
-#: earlier version quoted „Porți epuizarea ca pe o medalie.” and „Spuneam DA la
-#: toată lumea.” — both of which `her_own()` hands to the judge as positive
-#: controls. A rubric that quotes its own answer key does not measure a judge,
-#: it measures whether the judge can match a string. These two come from posts
-#: `her_own(limit=8)` does not reach.
-JUDGE_PROMPT = """You are grading ONE piece of Romanian social-media copy against the
-voice of the woman it is written for. She is a coach for women in burnout. This
-is not a quality contest and not a grammar check — the only question is whether
-SHE could have written this.
+#: WHAT IT GRADES AGAINST IS HER WRITING, NOT HER PROFILE, and the difference is
+#: the whole repair of 2026-09-01. The profile is her questionnaire — what she
+#: believes about her own voice — and it disagrees with her published work in at
+#: least three places that have each cost a run: it disowns „trebuie" (13 of 56
+#: captions use it), it promises no „rețete rapide" (46 of 56 ARE numbered
+#: lists or points behind markers), and it never mentions how she closes. Judged against the profile
+#: alone, this metric rejected six of her own posts, five of them for being the
+#: format she uses most.
+#:
+#: So the profile still says WHO she is, and `anchor_block()` shows WHAT she
+#: writes: ten real examples, held out of the control set by `cases.py` so the
+#: judge is never shown a text it is about to grade. See `ANCHORS_PER_THEME`.
+JUDGE_PROMPT = (
+    """Here is how one woman describes her own voice, copied from her brand
+profile. She is a coach for women in burnout.
 
-HER VOICE, IN HER OWN WORDS — taken from her brand profile:
 {voice}
 
-THE FIELD YOU ARE GRADING: {field}
-A `hook` is one line: the text on screen in the first two seconds of a silent
-reel, or the cover of a carousel. A `caption` is the post itself.
+A PROFILE IS AN INTENTION. Here is what she actually publishes — ten real posts
+of hers, as they went out:
 
-THE TEXT
+{anchor}
+
+Read those before you answer. Where the description above and the writing below
+it disagree, THE WRITING WINS: it is what she does, the other is what she meant
+to do.
+
+Below is a {field} written FOR her — a `hook` is the one line on screen at the
+start of a silent reel or on a carousel cover; a `caption` is the post itself.
+
 {text}
 
-Answer "hers" only if ALL of these hold:
+WOULD SHE HAVE WRITTEN THIS?
 
-1. The stance is hers — beside the reader, never above her. She has been through
-   this herself. She encourages, invites and asks; she does not command, blame,
-   shame or sell hard.
-2. It breaks none of her limits: no promised outcome, no deadline, no clinical
-   word, no invented statistic, and it never makes the reader wrong.
-3. She would publish it as written. Nothing in it is foreign to her — no phrase,
-   no register, no move she would not make.
+Do not answer on overall impression, and do not settle for «close enough».
+Check, one at a time:
 
-WHAT IS NOT A FAULT. This is where a careful reader goes wrong, so it is worth
-as much of your attention as the three above:
+1. Does it treat the reader in a way she never does — promising a result or a
+   deadline, using a clinical word, making the reader wrong, pushing?
+2. Is there a phrase she would not use — jargon, a slogan, a line that announces
+   its own cleverness?
+3. If it is a caption: does it end the way hers end — asking for one small,
+   named thing? An offer, a private message, or a question with nowhere to put
+   the answer are each enough on their own.
+4. Is it written from a stage, where she would have written as someone who has
+   been through it?
 
-  · A COMMON SUBJECT. Naming an experience thousands of women share is what a
-    hook is for. Her own published hooks are ordinary burnout observations —
-    „Corpul tău îți spune NU de ceva vreme. Întrebarea e dacă vrei să-l auzi.”,
-    „Nu e ghinion că răcești fix în concediu.” What makes them hers is the
-    handling: the turn into a question, the admission that she has been there
-    too, the invitation. Judge the handling, not the topic.
-  · MISSING SIGNATURE PHRASES. She does not stamp them onto every post, and a
-    hook is one line with no room for them. Their absence is not evidence.
-  · PLAIN WRITING. She is not trying to be clever, and she writes some hooks
-    without diacritics.
+Say "hers" only if none of the four catches. Say "generic" otherwise, and NAME
+which one and quote it.
 
-The block above is your calibration, and the „Exemple de hook-uri din postările
-mele” lines inside it are the standard: a text at that level passes. If your
-reasoning would reject one of THOSE, your bar is too high — lower it and answer
-again.
+FOUR THINGS THAT ARE NOT REASONS TO SAY GENERIC, each of which has wrongly
+condemned her own published writing in an earlier version of this rubric. A
+common subject: naming an experience many women share is what a hook is for, and
+hers do exactly that. Plain writing: she is not trying to be clever. A numbered
+list, or points behind markers: that is one of her regular formats, not a recipe
+— look at the examples. And a word her profile disowns, used the way the
+examples use it.
 
-Answer "generic" only when something concrete decides it: a phrase, a stance or
-a move that is not hers, which you must quote. „It could apply to many coaches”
-is not a reason on its own.
-
-Write your reasoning first — quoting what decided it — then the label on its own.
+Give your reason first, quoting what decided it. Then the label on its own line.
 """
+)
 
 
 def breakdown(measured: pd.DataFrame, metric: str, verb: str) -> None:
@@ -212,10 +218,12 @@ def main() -> int:
         print("The profile carries none of the voice sections — nothing to grade against.")
         return 1
     frame["voice"] = voice
+    # Her real writing, held out of the control set. See `ANCHORS_PER_THEME`.
+    frame["anchor"] = anchor_block()
 
     if args.dry_run:
         show(frame, judged=False)
-        print(f"\nReport: {report('voice', frame.drop(columns=['voice']), None)}")
+        print(f"\nReport: {report('voice', frame.drop(columns=['voice', 'anchor']), None)}")
         return 0
 
     llm, judge_name = judge_llm(args.judge)

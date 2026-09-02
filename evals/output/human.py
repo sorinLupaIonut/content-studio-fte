@@ -50,6 +50,7 @@ from content_studio import enable_utf8_output
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from evals.output.cases import (  # noqa: E402
+    anchor_block,
     controls_verdict,
     frame_for,
     judge_llm,
@@ -59,79 +60,137 @@ from evals.output.cases import (  # noqa: E402
 
 enable_utf8_output()
 
-#: THE LOANWORD CLAUSE IS A CORRECTION, NOT A CONCESSION. Judged on a majority
-#: of three, the rubric rejected four of her sixteen published pieces and three
-#: of them for the same reason: the phrase „people pleasing". Measured against
-#: her own corpus before the clause was written — „burnout" in 13 of 27 posts
-#: (36 times), „coach" in 18, „people pleasing" in 4 — the term is her
-#: professional vocabulary. A criterion that calls an author's own field
-#: terminology a translation artefact is wrong about the language, and fixing it
-#: is not the same as tuning until the controls pass.
+#: A CHECKLIST, NOT A JUDGEMENT, AND THE NUMBERS ARE WHY. Measured on
+#: 2026-09-01 against an Opus reading of 30 real variants, same judge and same
+#: texts for all three:
 #:
-#: EVERY EXAMPLE BELOW IS DELIBERATELY *NOT* ONE OF THE CONTROL TEXTS.
+#:   · "does it sound good?", no examples  ....  43%, caught  3 of 20 faults
+#:   · the same with five worked examples  ....  67%, caught 11 of 20
+#:   · these five checks, no examples       ....  97%, caught 20 of 20
 #:
-#: An earlier version quoted „mai puțin oboseală" — the exact phrase inside
-#: `planted-human-4` — and scored 4/4 on the planted set. That is not a metric
-#: passing, it is a rubric reciting its own answer key: the judge only had to
-#: match a string it had been handed. Stripping the anchors out entirely was
-#: tried next and went the other way, 2/4, passing the real production caption.
+#: The first was charmed by fluency: asked about a caption carrying a missing
+#: clitic, it answered „formulare concisă, idiomatică și colocvială". It was
+#: reading the whole and forming an impression, which is exactly what a fluent
+#: machine text survives.
 #:
-#: So the faults are named with DIFFERENT specimens of the same kinds. A control
-#: that passes now means the judge generalised from „mai mult energie" to „mai
-#: puțin oboseală", which is the thing actually being claimed.
-JUDGE_PROMPT = """You are reading ONE piece of Romanian social-media copy and answering
-one question: DOES IT SOUND GOOD?
+#: SO THE EXAMPLES WERE NOT WHAT WAS MISSING — the procedure was, and that
+#: settles a question this file had open. Sorin asked for no examples; the
+#: earlier repair was to add them, and it bought 24 points where naming the
+#: KINDS and forcing one pass per kind bought 54. Nothing here quotes a control,
+#: so `test_rubrics_do_not_leak.py` has nothing to catch and the metric is
+#: measuring rather than remembering.
+#:
+#: `{anchor}` IS NOT AN EXAMPLE — IT IS THE MEDIUM. The checklist above then
+#: failed its own controls, 11 of her 16 published pieces marked „translated",
+#: and three of the five rejections opened with a numbered list or a 📌. Counted
+#: over the real corpus: 46 of her 56 captions are numbered lists or points
+#: behind markers, 44 close by asking for a follow and 32 by asking the reader
+#: to save the post. Check 5 named a bolted-on closing line as assembly and
+#: check 6 named numbering as the register of a manual — so two of the six were
+#: condemning the two commonest habits of everyone who writes on this platform.
+#:
+#: The repair is the one `voice.py` already carries, and it is the same fix for
+#: a different reason. There the anchors say what SHE writes; here they say what
+#: the MEDIUM looks like when a person writes it, so that a convention is not
+#: read as a machine. The metric stays author-neutral — nothing is graded
+#: against their subject or their author, which is the whole difference between
+#: this file and `voice.py`.
+JUDGE_PROMPT = """Below is Romanian text from a social-media post — a {field}. A `hook` is one line
+and may be a fragment; a `caption` is the whole post.
 
-Not whether it is correct. Not whether it is on topic. Not whether it suits its
-author — a separate metric asks that. Only whether a Romanian reading this would
-think "a person wrote this", rather than "this was translated" or "a machine
-assembled this".
+FIRST, WHAT THIS MEDIUM LOOKS LIKE WHEN A PERSON WRITES IT — ten real posts,
+published by a Romanian woman on Instagram, copied as they went out:
 
-THE FIELD: {field}
-A `hook` is one line — the text on screen in the first two seconds of a silent
-reel, or a carousel cover. A `caption` is the post itself. A hook is allowed to
-be a fragment; that is its form, not a fault.
+{anchor}
 
-THE TEXT
+They are here so that a habit of the platform is not mistaken for a machine.
+Read them, then forget who wrote them: nothing below is graded against their
+subject, their author or their opinions. They tell you one thing only — what
+native Romanian looks like in this format.
+
+NOW THE TEXT TO JUDGE:
+
 {text}
 
-Answer "human" if it reads naturally: the phrasing is what a Romanian would
-actually say, the sentences carry each other, and nothing makes you stop and
-re-read because the words sit oddly together.
+WOULD A ROMANIAN READ THIS AND THINK A PERSON WROTE IT?
 
-Answer "translated" if any of these gives it away. The examples are only to show
-you the KIND of fault — the text in front of you will have different ones:
+Do not answer on overall impression. Confident, flowing Romanian can still carry
+one phrase that gives the machine away, and one is enough — a text that reads
+well for four sentences and slips in the fifth is not a text a person wrote.
 
-1. Agreement or form that slips. „mai mult energie" for „mai multă energie";
-   „două zi"; a feminine subject with a masculine adjective.
-2. An English expression carried across word for word. „face sens" for it makes
-   sense; „aplică pentru" a job; „sunt bun la" for I am good at.
-3. A construction Romanian does not use. „a practica ceva" where a person would
-   say „a exersa"; an infinitive where the language wants a subjunctive.
-4. Assembled rather than written. A colon followed by three bare nouns, an
-   aphorism with a dash in the middle, a list where a sentence belonged.
-5. It does not stop where a person would stop. A closing flourish bolted on
-   after the piece had already ended.
+So do not weigh it up. Go through the text phrase by phrase, and check each of
+these in turn:
 
-A BORROWED WORD IS NOT A FAULT. Romanian coaching and wellbeing writing uses
-English terms untranslated — burnout, coaching, self-care, mindset, people
-pleasing — and so does this author: „burnout" appears in thirteen of her
-twenty-seven published posts. That is vocabulary, not translationese. What makes
-a text translated is the SENTENCE built around the word, never the word itself.
-Never let a loanword decide this.
+1. A grammar word missing or wrong — a clitic, a reflexive, a negation, the
+   wrong case after a verb, an adjective that does not agree with its noun, an
+   indicative where the sentence needs an imperative or a subjunctive.
+2. An English sentence wearing Romanian words: the thought is English and the
+   words were swapped one for one.
+3. A word or a pairing of words that Romanian does not use, or uses in another
+   sense than the one meant here.
+4. A sentence that points at something that is nowhere — a step, a list, an
+   item, a number the reader has no way to reach. A caption travels with a reel
+   or a carousel, so pointing at what is ON SCREEN is not this fault; pointing
+   at «pasul 2» of a list nobody ever wrote is.
+5. Writing that was assembled rather than said — a phrase built out of
+   labels because nobody chose a verb, a sentence that lists where it should
+   say. THE SIGN-OFF IS NOT THIS FAULT: a line tacked on after the piece has
+   ended, asking the reader to save the post or to follow, is what every
+   account on this platform does, and six of the ten above do it.
+6. The register of another medium entirely — an article, a manual, a landing
+   page, a school essay — where this is one person talking to one person on
+   her phone. Announcing what the text is about to do («în acest articol vom
+   vedea») belongs to an article and never to this. A NUMBERED LIST DOES NOT:
+   seven of the ten above are numbered lists or points behind markers,
+   written by a person, and the numbering is never the fault by itself —
+   read the sentences inside it instead.
 
-ONE IS ENOUGH. Do not weigh the faults against the fluency and settle on an
-average — a caption can flow beautifully for four sentences and still have been
-assembled. If you catch yourself writing "slightly unusual", "a bit odd", or "a
-Romanian would more likely say", you have already found it: that is the answer,
-and the label is "translated". A native writer does not produce phrases their
-own readers have to excuse.
+Answer "translated" if you find one, and QUOTE IT.
 
-Spelling, punctuation and diacritics are NOT the question. Plenty of Romanians
-write without diacritics entirely; that is never a fault and never decides this.
-Judge how it SOUNDS.
+ONE TEST DECIDES WHETHER WHAT YOU FOUND COUNTS: would a Romanian STOP at it, or
+would they only have written it differently? A better phrasing exists for almost
+every sentence ever written, and finding one is not this question. What you are
+looking for is what a native would not have produced at all — a form that is
+wrong, a word that does not exist, an English sentence in Romanian clothes. If
+your reason begins «a native would rather say» and the original is merely
+plainer or more roundabout, that is a preference, and the answer is "human".
 
-Quote the phrase that decided it, then give the label on its own line.
+The one thing that trips people on this test: a translated idiom is usually
+GRAMMATICAL. A phrase carried over word for word from English can break no rule
+of Romanian at all and still be something no Romanian ever said — the sentence
+is well formed and the thought underneath it is not Romanian. That is the fault,
+not a preference, and «nothing here is incorrect» is not a reason to pass it.
+
+Answer "human" after going through all six and finding nothing that would stop
+a reader.
+
+THREE THINGS THAT NEVER DECIDE THIS, and each one has wrongly condemned her own
+published writing in an earlier version of this rubric.
+
+Borrowed English words. The vocabulary of coaching and wellbeing in Romanian is
+full of them — they take Romanian articles and endings and stand anywhere in the
+sentence, as subject, object or predicate. That is the register, not a calque,
+and it is never the fault by itself, however English the term looks.
+
+Doubled pronouns. Romanian REQUIRES the clitic even when the stressed pronoun is
+already there — «pe tine te costă», «ție ți-a spus». It is grammar, not
+redundancy, and it is one of the surest marks of a native writer. Never call it
+a pleonasm.
+
+Spelling, punctuation and diacritics. Plenty of Romanians write without
+diacritics entirely; it is never a fault and never decides this.
+
+The conventions of the platform, and only these four: a numbered list, points
+behind 📌 or ✔️, an emoji inside a sentence, and a closing line asking the reader
+to save the post or to follow. Every one is in the real posts above and a person
+wrote all of them.
+
+THIS EXCUSES THE FORMAT AND NEVER THE WORDS. A closing line is still Romanian
+and is judged as Romanian like every one above it. A slogan carried over from
+English does not become native by standing where a sign-off stands — check 2
+applies to the last line exactly as it applies to the first.
+
+Give your reason first, quoting what decided it. Then the label on its own line.
 """
 
 
@@ -221,9 +280,13 @@ def main() -> int:
         print("No case. Seed one with: uv run python evals/output/seed.py --write")
         return 1
 
+    # What the medium looks like when a person writes it, held out of the
+    # control set. See `ANCHORS_PER_THEME`.
+    frame["anchor"] = anchor_block()
+
     if args.dry_run:
         show(frame, judged=False)
-        print(f"\nReport: {report('human', frame, None)}")
+        print(f"\nReport: {report('human', frame.drop(columns=['anchor']), None)}")
         return 0
 
     llm, judge_name = judge_llm(args.judge)
@@ -245,7 +308,7 @@ def main() -> int:
             return 1
 
     show(frame, judged=True)
-    print(f"\nReport: {report('human', frame, judge_name)}")
+    print(f"\nReport: {report('human', frame.drop(columns=['anchor']), judge_name)}")
     believable, _ = controls_verdict(frame)
     return 0 if believable else 1
 

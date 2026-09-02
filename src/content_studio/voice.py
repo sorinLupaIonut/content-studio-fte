@@ -55,6 +55,41 @@ VOICE_SECTIONS = (
     "Tonul tău",
 )
 
+#: HER OWN POSTS, AND THEY ARE NOT PART OF `VOICE_SECTIONS`. The four sections
+#: above DESCRIBE her voice; this one SHOWS it. A description cannot carry a
+#: convention it never mentions, and hers are full of them: 44 of her 56
+#: published captions close by asking for a follow, 32 by asking the reader to
+#: save the post, and her profile contains neither phrase anywhere. The writer
+#: had never seen a finished post of hers, and filled the shape with the only
+#: caption shape a model knows — a numbered recipe closing on an offer.
+#:
+#: KEPT OUT OF `excerpt()` ON PURPOSE, which is why it is a separate name and
+#: not a fifth entry above. `excerpt()` is what `evals/output/voice.py` shows
+#: the JUDGE, and grading a writer on text it was handed measures copying. The
+#: writer gets specimens, the judge gets anchors, and `tests/unit/
+#: test_corpus_slices.py` keeps the two sets from overlapping.
+SPECIMEN_SECTION = "Postări scrise de tine"
+SPECIMEN_SECTION_EN = "Posts you have written"
+
+#: The shape of a closing, counted over her 56 real captions: 44 ask for a
+#: follow, 32 to save the post, 46 are numbered lists or points behind markers,
+#: and exactly one of them sells anything. The last of those is the one that had to be
+#: written down — the skill asks for an engagement question AND a CTA from her
+#: price list, so every generated caption ended on an offer.
+#:
+#: THIS IS THE PRODUCT'S RULE, NOT HERS, and that is why it lives here rather
+#: than in her profile: it reaches every client's writer through
+#: `generation.CAPTION_SHAPE`, so nothing Viorela-specific may go in it. What is
+#: hers is in her profile, and the specimens are how it travels.
+CAPTION_CLOSE = (
+    "It ends by asking for one small thing and naming it — most often to save "
+    "the post, or to follow — and where it asks a question, it asks exactly "
+    "one. Never an offer inside the post: no session, no message in private, no "
+    "writing someone's lines for them. A numbered list or a set of marked "
+    "points is a shape she uses often and is not a fault; what is a fault is a "
+    "list of lines for the reader to recite back to someone."
+)
+
 #: The same four in a profile WRITTEN in English. Verified on 2026-09-01 against
 #: the one English profile in the database — a translated profile is a supported
 #: state since 2026-08-21, and `avatar.py` records what it costs to forget that:
@@ -90,20 +125,57 @@ never as a coach on a stage. If the text would work unchanged in any other
 coach's account, it is not hers yet."""
 
 
+#: What the writer is asked to do with the specimens — READ them, not mine them.
+#: The failure this answers is not a missing rule; it is a writer that had never
+#: seen a finished post of hers and filled the shape with the only caption shape
+#: a model knows: a numbered recipe closing on an offer.
+SPECIMEN_ASK = """These are finished posts of hers. Read them before you write, and
+notice the SHAPE — where she starts, how much of herself is in it, and how it
+ends. Do not reuse their subject and do not lift a sentence out of the body:
+what carries over from there is the shape, never the words.
+
+THE LAST LINE IS THE EXCEPTION, and it is the one thing that is the same in
+every post she publishes: look at how all of them close — the same invitation,
+the same sign-off — and close yours the same way. That much is not borrowing,
+it is her signature."""
+
+
+def _section(profile: str, title: str) -> str | None:
+    """One `###` section's body, or None when the profile does not carry it."""
+    block = re.search(
+        rf"^###\s+{re.escape(title)}\s*$(.*?)(?=^###\s|\Z)",
+        profile,
+        re.MULTILINE | re.DOTALL,
+    )
+    return block.group(1).strip() if block is not None else None
+
+
 def sections_of(profile: str) -> list[str]:
     """The named sections, in order, silently skipping any that moved."""
     found: list[str] = []
     # Both languages, one pass: a profile is written in one of them, so the
     # other simply finds nothing.
     for title in (*VOICE_SECTIONS, *VOICE_SECTIONS_EN):
-        block = re.search(
-            rf"^###\s+{re.escape(title)}\s*$(.*?)(?=^###\s|\Z)",
-            profile,
-            re.MULTILINE | re.DOTALL,
-        )
-        if block is not None:
-            found.append(f"### {title}\n{block.group(1).strip()}")
+        body = _section(profile, title)
+        if body is not None:
+            found.append(f"### {title}\n{body}")
     return found
+
+
+def specimens(profile: str) -> str:
+    """Her own published posts, as written, or empty when she has none there.
+
+    Empty is a supported state, not a defect: a client who has not put finished
+    posts in her profile gets the description alone, exactly as before this
+    existed. It must never fall back to another client's writing — the reason
+    this reads the profile, which is already per-client, and not the files under
+    `content/posts/`, which are hers alone.
+    """
+    for title in (SPECIMEN_SECTION, SPECIMEN_SECTION_EN):
+        body = _section(profile, title)
+        if body:
+            return body
+    return ""
 
 
 def excerpt(profile: str) -> str:
@@ -124,10 +196,20 @@ def brief(profile: str) -> str:
     it unconditionally without leaving a dangling heading over nothing.
     """
     material = excerpt(profile)
-    if not material:
+    shown = specimens(profile)
+    if not material and not shown:
         return ""
-    return (
-        "HOW SHE WRITES — her voice, her phrases and her limits, in her own "
-        "words, copied from her brand profile:\n\n"
-        f"{material}\n\n{VOICE_ASK}"
-    )
+    parts: list[str] = []
+    if material:
+        parts.append(
+            "HOW SHE WRITES — her voice, her phrases and her limits, in her own "
+            "words, copied from her brand profile:\n\n"
+            f"{material}\n\n{VOICE_ASK}"
+        )
+    if shown:
+        parts.append(
+            "AND HERE IS WHAT A FINISHED POST OF HERS LOOKS LIKE — published, "
+            "whole, unedited:\n\n"
+            f"{shown}\n\n{SPECIMEN_ASK}"
+        )
+    return "\n\n".join(parts)

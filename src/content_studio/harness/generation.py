@@ -277,6 +277,47 @@ SOURCE_LINE = (
     "profile alone with no external source. A book title stays as printed."
 )
 
+#: THE SHAPE OF A CAPTION, ON THE FIELD, FOR THE REASON `SOURCE_LINE` IS THERE.
+#: Rule 5 again. The skill asks for a caption that „se închide cu întrebarea de
+#: engagement" and, separately, for a CTA „din secțiunea 6 a profilului" — which
+#: is her price list. The model merged the two exactly as instructed: on
+#: 2026-09-01, 15 of 15 variants from a real run closed on an offer of a session
+#: or a private message. Exactly one of her 56 published captions does that.
+#:
+#: SHOWING IS NOT ENOUGH ON ITS OWN. Her finished posts now reach the writer
+#: too (`voice.specimens`), and a specimen teaches a shape without stating a
+#: rule — the sell survived it. What a specimen cannot enforce a field
+#: description can, and it costs no retry: OpenAI applies it while the model
+#: writes.
+#:
+#: NO ROMANIAN LITERAL HERE, deliberately, and nothing about HER either: this
+#: description reaches every client's writer. What is hers lives in her profile
+#: and in `voice.CAPTION_CLOSE`.
+CAPTION_SHAPE = (
+    "The post itself, entering the hook's idea directly with no reintroduction "
+    "and written the way she would say it, not the way an article would explain "
+    "it. "
+    f"{voice.CAPTION_CLOSE} "
+    "The ask is in the language of the post. NOTHING IN IT IS LEFT TO BE FILLED "
+    "IN AFTERWARDS: no «X», no «Y», no bracket standing in for a name or a "
+    "number you did not choose — this is copied straight into Instagram, so a "
+    "placeholder is published. AND IT CARRIES ONLY ITSELF: the hashtags go on "
+    "`hashtags`, an offer goes on `cta`, where the material came from goes on "
+    "`source`. She does paste all of them into one box when she posts, but the "
+    "application keeps them apart so each can be edited on its own — a caption "
+    "that ends in a row of #tags or a provenance note has filled the wrong "
+    "field, however good the words above it are."
+)
+
+#: The offer, and the field that exists so the caption does not have to carry
+#: one. Empty of a description until 2026-09-01, which is half of why the
+#: caption grew one of its own.
+CTA_LINE = (
+    "The one call to action for this post, taken from the offers section of her "
+    "profile and matched to what the post is about. This is where an offer, a "
+    "guide or a session goes — not in the caption."
+)
+
 HASHTAG_FIELD = {
     "items": {"type": "string", "pattern": HASHTAG_PATTERN},
     "description": (
@@ -365,11 +406,11 @@ class IdeaVariant(StrictContract):
     hook_type: HookType
     hook: str = Field(min_length=3, max_length=500)
     script: str | None = Field(default=None, min_length=3, max_length=12_000)
-    caption: str = Field(min_length=3, max_length=8_000)
+    caption: str = Field(min_length=3, max_length=8_000, description=CAPTION_SHAPE)
     hashtags: list[str] = Field(
         min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
     )
-    cta: str = Field(min_length=2, max_length=1_000)
+    cta: str = Field(min_length=2, max_length=1_000, description=CTA_LINE)
     source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
     format_details: FormatDetails | None = None
 
@@ -398,11 +439,11 @@ class ProducedVariant(StrictContract):
     hook_type: HookType
     hook: str = Field(min_length=3, max_length=500)
     script: str = Field(min_length=3, max_length=12_000)
-    caption: str = Field(min_length=3, max_length=8_000)
+    caption: str = Field(min_length=3, max_length=8_000, description=CAPTION_SHAPE)
     hashtags: list[str] = Field(
         min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
     )
-    cta: str = Field(min_length=2, max_length=1_000)
+    cta: str = Field(min_length=2, max_length=1_000, description=CTA_LINE)
     source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
     format_details: FormatDetails
 
@@ -454,11 +495,15 @@ class SilentReelVariant(StrictContract):
 
     hook_type: HookType
     hook: str = Field(min_length=3, max_length=500)
-    caption: str = Field(min_length=SILENT_REEL_CAPTION_FLOOR, max_length=8_000)
+    caption: str = Field(
+        min_length=SILENT_REEL_CAPTION_FLOOR,
+        max_length=8_000,
+        description=CAPTION_SHAPE,
+    )
     hashtags: list[str] = Field(
         min_length=3, max_length=5, json_schema_extra=HASHTAG_FIELD
     )
-    cta: str = Field(min_length=2, max_length=1_000)
+    cta: str = Field(min_length=2, max_length=1_000, description=CTA_LINE)
     source: str = Field(min_length=2, max_length=2_000, description=SOURCE_LINE)
 
     @field_validator("hashtags")

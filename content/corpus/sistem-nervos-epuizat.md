@@ -1,0 +1,27 @@
+# Few-shot din corpus REAL — TEMĂ: sistem-nervos-epuizat (5 exemple)
+# Ancoră de voce + tipare (hook→reveal→caption). NU copia; scrie NOU, în vocea ei.
+
+## Exemplul 1
+HOOK: 5 lucruri mici care îți aduc pofta de viață înapoi când nu mai simți nimic
+REVEAL: —
+CAPTION: 1. Ieși 10 minute fără telefon Studiile arată că timpul în natură sau liniște reduce cortizolul (stresul) și îți calmează sistemul nervos. 2. Mișcă-ți corpul 5–10 minute Chiar și puțină mișcare crește endorfinele și dopamina (hormonii stării de bine). 3. Fă ceva doar pentru tine (fără scop) Creierul tău are nevoie de plăcere fără presiune. Asta reactivează motivația, nu „încă o sarcină”. 4. Fă un lucru mic pe care îl tot amâni Un task mic finalizat = boost de dopamină. Asta îți dă senzația de control și energie, chiar dacă e ceva simplu. 5. Conectează-te real cu cineva (chiar și 5 minute) Un mesaj sincer, un apel scurt. Oxitocina (hormonul conexiunii) îți schimbă starea mai mult decât crezi. Coaching Vindecare Emoțională Epuizare Burnout Acceptare Vindecare Femei #coaching #healingjourney #women #alive #Vindecare
+
+## Exemplul 2
+HOOK: Semnele Burnout-ului
+REVEAL: —
+CAPTION: 📌Când sistemul tău nervos e suprasolicitat, lucrurile mici nu mai sunt mici. Ele sună mai tare, apasă mai greu. Și tu… nu mai ai spațiu să le duci. De asta te irită un mesaj. De asta te enervează o întrebare simplă. De asta simți că explodezi… și apoi te simți vinovată. Dacă te-ai regăsit… salvează postarea 🤍 și urmărește-mă pentru mai multă claritate, pas cu pas. Coaching Vindecare Emoțională Epuizare Burnout Limite Femei Epuizare #coaching #women #healingjourney #healing #Vindecare
+
+## Exemplul 3
+HOOK: POV: Îți amintești că cel mai vindecător lucru pe care poți să-l faci este să încetezi să trăiești ca și când totul e urgent
+REVEAL: Te regăsești? Urmărește-mă pentru a găsi sprijin
+CAPTION: Trăiești ca și cum totul ar fi urgent. Mesaje. Așteptări. Oameni. Responsabilități. Dar corpul tău nu a fost creat să trăiască în alarmă permanentă. A fost creat să trăiască în siguranță. Vindecarea începe când nu mai tratezi fiecare moment ca pe o urgență. Când îți permiți, în sfârșit, să respiri. 📌Te regăsești? Urmărește-mă pentru a găsi sprijin. 🤍 Epuizare Vindecare emoțională Burnout Vindecare Stres #coaching #women #healingjourney #epuizare #epuizareemotionala
+
+## Exemplul 4
+HOOK: 15 moduri de a-ți regla sistemul nervos când ești în modul supraviețuire
+REVEAL: Citește descrierea
+CAPTION: 1. Respiră 4 secunde – ține 4 – expiră 6 (de 5 ori). 2. Spune cu voce joasă: „Sunt în siguranță.” 3. Ieși 5 minute la lumină naturală, fără telefon. 4. Redu stimulii – închide notificările pentru 1 oră. 5. Spune un „nu” mic în următoarele 24h. 6. Mișcă-ți corpul lent (plimbare, stretching, nu antrenament intens). 7. Bea apă conștient, nu pe fugă. 8. Ține mâna pe inimă 20 secunde și respiră. 9. Scrie 3 gânduri care te apasă, apoi întreabă-te: „Chiar sunt adevărate?” și rescriere-le sub o formă mai puțin dură. Ex. În loc de "Nu voi putea să trec peste asta" rescrie afirmația "Am nevoie de timp ca să trec peste asta" Învață să îți pui la îndoială gândurile care te apasă, nu doar să le accepți ca fiind adevărate și să le rescrii mai blând pentru mintea ta. 10. Ascultă o melodie calmă și respiră pe ritmul ei. 11. Mănâncă fără ecran, doar prezentă. 12. Spune: „Nu e o urgență.” înainte să reacționezi. 13. Fă un singur lucru odată – fără multitasking. 14. Culcă-te cu 30 minute mai devreme 3 zile la rând. 15. Adu-ți aminte: epuizarea nu este personalitatea ta. Nu trebuie să îți schimbi toată viața ca să îți schimbi creierul. Încearcă unul dintre aceste lucruri săptămâna asta și vezi ce se schimbă. ➡️La ce dorință lucrezi cel mai mult în perioada asta? Scrie în comentarii! 🤍 Dacă simți că sistemul tău nervos e obosit de ani de „trebuie”, salvează reel-ul pentru zilele în care uiți să te alegi pe tine. sistem nervos epuizat limite reset vindecare emoțională femeie epuizată pace claritate mentală burnout #coaching #women #healingjourney #burnout #epuizare
+
+## Exemplul 5
+HOOK: Sistemul meu nervos crede că e un pericol real, când de fapt doar mi-am comunicat limitele
+REVEAL: când de fapt doar mi-am comunicat
+CAPTION: Să pui limitele este cel mai greu lucru pe care poți să- dacă până acum: – nu ai făcut asta – nu ai avut grijă de tine – ai fost mereu „cea care înțelege”, „cea care tace”, „cea care se adaptează” Și nu pentru că limitele sunt greșite. Ci pentru că: 1️⃣ Sistemul tău nervos asociază limitele cu pericolul. Dacă ani la rând ai fost acceptată doar când erai „cuminte”, corpul tău a învățat că a spune ce simți = risc. 2️⃣ Ai fost condiționată să pui nevoile altora înaintea ta. Când începi să te alegi pe tine, apare vinovăția. Nu pentru că faci ceva rău, ci pentru că faci ceva nou. 3️⃣ Ți-a fost teamă că vei pierde iubirea, aprobarea sau relațiile. Pentru multe femei, limitele au însemnat cândva respingere. Azi, corpul încă își amintește. 4️⃣ Nu ai fost învățată că limitele sunt siguranță, nu egoism. Limitele nu îndepărtează oamenii potriviți. Îi filtrează. Dacă simți anxietate când spui „nu”, dacă îți bate inima mai tare când te alegi pe tine, nu e pentru că ești slabă. E pentru că ești în proces de vindecare. ✨ Limitele se învață. ✨ Corpul se recalibrează. ✨ Și siguranța se construiește pas cu pas. Salvează postarea dacă te regăsești 🤍 Follow dacă vrei să înveți să pui limite fără vinovăție. #limite #boundaries #coaching #women #healingjourney

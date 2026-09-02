@@ -486,6 +486,8 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Interface text, both languages | `ui/.../Localization/Copy.cs` | one line per phrase, never two files |
 | The English label for a domain value | `ui/.../Localization/Values.cs` | `conversations.ENGLISH_LABELS` mirrors it; `test_value_labels.py` reads the C# and holds them equal |
 | The provenance line under a post | `generation.SOURCE_LINE`, on the field | not the skill's literal, and not `SourceChoice` |
+| The shape of a caption, and the three fields it must not swallow | `generation.CAPTION_SHAPE`, on the field | not the skill — the skill asked for an engagement question AND a CTA from her price list, and the model merged them |
+| Where an offer goes | `generation.CTA_LINE`, on the field | never inside the caption |
 | Which headings a profile has | `mcp_server.PROFILE_HEADING`, `harness/profile.HEADING` | BOTH read `#{2,3}`; the tool read `##` only until 2026-08-31 and could not save one card the page offered |
 | Whether an approved write landed | `RunResponse.applied` | `status` says the AGENT finished, not that the tool succeeded |
 | A refusal the client reads | a `code` from `harness/errors.py`, worded in `Copy.cs` | never an English sentence on her page, never a Romanian one on his |
@@ -511,6 +513,7 @@ shown to someone who does not read Romanian. This does not weaken anything above
 | Which providers carry their own allowlist | `config.py` → `AUTH_SELF_PROVISION_PROVIDERS` | decided once, in `auth.py` |
 | Who owns which books | `documents.client_id` | scoped in the SQL, not in the caller |
 | How she writes — her phrases, her tone, her limits | `voice.py`, lifted from her profile | shown to the WRITER and to the JUDGE from one place; `test_voice_block.py` fails on a second copy |
+| What a finished post of hers looks like | `voice.specimens()`, her own captions, out of her profile | the WRITER only — they are the `voice` metric's positive controls, so the judge must not be handed them, and `cases.her_own` drops whatever they contain |
 | Whether what it wrote sounds like her | `evals/output/voice.py` | a rubric calibrated against her own published posts, not against taste |
 | Whether the Romanian reads as a person's | `evals/output/human.py` | the cedilla mix is free and certain; the calques need a judge |
 | Whether an output metric may be believed at all | `output/cases.py` → `controls_verdict` | her own posts must pass and planted violations must fail, or the run prints no score |
@@ -578,7 +581,8 @@ spans, so it needs no Phoenix and no time window.
 
 Both are ONE question put to a judge, and there is no rule layer beside them —
 Sorin's call, 2026-09-01. A word list was tried and measured first: her profile
-says she never uses „trebuie", and her own published posts use it 21 times. A
+says she never uses „trebuie", and her own published captions use it 24 times,
+in 13 of the 56. A
 rule read off a profile and not measured against the writing flags the author's
 best work. What that costs is written in the README: nothing now catches the
 legacy cedilla letters (`ş`/`ţ`) that real output mixes into Romanian, because a
@@ -591,6 +595,45 @@ a string match, not a measurement. `tests/unit/test_rubrics_do_not_leak.py` hold
 both rubrics to that. Stripping the examples out entirely is the other ditch —
 it took `human` from 4/4 to 2/4 and passed the real production caption. Name the
 kind of fault, with a specimen the controls do not contain.
+
+**A RUBRIC IS ANCHORED ON HER WRITING, NOT ON HER PROFILE.** Both rubrics were
+sharpened, and both then failed their own controls in the same direction —
+`voice` accepted 10 of her 16 published pieces, `human` 11 of 16. Every false
+alarm was the judge being right about the profile and wrong about her: it says
+she promises no „rețete rapide", and 46 of her 56 published captions are
+numbered lists or points behind markers. So each rubric is now handed ten of her real posts
+(`cases.anchor_block`) under one rule — where the profile and the corpus
+disagree, THE CORPUS WINS. Both metrics now stand at 4 of 4 plants caught and
+15 of 16 of her own accepted, over three passes each. The anchors are held out
+of the control set, and `tests/unit/test_corpus_slices.py` keeps the three
+slices — judge, writer, controls — from touching.
+
+They show the same ten posts for different reasons, which is worth keeping
+straight when either is edited: `voice` shows them to say what SHE writes,
+`human` to say what the MEDIUM looks like when a person writes it. That is why
+`human` tells the judge to forget who wrote them. The two are not one question
+asked twice, and it is measured: on 20 generated rows, one judge, 10 were native
+Romanian and still not hers. `voice`'s planted violations are all in flawless
+Romanian — a guarantee, a shaming line, a clinical word — and `human` passes
+every one of them by design.
+
+**AN EXCLUSION IS A HOLE, AND IT HAS TO BE THE EXACT SHAPE OF THE FALSE ALARM.**
+`human` was then told that a closing line asking the reader to save or to follow
+is a convention and not a fault — true, and 45 of her 56 captions do it. Written
+one sentence too wide, the judge read it as «closing lines are excused» and
+passed a planted calque that happened to look like a CTA: 3 of 4 over three
+passes, which voids the run. The wording now says the exclusion covers the
+FORMAT and never the words, and that check 2 applies to the last line exactly as
+to the first: 4 of 4 plants caught and 15 of 16 of her own accepted, over three
+passes. Any exclusion added here needs the same treatment — name what is
+excused, then say what is still judged.
+
+AND THE FIRST DRAFT OF THAT REPAIR QUOTED THE PLANT IT WAS FIXING, in English,
+where `test_rubrics_do_not_leak.py` could not see it — the check reads Romanian
+control text. A gloss is a quote. Say what the RULE is, never what the case was.
+
+The point underneath: **a rubric is corrected against her writing, never tuned
+until a number looks right.**
 
 The rows that would be judged, free, before paying:
 

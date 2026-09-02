@@ -625,6 +625,13 @@ def summarise(ran: dict[str, Any], rows_by_case: dict[str, dict[str, Any]]) -> l
                     {k: v for k, v in s.items() if k != "material"}
                     for s in output.get("searches") or []
                 ],
+                # The text itself, kept WHOLE. Same reason the route is kept
+                # beside its verdict: a `human` of 0.000 with nothing to read is
+                # a number nobody can act on, and the first thing anyone asks
+                # after seeing it is "show me what it wrote". It is also what
+                # gets put in front of the client when her verdict is the label
+                # being sought.
+                "written": output.get("written") or [],
                 "expected": rows_by_case.get(case, {}).get("output"),
                 "scores": graded.get(run.get("id", ""), {}),
             }

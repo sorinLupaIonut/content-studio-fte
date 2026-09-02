@@ -92,9 +92,18 @@ ALLOWED_SUBSTRINGS = (
     "Expresii pe care le folosești des",
     "Lucruri pe care nu le spui niciodată",
     "Tonul tău",
+    # The fifth heading `voice.py` looks for, added 2026-09-01. A key like the
+    # four above — it is matched against a section title she writes, so
+    # translating it here would stop the writer finding her own examples.
+    "Postări scrise de tine",
     # Shortened deliberately: the rubric wraps this line, and a fragment
     # that spans a newline matches nothing.
     "Exemple de hook-uri",
+    # Romanian grammar, shown to the judge so it stops calling required clitic
+    # doubling a pleonasm. Specimens of a RULE, not of her writing — nothing
+    # here comes from a control, which `test_rubrics_do_not_leak.py` checks.
+    "pe tine te costă",
+    "ție ți-a spus",
     # Things she types, quoted so the model recognises them.
     "dezvoltă a treia",
     "aleg varianta cu CIFRA",
