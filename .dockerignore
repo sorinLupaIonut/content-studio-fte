@@ -1,38 +1,51 @@
+# WHAT THIS FILE IS READ BY, AND THE SPELLING THAT SURVIVES BOTH READERS.
+# Docker matches `content/` and `content` alike. `az acr build` packs the
+# context with its own reader and matches NEITHER pattern with a trailing
+# slash — measured on 2026-09-02 by listing the archive it uploaded: 3,608
+# files, 2,649 of them Blazor bin/obj/dist, 20 of them the client's licensed
+# books, 142 MB. Every directory rule below had been inert on that path since
+# the file was written; only the rules without a slash (`.env` among them,
+# which is why no secret ever left) were doing anything. No trailing slashes
+# here, ever.
+
 # Secrets and local connector configuration never enter the build context.
 .env
 .env.*
 .mcp.json
 
 # Local environments and generated Python state.
-.venv/
-**/__pycache__/
+.venv
+**/__pycache__
 **/*.py[cod]
-.ruff_cache/
-.pytest_cache/
-.mypy_cache/
+.ruff_cache
+.pytest_cache
+.mypy_cache
 
 # Build products are recreated inside the image.
-ui/**/bin/
-ui/**/obj/
-ui/**/dist/
+ui/**/bin
+ui/**/obj
+ui/**/dist
 
-# Client source material stays local; production truth lives in Neon.
-content/
+# Client source material stays local; production truth lives in Neon. The books
+# are published volumes under copyright: they belong on her machine and in Neon
+# as embeddings, and nowhere else.
+content
 
 # Developer-only state and repository metadata.
-.git/
-.github/
-.claude/
-.vs/
-.vscode/
+.git
+.github
+.claude
+.vs
+.vscode
 .python-version
 AGENTS.md
 CLAUDE.md
 
 # These do not participate in the runtime image.
-docs/
-evals/
-plans/
-tests/
-ui/StudioViorela.Tests/
+docs
+evals
+plans
+tests
+nefolosite
+ui/StudioViorela.Tests
 LICENSE
